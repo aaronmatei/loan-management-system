@@ -78,6 +78,7 @@ router.post("/", async (req, res) => {
       notes,
     } = req.body;
 
+    // Validation
     if (!loan_id || !amount_paid || !payment_date || !payment_method) {
       return res.status(400).json({
         error: "Loan, amount, date, and payment method are required",
@@ -107,7 +108,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // ✅ Calculate total already paid
+    // Calculate total already paid
     const paidResult = await query(
       `SELECT COALESCE(SUM(amount_paid), 0) as total_paid 
        FROM transactions 
@@ -120,7 +121,7 @@ router.post("/", async (req, res) => {
     const currentBalance = totalDue - alreadyPaid;
     const paymentAmount = parseFloat(amount_paid);
 
-    // ✅ Calculate overpayment
+    // Calculate overpayment
     let overpayment = 0;
     let actualPaymentApplied = paymentAmount;
 
@@ -147,7 +148,7 @@ router.post("/", async (req, res) => {
         transactionCode,
         loan_id,
         loan.client_id,
-        paymentAmount, // Record full amount client paid
+        paymentAmount,
         payment_date,
         payment_method,
         payment_reference || null,
@@ -157,7 +158,7 @@ router.post("/", async (req, res) => {
 
     const transaction = txnResult.rows[0];
 
-    // Update payment schedule (only apply the amount that fits)
+    // Update payment schedule - mark pending payments as paid
     let remainingAmount = actualPaymentApplied;
     const scheduleResult = await query(
       `SELECT * FROM payment_schedules 
@@ -194,15 +195,20 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // ✅ Check if loan is fully paid + handle overpayment
-    const remainingResult = await query(
-      `SELECT COUNT(*) FROM payment_schedules 
-       WHERE loan_id = $1 AND status = 'pending'`,
+    // ✅ Recalculate totals after this payment
+    const newTotalPaidResult = await query(
+      `SELECT COALESCE(SUM(amount_paid), 0) as total_paid 
+       FROM transactions 
+       WHERE loan_id = $1 AND payment_status = 'completed'`,
       [loan_id],
     );
 
-    if (parseInt(remainingResult.rows[0].count) === 0) {
-      // ✅ Mark loan as completed and record overpayment if any
+    const newTotalPaid = parseFloat(newTotalPaidResult.rows[0].total_paid);
+    const newOverpayment = Math.max(0, newTotalPaid - totalDue);
+    const isFullyPaid = newTotalPaid >= totalDue;
+
+    // ✅ Update loan status based on actual amounts
+    if (isFullyPaid) {
       await query(
         `UPDATE loans 
          SET status = 'completed', 
@@ -210,12 +216,20 @@ router.post("/", async (req, res) => {
              refund_status = $2,
              updated_at = NOW() 
          WHERE id = $3`,
-        [overpayment, overpayment > 0 ? "pending" : null, loan_id],
+        [newOverpayment, newOverpayment > 0 ? "pending" : null, loan_id],
+      );
+
+      // Also mark any remaining pending schedules as paid
+      await query(
+        `UPDATE payment_schedules 
+         SET status = 'paid', amount_paid = amount_due, updated_at = NOW()
+         WHERE loan_id = $1 AND status = 'pending'`,
+        [loan_id],
       );
 
       logger.info(`✓ Loan ${loan.loan_code} fully paid - marked as completed`);
-      if (overpayment > 0) {
-        logger.info(`💰 Overpayment of KES ${overpayment} - refund pending`);
+      if (newOverpayment > 0) {
+        logger.info(`💰 Overpayment of KES ${newOverpayment} - refund pending`);
       }
     }
 
@@ -226,16 +240,13 @@ router.post("/", async (req, res) => {
     res.status(201).json({
       success: true,
       message:
-        overpayment > 0
-          ? `Payment recorded. Overpayment of KES ${overpayment.toFixed(2)} - refund pending.`
+        newOverpayment > 0
+          ? `Payment recorded. Overpayment of KES ${newOverpayment.toFixed(2)} - refund pending.`
           : "Payment recorded successfully",
       data: {
         ...transaction,
-        overpayment_amount: overpayment,
-        loan_status:
-          parseInt(remainingResult.rows[0].count) === 0
-            ? "completed"
-            : "active",
+        overpayment_amount: newOverpayment,
+        loan_status: isFullyPaid ? "completed" : "active",
       },
     });
   } catch (error) {
@@ -244,10 +255,9 @@ router.post("/", async (req, res) => {
   }
 });
 
-//===================================================================
-//GET LOAN SUMMARY BY ID
-//===================================================================
-
+// ============================================================
+// GET LOAN PAYMENT SUMMARY
+// ============================================================
 router.get("/loan/:loanId/summary", async (req, res) => {
   try {
     const { loanId } = req.params;
@@ -268,6 +278,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
 
     const loan = loanResult.rows[0];
 
+    // Get total paid
     const paidResult = await query(
       `SELECT COALESCE(SUM(amount_paid), 0) as total_paid 
        FROM transactions 
@@ -275,6 +286,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
       [loanId],
     );
 
+    // Get payment schedule
     const scheduleResult = await query(
       `SELECT * FROM payment_schedules 
        WHERE loan_id = $1 
@@ -282,6 +294,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
       [loanId],
     );
 
+    // Get transactions
     const transactionsResult = await query(
       `SELECT * FROM transactions 
        WHERE loan_id = $1 
@@ -318,6 +331,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch loan summary" });
   }
 });
+
 // ============================================================
 // MARK REFUND AS PAID
 // ============================================================
@@ -326,12 +340,14 @@ router.post("/refund/:loanId", async (req, res) => {
     const { loanId } = req.params;
     const { refund_method, refund_reference, refunded_date } = req.body;
 
+    // Validation
     if (!refund_method || !refunded_date) {
       return res.status(400).json({
         error: "Refund method and date are required",
       });
     }
 
+    // Get loan
     const loanResult = await query("SELECT * FROM loans WHERE id = $1", [
       loanId,
     ]);
@@ -342,6 +358,7 @@ router.post("/refund/:loanId", async (req, res) => {
 
     const loan = loanResult.rows[0];
 
+    // Check if refund is pending
     if (loan.refund_status !== "pending") {
       return res.status(400).json({
         error: "No pending refund for this loan",

@@ -584,6 +584,95 @@ function Loans() {
                   );
                 })}
               </tbody>
+
+              {/* ✅ TOTALS ROW */}
+              <tfoot className="bg-gradient-to-r from-indigo-50 to-purple-50 border-t-2 border-indigo-200">
+                <tr>
+                  <td
+                    colSpan="2"
+                    className="px-4 py-4 font-bold text-gray-800 text-sm"
+                  >
+                    📊 TOTALS ({loans.length} loans)
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold text-gray-800 text-sm">
+                      KES{" "}
+                      {loans
+                        .reduce(
+                          (sum, l) => sum + parseFloat(l.principal_amount || 0),
+                          0,
+                        )
+                        .toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold text-indigo-700 text-sm">
+                      KES{" "}
+                      {loans
+                        .reduce(
+                          (sum, l) => sum + parseFloat(l.total_amount_due || 0),
+                          0,
+                        )
+                        .toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold text-green-700 text-sm">
+                      KES{" "}
+                      {loans
+                        .reduce(
+                          (sum, l) => sum + parseFloat(l.total_paid || 0),
+                          0,
+                        )
+                        .toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold text-orange-700 text-sm">
+                      KES{" "}
+                      {loans
+                        .reduce(
+                          (sum, l) => sum + parseFloat(l.balance_due || 0),
+                          0,
+                        )
+                        .toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <div>
+                      <p className="font-bold text-purple-700 text-sm">
+                        KES{" "}
+                        {loans
+                          .reduce(
+                            (sum, l) =>
+                              sum + parseFloat(l.overpayment_amount || 0),
+                            0,
+                          )
+                          .toLocaleString()}
+                      </p>
+                      <p className="text-xs text-purple-600 mt-1">
+                        Pending: KES{" "}
+                        {loans
+                          .filter((l) => l.refund_status === "pending")
+                          .reduce(
+                            (sum, l) =>
+                              sum + parseFloat(l.overpayment_amount || 0),
+                            0,
+                          )
+                          .toLocaleString()}
+                      </p>
+                    </div>
+                  </td>
+                  <td colSpan="2" className="px-4 py-4">
+                    <p className="text-xs text-gray-600">
+                      Active:{" "}
+                      {loans.filter((l) => l.status === "active").length} •
+                      Completed:{" "}
+                      {loans.filter((l) => l.status === "completed").length}
+                    </p>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
