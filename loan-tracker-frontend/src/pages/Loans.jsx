@@ -1,0 +1,595 @@
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../services/api";
+
+function Loans() {
+  const navigate = useNavigate();
+  const [loans, setLoans] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // ✅ Client search state
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const [formData, setFormData] = useState({
+    client_id: "",
+    principal_amount: "",
+    annual_interest_rate: "12", // ✅ Per annum default 12%
+    loan_duration_months: "12",
+    start_date: new Date().toISOString().split("T")[0],
+    purpose: "",
+  });
+
+  useEffect(() => {
+    fetchLoans();
+    fetchClients();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchLoans = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/loans");
+      setLoans(response.data.data || []);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to load loans");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const response = await api.get("/clients");
+      setClients(response.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch clients:", err);
+    }
+  };
+
+  // ✅ Filter clients based on search
+  const filteredClients = clients.filter((client) => {
+    if (!clientSearch) return true;
+    const search = clientSearch.toLowerCase();
+    return (
+      client.first_name?.toLowerCase().includes(search) ||
+      client.last_name?.toLowerCase().includes(search) ||
+      client.phone_number?.includes(search) ||
+      client.email?.toLowerCase().includes(search) ||
+      client.id_number?.includes(search) ||
+      client.client_code?.toLowerCase().includes(search)
+    );
+  });
+
+  const handleSelectClient = (client) => {
+    setSelectedClient(client);
+    setFormData({ ...formData, client_id: client.id });
+    setClientSearch(`${client.first_name} ${client.last_name}`);
+    setShowDropdown(false);
+  };
+
+  const handleClearClient = () => {
+    setSelectedClient(null);
+    setFormData({ ...formData, client_id: "" });
+    setClientSearch("");
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // ✅ Live calculation with annual rate
+  const calculateLoanDetails = () => {
+    const principal = parseFloat(formData.principal_amount) || 0;
+    const annualRate = parseFloat(formData.annual_interest_rate) || 0;
+    const months = parseInt(formData.loan_duration_months) || 0;
+
+    const monthlyRate = annualRate / 12;
+    const years = months / 12;
+    const totalInterest = principal * (annualRate / 100) * years;
+    const totalAmount = principal + totalInterest;
+    const monthlyPayment = months > 0 ? totalAmount / months : 0;
+
+    return {
+      monthlyRate: monthlyRate.toFixed(2),
+      totalInterest: totalInterest.toFixed(2),
+      totalAmount: totalAmount.toFixed(2),
+      monthlyPayment: monthlyPayment.toFixed(2),
+    };
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.client_id) {
+      setError("Please select a client");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await api.post("/loans", formData);
+      setSuccess(
+        `✅ Loan ${response.data.data.loan_code} created successfully!`,
+      );
+
+      // Reset form
+      setFormData({
+        client_id: "",
+        principal_amount: "",
+        annual_interest_rate: "12",
+        loan_duration_months: "12",
+        start_date: new Date().toISOString().split("T")[0],
+        purpose: "",
+      });
+      setSelectedClient(null);
+      setClientSearch("");
+
+      setShowForm(false);
+      fetchLoans();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to create loan");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const calc = calculateLoanDetails();
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Loans</h1>
+          <p className="text-gray-600 mt-1">
+            Total: <span className="font-semibold">{loans.length}</span> loans
+          </p>
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          disabled={clients.length === 0}
+          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {showForm ? "✖ Cancel" : "+ Create Loan"}
+        </button>
+      </div>
+
+      {clients.length === 0 && !loading && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+          ⚠️ You need to add clients before creating loans. Go to Clients page
+          first.
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+          {error}
+        </div>
+      )}
+
+      {/* Create Loan Form */}
+      {showForm && (
+        <div className="bg-white rounded-xl shadow-md p-8 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Create New Loan
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* ✅ Searchable Client Dropdown */}
+            <div ref={dropdownRef} className="relative">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Select Client *
+                <span className="text-gray-500 font-normal ml-2">
+                  (Search by name, phone, email, or ID)
+                </span>
+              </label>
+
+              {selectedClient ? (
+                <div className="flex items-center gap-2 p-3 border-2 border-indigo-300 bg-indigo-50 rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-semibold text-indigo-900">
+                      {selectedClient.first_name} {selectedClient.last_name}
+                    </p>
+                    <p className="text-sm text-indigo-700">
+                      {selectedClient.client_code} •{" "}
+                      {selectedClient.phone_number}
+                      {selectedClient.email && ` • ${selectedClient.email}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearClient}
+                    className="text-red-600 hover:text-red-800 font-bold text-xl px-2"
+                  >
+                    ✖
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={(e) => {
+                      setClientSearch(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="🔍 Type to search clients..."
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+
+                  {showDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                      {filteredClients.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500">
+                          No clients found matching "{clientSearch}"
+                        </div>
+                      ) : (
+                        filteredClients.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            onClick={() => handleSelectClient(client)}
+                            className="w-full text-left p-3 hover:bg-indigo-50 border-b border-gray-100 last:border-b-0 transition"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold text-gray-800">
+                                  {client.first_name} {client.last_name}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  📱 {client.phone_number}
+                                  {client.email && ` • ✉️ ${client.email}`}
+                                </p>
+                                {client.id_number && (
+                                  <p className="text-xs text-gray-400">
+                                    ID: {client.id_number}
+                                  </p>
+                                )}
+                              </div>
+                              <span className="text-xs font-mono text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                                {client.client_code}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Amount, Annual Rate, Duration */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Principal Amount (KES) *
+                </label>
+                <input
+                  type="number"
+                  name="principal_amount"
+                  value={formData.principal_amount}
+                  onChange={handleInputChange}
+                  required
+                  min="1000"
+                  step="100"
+                  placeholder="50000"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Interest Rate (% per annum) *
+                </label>
+                <input
+                  type="number"
+                  name="annual_interest_rate"
+                  value={formData.annual_interest_rate}
+                  onChange={handleInputChange}
+                  required
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Monthly rate: {calc.monthlyRate}% (auto-calculated)
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Duration (months) *
+                </label>
+                <input
+                  type="number"
+                  name="loan_duration_months"
+                  value={formData.loan_duration_months}
+                  onChange={handleInputChange}
+                  required
+                  min="1"
+                  max="60"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Start Date *
+                </label>
+                <input
+                  type="date"
+                  name="start_date"
+                  value={formData.start_date}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Purpose
+                </label>
+                <input
+                  name="purpose"
+                  value={formData.purpose}
+                  onChange={handleInputChange}
+                  placeholder="Business expansion, school fees, etc."
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Live Calculation Preview */}
+            {formData.principal_amount && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <h3 className="font-semibold text-indigo-900 mb-3">
+                  📊 Loan Summary
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-600">Principal</p>
+                    <p className="font-bold text-gray-800">
+                      KES{" "}
+                      {parseFloat(
+                        formData.principal_amount || 0,
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Per Annum</p>
+                    <p className="font-bold text-gray-800">
+                      {formData.annual_interest_rate}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Per Month</p>
+                    <p className="font-bold text-gray-800">
+                      {calc.monthlyRate}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Total Interest</p>
+                    <p className="font-bold text-orange-600">
+                      KES {parseFloat(calc.totalInterest).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Monthly Payment</p>
+                    <p className="font-bold text-green-600">
+                      KES {parseFloat(calc.monthlyPayment).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-indigo-200">
+                  <p className="text-sm text-gray-600">
+                    Total Repayable:{" "}
+                    <span className="font-bold text-indigo-600 text-lg">
+                      KES {parseFloat(calc.totalAmount).toLocaleString()}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                disabled={submitting}
+                className="px-6 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !formData.client_id}
+                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+              >
+                {submitting ? "Creating..." : "✓ Create Loan"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Loans List */}
+      {loading ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
+          Loading loans...
+        </div>
+      ) : loans.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="text-6xl mb-4">💰</div>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            No loans yet
+          </h3>
+          <p className="text-gray-500">
+            Click "Create Loan" to issue your first loan
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <tr>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Loan Code
+                  </th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Client
+                  </th>
+                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Principal
+                  </th>
+                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Total to Pay
+                  </th>
+                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Paid
+                  </th>
+                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Balance
+                  </th>
+                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Refund Due
+                  </th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Status
+                  </th>
+                  <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                    View
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loans.map((loan) => {
+                  const totalPaid = parseFloat(loan.total_paid || 0);
+                  const totalDue = parseFloat(loan.total_amount_due);
+                  const balance = parseFloat(loan.balance_due || 0);
+                  const overpayment = parseFloat(loan.overpayment_amount || 0);
+
+                  return (
+                    <tr
+                      key={loan.id}
+                      onClick={() => navigate(`/loans/${loan.id}`)}
+                      className="border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer"
+                    >
+                      <td className="px-4 py-4 font-mono text-sm font-semibold text-indigo-600">
+                        {loan.loan_code}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">
+                            {loan.first_name} {loan.last_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {loan.phone_number}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <p className="font-semibold text-gray-800 text-sm">
+                          KES{" "}
+                          {parseFloat(loan.principal_amount).toLocaleString()}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <p className="font-bold text-indigo-600 text-sm">
+                          KES {totalDue.toLocaleString()}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <p className="font-bold text-green-600 text-sm">
+                          KES {totalPaid.toLocaleString()}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <p
+                          className={`font-bold text-sm ${balance > 0 ? "text-orange-600" : "text-green-600"}`}
+                        >
+                          KES {balance.toLocaleString()}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        {overpayment > 0 ? (
+                          <div>
+                            <p className="font-bold text-purple-600 text-sm">
+                              KES {overpayment.toLocaleString()}
+                            </p>
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
+                                loan.refund_status === "refunded"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-yellow-100 text-yellow-700"
+                              }`}
+                            >
+                              {loan.refund_status === "refunded"
+                                ? "✓ Refunded"
+                                : "⏳ Pending"}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-gray-400 text-sm">-</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                            loan.status === "active"
+                              ? "bg-green-100 text-green-700"
+                              : loan.status === "completed"
+                                ? "bg-blue-100 text-blue-700"
+                                : loan.status === "defaulted"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {loan.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="text-indigo-600 font-bold">→</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Loans;

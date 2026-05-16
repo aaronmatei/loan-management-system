@@ -1,0 +1,383 @@
+import express from "express";
+import { query } from "../config/database.js";
+import { verifyToken } from "../middleware/auth.js";
+import logger from "../config/logger.js";
+
+const router = express.Router();
+
+router.use(verifyToken);
+
+// ============================================================
+// GET ALL PAYMENTS
+// ============================================================
+router.get("/", async (req, res) => {
+  try {
+    const { loan_id, client_id, page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let queryText = `
+      SELECT 
+        t.*,
+        c.first_name,
+        c.last_name,
+        c.phone_number,
+        c.client_code,
+        l.loan_code
+      FROM transactions t
+      JOIN clients c ON t.client_id = c.id
+      JOIN loans l ON t.loan_id = l.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramCount = 0;
+
+    if (loan_id) {
+      paramCount++;
+      queryText += ` AND t.loan_id = $${paramCount}`;
+      params.push(loan_id);
+    }
+
+    if (client_id) {
+      paramCount++;
+      queryText += ` AND t.client_id = $${paramCount}`;
+      params.push(client_id);
+    }
+
+    queryText += ` ORDER BY t.payment_date DESC, t.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    params.push(limit, offset);
+
+    const result = await query(queryText, params);
+
+    const countResult = await query("SELECT COUNT(*) FROM transactions");
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
+  } catch (error) {
+    logger.error("Get payments error:", error);
+    res.status(500).json({ error: "Failed to fetch payments" });
+  }
+});
+
+// ============================================================
+// RECORD PAYMENT (with overpayment handling)
+// ============================================================
+router.post("/", async (req, res) => {
+  try {
+    const {
+      loan_id,
+      amount_paid,
+      payment_date,
+      payment_method,
+      payment_reference,
+      notes,
+    } = req.body;
+
+    if (!loan_id || !amount_paid || !payment_date || !payment_method) {
+      return res.status(400).json({
+        error: "Loan, amount, date, and payment method are required",
+      });
+    }
+
+    // Get loan details
+    const loanResult = await query("SELECT * FROM loans WHERE id = $1", [
+      loan_id,
+    ]);
+
+    if (loanResult.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+
+    const loan = loanResult.rows[0];
+
+    if (loan.status === "completed") {
+      return res.status(400).json({
+        error: "This loan is already fully paid. Cannot record more payments.",
+      });
+    }
+
+    if (loan.status !== "active") {
+      return res.status(400).json({
+        error: `Cannot record payment on ${loan.status} loan`,
+      });
+    }
+
+    // ✅ Calculate total already paid
+    const paidResult = await query(
+      `SELECT COALESCE(SUM(amount_paid), 0) as total_paid 
+       FROM transactions 
+       WHERE loan_id = $1 AND payment_status = 'completed'`,
+      [loan_id],
+    );
+
+    const alreadyPaid = parseFloat(paidResult.rows[0].total_paid);
+    const totalDue = parseFloat(loan.total_amount_due);
+    const currentBalance = totalDue - alreadyPaid;
+    const paymentAmount = parseFloat(amount_paid);
+
+    // ✅ Calculate overpayment
+    let overpayment = 0;
+    let actualPaymentApplied = paymentAmount;
+
+    if (paymentAmount > currentBalance) {
+      overpayment = paymentAmount - currentBalance;
+      actualPaymentApplied = currentBalance;
+    }
+
+    // Generate transaction code
+    const year = new Date().getFullYear();
+    const countResult = await query("SELECT COUNT(*) FROM transactions");
+    const txnCount = parseInt(countResult.rows[0].count) + 1;
+    const transactionCode = `TXN-${year}-${String(txnCount).padStart(5, "0")}`;
+
+    // Record the transaction (full amount paid by client)
+    const txnResult = await query(
+      `INSERT INTO transactions (
+        transaction_code, loan_id, client_id, amount_paid,
+        payment_date, payment_method, payment_reference,
+        payment_status, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'completed', $8)
+      RETURNING *`,
+      [
+        transactionCode,
+        loan_id,
+        loan.client_id,
+        paymentAmount, // Record full amount client paid
+        payment_date,
+        payment_method,
+        payment_reference || null,
+        notes || null,
+      ],
+    );
+
+    const transaction = txnResult.rows[0];
+
+    // Update payment schedule (only apply the amount that fits)
+    let remainingAmount = actualPaymentApplied;
+    const scheduleResult = await query(
+      `SELECT * FROM payment_schedules 
+       WHERE loan_id = $1 AND status = 'pending'
+       ORDER BY payment_number ASC`,
+      [loan_id],
+    );
+
+    for (const schedule of scheduleResult.rows) {
+      if (remainingAmount <= 0) break;
+
+      const amountDue = parseFloat(schedule.amount_due);
+      const alreadyPaidOnSchedule = parseFloat(schedule.amount_paid || 0);
+      const stillOwed = amountDue - alreadyPaidOnSchedule;
+
+      if (remainingAmount >= stillOwed) {
+        // Full payment of this installment
+        await query(
+          `UPDATE payment_schedules 
+           SET amount_paid = $1, status = 'paid', actual_payment_date = $2, updated_at = NOW()
+           WHERE id = $3`,
+          [amountDue, payment_date, schedule.id],
+        );
+        remainingAmount -= stillOwed;
+      } else {
+        // Partial payment
+        await query(
+          `UPDATE payment_schedules 
+           SET amount_paid = $1, updated_at = NOW()
+           WHERE id = $2`,
+          [alreadyPaidOnSchedule + remainingAmount, schedule.id],
+        );
+        remainingAmount = 0;
+      }
+    }
+
+    // ✅ Check if loan is fully paid + handle overpayment
+    const remainingResult = await query(
+      `SELECT COUNT(*) FROM payment_schedules 
+       WHERE loan_id = $1 AND status = 'pending'`,
+      [loan_id],
+    );
+
+    if (parseInt(remainingResult.rows[0].count) === 0) {
+      // ✅ Mark loan as completed and record overpayment if any
+      await query(
+        `UPDATE loans 
+         SET status = 'completed', 
+             overpayment_amount = $1,
+             refund_status = $2,
+             updated_at = NOW() 
+         WHERE id = $3`,
+        [overpayment, overpayment > 0 ? "pending" : null, loan_id],
+      );
+
+      logger.info(`✓ Loan ${loan.loan_code} fully paid - marked as completed`);
+      if (overpayment > 0) {
+        logger.info(`💰 Overpayment of KES ${overpayment} - refund pending`);
+      }
+    }
+
+    logger.info(
+      `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,
+    );
+
+    res.status(201).json({
+      success: true,
+      message:
+        overpayment > 0
+          ? `Payment recorded. Overpayment of KES ${overpayment.toFixed(2)} - refund pending.`
+          : "Payment recorded successfully",
+      data: {
+        ...transaction,
+        overpayment_amount: overpayment,
+        loan_status:
+          parseInt(remainingResult.rows[0].count) === 0
+            ? "completed"
+            : "active",
+      },
+    });
+  } catch (error) {
+    logger.error("Record payment error:", error);
+    res.status(500).json({ error: "Failed to record payment" });
+  }
+});
+
+//===================================================================
+//GET LOAN SUMMARY BY ID
+//===================================================================
+
+router.get("/loan/:loanId/summary", async (req, res) => {
+  try {
+    const { loanId } = req.params;
+
+    const loanResult = await query(
+      `SELECT 
+        l.*,
+        c.first_name, c.last_name, c.phone_number, c.client_code, c.email
+      FROM loans l
+      JOIN clients c ON l.client_id = c.id
+      WHERE l.id = $1`,
+      [loanId],
+    );
+
+    if (loanResult.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+
+    const loan = loanResult.rows[0];
+
+    const paidResult = await query(
+      `SELECT COALESCE(SUM(amount_paid), 0) as total_paid 
+       FROM transactions 
+       WHERE loan_id = $1 AND payment_status = 'completed'`,
+      [loanId],
+    );
+
+    const scheduleResult = await query(
+      `SELECT * FROM payment_schedules 
+       WHERE loan_id = $1 
+       ORDER BY payment_number ASC`,
+      [loanId],
+    );
+
+    const transactionsResult = await query(
+      `SELECT * FROM transactions 
+       WHERE loan_id = $1 
+       ORDER BY payment_date DESC`,
+      [loanId],
+    );
+
+    const totalPaid = parseFloat(paidResult.rows[0].total_paid);
+    const totalDue = parseFloat(loan.total_amount_due);
+    const overpayment = parseFloat(loan.overpayment_amount || 0);
+    const balance = Math.max(0, totalDue - totalPaid);
+
+    res.json({
+      success: true,
+      data: {
+        loan,
+        summary: {
+          total_due: totalDue,
+          total_paid: totalPaid,
+          balance: balance,
+          overpayment: overpayment,
+          refund_status: loan.refund_status,
+          progress_percentage: (
+            (Math.min(totalPaid, totalDue) / totalDue) *
+            100
+          ).toFixed(1),
+        },
+        schedule: scheduleResult.rows,
+        transactions: transactionsResult.rows,
+      },
+    });
+  } catch (error) {
+    logger.error("Get loan summary error:", error);
+    res.status(500).json({ error: "Failed to fetch loan summary" });
+  }
+});
+// ============================================================
+// MARK REFUND AS PAID
+// ============================================================
+router.post("/refund/:loanId", async (req, res) => {
+  try {
+    const { loanId } = req.params;
+    const { refund_method, refund_reference, refunded_date } = req.body;
+
+    if (!refund_method || !refunded_date) {
+      return res.status(400).json({
+        error: "Refund method and date are required",
+      });
+    }
+
+    const loanResult = await query("SELECT * FROM loans WHERE id = $1", [
+      loanId,
+    ]);
+
+    if (loanResult.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+
+    const loan = loanResult.rows[0];
+
+    if (loan.refund_status !== "pending") {
+      return res.status(400).json({
+        error: "No pending refund for this loan",
+      });
+    }
+
+    if (parseFloat(loan.overpayment_amount) <= 0) {
+      return res.status(400).json({
+        error: "No overpayment to refund",
+      });
+    }
+
+    // Update loan with refund details
+    await query(
+      `UPDATE loans 
+       SET refund_status = 'refunded',
+           refund_method = $1,
+           refund_reference = $2,
+           refunded_date = $3,
+           updated_at = NOW()
+       WHERE id = $4`,
+      [refund_method, refund_reference || null, refunded_date, loanId],
+    );
+
+    logger.info(
+      `✓ Refund processed for loan ${loan.loan_code}: KES ${loan.overpayment_amount}`,
+    );
+
+    res.json({
+      success: true,
+      message: `Refund of KES ${loan.overpayment_amount} marked as paid`,
+    });
+  } catch (error) {
+    logger.error("Process refund error:", error);
+    res.status(500).json({ error: "Failed to process refund" });
+  }
+});
+
+export default router;

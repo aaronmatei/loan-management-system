@@ -1,0 +1,31 @@
+# Dependencies
+**/node_modules/
+**/.pnp
+**/.pnp.js
+
+# Environment
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Logs
+**/logs/
+**/*.log
+npm-debug.log*
+
+# Builds
+**/dist/
+**/build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Database
+*.sql.backup
+*.dump
