@@ -85,7 +85,7 @@ function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {metrics.overdue_count > 0 && (
             <div
-              onClick={() => navigate("/loans")}
+              onClick={() => navigate("/overdue")}
               className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg cursor-pointer hover:bg-red-100 transition"
             >
               <div className="flex items-center justify-between">
@@ -98,10 +98,36 @@ function Dashboard() {
                   </p>
                   <p className="text-sm text-red-600 mt-1">
                     KES {metrics.overdue_amount.toLocaleString()} pending
+                    {metrics.overdue_loans > 0 &&
+                      ` • ${metrics.overdue_loans} loans`}
                   </p>
                 </div>
                 <span className="text-3xl">⚠️</span>
               </div>
+
+              {(metrics.most_overdue || []).length > 0 && (
+                <div className="mt-3 pt-3 border-t border-red-200 space-y-1">
+                  {(metrics.most_overdue || []).slice(0, 3).map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex justify-between items-center text-xs"
+                    >
+                      <span className="font-medium text-red-800">
+                        {p.first_name} {p.last_name}
+                      </span>
+                      <span className="text-red-600">
+                        {p.days_late} days • KES{" "}
+                        {parseFloat(
+                          p.amount_outstanding || 0,
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                  <p className="text-xs text-red-500 font-semibold pt-1">
+                    View all overdue →
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

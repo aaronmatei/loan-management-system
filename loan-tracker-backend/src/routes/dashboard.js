@@ -44,14 +44,44 @@ router.get("/summary", async (req, res) => {
       FROM clients
     `);
 
-    // Get overdue payments
+    // Get overdue payments (covers both freshly past-due 'pending'
+    // installments and those already promoted to 'overdue')
     const overdueStats = await query(`
-      SELECT 
+      SELECT
         COUNT(*) as overdue_count,
+        COUNT(DISTINCT loan_id) as overdue_loans,
         COALESCE(SUM(amount_due - COALESCE(amount_paid, 0)), 0) as overdue_amount
       FROM payment_schedules
-      WHERE status = 'pending' 
-        AND due_date < CURRENT_DATE
+      WHERE (
+              status = 'overdue'
+              OR (status = 'pending' AND due_date < CURRENT_DATE)
+            )
+        AND amount_due > COALESCE(amount_paid, 0)
+    `);
+
+    // Top 5 most overdue payments with client info
+    const mostOverdue = await query(`
+      SELECT
+        ps.id,
+        ps.loan_id,
+        ps.payment_number,
+        ps.due_date,
+        (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS amount_outstanding,
+        (CURRENT_DATE - ps.due_date::date) AS days_late,
+        l.loan_code,
+        c.first_name,
+        c.last_name,
+        c.phone_number
+      FROM payment_schedules ps
+      JOIN loans l ON ps.loan_id = l.id
+      JOIN clients c ON l.client_id = c.id
+      WHERE (
+              ps.status = 'overdue'
+              OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
+            )
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)
+      ORDER BY days_late DESC
+      LIMIT 5
     `);
 
     // Get upcoming payments (next 7 days)
@@ -103,7 +133,9 @@ router.get("/summary", async (req, res) => {
 
         // Alerts
         overdue_count: parseInt(overdueData.overdue_count),
+        overdue_loans: parseInt(overdueData.overdue_loans),
         overdue_amount: parseFloat(overdueData.overdue_amount),
+        most_overdue: mostOverdue.rows,
         upcoming_count: parseInt(upcomingData.upcoming_count),
         upcoming_amount: parseFloat(upcomingData.upcoming_amount),
         pending_refunds: parseInt(loansData.pending_refunds),

@@ -1,19 +1,42 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import api from "../services/api";
 
 function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [overdueCount, setOverdueCount] = useState(0);
 
   const isActive = (path) => location.pathname === path;
+
+  useEffect(() => {
+    let mounted = true;
+    api
+      .get("/overdue")
+      .then((res) => {
+        if (mounted) setOverdueCount(res.data.summary?.total_overdue || 0);
+      })
+      .catch(() => {
+        /* badge is best-effort; ignore failures */
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const menuItems = [
     { path: "/", label: "Dashboard", icon: "📊" },
     { path: "/clients", label: "Clients", icon: "👥" },
     { path: "/loans", label: "Loans", icon: "💰" },
     { path: "/payments", label: "Payments", icon: "💵" },
+    {
+      path: "/overdue",
+      label: "Overdue",
+      icon: "⚠️",
+      badge: overdueCount,
+    },
   ];
 
   return (
@@ -37,7 +60,14 @@ function Layout({ children }) {
                 }`}
               >
                 <span className="text-xl">{item.icon}</span>
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium flex-1 text-left">
+                  {item.label}
+                </span>
+                {item.badge > 0 && (
+                  <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">
+                    {item.badge}
+                  </span>
+                )}
               </button>
             </li>
           ))}

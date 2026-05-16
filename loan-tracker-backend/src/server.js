@@ -13,6 +13,8 @@ import clientRoutes from "./routes/clients.js";
 import loanRoutes from "./routes/loans.js";
 import paymentRoutes from "./routes/payments.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import overdueRoutes from "./routes/overdue.js";
+import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
 
@@ -54,6 +56,7 @@ app.use("/api/clients", clientRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/overdue", overdueRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -76,4 +79,11 @@ app.listen(PORT, () => {
   console.log(
     `✓ CORS enabled for: http://localhost:5173, http://localhost:5174`,
   );
+
+  // Keep overdue payment statuses up-to-date on every startup
+  runOverdueCheck()
+    .then((count) =>
+      console.log(`✓ Startup overdue check: ${count} payment(s) marked`),
+    )
+    .catch((err) => logger.error("Startup overdue check failed:", err));
 });
