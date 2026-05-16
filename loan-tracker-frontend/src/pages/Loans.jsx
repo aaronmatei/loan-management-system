@@ -12,6 +12,13 @@ function Loans() {
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // ✅ Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState({
+    status: "all",
+    refundStatus: "all",
+  });
+
   // ✅ Client search state
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
@@ -156,6 +163,65 @@ function Loans() {
   };
 
   const calc = calculateLoanDetails();
+
+  // ✅ Counts for dropdown labels (always based on the full list)
+  const statusCounts = {
+    all: loans.length,
+    active: loans.filter((l) => l.status === "active").length,
+    completed: loans.filter((l) => l.status === "completed").length,
+    defaulted: loans.filter((l) => l.status === "defaulted").length,
+  };
+
+  const refundCounts = {
+    all: loans.length,
+    pending: loans.filter((l) => l.refund_status === "pending").length,
+    refunded: loans.filter((l) => l.refund_status === "refunded").length,
+    none: loans.filter((l) => !l.refund_status).length,
+  };
+
+  // ✅ Apply all filters in combination (AND logic), client-side
+  const filteredLoans = loans.filter((loan) => {
+    // Search: loan code, client first/last name, or phone number
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const haystack = [
+        loan.loan_code,
+        loan.first_name,
+        loan.last_name,
+        loan.phone_number,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+
+    // Status filter ('all' disables it)
+    if (filters.status !== "all" && loan.status !== filters.status) {
+      return false;
+    }
+
+    // Refund status filter ('all' disables it; 'none' = no refund due)
+    if (filters.refundStatus !== "all") {
+      if (filters.refundStatus === "none") {
+        if (loan.refund_status) return false;
+      } else if (loan.refund_status !== filters.refundStatus) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const filtersActive =
+    searchQuery.trim() !== "" ||
+    filters.status !== "all" ||
+    filters.refundStatus !== "all";
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilters({ status: "all", refundStatus: "all" });
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -441,6 +507,151 @@ function Loans() {
         </div>
       )}
 
+      {/* ✅ Filter Bar */}
+      {!loading && loans.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <div className="flex flex-wrap items-end gap-4">
+            {/* Search */}
+            <div className="flex-1 min-w-[220px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Search
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  🔍
+                </span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Loan code, client name, or phone..."
+                  className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="min-w-[180px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                value={filters.status}
+                onChange={(e) =>
+                  setFilters({ ...filters, status: e.target.value })
+                }
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              >
+                <option value="all">All Statuses ({statusCounts.all})</option>
+                <option value="active">
+                  🟢 Active ({statusCounts.active})
+                </option>
+                <option value="completed">
+                  🔵 Completed ({statusCounts.completed})
+                </option>
+                <option value="defaulted">
+                  🔴 Defaulted ({statusCounts.defaulted})
+                </option>
+              </select>
+            </div>
+
+            {/* Refund Status */}
+            <div className="min-w-[200px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Refund Status
+              </label>
+              <select
+                value={filters.refundStatus}
+                onChange={(e) =>
+                  setFilters({ ...filters, refundStatus: e.target.value })
+                }
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              >
+                <option value="all">All Refunds ({refundCounts.all})</option>
+                <option value="pending">
+                  ⏳ Pending Refund ({refundCounts.pending})
+                </option>
+                <option value="refunded">
+                  ✅ Refunded ({refundCounts.refunded})
+                </option>
+                <option value="none">No Refund ({refundCounts.none})</option>
+              </select>
+            </div>
+
+            {/* Clear */}
+            {filtersActive && (
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+              >
+                ✖ Clear
+              </button>
+            )}
+          </div>
+
+          {/* Active Filter Tags */}
+          {filtersActive && (
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+              <span className="text-sm text-gray-500">
+                Showing{" "}
+                <span className="font-semibold text-gray-800">
+                  {filteredLoans.length}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-gray-800">
+                  {loans.length}
+                </span>{" "}
+                loans
+              </span>
+
+              {searchQuery.trim() && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                  Search: "{searchQuery.trim()}"
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="hover:text-blue-900"
+                    aria-label="Remove search filter"
+                  >
+                    ✖
+                  </button>
+                </span>
+              )}
+
+              {filters.status !== "all" && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                  Status: {filters.status}
+                  <button
+                    onClick={() => setFilters({ ...filters, status: "all" })}
+                    className="hover:text-green-900"
+                    aria-label="Remove status filter"
+                  >
+                    ✖
+                  </button>
+                </span>
+              )}
+
+              {filters.refundStatus !== "all" && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                  Refund:{" "}
+                  {filters.refundStatus === "none"
+                    ? "No Refund"
+                    : filters.refundStatus}
+                  <button
+                    onClick={() =>
+                      setFilters({ ...filters, refundStatus: "all" })
+                    }
+                    className="hover:text-purple-900"
+                    aria-label="Remove refund filter"
+                  >
+                    ✖
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Loans List */}
       {loading ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
@@ -455,6 +666,22 @@ function Loans() {
           <p className="text-gray-500">
             Click "Create Loan" to issue your first loan
           </p>
+        </div>
+      ) : filteredLoans.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="text-6xl mb-4">🔍</div>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            No loans match your filters
+          </h3>
+          <p className="text-gray-500 mb-4">
+            Try adjusting your search or filter criteria
+          </p>
+          <button
+            onClick={clearFilters}
+            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+          >
+            ✖ Clear Filters
+          </button>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
@@ -492,7 +719,7 @@ function Loans() {
                 </tr>
               </thead>
               <tbody>
-                {loans.map((loan) => {
+                {filteredLoans.map((loan) => {
                   const totalPaid = parseFloat(loan.total_paid || 0);
                   const totalDue = parseFloat(loan.total_amount_due);
                   const balance = parseFloat(loan.balance_due || 0);
@@ -592,12 +819,12 @@ function Loans() {
                     colSpan="2"
                     className="px-4 py-4 font-bold text-gray-800 text-sm"
                   >
-                    📊 TOTALS ({loans.length} loans)
+                    📊 TOTALS ({filteredLoans.length} loans)
                   </td>
                   <td className="px-4 py-4 text-right">
                     <p className="font-bold text-gray-800 text-sm">
                       KES{" "}
-                      {loans
+                      {filteredLoans
                         .reduce(
                           (sum, l) => sum + parseFloat(l.principal_amount || 0),
                           0,
@@ -608,7 +835,7 @@ function Loans() {
                   <td className="px-4 py-4 text-right">
                     <p className="font-bold text-indigo-700 text-sm">
                       KES{" "}
-                      {loans
+                      {filteredLoans
                         .reduce(
                           (sum, l) => sum + parseFloat(l.total_amount_due || 0),
                           0,
@@ -619,7 +846,7 @@ function Loans() {
                   <td className="px-4 py-4 text-right">
                     <p className="font-bold text-green-700 text-sm">
                       KES{" "}
-                      {loans
+                      {filteredLoans
                         .reduce(
                           (sum, l) => sum + parseFloat(l.total_paid || 0),
                           0,
@@ -630,7 +857,7 @@ function Loans() {
                   <td className="px-4 py-4 text-right">
                     <p className="font-bold text-orange-700 text-sm">
                       KES{" "}
-                      {loans
+                      {filteredLoans
                         .reduce(
                           (sum, l) => sum + parseFloat(l.balance_due || 0),
                           0,
@@ -642,7 +869,7 @@ function Loans() {
                     <div>
                       <p className="font-bold text-purple-700 text-sm">
                         KES{" "}
-                        {loans
+                        {filteredLoans
                           .reduce(
                             (sum, l) =>
                               sum + parseFloat(l.overpayment_amount || 0),
@@ -652,7 +879,7 @@ function Loans() {
                       </p>
                       <p className="text-xs text-purple-600 mt-1">
                         Pending: KES{" "}
-                        {loans
+                        {filteredLoans
                           .filter((l) => l.refund_status === "pending")
                           .reduce(
                             (sum, l) =>
@@ -666,9 +893,13 @@ function Loans() {
                   <td colSpan="2" className="px-4 py-4">
                     <p className="text-xs text-gray-600">
                       Active:{" "}
-                      {loans.filter((l) => l.status === "active").length} •
-                      Completed:{" "}
-                      {loans.filter((l) => l.status === "completed").length}
+                      {filteredLoans.filter((l) => l.status === "active")
+                        .length}{" "}
+                      • Completed:{" "}
+                      {
+                        filteredLoans.filter((l) => l.status === "completed")
+                          .length
+                      }
                     </p>
                   </td>
                 </tr>
