@@ -10,6 +10,10 @@ function Payments() {
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
   // Loan search
   const [loanSearch, setLoanSearch] = useState("");
   const [selectedLoan, setSelectedLoan] = useState(null);
@@ -146,6 +150,12 @@ function Payments() {
       setSubmitting(false);
     }
   };
+
+  // Pagination math (same pattern as Clients/Overdue pages)
+  const totalPages = Math.ceil(payments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPayments = payments.slice(startIndex, endIndex);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -477,7 +487,7 @@ function Payments() {
               </tr>
             </thead>
             <tbody>
-              {payments.map((payment) => (
+              {paginatedPayments.map((payment) => (
                 <tr
                   key={payment.id}
                   className="border-b border-gray-100 hover:bg-gray-50 transition"
@@ -516,6 +526,71 @@ function Payments() {
               ))}
             </tbody>
           </table>
+
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
+                to{" "}
+                <span className="font-semibold">
+                  {Math.min(endIndex, payments.length)}
+                </span>{" "}
+                of <span className="font-semibold">{payments.length}</span>{" "}
+                results
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  ← Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(
+                      (page) =>
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 2 && page <= currentPage + 2),
+                    )
+                    .map((page, idx, arr) => {
+                      const showEllipsisBefore =
+                        idx > 0 && page - arr[idx - 1] > 1;
+                      return (
+                        <React.Fragment key={page}>
+                          {showEllipsisBefore && (
+                            <span className="px-2 text-gray-400">...</span>
+                          )}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+                              currentPage === page
+                                ? "bg-green-600 text-white"
+                                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

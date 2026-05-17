@@ -12,7 +12,7 @@ router.use(verifyToken);
 // ============================================================
 router.get("/", async (req, res) => {
   try {
-    const { loan_id, client_id, page = 1, limit = 50 } = req.query;
+    const { loan_id, client_id, page = 1, limit = 10000 } = req.query;
     const offset = (page - 1) * limit;
 
     let queryText = `

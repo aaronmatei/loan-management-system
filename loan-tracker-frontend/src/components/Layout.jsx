@@ -14,9 +14,9 @@ function Layout({ children }) {
   useEffect(() => {
     let mounted = true;
     api
-      .get("/overdue")
+      .get("/dashboard/summary")
       .then((res) => {
-        if (mounted) setOverdueCount(res.data.summary?.total_overdue || 0);
+        if (mounted) setOverdueCount(res.data.data?.overdue_count || 0);
       })
       .catch(() => {
         /* badge is best-effort; ignore failures */

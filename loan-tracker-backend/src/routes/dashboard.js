@@ -49,14 +49,16 @@ router.get("/summary", async (req, res) => {
     const overdueStats = await query(`
       SELECT
         COUNT(*) as overdue_count,
-        COUNT(DISTINCT loan_id) as overdue_loans,
-        COALESCE(SUM(amount_due - COALESCE(amount_paid, 0)), 0) as overdue_amount
-      FROM payment_schedules
+        COUNT(DISTINCT ps.loan_id) as overdue_loans,
+        COUNT(DISTINCT l.client_id) as overdue_clients,
+        COALESCE(SUM(ps.amount_due - COALESCE(ps.amount_paid, 0)), 0) as overdue_amount
+      FROM payment_schedules ps
+      JOIN loans l ON ps.loan_id = l.id
       WHERE (
-              status = 'overdue'
-              OR (status = 'pending' AND due_date < CURRENT_DATE)
+              ps.status = 'overdue'
+              OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
             )
-        AND amount_due > COALESCE(amount_paid, 0)
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)
     `);
 
     // Top 5 most overdue payments with client info
@@ -134,6 +136,7 @@ router.get("/summary", async (req, res) => {
         // Alerts
         overdue_count: parseInt(overdueData.overdue_count),
         overdue_loans: parseInt(overdueData.overdue_loans),
+        overdue_clients_count: parseInt(overdueData.overdue_clients),
         overdue_amount: parseFloat(overdueData.overdue_amount),
         most_overdue: mostOverdue.rows,
         upcoming_count: parseInt(upcomingData.upcoming_count),
