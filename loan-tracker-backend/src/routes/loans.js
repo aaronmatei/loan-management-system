@@ -151,6 +151,49 @@ router.post("/", async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
+    // ✅ Client credit eligibility: block risky lending
+    const clientLoans = await query(
+      `SELECT status FROM loans WHERE client_id = $1`,
+      [client_id],
+    );
+
+    const activeLoans = clientLoans.rows.filter(
+      (l) => l.status === "active",
+    ).length;
+    const defaultedLoans = clientLoans.rows.filter(
+      (l) => l.status === "defaulted",
+    ).length;
+
+    const overdueCheck = await query(
+      `SELECT COUNT(*) AS overdue_count
+       FROM payment_schedules ps
+       JOIN loans l ON ps.loan_id = l.id
+       WHERE l.client_id = $1 AND ps.status = 'overdue'`,
+      [client_id],
+    );
+    const overdueCount = parseInt(overdueCheck.rows[0].overdue_count, 10);
+
+    if (defaultedLoans > 0) {
+      return res.status(400).json({
+        error: "Client has defaulted loans. Cannot issue new loan.",
+        blocker: "defaulted_loans",
+      });
+    }
+
+    if (overdueCount > 0) {
+      return res.status(400).json({
+        error: `Client has ${overdueCount} overdue payment(s). Must clear before new loan.`,
+        blocker: "overdue_payments",
+      });
+    }
+
+    if (activeLoans >= 3) {
+      return res.status(400).json({
+        error: "Client has reached maximum of 3 active loans.",
+        blocker: "max_active_loans",
+      });
+    }
+
     // ✅ Capital pool guard: cannot lend more than what's available
     const poolCheck = await query(`
       SELECT

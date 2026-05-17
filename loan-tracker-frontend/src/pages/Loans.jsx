@@ -12,6 +12,7 @@ function Loans() {
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [poolStatus, setPoolStatus] = useState(null);
+  const [clientCreditProfile, setClientCreditProfile] = useState(null);
 
   // ✅ Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,17 +103,26 @@ function Loans() {
     );
   });
 
-  const handleSelectClient = (client) => {
+  const handleSelectClient = async (client) => {
     setSelectedClient(client);
     setFormData({ ...formData, client_id: client.id });
     setClientSearch(`${client.first_name} ${client.last_name}`);
     setShowDropdown(false);
+    setClientCreditProfile(null);
+
+    try {
+      const response = await api.get(`/clients/${client.id}/credit-profile`);
+      setClientCreditProfile(response.data.data);
+    } catch (err) {
+      console.error("Failed to fetch credit profile:", err);
+    }
   };
 
   const handleClearClient = () => {
     setSelectedClient(null);
     setFormData({ ...formData, client_id: "" });
     setClientSearch("");
+    setClientCreditProfile(null);
   };
 
   const handleInputChange = (e) => {
@@ -168,6 +178,7 @@ function Loans() {
       });
       setSelectedClient(null);
       setClientSearch("");
+      setClientCreditProfile(null);
 
       setShowForm(false);
       fetchLoans();
@@ -395,6 +406,66 @@ function Loans() {
               )}
             </div>
 
+            {clientCreditProfile && (
+              <div
+                className={`rounded-lg p-4 ${
+                  clientCreditProfile.eligibility.can_borrow
+                    ? "bg-green-50 border border-green-200"
+                    : "bg-red-50 border border-red-200"
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-gray-800">
+                      Credit Score:
+                      <span
+                        className={`ml-2 ${
+                          clientCreditProfile.credit_score >= 80
+                            ? "text-green-600"
+                            : clientCreditProfile.credit_score >= 60
+                              ? "text-yellow-600"
+                              : "text-red-600"
+                        }`}
+                      >
+                        {clientCreditProfile.credit_score}/100
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {clientCreditProfile.summary.total_loans_count} loans
+                      total •{" "}
+                      {clientCreditProfile.summary.on_time_rate.toFixed(0)}%
+                      on-time rate
+                    </p>
+
+                    {!clientCreditProfile.eligibility.can_borrow && (
+                      <div className="mt-2">
+                        <p className="font-semibold text-red-700">
+                          ⚠️ Cannot create loan:
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-red-600 mt-1">
+                          {clientCreditProfile.eligibility.blockers.map(
+                            (b, i) => (
+                              <li key={i}>{b}</li>
+                            ),
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {clientCreditProfile.eligibility.can_borrow && (
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Recommended max</p>
+                      <p className="font-bold text-green-700">
+                        KES{" "}
+                        {clientCreditProfile.eligibility.max_recommended_amount.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Amount, Annual Rate, Duration */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -553,6 +624,8 @@ function Loans() {
                 disabled={
                   submitting ||
                   !formData.client_id ||
+                  (clientCreditProfile &&
+                    !clientCreditProfile.eligibility.can_borrow) ||
                   (poolStatus &&
                     formData.principal_amount &&
                     parseFloat(formData.principal_amount) >

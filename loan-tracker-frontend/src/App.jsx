@@ -13,6 +13,7 @@ import Loans from "./pages/Loans";
 import LoanDetails from "./pages/LoanDetails";
 import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
+import ClientProfile from "./pages/ClientProfile";
 import Layout from "./components/Layout";
 
 function App() {
@@ -45,6 +46,10 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clients" element={<Clients />} />
+              <Route
+                path="/clients/:id/profile"
+                element={<ClientProfile />}
+              />
               <Route path="/loans" element={<Loans />} />
               <Route path="/loans/:id" element={<LoanDetails />} />
               <Route path="/payments" element={<Payments />} />

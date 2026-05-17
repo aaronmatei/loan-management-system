@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
 
 function Clients() {
+  const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -416,7 +418,8 @@ function Clients() {
                 {paginatedClients.map((client) => (
                   <tr
                     key={client.id}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition"
+                    onClick={() => navigate(`/clients/${client.id}/profile`)}
+                    className="border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer"
                   >
                     <td className="px-6 py-4 font-mono text-sm font-semibold text-indigo-600">
                       {client.client_code}
