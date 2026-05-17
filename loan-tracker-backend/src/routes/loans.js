@@ -151,6 +151,32 @@ router.post("/", async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
+    // ✅ Capital pool guard: cannot lend more than what's available
+    const poolCheck = await query(`
+      SELECT
+        initial_capital,
+        total_disbursed,
+        total_collected,
+        (initial_capital - total_disbursed + total_collected) AS available_pool
+      FROM capital_pool
+      ORDER BY id DESC LIMIT 1
+    `);
+
+    if (poolCheck.rows.length === 0) {
+      return res.status(500).json({ error: "Capital pool not initialized" });
+    }
+
+    const available = parseFloat(poolCheck.rows[0].available_pool);
+    const requestedAmount = parseFloat(principal_amount);
+
+    if (requestedAmount > available) {
+      return res.status(400).json({
+        error: `Insufficient pool balance. Available: KES ${available.toLocaleString()}, Requested: KES ${requestedAmount.toLocaleString()}`,
+        available_pool: available,
+        requested: requestedAmount,
+      });
+    }
+
     // ✅ Calculate using ANNUAL interest rate
     const principal = parseFloat(principal_amount);
     const annualRate = parseFloat(annual_interest_rate);
@@ -218,6 +244,20 @@ router.post("/", async (req, res) => {
     }
 
     await Promise.all(schedulePromises);
+
+    // ✅ Update capital pool: principal is now lent out
+    await query(
+      `UPDATE capital_pool
+         SET total_disbursed = total_disbursed + $1, updated_at = NOW()
+       WHERE id = (SELECT id FROM capital_pool ORDER BY id DESC LIMIT 1)`,
+      [requestedAmount],
+    );
+
+    await query(
+      `INSERT INTO capital_transactions (transaction_type, amount, loan_id, description)
+       VALUES ('loan_disbursed', $1, $2, $3)`,
+      [requestedAmount, loan.id, `Loan ${loanCode} disbursed`],
+    );
 
     logger.info(
       `✓ Loan created: ${loanCode}, KES ${principal}, ${annualRate}% per annum`,

@@ -12,6 +12,7 @@ function Dashboard() {
     recent_payments: [],
   });
   const [trends, setTrends] = useState({ loans_trend: [], payments_trend: [] });
+  const [poolStatus, setPoolStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -31,6 +32,14 @@ function Dashboard() {
       setMetrics(summaryRes.data.data);
       setActivities(activitiesRes.data.data);
       setTrends(trendsRes.data.data);
+
+      // Pool status is best-effort; a failure here must not break the dashboard
+      try {
+        const poolRes = await api.get("/capital/status");
+        setPoolStatus(poolRes.data.data);
+      } catch (poolErr) {
+        console.error("Failed to fetch pool status:", poolErr);
+      }
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load dashboard");
       console.error(err);
@@ -79,6 +88,71 @@ function Dashboard() {
           <span className="font-semibold">{user?.first_name}</span>! 👋
         </p>
       </div>
+
+      {/* Capital Pool */}
+      {poolStatus && (
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-xl font-bold">💰 Capital Pool</h2>
+              <p className="text-blue-100 text-sm mt-1">
+                Available for lending
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold">
+                KES {poolStatus.available_pool.toLocaleString()}
+              </p>
+              <p className="text-blue-100 text-sm">
+                of KES {poolStatus.initial_capital.toLocaleString()}
+              </p>
+            </div>
+          </div>
+
+          {/* Utilization Bar */}
+          <div className="mb-3">
+            <div className="flex justify-between text-sm mb-1">
+              <span>
+                Utilization: {poolStatus.utilization_rate.toFixed(1)}%
+              </span>
+              <span>
+                Outstanding: KES{" "}
+                {poolStatus.outstanding_principal.toLocaleString()}
+              </span>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-3">
+              <div
+                className="bg-white h-3 rounded-full transition-all"
+                style={{
+                  width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-white/20">
+            <div>
+              <p className="text-xs text-blue-100">Total Disbursed</p>
+              <p className="text-lg font-bold">
+                KES {poolStatus.total_disbursed.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-blue-100">Total Collected</p>
+              <p className="text-lg font-bold">
+                KES {poolStatus.total_collected.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-blue-100">Interest Earned</p>
+              <p className="text-lg font-bold text-green-300">
+                +KES {poolStatus.total_interest_earned.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alert Cards (only show if there are alerts) */}
       {(metrics.overdue_count > 0 || metrics.pending_refunds > 0) && (

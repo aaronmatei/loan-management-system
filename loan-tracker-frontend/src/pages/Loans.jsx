@@ -11,6 +11,7 @@ function Loans() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [poolStatus, setPoolStatus] = useState(null);
 
   // ✅ Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +39,7 @@ function Loans() {
   useEffect(() => {
     fetchLoans();
     fetchClients();
+    fetchPoolStatus();
   }, []);
 
   // Close dropdown when clicking outside
@@ -74,6 +76,15 @@ function Loans() {
       setClients(response.data.data || []);
     } catch (err) {
       console.error("Failed to fetch clients:", err);
+    }
+  };
+
+  const fetchPoolStatus = async () => {
+    try {
+      const response = await api.get("/capital/status");
+      setPoolStatus(response.data.data);
+    } catch (err) {
+      console.error("Failed to fetch pool status:", err);
     }
   };
 
@@ -160,6 +171,7 @@ function Loans() {
 
       setShowForm(false);
       fetchLoans();
+      fetchPoolStatus();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to create loan");
@@ -279,6 +291,24 @@ function Loans() {
           <h2 className="text-2xl font-bold text-gray-800 mb-6">
             Create New Loan
           </h2>
+
+          {poolStatus && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">
+                    💰 Available Pool Balance
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Maximum amount you can lend
+                  </p>
+                </div>
+                <p className="text-2xl font-bold text-blue-700">
+                  KES {poolStatus.available_pool.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* ✅ Searchable Client Dropdown */}
             <div ref={dropdownRef} className="relative">
@@ -499,6 +529,16 @@ function Loans() {
               </div>
             )}
 
+            {poolStatus &&
+              formData.principal_amount &&
+              parseFloat(formData.principal_amount) >
+                poolStatus.available_pool && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">
+                  ⚠️ This amount exceeds available pool balance (KES{" "}
+                  {poolStatus.available_pool.toLocaleString()})!
+                </div>
+              )}
+
             <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
@@ -510,8 +550,15 @@ function Loans() {
               </button>
               <button
                 type="submit"
-                disabled={submitting || !formData.client_id}
-                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                disabled={
+                  submitting ||
+                  !formData.client_id ||
+                  (poolStatus &&
+                    formData.principal_amount &&
+                    parseFloat(formData.principal_amount) >
+                      poolStatus.available_pool)
+                }
+                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? "Creating..." : "✓ Create Loan"}
               </button>
@@ -698,9 +745,9 @@ function Loans() {
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-400px)]">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200">
+              <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                     Loan Code

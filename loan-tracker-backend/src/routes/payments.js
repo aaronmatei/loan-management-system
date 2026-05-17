@@ -233,6 +233,37 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ✅ Update capital pool. Split the amount actually applied to the
+    // loan (overpayment is refunded, so it is NOT recovered capital)
+    // into principal recovery vs interest profit using the loan's ratio.
+    const loanTotalDue = parseFloat(loan.total_amount_due);
+    const principalPercentage =
+      loanTotalDue > 0 ? parseFloat(loan.principal_amount) / loanTotalDue : 0;
+    const interestPercentage = 1 - principalPercentage;
+
+    const principalPortion = actualPaymentApplied * principalPercentage;
+    const interestPortion = actualPaymentApplied * interestPercentage;
+
+    await query(
+      `UPDATE capital_pool
+         SET total_collected = total_collected + $1,
+             total_interest_earned = total_interest_earned + $2,
+             updated_at = NOW()
+       WHERE id = (SELECT id FROM capital_pool ORDER BY id DESC LIMIT 1)`,
+      [principalPortion, interestPortion],
+    );
+
+    await query(
+      `INSERT INTO capital_transactions (transaction_type, amount, loan_id, transaction_id, description)
+       VALUES ('payment_received', $1, $2, $3, $4)`,
+      [
+        actualPaymentApplied,
+        loan_id,
+        transaction.id,
+        `Payment received for ${loan.loan_code}`,
+      ],
+    );
+
     logger.info(
       `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,
     );

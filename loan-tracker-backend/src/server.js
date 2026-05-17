@@ -14,6 +14,7 @@ import loanRoutes from "./routes/loans.js";
 import paymentRoutes from "./routes/payments.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import overdueRoutes from "./routes/overdue.js";
+import capitalRoutes from "./routes/capital.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -57,6 +58,7 @@ app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/overdue", overdueRoutes);
+app.use("/api/capital", capitalRoutes);
 
 // 404 handler
 app.use((req, res) => {
