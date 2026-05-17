@@ -10,6 +10,7 @@ function Clients() {
   const [success, setSuccess] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -28,24 +29,21 @@ function Clients() {
     fetchClients();
   }, []);
 
-  const fetchClients = async (search = "") => {
+  // Reset to the first page whenever the search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const fetchClients = async () => {
     try {
       setLoading(true);
-      const url = search
-        ? `/clients?search=${encodeURIComponent(search)}`
-        : "/clients";
-      const response = await api.get(url);
+      const response = await api.get("/clients");
       setClients(response.data.data || []);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load clients");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchClients(searchTerm);
   };
 
   const handleInputChange = (e) => {
@@ -85,6 +83,31 @@ function Clients() {
     }
   };
 
+  // ✅ Real-time client-side search (same pattern as the Loans page)
+  const query = searchTerm.trim().toLowerCase();
+  const filteredClients = query
+    ? clients.filter((c) =>
+        [
+          c.first_name,
+          c.last_name,
+          c.phone_number,
+          c.email,
+          c.id_number,
+          c.client_code,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query),
+      )
+    : clients;
+
+  const itemsPerPage = 50;
+  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClients = filteredClients.slice(startIndex, endIndex);
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -104,34 +127,59 @@ function Clients() {
         </button>
       </div>
 
-      {/* Search Bar */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-        <input
-          type="text"
-          placeholder="Search by name, phone, or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition"
-        >
-          🔍 Search
-        </button>
-        {searchTerm && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchTerm("");
-              fetchClients();
-            }}
-            className="px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition"
-          >
-            Clear
-          </button>
+      {/* Search Bar (real-time, client-side) */}
+      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[220px]">
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                🔍
+              </span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by name, phone, email, ID, or code..."
+                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+          {searchTerm.trim() && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+            >
+              ✖ Clear
+            </button>
+          )}
+        </div>
+
+        {searchTerm.trim() && (
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+            <span className="text-sm text-gray-500">
+              Showing{" "}
+              <span className="font-semibold text-gray-800">
+                {filteredClients.length}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-gray-800">
+                {clients.length}
+              </span>{" "}
+              clients
+            </span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+              Search: "{searchTerm.trim()}"
+              <button
+                onClick={() => setSearchTerm("")}
+                className="hover:text-blue-900"
+                aria-label="Clear search"
+              >
+                ✖
+              </button>
+            </span>
+          </div>
         )}
-      </form>
+      </div>
 
       {/* Messages */}
       {success && (
@@ -319,73 +367,158 @@ function Clients() {
             Click "Add Client" to add your first client
           </p>
         </div>
+      ) : filteredClients.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="text-6xl mb-4">🔍</div>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            No clients match your search
+          </h3>
+          <p className="text-gray-500 mb-4">
+            Try a different name, phone, email, ID, or code
+          </p>
+          <button
+            onClick={() => setSearchTerm("")}
+            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+          >
+            ✖ Clear Search
+          </button>
+        </div>
       ) : (
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Code
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Name
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Phone
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Email
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Business
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  City
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map((client) => (
-                <tr
-                  key={client.id}
-                  className="border-b border-gray-100 hover:bg-gray-50 transition"
-                >
-                  <td className="px-6 py-4 font-mono text-sm font-semibold text-indigo-600">
-                    {client.client_code}
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">
-                    {client.first_name} {client.last_name}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    {client.phone_number}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    {client.email || "-"}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    {client.business_name || "-"}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    {client.city || "-"}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                        client.status === "active"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {client.status}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Code
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Name
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Phone
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Email
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Business
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    City
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Status
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paginatedClients.map((client) => (
+                  <tr
+                    key={client.id}
+                    className="border-b border-gray-100 hover:bg-gray-50 transition"
+                  >
+                    <td className="px-6 py-4 font-mono text-sm font-semibold text-indigo-600">
+                      {client.client_code}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-gray-800">
+                      {client.first_name} {client.last_name}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {client.phone_number}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {client.email || "-"}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {client.business_name || "-"}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {client.city || "-"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                          client.status === "active"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {client.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
+                to{" "}
+                <span className="font-semibold">
+                  {Math.min(endIndex, filteredClients.length)}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold">{filteredClients.length}</span>{" "}
+                results
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  ← Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 2 && page <= currentPage + 2)
+                      );
+                    })
+                    .map((page, idx, arr) => {
+                      const showEllipsisBefore =
+                        idx > 0 && page - arr[idx - 1] > 1;
+                      return (
+                        <React.Fragment key={page}>
+                          {showEllipsisBefore && (
+                            <span className="px-2 text-gray-400">...</span>
+                          )}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+                              currentPage === page
+                                ? "bg-indigo-600 text-white"
+                                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

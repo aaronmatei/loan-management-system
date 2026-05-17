@@ -18,6 +18,7 @@ function Loans() {
     status: "all",
     refundStatus: "all",
   });
+  const [currentPage, setCurrentPage] = useState(1);
 
   // ✅ Client search state
   const [clientSearch, setClientSearch] = useState("");
@@ -49,6 +50,11 @@ function Loans() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Reset to the first page whenever the filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters.status, filters.refundStatus]);
 
   const fetchLoans = async () => {
     try {
@@ -222,6 +228,13 @@ function Loans() {
     setSearchQuery("");
     setFilters({ status: "all", refundStatus: "all" });
   };
+
+  // Pagination (totals row still uses the full filtered set)
+  const itemsPerPage = 50;
+  const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLoans = filteredLoans.slice(startIndex, endIndex);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -719,7 +732,7 @@ function Loans() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLoans.map((loan) => {
+                {paginatedLoans.map((loan) => {
                   const totalPaid = parseFloat(loan.total_paid || 0);
                   const totalDue = parseFloat(loan.total_amount_due);
                   const balance = parseFloat(loan.balance_due || 0);
@@ -906,6 +919,73 @@ function Loans() {
               </tfoot>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Showing{" "}
+                <span className="font-semibold">{startIndex + 1}</span> to{" "}
+                <span className="font-semibold">
+                  {Math.min(endIndex, filteredLoans.length)}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold">{filteredLoans.length}</span>{" "}
+                results
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  ← Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 2 && page <= currentPage + 2)
+                      );
+                    })
+                    .map((page, idx, arr) => {
+                      const showEllipsisBefore =
+                        idx > 0 && page - arr[idx - 1] > 1;
+                      return (
+                        <React.Fragment key={page}>
+                          {showEllipsisBefore && (
+                            <span className="px-2 text-gray-400">...</span>
+                          )}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+                              currentPage === page
+                                ? "bg-indigo-600 text-white"
+                                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

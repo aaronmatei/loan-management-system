@@ -25,14 +25,17 @@ const { Pool } = pg;
 // ----------------------------------------------------------------------------
 // Config
 // ----------------------------------------------------------------------------
+// Target mix over ~755 loans:
+//   30% completed, 10% completed+overpaid, 25% active on-schedule,
+//   20% active overdue, 15% defaulted
 const SCENARIO_COUNTS = {
-  completed: 100, // A
-  completedOverpaid: 25, // B
-  activeOnSchedule: 65, // C
-  activeOverdue: 35, // D
-  defaulted: 25, // E
+  completed: 225, // A — 30%
+  completedOverpaid: 75, // B — 10% (≈60% refunded / 40% pending)
+  activeOnSchedule: 190, // C — 25%
+  activeOverdue: 150, // D — 20%
+  defaulted: 115, // E — 15%
 };
-const CLIENT_COUNT = 200;
+const CLIENT_COUNT = 500;
 const TOTAL_LOANS = Object.values(SCENARIO_COUNTS).reduce((a, b) => a + b, 0);
 
 const NOW = new Date();
@@ -386,7 +389,7 @@ async function main() {
         );
         annualRate = randInt(120, 180) / 10; // 12.0 - 18.0
         months = randInt(6, 24);
-        startDate = monthsAgo(randInt(1, 6));
+        startDate = monthsAgo(randInt(1, 9)); // within last 1-12 months
       } else if (scenario === "activeOverdue") {
         principal = Math.min(
           150000,
@@ -491,11 +494,17 @@ async function main() {
         });
         loanStatus = "active";
       } else {
-        // defaulted: a few early payments, then stopped; 4+ overdue
+        // defaulted: paid the early installments, then stopped paying
+        // 4-8 months ago — leaving 4+ months of missed installments
         const duePassed = schedules.filter(
           (s) => daysBetween(NOW, s.due_date) >= 0,
         );
-        const paidCount = Math.min(duePassed.length, randInt(1, 3));
+        const stoppedMonthsAgo = randInt(4, 8);
+        const missed = Math.min(
+          Math.max(4, stoppedMonthsAgo),
+          Math.max(1, duePassed.length - 1),
+        );
+        const paidCount = Math.max(1, duePassed.length - missed);
         duePassed.forEach((s, i) => {
           if (i < paidCount) payInstallment(s, "Monthly installment");
           else markOverdue(s);
@@ -591,51 +600,94 @@ async function main() {
     const fmtKES = (n) =>
       "KES " + Number(n).toLocaleString("en-KE", { maximumFractionDigits: 0 });
 
-    const [{ rows: cRows }, { rows: lRows }, { rows: tRows }, { rows: oRows }, { rows: rRows }] =
-      await Promise.all([
-        client.query("SELECT COUNT(*) c FROM clients"),
-        client.query(
-          `SELECT status, COUNT(*) c,
-                  COALESCE(SUM(total_amount_due),0) amt
-           FROM loans GROUP BY status ORDER BY status`,
-        ),
-        client.query(
-          "SELECT COALESCE(SUM(amount_paid),0) total FROM transactions WHERE payment_status='completed'",
-        ),
-        client.query(
-          "SELECT COUNT(*) c, COALESCE(SUM(amount_due-COALESCE(amount_paid,0)),0) amt FROM payment_schedules WHERE status='overdue'",
-        ),
-        client.query(
-          "SELECT COUNT(*) c, COALESCE(SUM(overpayment_amount),0) amt FROM loans WHERE refund_status='pending'",
-        ),
-      ]);
+    const [
+      { rows: cRows },
+      { rows: catRows },
+      { rows: actRows },
+      { rows: finRows },
+      { rows: ovRows },
+      { rows: refRows },
+    ] = await Promise.all([
+      client.query("SELECT COUNT(*)::int c FROM clients"),
+      // Loan categories (status + refund split)
+      client.query(`
+        SELECT
+          COUNT(*) FILTER (
+            WHERE status = 'completed' AND COALESCE(overpayment_amount,0) = 0
+          )::int AS completed_plain,
+          COUNT(*) FILTER (WHERE status = 'completed' AND refund_status = 'refunded')::int
+            AS completed_refunded,
+          COUNT(*) FILTER (WHERE status = 'completed' AND refund_status = 'pending')::int
+            AS completed_pending,
+          COUNT(*) FILTER (WHERE status = 'defaulted')::int AS defaulted,
+          COUNT(*)::int AS total
+        FROM loans
+      `),
+      // Active loans split into on-schedule vs overdue
+      client.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE ov.cnt > 0)::int  AS active_overdue,
+          COUNT(*) FILTER (WHERE ov.cnt = 0)::int  AS active_on_schedule
+        FROM loans l
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) cnt FROM payment_schedules ps
+          WHERE ps.loan_id = l.id AND ps.status = 'overdue'
+        ) ov ON true
+        WHERE l.status = 'active'
+      `),
+      client.query(`
+        SELECT
+          COALESCE(SUM(principal_amount),0)  AS total_issued,
+          COALESCE(SUM(total_amount_due),0)  AS total_due
+        FROM loans
+      `),
+      client.query(
+        "SELECT COALESCE(SUM(amount_due-COALESCE(amount_paid,0)),0) amt FROM payment_schedules WHERE status='overdue'",
+      ),
+      client.query(
+        "SELECT COUNT(*)::int c, COALESCE(SUM(overpayment_amount),0) amt FROM loans WHERE refund_status='pending'",
+      ),
+    ]);
 
-    const byStatus = Object.fromEntries(
-      lRows.map((r) => [r.status, { count: +r.c, amt: +r.amt }]),
+    const collectedRes = await client.query(
+      "SELECT COALESCE(SUM(amount_paid),0) total FROM transactions WHERE payment_status='completed'",
     );
-    const totalLoanAmount = lRows.reduce((s, r) => s + Number(r.amt), 0);
 
-    console.log("\n========== SEED SUMMARY ==========");
-    console.log(`Clients created:        ${cRows[0].c}`);
-    console.log(`Loans created:          ${loanRows.length}`);
+    const cat = catRows[0];
+    const act = actRows[0];
+    const fin = finRows[0];
+    const totalLoans = cat.total;
+    const collected = Number(collectedRes.rows[0].total);
+    const totalDue = Number(fin.total_due);
+    const outstanding = Math.max(0, totalDue - collected);
+    const pct = (n) =>
+      totalLoans ? Math.round((n / totalLoans) * 100) : 0;
+    const line = (label, n) =>
+      `  ${label} ${String(n).padStart(4)} (${pct(n)}%)`;
+
+    const bar = "═".repeat(43);
+    console.log(`\n${bar}`);
+    console.log("SEEDING COMPLETE");
+    console.log(bar);
+    console.log(`\nClients: ${cRows[0].c}\n`);
+    console.log("Loans Distribution:");
+    console.log(line("✓ Completed:                  ", cat.completed_plain));
+    console.log(line("✓ Completed (refunded):       ", cat.completed_refunded));
+    console.log(line("⏳ Completed (refund pending): ", cat.completed_pending));
+    console.log(line("🟢 Active (on schedule):      ", act.active_on_schedule));
+    console.log(line("⚠️  Active (overdue):          ", act.active_overdue));
+    console.log(line("🔴 Defaulted:                 ", cat.defaulted));
+    console.log("  ───────────────────────────────");
+    console.log(`  Total:                        ${String(totalLoans).padStart(4)}`);
+    console.log("\nFinancial Summary:");
+    console.log(`  💰 Total Issued:      ${fmtKES(fin.total_issued)}`);
+    console.log(`  ✅ Total Collected:   ${fmtKES(collected)}`);
+    console.log(`  📊 Outstanding:       ${fmtKES(outstanding)}`);
+    console.log(`  ⚠️  Overdue Amount:   ${fmtKES(ovRows[0].amt)}`);
     console.log(
-      `  active:               ${byStatus.active?.count ?? 0}`,
+      `  💸 Pending Refunds:   ${fmtKES(refRows[0].amt)} (${refRows[0].c} loans)`,
     );
-    console.log(
-      `  completed:            ${byStatus.completed?.count ?? 0}`,
-    );
-    console.log(
-      `  defaulted:            ${byStatus.defaulted?.count ?? 0}`,
-    );
-    console.log(`Total loan value:       ${fmtKES(totalLoanAmount)}`);
-    console.log(`Total collected:        ${fmtKES(tRows[0].total)}`);
-    console.log(
-      `Overdue payments:       ${oRows[0].c} (${fmtKES(oRows[0].amt)} outstanding)`,
-    );
-    console.log(
-      `Pending refunds:        ${rRows[0].c} (${fmtKES(rRows[0].amt)})`,
-    );
-    console.log("==================================\n");
+    console.log(`${bar}\n`);
     console.log("✓ Seeding complete.");
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
