@@ -16,6 +16,14 @@ function LoanDetails() {
   });
   const [processingRefund, setProcessingRefund] = useState(false);
 
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusFormData, setStatusFormData] = useState({
+    status: "",
+    notes: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState("");
+
   useEffect(() => {
     fetchLoanDetails();
   }, [id]);
@@ -29,6 +37,24 @@ function LoanDetails() {
       setError(err.response?.data?.error || "Failed to load loan details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setActionError("");
+
+    try {
+      await api.put(`/loans/${id}`, statusFormData);
+      setShowStatusModal(false);
+      fetchLoanDetails();
+    } catch (err) {
+      setActionError(
+        err.response?.data?.error || "Failed to update loan",
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -93,6 +119,50 @@ function LoanDetails() {
         ← Back to Loans
       </button>
 
+      {/* Loan Actions */}
+      {(loan.status === "active" ||
+        loan.status === "defaulted" ||
+        loan.status === "suspended") && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {loan.status === "active" && (
+            <>
+              <button
+                onClick={() => {
+                  setStatusFormData({ status: "defaulted", notes: "" });
+                  setActionError("");
+                  setShowStatusModal(true);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-semibold"
+              >
+                🔴 Mark as Defaulted
+              </button>
+              <button
+                onClick={() => {
+                  setStatusFormData({ status: "suspended", notes: "" });
+                  setActionError("");
+                  setShowStatusModal(true);
+                }}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition font-semibold"
+              >
+                ⏸️ Suspend
+              </button>
+            </>
+          )}
+          {(loan.status === "defaulted" || loan.status === "suspended") && (
+            <button
+              onClick={() => {
+                setStatusFormData({ status: "active", notes: "" });
+                setActionError("");
+                setShowStatusModal(true);
+              }}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-semibold"
+            >
+              {loan.status === "defaulted" ? "✅ Reactivate" : "▶️ Reactivate"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Header Card */}
       <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-xl shadow-lg p-8 text-white mb-6">
         <div className="flex justify-between items-start">
@@ -133,6 +203,16 @@ function LoanDetails() {
           </div>
         </div>
       </div>
+
+      {/* Notes */}
+      {loan.notes && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p className="text-sm font-semibold text-yellow-900 mb-1">
+            📝 Notes
+          </p>
+          <p className="text-gray-700 whitespace-pre-wrap">{loan.notes}</p>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -449,6 +529,79 @@ function LoanDetails() {
           </div>
         )}
       </div>
+      {/* Status Update Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">
+              {statusFormData.status === "defaulted" &&
+                "🔴 Mark Loan as Defaulted"}
+              {statusFormData.status === "suspended" && "⏸️ Suspend Loan"}
+              {statusFormData.status === "active" && "✅ Reactivate Loan"}
+            </h3>
+
+            <p className="text-gray-600 mb-4">
+              {statusFormData.status === "defaulted" &&
+                "This will mark all pending payments as overdue. Client will not be able to borrow until resolved."}
+              {statusFormData.status === "suspended" &&
+                "This will temporarily pause this loan. Payments can still be recorded."}
+              {statusFormData.status === "active" &&
+                "This will reactivate the loan and allow normal operations."}
+            </p>
+
+            {actionError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-4">
+                {actionError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateStatus}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Reason / Notes
+                </label>
+                <textarea
+                  value={statusFormData.notes}
+                  onChange={(e) =>
+                    setStatusFormData({
+                      ...statusFormData,
+                      notes: e.target.value,
+                    })
+                  }
+                  rows="3"
+                  placeholder="Add a note explaining this action..."
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowStatusModal(false)}
+                  disabled={submitting}
+                  className="px-6 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`px-6 py-2 text-white font-semibold rounded-lg transition disabled:opacity-50 ${
+                    statusFormData.status === "defaulted"
+                      ? "bg-red-600 hover:bg-red-700"
+                      : statusFormData.status === "suspended"
+                        ? "bg-yellow-600 hover:bg-yellow-700"
+                        : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  {submitting ? "Updating..." : "Confirm"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Refund Modal */}
       {showRefundModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

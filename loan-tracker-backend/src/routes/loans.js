@@ -322,6 +322,101 @@ router.post("/", async (req, res) => {
   }
 });
 // ============================================================
+// UPDATE LOAN (status / notes / purpose — with restrictions)
+// ============================================================
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes, purpose } = req.body;
+
+    const existing = await query("SELECT * FROM loans WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+
+    const currentLoan = existing.rows[0];
+
+    // Cannot modify completed loans (status can only stay 'completed')
+    if (
+      currentLoan.status === "completed" &&
+      status &&
+      status !== "completed"
+    ) {
+      return res.status(400).json({ error: "Cannot modify completed loans" });
+    }
+
+    const validStatuses = ["active", "completed", "defaulted", "suspended"];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const paymentsCheck = await query(
+      `SELECT COUNT(*) as count FROM transactions
+       WHERE loan_id = $1 AND payment_status = 'completed'`,
+      [id],
+    );
+    const hasPayments = parseInt(paymentsCheck.rows[0].count, 10) > 0;
+
+    // Cannot mark as completed while a balance remains
+    if (status === "completed" && hasPayments) {
+      const paidResult = await query(
+        `SELECT COALESCE(SUM(amount_paid), 0) as total_paid
+         FROM transactions WHERE loan_id = $1 AND payment_status = 'completed'`,
+        [id],
+      );
+      const totalPaid = parseFloat(paidResult.rows[0].total_paid);
+      const totalDue = parseFloat(currentLoan.total_amount_due);
+
+      if (totalPaid < totalDue) {
+        return res.status(400).json({
+          error: `Cannot mark as completed. Balance of KES ${(
+            totalDue - totalPaid
+          ).toLocaleString()} still pending.`,
+        });
+      }
+    }
+
+    const result = await query(
+      `UPDATE loans SET
+        status = COALESCE($1, status),
+        purpose = COALESCE($2, purpose),
+        notes = COALESCE($3, notes),
+        updated_at = NOW()
+      WHERE id = $4
+      RETURNING *`,
+      [status || null, purpose || null, notes || null, id],
+    );
+
+    // Marking defaulted: push pending installments to overdue
+    if (status === "defaulted") {
+      await query(
+        `UPDATE payment_schedules
+         SET status = 'overdue',
+             days_late = (CURRENT_DATE - due_date::date),
+             updated_at = NOW()
+         WHERE loan_id = $1 AND status = 'pending'`,
+        [id],
+      );
+    }
+
+    logger.info(
+      `✓ Loan updated: ${currentLoan.loan_code} - Status: ${
+        status || currentLoan.status
+      }`,
+    );
+
+    res.json({
+      success: true,
+      message: "Loan updated successfully",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    logger.error("Update loan error:", error);
+    res.status(500).json({ error: "Failed to update loan" });
+  }
+});
+
+// ============================================================
 // UPDATE LOAN STATUS
 // ============================================================
 router.put("/:id/status", async (req, res) => {

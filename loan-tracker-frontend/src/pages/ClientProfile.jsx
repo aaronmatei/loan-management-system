@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { KENYA_COUNTIES } from "../utils/counties";
 
 const KES = (n) => `KES ${Number(n || 0).toLocaleString()}`;
 
@@ -48,26 +49,48 @@ function ClientProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
+  const [editError, setEditError] = useState("");
+  const [editSuccess, setEditSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchClientProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/clients/${id}/credit-profile`);
+      setData(res.data.data);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to load credit profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await api.get(`/clients/${id}/credit-profile`);
-        if (mounted) setData(res.data.data);
-      } catch (err) {
-        if (mounted)
-          setError(
-            err.response?.data?.error || "Failed to load credit profile",
-          );
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    fetchClientProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handleUpdateClient = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setEditError("");
+    setEditSuccess("");
+
+    try {
+      await api.put(`/clients/${id}`, editFormData);
+      setEditSuccess("✅ Client updated successfully!");
+      setTimeout(() => {
+        setShowEditModal(false);
+        fetchClientProfile();
+      }, 1500);
+    } catch (err) {
+      setEditError(err.response?.data?.error || "Failed to update client");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -135,18 +158,31 @@ function ClientProfile() {
             </p>
           </div>
 
-          {/* Credit Score Badge */}
-          <div className="text-center bg-white/10 rounded-xl p-6">
-            <p className="text-xs text-indigo-100 uppercase">Credit Score</p>
-            <p className="text-5xl font-bold mt-2">{creditScore}</p>
-            <p className="text-sm text-indigo-100">out of 100</p>
-            <div
-              className={`mt-2 px-3 py-1 rounded-full text-sm font-bold ${
-                riskBadge[riskColor] || "bg-gray-200 text-gray-800"
-              }`}
-            >
-              {riskLabel}
+          <div className="flex flex-col items-end gap-3">
+            {/* Credit Score Badge */}
+            <div className="text-center bg-white/10 rounded-xl p-6">
+              <p className="text-xs text-indigo-100 uppercase">Credit Score</p>
+              <p className="text-5xl font-bold mt-2">{creditScore}</p>
+              <p className="text-sm text-indigo-100">out of 100</p>
+              <div
+                className={`mt-2 px-3 py-1 rounded-full text-sm font-bold ${
+                  riskBadge[riskColor] || "bg-gray-200 text-gray-800"
+                }`}
+              >
+                {riskLabel}
+              </div>
             </div>
+            <button
+              onClick={() => {
+                setEditFormData({ ...client });
+                setEditError("");
+                setEditSuccess("");
+                setShowEditModal(true);
+              }}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition font-semibold"
+            >
+              ✏️ Edit Client
+            </button>
           </div>
         </div>
       </div>
@@ -456,6 +492,259 @@ function ClientProfile() {
           </div>
         )}
       </div>
+
+      {/* Edit Client Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-3xl w-full my-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-800">Edit Client</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {editError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                {editError}
+              </div>
+            )}
+
+            {editSuccess && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                {editSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateClient} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.first_name || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        first_name: e.target.value,
+                      })
+                    }
+                    required
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.last_name || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        last_name: e.target.value,
+                      })
+                    }
+                    required
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.phone_number || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        phone_number: e.target.value,
+                      })
+                    }
+                    required
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={editFormData.email || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        email: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    ID Number
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.id_number || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        id_number: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={editFormData.status || "active"}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        status: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="blacklisted">Blacklisted</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Business Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.business_name || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        business_name: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Business Type
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.business_type || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        business_type: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.city || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        city: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    County
+                  </label>
+                  <select
+                    value={editFormData.county || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        county: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                  >
+                    <option value="">-- Select County --</option>
+                    {KENYA_COUNTIES.map((county) => (
+                      <option key={county} value={county}>
+                        {county}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.address || ""}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      address: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={submitting}
+                  className="px-6 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                >
+                  {submitting ? "Saving..." : "✓ Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

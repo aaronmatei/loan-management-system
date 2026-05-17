@@ -501,24 +501,88 @@ router.put("/:id", async (req, res) => {
       status,
     } = req.body;
 
-    // Check if client exists
-    const existing = await query("SELECT id FROM clients WHERE id = $1", [id]);
+    // Check client exists
+    const existing = await query("SELECT * FROM clients WHERE id = $1", [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
 
+    const currentClient = existing.rows[0];
+
+    // Validation
+    if (!first_name || !last_name || !phone_number) {
+      return res.status(400).json({
+        error: "First name, last name, and phone number are required",
+      });
+    }
+
+    // Check uniqueness for phone_number (excluding current client)
+    if (phone_number !== currentClient.phone_number) {
+      const phoneCheck = await query(
+        "SELECT id FROM clients WHERE phone_number = $1 AND id != $2",
+        [phone_number, id],
+      );
+      if (phoneCheck.rows.length > 0) {
+        return res.status(409).json({
+          error: "A client with this phone number already exists",
+        });
+      }
+    }
+
+    // Check email uniqueness if provided and changed
+    if (email && email !== currentClient.email) {
+      const emailCheck = await query(
+        "SELECT id FROM clients WHERE email = $1 AND id != $2",
+        [email, id],
+      );
+      if (emailCheck.rows.length > 0) {
+        return res.status(409).json({
+          error: "A client with this email already exists",
+        });
+      }
+    }
+
+    // Check id_number uniqueness if provided and changed
+    if (id_number && id_number !== currentClient.id_number) {
+      const idCheck = await query(
+        "SELECT id FROM clients WHERE id_number = $1 AND id != $2",
+        [id_number, id],
+      );
+      if (idCheck.rows.length > 0) {
+        return res.status(409).json({
+          error: "A client with this ID number already exists",
+        });
+      }
+    }
+
+    // Cannot deactivate a client that still has active loans
+    if (status && status !== "active" && currentClient.status === "active") {
+      const activeLoanCheck = await query(
+        `SELECT COUNT(*) as count FROM loans
+         WHERE client_id = $1 AND status = 'active'`,
+        [id],
+      );
+
+      if (parseInt(activeLoanCheck.rows[0].count, 10) > 0) {
+        return res.status(400).json({
+          error:
+            "Cannot deactivate client with active loans. Close all loans first.",
+        });
+      }
+    }
+
     const result = await query(
       `UPDATE clients SET
-        first_name = COALESCE($1, first_name),
-        last_name = COALESCE($2, last_name),
-        phone_number = COALESCE($3, phone_number),
-        email = COALESCE($4, email),
-        id_number = COALESCE($5, id_number),
-        business_name = COALESCE($6, business_name),
-        business_type = COALESCE($7, business_type),
-        address = COALESCE($8, address),
-        city = COALESCE($9, city),
-        county = COALESCE($10, county),
+        first_name = $1,
+        last_name = $2,
+        phone_number = $3,
+        email = $4,
+        id_number = $5,
+        business_name = $6,
+        business_type = $7,
+        address = $8,
+        city = $9,
+        county = $10,
         status = COALESCE($11, status),
         updated_at = NOW()
       WHERE id = $12
@@ -527,19 +591,19 @@ router.put("/:id", async (req, res) => {
         first_name,
         last_name,
         phone_number,
-        email,
-        id_number,
-        business_name,
-        business_type,
-        address,
-        city,
-        county,
-        status,
+        email || null,
+        id_number || null,
+        business_name || null,
+        business_type || null,
+        address || null,
+        city || null,
+        county || null,
+        status || null,
         id,
       ],
     );
 
-    logger.info(`✓ Client updated: ID ${id}`);
+    logger.info(`✓ Client updated: ${currentClient.client_code}`);
 
     res.json({
       success: true,
