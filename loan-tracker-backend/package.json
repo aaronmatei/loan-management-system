@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest",
-    "migrate": "node migrations/init.js"
+    "migrate": "node migrations/init.js",
+    "seed": "node seed.js"
   },
   "keywords": [],
   "author": "",
