@@ -317,19 +317,21 @@ function Loans() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto pb-24">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Loans</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+            Loans
+          </h1>
+          <p className="text-sm lg:text-base text-gray-600 mt-1">
             Total: <span className="font-semibold">{loans.length}</span> loans
           </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           disabled={clients.length === 0}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {showForm ? "✖ Cancel" : "+ Create Loan"}
         </button>
@@ -925,6 +927,92 @@ function Loans() {
         </div>
       )}
 
+      {/* Mobile card list (desktop uses the table below) */}
+      {!loading && filteredLoans.length > 0 && (
+        <div className="md:hidden space-y-3 mb-4">
+          {paginatedLoans.map((loan) => {
+            const balance = parseFloat(loan.balance_due || 0);
+            return (
+              <div
+                key={loan.id}
+                onClick={() => navigate(`/loans/${loan.id}`)}
+                className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+                  bulk.isSelected(loan.id) ? "ring-2 ring-indigo-400" : ""
+                }`}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={bulk.isSelected(loan.id)}
+                      onChange={() => bulk.toggle(loan.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-5 h-5 mt-1 cursor-pointer flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm font-bold text-indigo-600">
+                        {loan.loan_code}
+                      </p>
+                      <p className="font-semibold text-gray-800 truncate">
+                        {loan.first_name} {loan.last_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {loan.phone_number}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${
+                      loan.status === "active"
+                        ? "bg-green-100 text-green-700"
+                        : loan.status === "completed"
+                          ? "bg-blue-100 text-blue-700"
+                          : loan.status === "defaulted"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {loan.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Principal</p>
+                    <p className="font-bold">
+                      KES{" "}
+                      {parseFloat(loan.principal_amount).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Total Due</p>
+                    <p className="font-bold">
+                      KES{" "}
+                      {parseFloat(loan.total_amount_due).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Paid</p>
+                    <p className="font-bold text-green-600">
+                      KES {parseFloat(loan.total_paid || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Balance</p>
+                    <p
+                      className={`font-bold ${
+                        balance > 0 ? "text-red-600" : "text-green-600"
+                      }`}
+                    >
+                      KES {balance.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Loans List */}
       {loading ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
@@ -957,7 +1045,7 @@ function Loans() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
           <div className="overflow-auto max-h-[calc(100vh-400px)]">
             <table className="w-full">
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">

@@ -94,7 +94,7 @@ function ClientProfile() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
           Loading credit profile...
         </div>
@@ -104,7 +104,7 @@ function ClientProfile() {
 
   if (error || !data) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
           {error || "Profile not found"}
         </div>
@@ -130,7 +130,7 @@ function ClientProfile() {
   } = data;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-xl shadow-lg p-8 text-white mb-6">
         <button

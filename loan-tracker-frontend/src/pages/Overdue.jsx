@@ -176,11 +176,11 @@ function Overdue() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto pb-24">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+      <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
             ⚠️ Overdue Payments
           </h1>
           <p className="text-gray-600 mt-1">
@@ -356,6 +356,73 @@ function Overdue() {
             )}
           </div>
 
+          {/* Mobile card list (desktop uses the table below) */}
+          {filtered.length > 0 && (
+            <div className="md:hidden space-y-3 mb-4">
+              {paginated.map((p) => {
+                const days = parseInt(p.days_late, 10) || 0;
+                return (
+                  <div
+                    key={p.schedule_id || p.id}
+                    className={`bg-white rounded-xl shadow-md p-4 ${
+                      bulk.isSelected(p.id) ? "ring-2 ring-red-400" : ""
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={bulk.isSelected(p.id)}
+                          onChange={() => bulk.toggle(p.id)}
+                          className="w-5 h-5 mt-1 cursor-pointer flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-800 truncate">
+                            {p.first_name} {p.last_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {p.phone_number}
+                          </p>
+                          <button
+                            onClick={() => navigate(`/loans/${p.loan_id}`)}
+                            className="font-mono text-xs font-semibold text-indigo-600 hover:underline"
+                          >
+                            {p.loan_code}
+                          </button>
+                        </div>
+                      </div>
+                      <span
+                        className={`flex-shrink-0 inline-block px-3 py-1 rounded-full text-xs font-bold ${daysBadgeClass(
+                          days,
+                        )}`}
+                      >
+                        {days} {days === 1 ? "day" : "days"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Due Date</p>
+                        <p className="font-semibold">
+                          {new Date(p.due_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Amount Due</p>
+                        <p className="font-semibold">{KES(p.amount_due)}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs text-gray-500">Balance</p>
+                        <p className="font-bold text-red-600">
+                          {KES(p.balance_due)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Table */}
           {filtered.length === 0 ? (
             <div className="bg-white rounded-xl shadow-md p-12 text-center">
@@ -374,7 +441,7 @@ function Overdue() {
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
               <div className="overflow-auto max-h-[calc(100vh-400px)]">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">

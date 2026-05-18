@@ -148,19 +148,21 @@ function Clients() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto pb-24">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Clients</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+            Clients
+          </h1>
+          <p className="text-sm lg:text-base text-gray-600 mt-1">
             Total: <span className="font-semibold">{clients.length}</span>{" "}
             clients
           </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
         >
           {showForm ? "✖ Cancel" : "+ Add Client"}
         </button>
@@ -392,6 +394,70 @@ function Clients() {
         </div>
       )}
 
+      {/* Mobile card list (desktop uses the table below) */}
+      {!loading && filteredClients.length > 0 && (
+        <div className="md:hidden space-y-3 mb-4">
+          {paginatedClients.map((client) => (
+            <div
+              key={client.id}
+              onClick={() => navigate(`/clients/${client.id}/profile`)}
+              className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+                bulk.isSelected(client.id) ? "ring-2 ring-indigo-400" : ""
+              }`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-start gap-2 flex-1 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={bulk.isSelected(client.id)}
+                    onChange={() => bulk.toggle(client.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-5 h-5 cursor-pointer mt-1 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-800 truncate">
+                      {client.first_name} {client.last_name}
+                    </h3>
+                    <p className="text-xs text-indigo-600 font-mono">
+                      {client.client_code}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`flex-shrink-0 inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                    client.status === "active"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {client.status}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm border-t border-gray-100 pt-3">
+                <div>
+                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="font-semibold">{client.phone_number}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">County</p>
+                  <p className="font-semibold truncate">
+                    {client.county || "N/A"}
+                  </p>
+                </div>
+                {client.email && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="font-semibold truncate text-blue-600">
+                      {client.email}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Clients List */}
       {loading ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
@@ -423,7 +489,7 @@ function Clients() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
           <div className="overflow-auto max-h-[calc(100vh-280px)]">
             <table className="w-full">
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">

@@ -50,7 +50,7 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
           Loading dashboard...
         </div>
@@ -60,7 +60,7 @@ function Dashboard() {
 
   if (error) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
         </div>
@@ -79,10 +79,12 @@ function Dashboard() {
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+          Dashboard
+        </h1>
         <p className="text-gray-600 mt-2">
           Welcome back,{" "}
           <span className="font-semibold">{user?.first_name}</span>! 👋
@@ -231,7 +233,7 @@ function Dashboard() {
       )}
 
       {/* Main Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
         {/* Total Portfolio */}
         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-lg p-6">
           <p className="text-indigo-100 text-sm uppercase font-semibold">

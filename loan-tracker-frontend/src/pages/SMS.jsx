@@ -165,7 +165,7 @@ function SMS() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
           Loading SMS data...
         </div>
@@ -174,7 +174,7 @@ function SMS() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">

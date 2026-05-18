@@ -1,31 +1,39 @@
 import React from "react";
 
 /**
- * Floating bottom bar shown when rows are selected. `left-64` matches
- * the Layout sidebar width (w-64).
+ * Floating bottom bar shown when rows are selected. Full-width on
+ * mobile (sidebar is off-canvas); offset by the w-64 sidebar on lg+.
  */
 function BulkActionBar({ selectedCount, totalCount, onClear, children }) {
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-0 left-64 right-0 bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-2xl z-40">
-      <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold">{selectedCount}</span>
-            <span className="text-indigo-100">
-              {selectedCount === 1 ? "item" : "items"} selected
-              {totalCount ? ` of ${totalCount}` : ""}
-            </span>
+    <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-2xl z-40">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-3 lg:py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center justify-between sm:justify-start gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xl lg:text-2xl font-bold">
+                {selectedCount}
+              </span>
+              <span className="text-indigo-100 text-sm lg:text-base">
+                selected
+                {totalCount ? (
+                  <span className="hidden sm:inline"> of {totalCount}</span>
+                ) : null}
+              </span>
+            </div>
+            <button
+              onClick={onClear}
+              className="text-indigo-100 hover:text-white text-xs lg:text-sm underline"
+            >
+              Clear
+            </button>
           </div>
-          <button
-            onClick={onClear}
-            className="text-indigo-100 hover:text-white text-sm underline"
-          >
-            Clear selection
-          </button>
+          <div className="flex items-center gap-1 lg:gap-2 overflow-x-auto pb-1 sm:pb-0">
+            {children}
+          </div>
         </div>
-        <div className="flex items-center gap-2">{children}</div>
       </div>
     </div>
   );

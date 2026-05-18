@@ -158,12 +158,14 @@ function Payments() {
   const paginatedPayments = payments.slice(startIndex, endIndex);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Payments</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+            Payments
+          </h1>
+          <p className="text-sm lg:text-base text-gray-600 mt-1">
             Total: <span className="font-semibold">{payments.length}</span>{" "}
             payments recorded
           </p>
@@ -443,6 +445,57 @@ function Payments() {
         </div>
       )}
 
+      {/* Mobile card list (desktop uses the table below) */}
+      {!loading && payments.length > 0 && (
+        <div className="md:hidden space-y-3 mb-4">
+          {paginatedPayments.map((payment) => (
+            <div
+              key={payment.id}
+              className="bg-white rounded-xl shadow-md p-4"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-sm font-bold text-green-600">
+                    {payment.transaction_code}
+                  </p>
+                  <p className="font-semibold text-gray-800 truncate">
+                    {payment.first_name} {payment.last_name}
+                  </p>
+                  <p className="text-xs text-indigo-600 font-mono">
+                    {payment.loan_code}
+                  </p>
+                </div>
+                <span className="flex-shrink-0 inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                  {payment.payment_method}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                <div>
+                  <p className="text-xs text-gray-500">Amount</p>
+                  <p className="font-bold text-green-600">
+                    KES {parseFloat(payment.amount_paid).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Date</p>
+                  <p className="font-semibold">
+                    {new Date(payment.payment_date).toLocaleDateString()}
+                  </p>
+                </div>
+                {payment.payment_reference && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500">Reference</p>
+                    <p className="font-semibold truncate">
+                      {payment.payment_reference}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Payments List */}
       {loading ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
@@ -459,7 +512,7 @@ function Payments() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
           <div className="overflow-auto max-h-[calc(100vh-280px)]">
             <table className="w-full">
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">

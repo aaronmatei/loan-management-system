@@ -80,7 +80,7 @@ function LoanDetails() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
           Loading loan details...
         </div>
@@ -90,7 +90,7 @@ function LoanDetails() {
 
   if (error || !loanData) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
           {error || "Loan not found"}
         </div>
@@ -130,7 +130,7 @@ function LoanDetails() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Back Button */}
       <button
         onClick={() => navigate("/loans")}

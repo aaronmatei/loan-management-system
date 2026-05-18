@@ -115,7 +115,7 @@ function UserManagement() {
   if (loading) return <div className="p-8">Loading users...</div>;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">
