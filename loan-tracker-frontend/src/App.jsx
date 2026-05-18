@@ -20,6 +20,7 @@ import Email from "./pages/Email";
 import Settings from "./pages/Settings";
 import AuditLog from "./pages/AuditLog";
 import UserManagement from "./pages/UserManagement";
+import Backup from "./pages/Backup";
 import Layout from "./components/Layout";
 
 function App() {
@@ -66,6 +67,7 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/audit" element={<AuditLog />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/backup" element={<Backup />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Layout>

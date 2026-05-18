@@ -64,6 +64,7 @@ function Layout({ children }) {
       permission: "audit:view",
     },
     { path: "/users", label: "Users", icon: "👤", roles: ["admin"] },
+    { path: "/backup", label: "Backup", icon: "💾", roles: ["admin"] },
     { path: "/settings", label: "Settings", icon: "⚙️", roles: ["admin"] },
   ];
 

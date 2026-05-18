@@ -29,3 +29,7 @@ Thumbs.db
 # Database
 *.sql.backup
 *.dump
+
+# DB backups — full dumps contain client PII + password hashes.
+# NOTE: scoped to the backups dir so migrations/*.sql stay tracked.
+**/loan-tracker-backend/backups/

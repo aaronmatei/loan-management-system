@@ -21,6 +21,8 @@ import emailRoutes from "./routes/email.js";
 import settingsRoutes from "./routes/settings.js";
 import auditRoutes from "./routes/audit.js";
 import userRoutes from "./routes/users.js";
+import backupRoutes from "./routes/backup.js";
+import { setupScheduledBackups } from "./services/scheduler.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -71,6 +73,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/backup", backupRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -100,4 +103,7 @@ app.listen(PORT, () => {
       console.log(`✓ Startup overdue check: ${count} payment(s) marked`),
     )
     .catch((err) => logger.error("Startup overdue check failed:", err));
+
+  // Register the daily backup cron (no-ops unless BACKUP_SCHEDULE_ENABLED)
+  setupScheduledBackups();
 });

@@ -145,6 +145,20 @@ CREATE INDEX IF NOT EXISTS idx_payment_schedules_status ON payment_schedules(sta
 CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions(client_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
+-- Create BACKUPS table (also in migrations/add_backups.sql)
+CREATE TABLE IF NOT EXISTS backups (
+  id SERIAL PRIMARY KEY,
+  filename VARCHAR(255) NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size BIGINT,
+  backup_type VARCHAR(20) DEFAULT 'manual',
+  status VARCHAR(20) DEFAULT 'success',
+  error_message TEXT,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_backups_date ON backups(created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
