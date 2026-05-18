@@ -2,6 +2,12 @@ import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
 import { sendSMS, templates } from "../services/smsService.js";
+import {
+  sendEmail,
+  templates as emailTemplates,
+  getCompanySettings,
+} from "../services/emailService.js";
+import { buildReceiptPdf } from "../utils/pdfDocuments.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -357,6 +363,123 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // Auto payment-confirmation email with the receipt PDF attached.
+    // Mirrors the SMS hook above; sendEmail() itself no-ops unless
+    // EMAIL_ENABLED is 'true', so a real email only goes out when
+    // enabled. Fire-and-forget so the payment response is not blocked.
+    if (
+      process.env.EMAIL_ENABLED === "true" &&
+      process.env.EMAIL_AUTO_CONFIRMATIONS === "true"
+    ) {
+      (async () => {
+        try {
+          const clientResult = await query(
+            "SELECT email, first_name FROM clients WHERE id = $1",
+            [loan.client_id],
+          );
+          const recipient = clientResult.rows[0];
+          if (recipient?.email) {
+            const newBalance = totalDue - newTotalPaid;
+            const company = await getCompanySettings();
+            const template = emailTemplates.paymentReceived({
+              clientName: recipient.first_name,
+              amount: paymentAmount,
+              loanCode: loan.loan_code,
+              balance: newBalance,
+              transactionCode,
+              paymentMethod: payment_method,
+              paymentDate: payment_date,
+              company,
+            });
+
+            const { buffer, filename } = await buildReceiptPdf(
+              transaction.id,
+            );
+
+            const emailResult = await sendEmail({
+              to: recipient.email,
+              subject: template.subject,
+              html: template.html,
+              attachments: [{ filename, content: buffer }],
+            });
+
+            await query(
+              `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, has_attachment, attachment_name, status, provider_response, sent_by)
+               VALUES ($1, $2, $3, $4, 'payment_received', true, $5, $6, $7, $8)`,
+              [
+                loan.client_id,
+                loan_id,
+                recipient.email,
+                template.subject,
+                filename,
+                emailResult.success ? "sent" : "failed",
+                JSON.stringify(emailResult),
+                req.user.id,
+              ],
+            );
+
+            // If this payment also completed the loan, follow the
+            // receipt with the celebratory completion email. Chained
+            // here (not via setTimeout) so it always lands AFTER the
+            // receipt without an arbitrary delay — same reasoning as
+            // the inline loan-completion SMS above.
+            if (isFullyPaid) {
+              const completionTemplate =
+                newOverpayment > 0
+                  ? emailTemplates.loanCompletedWithOverpayment({
+                      clientName: recipient.first_name,
+                      loanCode: loan.loan_code,
+                      totalPaid: newTotalPaid,
+                      overpaymentAmount: newOverpayment,
+                      principalAmount: loan.principal_amount,
+                      totalInterest: loan.total_interest,
+                      company,
+                    })
+                  : emailTemplates.loanCompleted({
+                      clientName: recipient.first_name,
+                      loanCode: loan.loan_code,
+                      totalPaid: newTotalPaid,
+                      principalAmount: loan.principal_amount,
+                      totalInterest: loan.total_interest,
+                      company,
+                    });
+
+              const completionResult = await sendEmail({
+                to: recipient.email,
+                subject: completionTemplate.subject,
+                html: completionTemplate.html,
+              });
+
+              await query(
+                `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, status, provider_response, sent_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [
+                  loan.client_id,
+                  loan_id,
+                  recipient.email,
+                  completionTemplate.subject,
+                  newOverpayment > 0
+                    ? "loan_completed_overpayment"
+                    : "loan_completed",
+                  completionResult.success ? "sent" : "failed",
+                  JSON.stringify(completionResult),
+                  req.user.id,
+                ],
+              );
+
+              if (completionResult.success) {
+                logger.info(
+                  `✓ Loan completion email sent for ${loan.loan_code}`,
+                );
+              }
+            }
+          }
+        } catch (err) {
+          logger.error("Auto email error:", err);
+        }
+      })();
+    }
+
     logger.info(
       `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,
     );
@@ -548,6 +671,59 @@ router.post("/refund/:loanId", async (req, res) => {
         }
       } catch (err) {
         logger.error("Refund SMS error:", err);
+      }
+    }
+
+    // Refund-processed email (mirrors the refund SMS above). Gated on
+    // EMAIL_ENABLED as well so we don't write misleading "sent" log
+    // rows when email delivery is switched off.
+    if (
+      process.env.EMAIL_ENABLED === "true" &&
+      process.env.EMAIL_AUTO_CONFIRMATIONS === "true"
+    ) {
+      try {
+        const refundEmailClient = await query(
+          "SELECT email, first_name FROM clients WHERE id = $1",
+          [loan.client_id],
+        );
+        const recipient = refundEmailClient.rows[0];
+
+        if (recipient?.email) {
+          const company = await getCompanySettings();
+          const template = emailTemplates.refundProcessed({
+            clientName: recipient.first_name,
+            loanCode: loan.loan_code,
+            refundAmount: loan.overpayment_amount,
+            refundMethod: refund_method,
+            refundReference: refund_reference,
+            refundDate: refunded_date,
+            company,
+          });
+
+          const emailResult = await sendEmail({
+            to: recipient.email,
+            subject: template.subject,
+            html: template.html,
+          });
+
+          await query(
+            `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, status, provider_response, sent_by)
+             VALUES ($1, $2, $3, $4, 'refund_processed', $5, $6, $7)`,
+            [
+              loan.client_id,
+              loanId,
+              recipient.email,
+              template.subject,
+              emailResult.success ? "sent" : "failed",
+              JSON.stringify(emailResult),
+              req.user.id,
+            ],
+          );
+
+          logger.info(`✓ Refund email logged for ${loan.loan_code}`);
+        }
+      } catch (err) {
+        logger.error("Refund email error:", err);
       }
     }
 

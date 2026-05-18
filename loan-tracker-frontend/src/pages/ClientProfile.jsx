@@ -222,6 +222,34 @@ function ClientProfile() {
             >
               📱 Send SMS
             </button>
+            <button
+              onClick={async () => {
+                if (!client.email) {
+                  alert("This client has no email address");
+                  return;
+                }
+                if (
+                  !window.confirm(
+                    `Email the account statement to ${client.email}?`,
+                  )
+                )
+                  return;
+                try {
+                  const res = await api.post(
+                    `/email/send-statement/${client.id}`,
+                  );
+                  alert("✅ " + (res.data?.message || "Statement sent"));
+                } catch (err) {
+                  alert(
+                    "Failed: " +
+                      (err.response?.data?.error || err.message),
+                  );
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold"
+            >
+              ✉️ Email Statement
+            </button>
           </div>
         </div>
       </div>

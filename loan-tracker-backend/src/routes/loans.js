@@ -1,6 +1,13 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
+import { sendSMS, templates } from "../services/smsService.js";
+import {
+  sendEmail,
+  templates as emailTemplates,
+  getCompanySettings,
+} from "../services/emailService.js";
+import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -316,6 +323,105 @@ router.post("/", async (req, res) => {
        VALUES ('loan_disbursed', $1, $2, $3)`,
       [requestedAmount, loan.id, `Loan ${loanCode} disbursed`],
     );
+
+    // Auto loan-approved SMS. Mirrors the payment-confirmation hook in
+    // payments.js: always logged for consistency with the manual Send
+    // endpoints; sendSMS() no-ops unless SMS_ENABLED, so a real message
+    // only goes out when enabled. Fire-and-forget — never block the
+    // loan-creation response on the notification.
+    if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+      try {
+        const clientResult = await query(
+          "SELECT phone_number, first_name FROM clients WHERE id = $1",
+          [client_id],
+        );
+        if (clientResult.rows[0]?.phone_number) {
+          const smsMessage = templates.loanApproved(
+            clientResult.rows[0].first_name,
+            principal,
+            loanCode,
+          );
+
+          sendSMS(clientResult.rows[0].phone_number, smsMessage).then(
+            (smsResult) => {
+              query(
+                `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+                 VALUES ($1, $2, $3, $4, 'loan_approved', $5, $6, $7)`,
+                [
+                  client_id,
+                  loan.id,
+                  clientResult.rows[0].phone_number,
+                  smsMessage,
+                  smsResult.success ? "sent" : "failed",
+                  JSON.stringify(smsResult),
+                  req.user.id,
+                ],
+              ).catch((err) => logger.error("SMS log error:", err));
+            },
+          );
+        }
+      } catch (err) {
+        logger.error("Auto loan-approved SMS error:", err);
+      }
+    }
+
+    // Auto loan-approved email with the loan agreement PDF attached.
+    // Mirrors the payment-confirmation email hook; sendEmail() no-ops
+    // unless EMAIL_ENABLED, and we also gate on it so we don't write
+    // misleading "sent" log rows when email is off. Fire-and-forget.
+    if (
+      process.env.EMAIL_ENABLED === "true" &&
+      process.env.EMAIL_AUTO_CONFIRMATIONS === "true"
+    ) {
+      (async () => {
+        try {
+          const clientResult = await query(
+            "SELECT email, first_name FROM clients WHERE id = $1",
+            [client_id],
+          );
+          const recipient = clientResult.rows[0];
+          if (recipient?.email) {
+            const company = await getCompanySettings();
+            const template = emailTemplates.loanApproved({
+              clientName: recipient.first_name,
+              loanCode: loan.loan_code,
+              principalAmount: loan.principal_amount,
+              totalDue: loan.total_amount_due,
+              duration: loan.loan_duration_months,
+              company,
+            });
+
+            const { buffer, filename } = await buildLoanAgreementPdf(
+              loan.id,
+            );
+
+            const emailResult = await sendEmail({
+              to: recipient.email,
+              subject: template.subject,
+              html: template.html,
+              attachments: [{ filename, content: buffer }],
+            });
+
+            await query(
+              `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, has_attachment, attachment_name, status, provider_response, sent_by)
+               VALUES ($1, $2, $3, $4, 'loan_agreement', true, $5, $6, $7, $8)`,
+              [
+                client_id,
+                loan.id,
+                recipient.email,
+                template.subject,
+                filename,
+                emailResult.success ? "sent" : "failed",
+                JSON.stringify(emailResult),
+                req.user.id,
+              ],
+            );
+          }
+        } catch (err) {
+          logger.error("Auto loan-approved email error:", err);
+        }
+      })();
+    }
 
     logger.info(
       `✓ Loan created: ${loanCode}, KES ${principal}, ${annualRate}% per annum`,

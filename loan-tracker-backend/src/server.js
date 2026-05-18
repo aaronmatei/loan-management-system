@@ -17,6 +17,7 @@ import overdueRoutes from "./routes/overdue.js";
 import capitalRoutes from "./routes/capital.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
+import emailRoutes from "./routes/email.js";
 import settingsRoutes from "./routes/settings.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
@@ -64,6 +65,7 @@ app.use("/api/overdue", overdueRoutes);
 app.use("/api/capital", capitalRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
+app.use("/api/email", emailRoutes);
 app.use("/api/settings", settingsRoutes);
 
 // 404 handler

@@ -39,6 +39,7 @@ function Layout({ children }) {
     },
     { path: "/reports", label: "Reports", icon: "📈" },
     { path: "/sms", label: "SMS", icon: "📱" },
+    { path: "/email", label: "Email", icon: "✉️" },
     { path: "/settings", label: "Settings", icon: "⚙️" },
   ];
 
