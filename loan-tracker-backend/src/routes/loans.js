@@ -314,7 +314,7 @@ router.post(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { notes } = req.body;
+      const { notes } = req.body || {};
       const result = await query(
         `UPDATE loans SET
           status = 'under_review', reviewed_by = $1, reviewed_at = NOW(),
@@ -356,7 +356,7 @@ router.post(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { notes } = req.body;
+      const { notes } = req.body || {};
 
       const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
         id,
@@ -423,7 +423,7 @@ router.post(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { reason } = req.body;
+      const { reason } = req.body || {};
       if (!reason || reason.trim().length === 0) {
         return res
           .status(400)
@@ -484,7 +484,7 @@ router.post(
         disbursement_reference,
         disbursement_date,
         start_date,
-      } = req.body;
+      } = req.body || {};
 
       const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
         id,
