@@ -64,7 +64,7 @@ router.get("/portfolio-breakdown", async (req, res) => {
   try {
     const result = await query(`
       SELECT status,
-             COUNT(*) AS count,
+             COUNT(*)::int AS count,
              COALESCE(SUM(principal_amount), 0) AS total_value
       FROM loans
       GROUP BY status
@@ -253,7 +253,7 @@ router.get("/payment-methods", async (req, res) => {
   try {
     const result = await query(`
       SELECT payment_method,
-             COUNT(*) AS count,
+             COUNT(*)::int AS count,
              COALESCE(SUM(amount_paid), 0) AS total_amount
       FROM transactions
       WHERE payment_status = 'completed'
