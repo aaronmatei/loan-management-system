@@ -5,6 +5,7 @@ function SMS() {
   const [stats, setStats] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [clients, setClients] = useState([]);
@@ -31,9 +32,12 @@ function SMS() {
     setCurrentPage(1);
   }, [searchQuery, typeFilter, statusFilter]);
 
-  const fetchData = async () => {
+  // silent = manual refresh: don't blank the page with the loading
+  // screen, just toggle the Refresh button state.
+  const fetchData = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (silent) setRefreshing(true);
+      else setLoading(true);
       const [statsRes, logsRes, clientsRes] = await Promise.all([
         api.get("/sms/stats"),
         api.get("/sms/logs"),
@@ -45,7 +49,8 @@ function SMS() {
     } catch (err) {
       console.error("Failed to fetch SMS data:", err);
     } finally {
-      setLoading(false);
+      if (silent) setRefreshing(false);
+      else setLoading(false);
     }
   };
 
@@ -179,12 +184,21 @@ function SMS() {
             Send messages to clients and track delivery
           </p>
         </div>
-        <button
-          onClick={() => setShowCustomModal(true)}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
-        >
-          ✉️ Send Custom SMS
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => fetchData({ silent: true })}
+            disabled={refreshing || loading}
+            className="px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshing ? "⏳ Refreshing..." : "🔄 Refresh"}
+          </button>
+          <button
+            onClick={() => setShowCustomModal(true)}
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+          >
+            ✉️ Send Custom SMS
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

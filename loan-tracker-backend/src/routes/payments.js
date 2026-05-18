@@ -254,35 +254,29 @@ router.post("/", async (req, res) => {
                 )
               : templates.loanCompleted(clientName, loan.loan_code);
 
-            // Slight delay so it lands after the payment-received SMS
-            setTimeout(() => {
-              sendSMS(phoneNumber, completionMessage)
-                .then((smsResult) =>
-                  query(
-                    `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                    [
-                      loan.client_id,
-                      loan_id,
-                      phoneNumber,
-                      completionMessage,
-                      isOverpaid
-                        ? "loan_completed_overpayment"
-                        : "loan_completed",
-                      smsResult.success ? "sent" : "failed",
-                      JSON.stringify(smsResult),
-                      req.user.id,
-                    ],
-                  ).then(() =>
-                    logger.info(
-                      `✓ Loan completion SMS logged for ${loan.loan_code}`,
-                    ),
-                  ),
-                )
-                .catch((err) =>
-                  logger.error("Loan completion SMS error:", err),
-                );
-            }, 2000);
+            // Logged inline (like the refund SMS) so the row exists the
+            // moment the payment response returns — no delayed blind
+            // window, and it survives a server restart. The payment-
+            // received SMS is kicked off earlier in this handler, so
+            // ordering in the log is still payment_received -> completed.
+            const smsResult = await sendSMS(phoneNumber, completionMessage);
+            await query(
+              `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                loan.client_id,
+                loan_id,
+                phoneNumber,
+                completionMessage,
+                isOverpaid ? "loan_completed_overpayment" : "loan_completed",
+                smsResult.success ? "sent" : "failed",
+                JSON.stringify(smsResult),
+                req.user.id,
+              ],
+            );
+            logger.info(
+              `✓ Loan completion SMS logged for ${loan.loan_code}`,
+            );
           }
         } catch (err) {
           logger.error("Loan completion SMS error:", err);
