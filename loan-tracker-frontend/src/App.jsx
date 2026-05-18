@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import AuditLog from "./pages/AuditLog";
 import UserManagement from "./pages/UserManagement";
 import Backup from "./pages/Backup";
+import Analytics from "./pages/Analytics";
 import Layout from "./components/Layout";
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/clients" element={<Clients />} />
               <Route
                 path="/clients/:id/profile"

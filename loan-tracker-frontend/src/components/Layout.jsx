@@ -28,6 +28,12 @@ function Layout({ children }) {
   const menuItems = [
     { path: "/", label: "Dashboard", icon: "📊", permission: "dashboard:view" },
     {
+      path: "/analytics",
+      label: "Analytics",
+      icon: "📈",
+      permission: "dashboard:view",
+    },
+    {
       path: "/clients",
       label: "Clients",
       icon: "👥",

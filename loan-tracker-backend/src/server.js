@@ -22,6 +22,7 @@ import settingsRoutes from "./routes/settings.js";
 import auditRoutes from "./routes/audit.js";
 import userRoutes from "./routes/users.js";
 import backupRoutes from "./routes/backup.js";
+import analyticsRoutes from "./routes/analytics.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
@@ -74,6 +75,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {
