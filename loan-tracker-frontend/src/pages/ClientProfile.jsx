@@ -212,6 +212,16 @@ function ClientProfile() {
             >
               📄 Download Statement
             </button>
+            <button
+              onClick={() =>
+                navigate("/sms", {
+                  state: { preSelectClient: client.id },
+                })
+              }
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-semibold"
+            >
+              📱 Send SMS
+            </button>
           </div>
         </div>
       </div>

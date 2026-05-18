@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
+import { sendSMS, templates } from "../services/smsService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -263,6 +264,49 @@ router.post("/", async (req, res) => {
         `Payment received for ${loan.loan_code}`,
       ],
     );
+
+    // Auto-send SMS confirmation (only if enabled)
+    if (
+      process.env.SMS_ENABLED === "true" &&
+      process.env.SMS_AUTO_CONFIRMATIONS === "true"
+    ) {
+      try {
+        const clientResult = await query(
+          "SELECT phone_number, first_name FROM clients WHERE id = $1",
+          [loan.client_id],
+        );
+        if (clientResult.rows[0]?.phone_number) {
+          const newBalance = totalDue - newTotalPaid;
+          const smsMessage = templates.paymentReceived(
+            clientResult.rows[0].first_name,
+            paymentAmount,
+            loan.loan_code,
+            newBalance,
+          );
+
+          // Fire-and-forget; do not block the payment response
+          sendSMS(clientResult.rows[0].phone_number, smsMessage).then(
+            (smsResult) => {
+              query(
+                `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+                 VALUES ($1, $2, $3, $4, 'payment_received', $5, $6, $7)`,
+                [
+                  loan.client_id,
+                  loan_id,
+                  clientResult.rows[0].phone_number,
+                  smsMessage,
+                  smsResult.success ? "sent" : "failed",
+                  JSON.stringify(smsResult),
+                  req.user.id,
+                ],
+              ).catch((err) => logger.error("SMS log error:", err));
+            },
+          );
+        }
+      } catch (err) {
+        logger.error("Auto SMS error:", err);
+      }
+    }
 
     logger.info(
       `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,

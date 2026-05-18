@@ -15,6 +15,7 @@ import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
 import ClientProfile from "./pages/ClientProfile";
 import Reports from "./pages/Reports";
+import SMS from "./pages/SMS";
 import Layout from "./components/Layout";
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
               <Route path="/payments" element={<Payments />} />
               <Route path="/overdue" element={<Overdue />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/sms" element={<SMS />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Layout>

@@ -38,6 +38,7 @@ function Layout({ children }) {
       badge: overdueCount,
     },
     { path: "/reports", label: "Reports", icon: "📈" },
+    { path: "/sms", label: "SMS", icon: "📱" },
   ];
 
   return (

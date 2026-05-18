@@ -16,6 +16,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import overdueRoutes from "./routes/overdue.js";
 import capitalRoutes from "./routes/capital.js";
 import reportsRoutes from "./routes/reports.js";
+import smsRoutes from "./routes/sms.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -61,6 +62,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/overdue", overdueRoutes);
 app.use("/api/capital", capitalRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/sms", smsRoutes);
 
 // 404 handler
 app.use((req, res) => {
