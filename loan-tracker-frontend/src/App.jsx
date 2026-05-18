@@ -14,6 +14,7 @@ import LoanDetails from "./pages/LoanDetails";
 import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
 import ClientProfile from "./pages/ClientProfile";
+import Reports from "./pages/Reports";
 import Layout from "./components/Layout";
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
               <Route path="/loans/:id" element={<LoanDetails />} />
               <Route path="/payments" element={<Payments />} />
               <Route path="/overdue" element={<Overdue />} />
+              <Route path="/reports" element={<Reports />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Layout>

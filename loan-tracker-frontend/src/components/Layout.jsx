@@ -37,6 +37,7 @@ function Layout({ children }) {
       icon: "⚠️",
       badge: overdueCount,
     },
+    { path: "/reports", label: "Reports", icon: "📈" },
   ];
 
   return (

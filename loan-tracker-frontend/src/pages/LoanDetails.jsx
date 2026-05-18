@@ -58,6 +58,26 @@ function LoanDetails() {
     }
   };
 
+  const downloadPdf = async (url, filename) => {
+    try {
+      const response = await api.get(url, { responseType: "blob" });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      alert(
+        "Failed to download: " +
+          (err.response?.data?.error || err.message),
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
@@ -120,11 +140,23 @@ function LoanDetails() {
       </button>
 
       {/* Loan Actions */}
-      {(loan.status === "active" ||
-        loan.status === "defaulted" ||
-        loan.status === "suspended") && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {loan.status === "active" && (
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button
+          onClick={() =>
+            downloadPdf(
+              `/reports/pdf/loan-statement/${loan.id}`,
+              `loan_${loan.loan_code}.pdf`,
+            )
+          }
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-semibold"
+        >
+          📄 Download Statement
+        </button>
+        {(loan.status === "active" ||
+          loan.status === "defaulted" ||
+          loan.status === "suspended") && (
+          <>
+            {loan.status === "active" && (
             <>
               <button
                 onClick={() => {
@@ -160,8 +192,9 @@ function LoanDetails() {
               {loan.status === "defaulted" ? "✅ Reactivate" : "▶️ Reactivate"}
             </button>
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
       {/* Header Card */}
       <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-xl shadow-lg p-8 text-white mb-6">
@@ -494,6 +527,9 @@ function LoanDetails() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Notes
                   </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                    Receipt
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -521,6 +557,20 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3 text-gray-500 text-sm">
                       {txn.notes || "-"}
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      <button
+                        onClick={() =>
+                          downloadPdf(
+                            `/reports/pdf/receipt/${txn.id}`,
+                            `receipt_${txn.transaction_code}.pdf`,
+                          )
+                        }
+                        className="text-blue-600 hover:text-blue-800 text-lg"
+                        title="Download Receipt"
+                      >
+                        📄
+                      </button>
                     </td>
                   </tr>
                 ))}

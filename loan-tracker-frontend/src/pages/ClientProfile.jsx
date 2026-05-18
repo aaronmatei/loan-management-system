@@ -183,6 +183,35 @@ function ClientProfile() {
             >
               ✏️ Edit Client
             </button>
+            <button
+              onClick={async () => {
+                try {
+                  const response = await api.get(
+                    `/reports/pdf/client-statement/${client.id}`,
+                    { responseType: "blob" },
+                  );
+                  const blob = new Blob([response.data], {
+                    type: "application/pdf",
+                  });
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `statement_${client.client_code}.pdf`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+                } catch (err) {
+                  alert(
+                    "Failed to download statement: " +
+                      (err.response?.data?.error || err.message),
+                  );
+                }
+              }}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition font-semibold"
+            >
+              📄 Download Statement
+            </button>
           </div>
         </div>
       </div>
