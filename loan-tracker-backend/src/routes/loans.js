@@ -8,6 +8,7 @@ import {
   getCompanySettings,
 } from "../services/emailService.js";
 import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
+import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -423,6 +424,21 @@ router.post("/", async (req, res) => {
       })();
     }
 
+    await logAudit({
+      user: req.user,
+      action: "created",
+      entityType: "loan",
+      entityId: loan.id,
+      entityCode: loan.loan_code,
+      description: `Issued loan ${loan.loan_code} of KES ${principal.toLocaleString()} to client ${client_id}`,
+      newValues: {
+        principal_amount: principal,
+        interest_rate: annualRate,
+        duration: months,
+      },
+      req,
+    });
+
     logger.info(
       `✓ Loan created: ${loanCode}, KES ${principal}, ${annualRate}% per annum`,
     );
@@ -520,6 +536,25 @@ router.put("/:id", async (req, res) => {
       );
     }
 
+    const statusChanged = status && status !== currentLoan.status;
+    await logAudit({
+      user: req.user,
+      action: statusChanged ? "status_changed" : "updated",
+      entityType: "loan",
+      entityId: id,
+      entityCode: currentLoan.loan_code,
+      description: statusChanged
+        ? `Changed loan ${currentLoan.loan_code} status from "${currentLoan.status}" to "${status}"`
+        : `Updated loan ${currentLoan.loan_code}`,
+      oldValues: {
+        status: currentLoan.status,
+        purpose: currentLoan.purpose,
+        notes: currentLoan.notes,
+      },
+      newValues: { status, purpose, notes },
+      req,
+    });
+
     logger.info(
       `✓ Loan updated: ${currentLoan.loan_code} - Status: ${
         status || currentLoan.status
@@ -550,15 +585,35 @@ router.put("/:id/status", async (req, res) => {
       return res.status(400).json({ error: "Invalid status" });
     }
 
+    // Capture the prior status/code before updating so the audit trail
+    // records the old -> new transition (this route did not previously
+    // fetch the loan first).
+    const existing = await query(
+      "SELECT status, loan_code FROM loans WHERE id = $1",
+      [id],
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+    const prev = existing.rows[0];
+
     const result = await query(
-      `UPDATE loans SET status = $1, updated_at = NOW() 
+      `UPDATE loans SET status = $1, updated_at = NOW()
        WHERE id = $2 RETURNING *`,
       [status, id],
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Loan not found" });
-    }
+    await logAudit({
+      user: req.user,
+      action: "status_changed",
+      entityType: "loan",
+      entityId: id,
+      entityCode: prev.loan_code,
+      description: `Changed loan ${prev.loan_code} status from "${prev.status}" to "${status}"`,
+      oldValues: { status: prev.status },
+      newValues: { status },
+      req,
+    });
 
     res.json({
       success: true,

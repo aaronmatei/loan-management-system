@@ -19,6 +19,7 @@ import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
 import settingsRoutes from "./routes/settings.js";
+import auditRoutes from "./routes/audit.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -67,6 +68,7 @@ app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/audit", auditRoutes);
 
 // 404 handler
 app.use((req, res) => {

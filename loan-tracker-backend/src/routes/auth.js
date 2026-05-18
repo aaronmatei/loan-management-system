@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { query } from "../config/database.js";
 import logger from "../config/logger.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
+import { logAudit } from "../services/auditService.js";
 
 const router = express.Router();
 
@@ -25,10 +26,27 @@ router.post("/login", async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
+      await logAudit({
+        user: { id: null, email },
+        action: "login_failed",
+        entityType: "user",
+        entityCode: email,
+        description: `Failed login attempt for ${email} (no such user)`,
+        req,
+      });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     if (!user.is_active) {
+      await logAudit({
+        user,
+        action: "login_failed",
+        entityType: "user",
+        entityId: user.id,
+        entityCode: email,
+        description: `Failed login for ${email} (account inactive)`,
+        req,
+      });
       return res.status(401).json({ error: "Account is inactive" });
     }
 
@@ -38,6 +56,15 @@ router.post("/login", async (req, res) => {
       user.password_hash,
     );
     if (!isValidPassword) {
+      await logAudit({
+        user,
+        action: "login_failed",
+        entityType: "user",
+        entityId: user.id,
+        entityCode: email,
+        description: `Failed login for ${email} (wrong password)`,
+        req,
+      });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -50,6 +77,16 @@ router.post("/login", async (req, res) => {
 
     // Update last login
     await query("UPDATE users SET last_login = NOW() WHERE id = $1", [user.id]);
+
+    await logAudit({
+      user,
+      action: "login",
+      entityType: "user",
+      entityId: user.id,
+      entityCode: user.email,
+      description: `User logged in`,
+      req,
+    });
 
     logger.info(`✓ Login successful: ${email}`);
 
@@ -118,6 +155,17 @@ router.post("/register", async (req, res) => {
         role || "loan_officer",
       ],
     );
+
+    await logAudit({
+      user: req.user,
+      action: "created",
+      entityType: "user",
+      entityId: result.rows[0].id,
+      entityCode: email,
+      description: `Registered user ${email} (role: ${role || "loan_officer"})`,
+      newValues: { username, email, role: role || "loan_officer" },
+      req,
+    });
 
     logger.info(`New user registered: ${email}`);
 

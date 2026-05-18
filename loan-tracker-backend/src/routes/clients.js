@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
+import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -468,6 +469,17 @@ router.post("/", async (req, res) => {
       ],
     );
 
+    await logAudit({
+      user: req.user,
+      action: "created",
+      entityType: "client",
+      entityId: result.rows[0].id,
+      entityCode: clientCode,
+      description: `Created client: ${first_name} ${last_name}`,
+      newValues: { first_name, last_name, phone_number, email, county },
+      req,
+    });
+
     logger.info(`✓ Client created: ${clientCode} - ${first_name} ${last_name}`);
 
     res.status(201).json({
@@ -603,6 +615,18 @@ router.put("/:id", async (req, res) => {
       ],
     );
 
+    await logAudit({
+      user: req.user,
+      action: "updated",
+      entityType: "client",
+      entityId: id,
+      entityCode: currentClient.client_code,
+      description: `Updated client: ${first_name} ${last_name}`,
+      oldValues: currentClient,
+      newValues: result.rows[0],
+      req,
+    });
+
     logger.info(`✓ Client updated: ${currentClient.client_code}`);
 
     res.json({
@@ -632,6 +656,16 @@ router.delete("/:id", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
+
+    await logAudit({
+      user: req.user,
+      action: "deleted",
+      entityType: "client",
+      entityId: id,
+      entityCode: result.rows[0].client_code,
+      description: `Deactivated client ${result.rows[0].client_code} (${result.rows[0].first_name} ${result.rows[0].last_name})`,
+      req,
+    });
 
     logger.info(`✓ Client deactivated: ID ${id}`);
 

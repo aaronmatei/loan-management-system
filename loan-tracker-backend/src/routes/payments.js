@@ -8,6 +8,7 @@ import {
   getCompanySettings,
 } from "../services/emailService.js";
 import { buildReceiptPdf } from "../utils/pdfDocuments.js";
+import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -480,6 +481,27 @@ router.post("/", async (req, res) => {
       })();
     }
 
+    await logAudit({
+      user: req.user,
+      action: "payment_recorded",
+      entityType: "transaction",
+      entityId: transaction.id,
+      entityCode: transactionCode,
+      description: `Recorded payment of KES ${paymentAmount.toLocaleString()} for loan ${loan.loan_code}`,
+      newValues: {
+        amount: paymentAmount,
+        method: payment_method,
+        loan_code: loan.loan_code,
+        overpayment: newOverpayment,
+      },
+      metadata: {
+        loan_id,
+        is_completion: isFullyPaid,
+        has_overpayment: newOverpayment > 0,
+      },
+      req,
+    });
+
     logger.info(
       `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,
     );
@@ -726,6 +748,19 @@ router.post("/refund/:loanId", async (req, res) => {
         logger.error("Refund email error:", err);
       }
     }
+
+    await logAudit({
+      user: req.user,
+      action: "refund_processed",
+      entityType: "loan",
+      entityId: loanId,
+      entityCode: loan.loan_code,
+      description: `Processed refund of KES ${parseFloat(
+        loan.overpayment_amount,
+      ).toLocaleString()} for loan ${loan.loan_code} via ${refund_method}`,
+      newValues: { refund_method, refund_reference, refunded_date },
+      req,
+    });
 
     res.json({
       success: true,

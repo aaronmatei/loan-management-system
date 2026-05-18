@@ -41,6 +41,7 @@ function Layout({ children }) {
     { path: "/sms", label: "SMS", icon: "📱" },
     { path: "/email", label: "Email", icon: "✉️" },
     { path: "/settings", label: "Settings", icon: "⚙️" },
+    { path: "/audit", label: "Audit Log", icon: "🔍" },
   ];
 
   return (

@@ -18,6 +18,7 @@ import Reports from "./pages/Reports";
 import SMS from "./pages/SMS";
 import Email from "./pages/Email";
 import Settings from "./pages/Settings";
+import AuditLog from "./pages/AuditLog";
 import Layout from "./components/Layout";
 
 function App() {
@@ -62,6 +63,7 @@ function App() {
               <Route path="/sms" element={<SMS />} />
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/audit" element={<AuditLog />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Layout>

@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
+import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -118,6 +119,18 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
         description || (type === "add" ? "Capital added" : "Capital withdrawn"),
       ],
     );
+
+    await logAudit({
+      user: req.user,
+      action: "capital_adjusted",
+      entityType: "capital_pool",
+      entityId: pool.id,
+      description: `${type === "add" ? "Added" : "Withdrew"} KES ${value.toLocaleString()}${
+        description ? ` — ${description}` : ""
+      }`,
+      newValues: { type, amount: value, description: description || null },
+      req,
+    });
 
     logger.info(
       `✓ Capital ${type} of KES ${value} by ${req.user?.email}`,

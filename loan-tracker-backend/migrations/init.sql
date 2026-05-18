@@ -113,14 +113,23 @@ CREATE TABLE IF NOT EXISTS dashboard_metrics (
 );
 
 -- Create AUDIT_LOGS table
+-- NOTE: also mirrored/upgraded by migrations/add_audit_logs.sql for
+-- databases created before the rich audit schema existed.
 CREATE TABLE IF NOT EXISTS audit_logs (
   id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id),
-  table_name VARCHAR(50),
-  action VARCHAR(20),
-  record_id INT,
-  old_values JSON,
-  new_values JSON,
+  user_id INTEGER REFERENCES users(id),
+  user_email VARCHAR(255),
+  user_name VARCHAR(255),
+  action VARCHAR(50) NOT NULL,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id INTEGER,
+  entity_code VARCHAR(100),
+  description TEXT,
+  old_values JSONB,
+  new_values JSONB,
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  metadata JSONB,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -135,6 +144,9 @@ CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions(client_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_date ON audit_logs(created_at DESC);
 
 -- Insert default admin user (password: Admin@2026)
 INSERT INTO users (username, email, password_hash, first_name,last_name, role, is_active)
