@@ -219,7 +219,7 @@ router.post("/send-payment-confirmation", async (req, res) => {
 // Get SMS logs (with filters)
 router.get("/logs", async (req, res) => {
   try {
-    const { client_id, message_type, page = 1, limit = 50 } = req.query;
+    const { client_id, message_type, page = 1, limit = 10000 } = req.query;
     const offset = (page - 1) * limit;
 
     let queryText = `

@@ -13,9 +13,23 @@ function SMS() {
   const [clientSearch, setClientSearch] = useState("");
   const [showClientDropdown, setShowClientDropdown] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Reset to first page whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, typeFilter, statusFilter]);
 
   const fetchData = async () => {
     try {
@@ -94,6 +108,55 @@ function SMS() {
       c.client_code?.toLowerCase().includes(search)
     );
   });
+
+  // Filter logs (search + type + status)
+  const filteredLogs = logs.filter((log) => {
+    if (searchQuery.trim()) {
+      const search = searchQuery.toLowerCase();
+      const matches =
+        log.first_name?.toLowerCase().includes(search) ||
+        log.last_name?.toLowerCase().includes(search) ||
+        log.phone_number?.includes(search) ||
+        log.message?.toLowerCase().includes(search) ||
+        log.client_code?.toLowerCase().includes(search);
+      if (!matches) return false;
+    }
+
+    if (typeFilter !== "all" && log.message_type !== typeFilter) {
+      return false;
+    }
+
+    if (statusFilter !== "all" && log.status !== statusFilter) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+
+  // Filter counts for dropdowns
+  const typeCounts = {
+    all: logs.length,
+    overdue_reminder: logs.filter((l) => l.message_type === "overdue_reminder")
+      .length,
+    payment_received: logs.filter((l) => l.message_type === "payment_received")
+      .length,
+    custom: logs.filter((l) => l.message_type === "custom").length,
+  };
+
+  const statusCounts = {
+    all: logs.length,
+    sent: logs.filter((l) => l.status === "sent").length,
+    failed: logs.filter((l) => l.status === "failed").length,
+  };
+
+  const filtersActive =
+    searchQuery || typeFilter !== "all" || statusFilter !== "all";
 
   if (loading) {
     return (
@@ -176,6 +239,126 @@ function SMS() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-end">
+          {/* Search */}
+          <div className="flex-1 min-w-[250px]">
+            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="🔍 Search by name, phone, or message..."
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Type Filter */}
+          <div className="min-w-[180px]">
+            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+              Message Type
+            </label>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+            >
+              <option value="all">All ({typeCounts.all})</option>
+              <option value="overdue_reminder">
+                ⚠️ Overdue Reminder ({typeCounts.overdue_reminder})
+              </option>
+              <option value="payment_received">
+                💵 Payment Received ({typeCounts.payment_received})
+              </option>
+              <option value="custom">
+                ✉️ Custom ({typeCounts.custom})
+              </option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="min-w-[150px]">
+            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+              Status
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+            >
+              <option value="all">All ({statusCounts.all})</option>
+              <option value="sent">✓ Sent ({statusCounts.sent})</option>
+              <option value="failed">
+                ✕ Failed ({statusCounts.failed})
+              </option>
+            </select>
+          </div>
+
+          {/* Clear Button */}
+          {filtersActive && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setTypeFilter("all");
+                setStatusFilter("all");
+              }}
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition"
+            >
+              ✖ Clear
+            </button>
+          )}
+        </div>
+
+        {/* Active Filter Tags */}
+        {filtersActive && (
+          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-600">Filters:</span>
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                  "{searchQuery}"
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="ml-1"
+                  >
+                    ✖
+                  </button>
+                </span>
+              )}
+              {typeFilter !== "all" && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                  {typeFilter}
+                  <button
+                    onClick={() => setTypeFilter("all")}
+                    className="ml-1"
+                  >
+                    ✖
+                  </button>
+                </span>
+              )}
+              {statusFilter !== "all" && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                  {statusFilter}
+                  <button
+                    onClick={() => setStatusFilter("all")}
+                    className="ml-1"
+                  >
+                    ✖
+                  </button>
+                </span>
+              )}
+            </div>
+            <span className="text-sm text-gray-600">
+              Showing <strong>{filteredLogs.length}</strong> of{" "}
+              <strong>{logs.length}</strong>
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* SMS Logs */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200">
@@ -206,17 +389,19 @@ function SMS() {
               </tr>
             </thead>
             <tbody>
-              {logs.length === 0 ? (
+              {paginatedLogs.length === 0 ? (
                 <tr>
                   <td
                     colSpan="6"
                     className="px-4 py-12 text-center text-gray-500"
                   >
-                    No SMS sent yet
+                    {logs.length === 0
+                      ? "No SMS sent yet"
+                      : "No messages match your filters"}
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => (
+                paginatedLogs.map((log) => (
                   <tr
                     key={log.id}
                     className="border-b border-gray-100 hover:bg-gray-50"
@@ -271,6 +456,73 @@ function SMS() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Showing{" "}
+              <span className="font-semibold">{startIndex + 1}</span> to{" "}
+              <span className="font-semibold">
+                {Math.min(endIndex, filteredLogs.length)}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold">{filteredLogs.length}</span>{" "}
+              results
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                ← Previous
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    return (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 2 && page <= currentPage + 2)
+                    );
+                  })
+                  .map((page, idx, arr) => {
+                    const showEllipsisBefore =
+                      idx > 0 && page - arr[idx - 1] > 1;
+                    return (
+                      <React.Fragment key={page}>
+                        {showEllipsisBefore && (
+                          <span className="px-2 text-gray-400">...</span>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+                            currentPage === page
+                              ? "bg-indigo-600 text-white"
+                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+              </div>
+
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Custom SMS Modal */}
