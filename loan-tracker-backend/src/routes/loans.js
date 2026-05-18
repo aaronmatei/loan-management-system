@@ -10,6 +10,7 @@ import {
 import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
+import ExcelJS from "exceljs";
 
 const router = express.Router();
 
@@ -623,6 +624,165 @@ router.put("/:id/status", authorize("admin", "manager"), async (req, res) => {
   } catch (error) {
     logger.error("Update loan error:", error);
     res.status(500).json({ error: "Failed to update loan" });
+  }
+});
+
+// ============================================================
+// BULK: update status for many loans
+// ============================================================
+router.post(
+  "/bulk/status",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { loan_ids, status, notes } = req.body;
+
+      if (!Array.isArray(loan_ids) || loan_ids.length === 0) {
+        return res.status(400).json({ error: "No loans selected" });
+      }
+      if (!["active", "defaulted", "suspended"].includes(status)) {
+        return res.status(400).json({
+          error: "Invalid status. Use: active, defaulted, or suspended",
+        });
+      }
+
+      const completedCheck = await query(
+        `SELECT COUNT(*) AS count FROM loans
+         WHERE id = ANY($1) AND status = 'completed'`,
+        [loan_ids],
+      );
+      const completedCount = parseInt(completedCheck.rows[0].count, 10);
+      if (completedCount > 0) {
+        return res.status(400).json({
+          error: `Cannot modify ${completedCount} completed loan(s). Please deselect them.`,
+        });
+      }
+
+      const result = await query(
+        `UPDATE loans
+         SET status = $1,
+             notes = COALESCE($2, notes),
+             updated_at = NOW()
+         WHERE id = ANY($3) AND status != 'completed'
+         RETURNING id, loan_code, status`,
+        [status, notes || null, loan_ids],
+      );
+
+      // Marking defaulted pushes pending installments to overdue
+      // (mirrors the single-loan PUT, including the ::date cast).
+      if (status === "defaulted") {
+        await query(
+          `UPDATE payment_schedules
+           SET status = 'overdue',
+               days_late = (CURRENT_DATE - due_date::date),
+               updated_at = NOW()
+           WHERE loan_id = ANY($1) AND status = 'pending'`,
+          [loan_ids],
+        );
+      }
+
+      await logAudit({
+        user: req.user,
+        action: "bulk_status_changed",
+        entityType: "loan",
+        description: `Bulk updated ${result.rows.length} loans to status: ${status}`,
+        newValues: {
+          status,
+          notes: notes || null,
+          loan_ids,
+          count: result.rows.length,
+        },
+        req,
+      });
+
+      logger.info(
+        `✓ Bulk loan status: ${result.rows.length} → ${status} by ${req.user.email}`,
+      );
+
+      res.json({
+        success: true,
+        message: `Updated ${result.rows.length} loans to ${status}`,
+        updated_count: result.rows.length,
+      });
+    } catch (error) {
+      logger.error("Bulk status update error:", error);
+      res.status(500).json({ error: "Failed to update loans" });
+    }
+  },
+);
+
+// ============================================================
+// BULK: export selected loans to Excel
+// ============================================================
+router.post("/bulk/export", async (req, res) => {
+  try {
+    const { loan_ids } = req.body;
+
+    if (!Array.isArray(loan_ids) || loan_ids.length === 0) {
+      return res.status(400).json({ error: "No loans selected" });
+    }
+
+    const result = await query(
+      `SELECT
+        l.*,
+        c.first_name, c.last_name, c.phone_number, c.client_code,
+        (SELECT COALESCE(SUM(t.amount_paid), 0)
+           FROM transactions t
+           WHERE t.loan_id = l.id
+             AND t.payment_status = 'completed') AS total_paid
+      FROM loans l
+      JOIN clients c ON l.client_id = c.id
+      WHERE l.id = ANY($1)
+      ORDER BY l.created_at DESC`,
+      [loan_ids],
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Selected Loans");
+
+    sheet.columns = [
+      { header: "Loan Code", key: "loan_code", width: 15 },
+      { header: "Client Code", key: "client_code", width: 15 },
+      { header: "Client Name", key: "client_name", width: 25 },
+      { header: "Phone", key: "phone_number", width: 15 },
+      { header: "Principal", key: "principal_amount", width: 12 },
+      { header: "Total Due", key: "total_amount_due", width: 12 },
+      { header: "Paid", key: "total_paid", width: 12 },
+      { header: "Balance", key: "balance", width: 12 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Start Date", key: "start_date", width: 12 },
+    ];
+
+    sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    sheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF4F46E5" },
+    };
+
+    result.rows.forEach((loan) => {
+      sheet.addRow({
+        ...loan,
+        client_name: `${loan.first_name} ${loan.last_name}`,
+        balance: (
+          parseFloat(loan.total_amount_due) - parseFloat(loan.total_paid)
+        ).toFixed(2),
+        start_date: new Date(loan.start_date).toLocaleDateString(),
+      });
+    });
+
+    const filename = `selected_loans_${new Date().toISOString().split("T")[0]}.xlsx`;
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    logger.error("Bulk export error:", error);
+    res.status(500).json({ error: "Failed to export" });
   }
 });
 

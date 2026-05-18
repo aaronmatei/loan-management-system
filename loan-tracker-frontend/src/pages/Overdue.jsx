@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useBulkSelection } from "../hooks/useBulkSelection";
+import BulkActionBar from "../components/BulkActionBar";
+import BulkMessaging from "../components/BulkMessaging";
+import { bulkExport } from "../utils/bulkExport";
 
 // Days-late badge colour, 4 severity tiers
 function daysBadgeClass(days) {
@@ -148,8 +152,31 @@ function Overdue() {
     setSeverityFilter("all");
   };
 
+  // ── Bulk selection (keyed by schedule id) ───────────────────
+  const bulk = useBulkSelection(paginated);
+  const selectedRows = overdueList.filter((p) => bulk.isSelected(p.id));
+  const selectedClientIds = [
+    ...new Set(selectedRows.map((p) => p.client_id)),
+  ];
+  const selectedLoanIds = [...new Set(selectedRows.map((p) => p.loan_id))];
+
+  const handleBulkExport = async () => {
+    try {
+      // Reuse the loans bulk export for the distinct loans behind the
+      // selected overdue installments (no overdue-specific endpoint).
+      await bulkExport(
+        "/loans/bulk/export",
+        { loan_ids: selectedLoanIds },
+        `selected_overdue_loans_${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
+      bulk.clear();
+    } catch (err) {
+      alert("Export failed: " + (err.response?.data?.error || err.message));
+    }
+  };
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
       <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
         <div>
@@ -352,6 +379,14 @@ function Overdue() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
                     <tr>
+                      <th className="px-4 py-4 w-10">
+                        <input
+                          type="checkbox"
+                          checked={bulk.allOnPageSelected}
+                          onChange={bulk.togglePage}
+                          className="w-4 h-4 cursor-pointer"
+                        />
+                      </th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                         Client
                       </th>
@@ -386,8 +421,18 @@ function Overdue() {
                       return (
                         <tr
                           key={p.schedule_id || p.id}
-                          className="border-b border-gray-100 hover:bg-red-50 transition"
+                          className={`border-b border-gray-100 hover:bg-red-50 transition ${
+                            bulk.isSelected(p.id) ? "bg-red-50" : ""
+                          }`}
                         >
+                          <td className="px-4 py-4">
+                            <input
+                              type="checkbox"
+                              checked={bulk.isSelected(p.id)}
+                              onChange={() => bulk.toggle(p.id)}
+                              className="w-4 h-4 cursor-pointer"
+                            />
+                          </td>
                           <td className="px-4 py-4">
                             <p className="font-semibold text-gray-800 text-sm">
                               {p.first_name} {p.last_name}
@@ -444,7 +489,7 @@ function Overdue() {
                   <tfoot className="bg-gradient-to-r from-red-50 to-rose-50 border-t-2 border-red-200">
                     <tr>
                       <td
-                        colSpan="5"
+                        colSpan="6"
                         className="px-4 py-4 font-bold text-gray-800 text-sm"
                       >
                         📊 TOTALS — {filtered.length} overdue •{" "}
@@ -533,6 +578,24 @@ function Overdue() {
           )}
         </>
       )}
+
+      <BulkActionBar
+        selectedCount={bulk.count}
+        totalCount={filtered.length}
+        onClear={bulk.clear}
+      >
+        <button
+          onClick={handleBulkExport}
+          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+        >
+          ⬇️ Export
+        </button>
+
+        <BulkMessaging
+          clientIds={selectedClientIds}
+          onComplete={bulk.clear}
+        />
+      </BulkActionBar>
     </div>
   );
 }

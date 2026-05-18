@@ -12,6 +12,7 @@ import {
   buildLoanAgreementPdf,
   NotFoundError,
 } from "../utils/pdfDocuments.js";
+import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -422,6 +423,102 @@ router.get("/stats", async (req, res) => {
   } catch (error) {
     logger.error("Email stats error:", error);
     res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+// ============================================================
+// BULK EMAIL to selected clients (router already gated to
+// admin/manager/loan_officer; viewers excluded).
+// ============================================================
+router.post("/bulk-send", async (req, res) => {
+  try {
+    const { client_ids, subject, message } = req.body;
+
+    if (!Array.isArray(client_ids) || client_ids.length === 0) {
+      return res.status(400).json({ error: "No clients selected" });
+    }
+    if (!subject || !message) {
+      return res
+        .status(400)
+        .json({ error: "Subject and message are required" });
+    }
+
+    const clientsResult = await query(
+      `SELECT id, first_name, last_name, email
+       FROM clients
+       WHERE id = ANY($1) AND email IS NOT NULL`,
+      [client_ids],
+    );
+    const recipients = clientsResult.rows;
+    if (recipients.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No clients have email addresses" });
+    }
+
+    // The custom template renders via baseLayout, which needs the
+    // company object — fetch once (not per recipient).
+    const company = await getCompanySettings();
+
+    const results = [];
+    for (const client of recipients) {
+      const personalizedMessage = message
+        .replaceAll("{first_name}", client.first_name || "")
+        .replaceAll("{last_name}", client.last_name || "");
+
+      const template = templates.custom({
+        subject,
+        message: personalizedMessage,
+        clientName: client.first_name,
+        company,
+      });
+
+      const result = await sendEmail({
+        to: client.email,
+        subject: template.subject,
+        html: template.html,
+      });
+
+      await query(
+        `INSERT INTO email_logs (
+          client_id, recipient_email, subject, message_type,
+          status, provider_response, sent_by
+        ) VALUES ($1, $2, $3, 'bulk_custom', $4, $5, $6)`,
+        [
+          client.id,
+          client.email,
+          subject,
+          result.success ? "sent" : "failed",
+          JSON.stringify(result),
+          req.user.id,
+        ],
+      );
+
+      results.push({ client_id: client.id, ...result });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
+    const sent = results.filter((r) => r.success).length;
+
+    await logAudit({
+      user: req.user,
+      action: "bulk_email_sent",
+      entityType: "email",
+      description: `Bulk email sent to ${sent} of ${recipients.length} clients`,
+      newValues: { sent, total: recipients.length, subject },
+      req,
+    });
+
+    res.json({
+      success: true,
+      message: `Sent ${sent} emails, ${results.length - sent} failed`,
+      sent,
+      failed: results.length - sent,
+      total: results.length,
+    });
+  } catch (error) {
+    logger.error("Bulk email error:", error);
+    res.status(500).json({ error: "Failed to send bulk emails" });
   }
 });
 

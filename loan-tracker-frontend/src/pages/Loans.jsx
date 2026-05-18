@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useBulkSelection } from "../hooks/useBulkSelection";
+import BulkActionBar from "../components/BulkActionBar";
+import BulkMessaging from "../components/BulkMessaging";
+import PermissionGate from "../components/PermissionGate";
+import { bulkExport } from "../utils/bulkExport";
 
 function Loans() {
   const navigate = useNavigate();
@@ -271,8 +276,48 @@ function Loans() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedLoans = filteredLoans.slice(startIndex, endIndex);
 
+  // ── Bulk selection ──────────────────────────────────────────
+  const bulk = useBulkSelection(paginatedLoans);
+  // SMS/Email target the borrowers of the selected loans (deduped).
+  const selectedClientIds = [
+    ...new Set(
+      loans
+        .filter((l) => bulk.isSelected(l.id))
+        .map((l) => l.client_id),
+    ),
+  ];
+
+  const handleBulkExport = async () => {
+    try {
+      await bulkExport(
+        "/loans/bulk/export",
+        { loan_ids: bulk.selectedArray },
+        `selected_loans_${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
+      bulk.clear();
+    } catch (err) {
+      alert("Export failed: " + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleBulkStatus = async (status) => {
+    if (!window.confirm(`Update ${bulk.count} loan(s) to "${status}"?`))
+      return;
+    try {
+      const res = await api.post("/loans/bulk/status", {
+        loan_ids: bulk.selectedArray,
+        status,
+      });
+      alert(`✅ ${res.data.message}`);
+      bulk.clear();
+      fetchLoans();
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
+    }
+  };
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -917,6 +962,14 @@ function Loans() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
                 <tr>
+                  <th className="px-4 py-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={bulk.allOnPageSelected}
+                      onChange={bulk.togglePage}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                     Loan Code
                   </th>
@@ -957,8 +1010,21 @@ function Loans() {
                     <tr
                       key={loan.id}
                       onClick={() => navigate(`/loans/${loan.id}`)}
-                      className="border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer"
+                      className={`border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer ${
+                        bulk.isSelected(loan.id) ? "bg-indigo-50" : ""
+                      }`}
                     >
+                      <td
+                        className="px-4 py-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={bulk.isSelected(loan.id)}
+                          onChange={() => bulk.toggle(loan.id)}
+                          className="w-4 h-4 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-4 font-mono text-sm font-semibold text-indigo-600">
                         {loan.loan_code}
                       </td>
@@ -1044,7 +1110,7 @@ function Loans() {
               <tfoot className="bg-gradient-to-r from-indigo-50 to-purple-50 border-t-2 border-indigo-200">
                 <tr>
                   <td
-                    colSpan="2"
+                    colSpan="3"
                     className="px-4 py-4 font-bold text-gray-800 text-sm"
                   >
                     📊 TOTALS ({filteredLoans.length} loans)
@@ -1203,6 +1269,46 @@ function Loans() {
           )}
         </div>
       )}
+
+      <BulkActionBar
+        selectedCount={bulk.count}
+        totalCount={filteredLoans.length}
+        onClear={bulk.clear}
+      >
+        <button
+          onClick={handleBulkExport}
+          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+        >
+          ⬇️ Export
+        </button>
+
+        <BulkMessaging
+          clientIds={selectedClientIds}
+          onComplete={bulk.clear}
+        />
+
+        <PermissionGate role={["admin", "manager"]}>
+          <div className="border-l border-white/30 mx-1 h-6"></div>
+          <button
+            onClick={() => handleBulkStatus("defaulted")}
+            className="px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-semibold"
+          >
+            🔴 Mark Defaulted
+          </button>
+          <button
+            onClick={() => handleBulkStatus("suspended")}
+            className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 rounded-lg text-sm font-semibold"
+          >
+            ⏸️ Suspend
+          </button>
+          <button
+            onClick={() => handleBulkStatus("active")}
+            className="px-4 py-2 bg-green-500/30 hover:bg-green-500/50 rounded-lg text-sm font-semibold"
+          >
+            ✓ Reactivate
+          </button>
+        </PermissionGate>
+      </BulkActionBar>
     </div>
   );
 }

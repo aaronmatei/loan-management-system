@@ -2,6 +2,7 @@ import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { sendSMS, templates } from "../services/smsService.js";
+import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -295,6 +296,87 @@ router.get("/stats", async (req, res) => {
   } catch (error) {
     logger.error("SMS stats error:", error);
     res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+// ============================================================
+// BULK SMS to selected clients (router already gated to
+// admin/manager/loan_officer; viewers excluded).
+// ============================================================
+router.post("/bulk-send", async (req, res) => {
+  try {
+    const { client_ids, message } = req.body;
+
+    if (!Array.isArray(client_ids) || client_ids.length === 0) {
+      return res.status(400).json({ error: "No clients selected" });
+    }
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const clientsResult = await query(
+      `SELECT id, first_name, last_name, phone_number
+       FROM clients
+       WHERE id = ANY($1) AND phone_number IS NOT NULL`,
+      [client_ids],
+    );
+    const recipients = clientsResult.rows;
+    if (recipients.length === 0) {
+      return res.status(400).json({ error: "No clients have phone numbers" });
+    }
+
+    const results = [];
+    for (const client of recipients) {
+      const personalizedMessage = message
+        .replaceAll("{first_name}", client.first_name || "")
+        .replaceAll("{last_name}", client.last_name || "");
+
+      const result = await sendSMS(client.phone_number, personalizedMessage);
+
+      await query(
+        `INSERT INTO sms_logs (
+          client_id, phone_number, message, message_type,
+          status, provider_response, sent_by
+        ) VALUES ($1, $2, $3, 'bulk_custom', $4, $5, $6)`,
+        [
+          client.id,
+          client.phone_number,
+          personalizedMessage,
+          result.success ? "sent" : "failed",
+          JSON.stringify(result),
+          req.user.id,
+        ],
+      );
+
+      results.push({ client_id: client.id, ...result });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    const sent = results.filter((r) => r.success).length;
+
+    await logAudit({
+      user: req.user,
+      action: "bulk_sms_sent",
+      entityType: "sms",
+      description: `Bulk SMS sent to ${sent} of ${recipients.length} clients`,
+      newValues: {
+        sent,
+        total: recipients.length,
+        message: message.substring(0, 100),
+      },
+      req,
+    });
+
+    res.json({
+      success: true,
+      message: `Sent ${sent} SMS, ${results.length - sent} failed`,
+      sent,
+      failed: results.length - sent,
+      total: results.length,
+    });
+  } catch (error) {
+    logger.error("Bulk SMS error:", error);
+    res.status(500).json({ error: "Failed to send bulk SMS" });
   }
 });
 

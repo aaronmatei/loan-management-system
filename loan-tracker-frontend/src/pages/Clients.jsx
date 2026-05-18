@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
+import { useBulkSelection } from "../hooks/useBulkSelection";
+import BulkActionBar from "../components/BulkActionBar";
+import BulkMessaging from "../components/BulkMessaging";
+import PermissionGate from "../components/PermissionGate";
+import { bulkExport } from "../utils/bulkExport";
 
 function Clients() {
   const navigate = useNavigate();
@@ -110,8 +115,40 @@ function Clients() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedClients = filteredClients.slice(startIndex, endIndex);
 
+  // ── Bulk selection ──────────────────────────────────────────
+  const bulk = useBulkSelection(paginatedClients);
+
+  const handleBulkExport = async () => {
+    try {
+      await bulkExport(
+        "/clients/bulk/export",
+        { client_ids: bulk.selectedArray },
+        `selected_clients_${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
+      bulk.clear();
+    } catch (err) {
+      alert("Export failed: " + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleBulkStatus = async (status) => {
+    if (!window.confirm(`Update ${bulk.count} client(s) to "${status}"?`))
+      return;
+    try {
+      const res = await api.post("/clients/bulk/status", {
+        client_ids: bulk.selectedArray,
+        status,
+      });
+      alert(`✅ ${res.data.message}`);
+      bulk.clear();
+      fetchClients();
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
+    }
+  };
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -391,6 +428,14 @@ function Clients() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
                 <tr>
+                  <th className="px-4 py-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={bulk.allOnPageSelected}
+                      onChange={bulk.togglePage}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
                     Code
                   </th>
@@ -419,8 +464,21 @@ function Clients() {
                   <tr
                     key={client.id}
                     onClick={() => navigate(`/clients/${client.id}/profile`)}
-                    className="border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer"
+                    className={`border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer ${
+                      bulk.isSelected(client.id) ? "bg-indigo-50" : ""
+                    }`}
                   >
+                    <td
+                      className="px-4 py-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={bulk.isSelected(client.id)}
+                        onChange={() => bulk.toggle(client.id)}
+                        className="w-4 h-4 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4 font-mono text-sm font-semibold text-indigo-600">
                       {client.client_code}
                     </td>
@@ -524,6 +582,46 @@ function Clients() {
           )}
         </div>
       )}
+
+      <BulkActionBar
+        selectedCount={bulk.count}
+        totalCount={filteredClients.length}
+        onClear={bulk.clear}
+      >
+        <button
+          onClick={handleBulkExport}
+          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+        >
+          ⬇️ Export
+        </button>
+
+        <BulkMessaging
+          clientIds={bulk.selectedArray}
+          onComplete={bulk.clear}
+        />
+
+        <PermissionGate role={["admin", "manager"]}>
+          <div className="border-l border-white/30 mx-1 h-6"></div>
+          <button
+            onClick={() => handleBulkStatus("active")}
+            className="px-4 py-2 bg-green-500/30 hover:bg-green-500/50 rounded-lg text-sm font-semibold"
+          >
+            ✓ Activate
+          </button>
+          <button
+            onClick={() => handleBulkStatus("inactive")}
+            className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 rounded-lg text-sm font-semibold"
+          >
+            ⏸️ Deactivate
+          </button>
+          <button
+            onClick={() => handleBulkStatus("blacklisted")}
+            className="px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-semibold"
+          >
+            🚫 Blacklist
+          </button>
+        </PermissionGate>
+      </BulkActionBar>
     </div>
   );
 }

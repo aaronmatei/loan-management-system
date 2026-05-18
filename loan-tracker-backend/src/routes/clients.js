@@ -3,6 +3,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
+import ExcelJS from "exceljs";
 
 const router = express.Router();
 
@@ -676,6 +677,155 @@ router.delete("/:id", authorize("admin"), async (req, res) => {
   } catch (error) {
     logger.error("Delete client error:", error);
     res.status(500).json({ error: "Failed to delete client" });
+  }
+});
+
+// ============================================================
+// BULK: update status for many clients
+// ============================================================
+router.post(
+  "/bulk/status",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { client_ids, status } = req.body;
+
+      if (!Array.isArray(client_ids) || client_ids.length === 0) {
+        return res.status(400).json({ error: "No clients selected" });
+      }
+      if (!["active", "inactive", "blacklisted"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      // Block deactivating/blacklisting clients that still have active
+      // loans (same rule as the single-client PUT).
+      if (status !== "active") {
+        const activeLoans = await query(
+          `SELECT DISTINCT client_id
+           FROM loans
+           WHERE client_id = ANY($1) AND status = 'active'`,
+          [client_ids],
+        );
+        if (activeLoans.rows.length > 0) {
+          const clientsWithLoans = activeLoans.rows.map((r) => r.client_id);
+          return res.status(400).json({
+            error: `${clientsWithLoans.length} of the selected clients have active loans and cannot be ${status}.`,
+            clients_with_active_loans: clientsWithLoans,
+          });
+        }
+      }
+
+      const result = await query(
+        `UPDATE clients
+         SET status = $1, updated_at = NOW()
+         WHERE id = ANY($2)
+         RETURNING id, client_code, first_name, last_name`,
+        [status, client_ids],
+      );
+
+      await logAudit({
+        user: req.user,
+        action: "bulk_status_changed",
+        entityType: "client",
+        description: `Bulk updated ${result.rows.length} clients to status: ${status}`,
+        newValues: { status, client_ids, count: result.rows.length },
+        req,
+      });
+
+      logger.info(
+        `✓ Bulk client status: ${result.rows.length} → ${status} by ${req.user.email}`,
+      );
+
+      res.json({
+        success: true,
+        message: `Updated ${result.rows.length} clients to ${status}`,
+        updated_count: result.rows.length,
+        updated_clients: result.rows,
+      });
+    } catch (error) {
+      logger.error("Bulk status update error:", error);
+      res.status(500).json({ error: "Failed to update clients" });
+    }
+  },
+);
+
+// ============================================================
+// BULK: export selected clients to Excel
+// ============================================================
+router.post("/bulk/export", async (req, res) => {
+  try {
+    const { client_ids } = req.body;
+
+    if (!Array.isArray(client_ids) || client_ids.length === 0) {
+      return res.status(400).json({ error: "No clients selected" });
+    }
+
+    // Correlated subqueries (not joins + GROUP BY) so a client's
+    // principal isn't multiplied by their transaction count — same
+    // approach as the clients export in reports.js.
+    const result = await query(
+      `SELECT
+        c.*,
+        (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id)
+          AS total_loans,
+        (SELECT COALESCE(SUM(l.principal_amount), 0)
+           FROM loans l WHERE l.client_id = c.id) AS total_borrowed,
+        (SELECT COALESCE(SUM(t.amount_paid), 0)
+           FROM transactions t
+           JOIN loans l ON t.loan_id = l.id
+           WHERE l.client_id = c.id
+             AND t.payment_status = 'completed') AS total_paid
+      FROM clients c
+      WHERE c.id = ANY($1)
+      ORDER BY c.created_at DESC`,
+      [client_ids],
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Selected Clients");
+
+    sheet.columns = [
+      { header: "Client Code", key: "client_code", width: 15 },
+      { header: "First Name", key: "first_name", width: 15 },
+      { header: "Last Name", key: "last_name", width: 15 },
+      { header: "Phone", key: "phone_number", width: 15 },
+      { header: "Email", key: "email", width: 25 },
+      { header: "Business", key: "business_name", width: 20 },
+      { header: "City", key: "city", width: 15 },
+      { header: "County", key: "county", width: 15 },
+      { header: "Total Loans", key: "total_loans", width: 12 },
+      { header: "Total Borrowed", key: "total_borrowed", width: 15 },
+      { header: "Total Paid", key: "total_paid", width: 15 },
+      { header: "Status", key: "status", width: 12 },
+    ];
+
+    sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    sheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF4F46E5" },
+    };
+
+    result.rows.forEach((row) =>
+      sheet.addRow({
+        ...row,
+        total_borrowed: parseFloat(row.total_borrowed).toFixed(2),
+        total_paid: parseFloat(row.total_paid).toFixed(2),
+      }),
+    );
+
+    const filename = `selected_clients_${new Date().toISOString().split("T")[0]}.xlsx`;
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    logger.error("Bulk export error:", error);
+    res.status(500).json({ error: "Failed to export" });
   }
 });
 
