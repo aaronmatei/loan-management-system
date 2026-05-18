@@ -143,19 +143,21 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       collateral_description,
       late_payment_fee,
       penalty_rate,
+      application_source,
+      review_notes,
     } = req.body;
 
-    // Validation
+    // Validation. start_date is NOT required at application time —
+    // it's set when the loan is disbursed.
     if (
       !client_id ||
       !principal_amount ||
       !annual_interest_rate ||
-      !loan_duration_months ||
-      !start_date
+      !loan_duration_months
     ) {
       return res.status(400).json({
         error:
-          "Client, amount, interest rate, duration, and start date are required",
+          "Client, amount, interest rate, and duration are required",
       });
     }
 
@@ -209,71 +211,47 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       });
     }
 
-    // ✅ Capital pool guard: cannot lend more than what's available
-    const poolCheck = await query(`
-      SELECT
-        initial_capital,
-        total_disbursed,
-        total_collected,
-        (initial_capital - total_disbursed + total_collected) AS available_pool
-      FROM capital_pool
-      ORDER BY id DESC LIMIT 1
-    `);
+    // NOTE: capital-availability is NOT checked here — it is checked
+    // at /approve, because the pool can change between application
+    // and approval. Schedule, capital movement and notifications all
+    // happen at /disburse, not at application.
 
-    if (poolCheck.rows.length === 0) {
-      return res.status(500).json({ error: "Capital pool not initialized" });
-    }
-
-    const available = parseFloat(poolCheck.rows[0].available_pool);
-    const requestedAmount = parseFloat(principal_amount);
-
-    if (requestedAmount > available) {
-      return res.status(400).json({
-        error: `Insufficient pool balance. Available: KES ${available.toLocaleString()}, Requested: KES ${requestedAmount.toLocaleString()}`,
-        available_pool: available,
-        requested: requestedAmount,
-      });
-    }
-
-    // ✅ Calculate using ANNUAL interest rate
+    // Loan calculations. interest_rate stores the MONTHLY rate as a
+    // percent (existing convention — analytics, the agreement PDF and
+    // every display derive annual = interest_rate * 12 from it; do
+    // NOT change this to a fraction).
     const principal = parseFloat(principal_amount);
     const annualRate = parseFloat(annual_interest_rate);
-    const monthlyRate = annualRate / 12; // Auto-calculate monthly rate
+    const monthlyRate = annualRate / 12;
     const months = parseInt(loan_duration_months);
-
-    // Interest calculation: Principal × (Annual Rate%) × (Years)
     const years = months / 12;
     const totalInterest = principal * (annualRate / 100) * years;
     const totalAmountDue = principal + totalInterest;
-    const monthlyPayment = totalAmountDue / months;
-
-    const startDateObj = new Date(start_date);
-    const endDate = new Date(startDateObj);
-    endDate.setMonth(endDate.getMonth() + months);
 
     const year = new Date().getFullYear();
     const countResult = await query("SELECT COUNT(*) FROM loans");
     const loanCount = parseInt(countResult.rows[0].count) + 1;
     const loanCode = `LN-${year}-${String(loanCount).padStart(4, "0")}`;
 
-    // ✅ Store the monthly rate in interest_rate column
+    // Create as a PENDING application: no start/end date, no schedule,
+    // no capital movement, no notifications until disbursement.
     const loanResult = await query(
       `INSERT INTO loans (
         loan_code, client_id, principal_amount, interest_rate,
-        loan_duration_months, start_date, end_date,
-        total_amount_due, total_interest, status, created_by, purpose,
+        loan_duration_months, total_amount_due, total_interest,
+        status, created_by, purpose,
         guarantor_name, guarantor_phone, guarantor_id_number,
-        collateral_description, late_payment_fee, penalty_rate
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $11, $12, $13, $14, $15, $16, $17)
+        collateral_description, late_payment_fee, penalty_rate,
+        application_date, application_source, review_notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, $12, $13, $14, $15,
+                CURRENT_DATE, $16, $17)
       RETURNING *`,
       [
         loanCode,
         client_id,
         principal,
-        monthlyRate, // Store monthly rate
+        monthlyRate,
         months,
-        start_date,
-        endDate.toISOString().split("T")[0],
         totalAmountDue,
         totalInterest,
         req.user.id,
@@ -284,154 +262,20 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         collateral_description || null,
         late_payment_fee || 500,
         penalty_rate || 5.0,
+        application_source || "walk_in",
+        review_notes || null,
       ],
     );
 
     const loan = loanResult.rows[0];
 
-    // Generate payment schedule
-    const schedulePromises = [];
-    for (let i = 1; i <= months; i++) {
-      const dueDate = new Date(startDateObj);
-      dueDate.setMonth(dueDate.getMonth() + i);
-
-      schedulePromises.push(
-        query(
-          `INSERT INTO payment_schedules (
-            loan_id, payment_number, due_date, amount_due, status
-          ) VALUES ($1, $2, $3, $4, 'pending')`,
-          [
-            loan.id,
-            i,
-            dueDate.toISOString().split("T")[0],
-            monthlyPayment.toFixed(2),
-          ],
-        ),
-      );
-    }
-
-    await Promise.all(schedulePromises);
-
-    // ✅ Update capital pool: principal is now lent out
-    await query(
-      `UPDATE capital_pool
-         SET total_disbursed = total_disbursed + $1, updated_at = NOW()
-       WHERE id = (SELECT id FROM capital_pool ORDER BY id DESC LIMIT 1)`,
-      [requestedAmount],
-    );
-
-    await query(
-      `INSERT INTO capital_transactions (transaction_type, amount, loan_id, description)
-       VALUES ('loan_disbursed', $1, $2, $3)`,
-      [requestedAmount, loan.id, `Loan ${loanCode} disbursed`],
-    );
-
-    // Auto loan-approved SMS. Mirrors the payment-confirmation hook in
-    // payments.js: always logged for consistency with the manual Send
-    // endpoints; sendSMS() no-ops unless SMS_ENABLED, so a real message
-    // only goes out when enabled. Fire-and-forget — never block the
-    // loan-creation response on the notification.
-    if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
-      try {
-        const clientResult = await query(
-          "SELECT phone_number, first_name FROM clients WHERE id = $1",
-          [client_id],
-        );
-        if (clientResult.rows[0]?.phone_number) {
-          const smsMessage = templates.loanApproved(
-            clientResult.rows[0].first_name,
-            principal,
-            loanCode,
-          );
-
-          sendSMS(clientResult.rows[0].phone_number, smsMessage).then(
-            (smsResult) => {
-              query(
-                `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
-                 VALUES ($1, $2, $3, $4, 'loan_approved', $5, $6, $7)`,
-                [
-                  client_id,
-                  loan.id,
-                  clientResult.rows[0].phone_number,
-                  smsMessage,
-                  smsResult.success ? "sent" : "failed",
-                  JSON.stringify(smsResult),
-                  req.user.id,
-                ],
-              ).catch((err) => logger.error("SMS log error:", err));
-            },
-          );
-        }
-      } catch (err) {
-        logger.error("Auto loan-approved SMS error:", err);
-      }
-    }
-
-    // Auto loan-approved email with the loan agreement PDF attached.
-    // Mirrors the payment-confirmation email hook; sendEmail() no-ops
-    // unless EMAIL_ENABLED, and we also gate on it so we don't write
-    // misleading "sent" log rows when email is off. Fire-and-forget.
-    if (
-      process.env.EMAIL_ENABLED === "true" &&
-      process.env.EMAIL_AUTO_CONFIRMATIONS === "true"
-    ) {
-      (async () => {
-        try {
-          const clientResult = await query(
-            "SELECT email, first_name FROM clients WHERE id = $1",
-            [client_id],
-          );
-          const recipient = clientResult.rows[0];
-          if (recipient?.email) {
-            const company = await getCompanySettings();
-            const template = emailTemplates.loanApproved({
-              clientName: recipient.first_name,
-              loanCode: loan.loan_code,
-              principalAmount: loan.principal_amount,
-              totalDue: loan.total_amount_due,
-              duration: loan.loan_duration_months,
-              company,
-            });
-
-            const { buffer, filename } = await buildLoanAgreementPdf(
-              loan.id,
-            );
-
-            const emailResult = await sendEmail({
-              to: recipient.email,
-              subject: template.subject,
-              html: template.html,
-              attachments: [{ filename, content: buffer }],
-            });
-
-            await query(
-              `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, has_attachment, attachment_name, status, provider_response, sent_by)
-               VALUES ($1, $2, $3, $4, 'loan_agreement', true, $5, $6, $7, $8)`,
-              [
-                client_id,
-                loan.id,
-                recipient.email,
-                template.subject,
-                filename,
-                emailResult.success ? "sent" : "failed",
-                JSON.stringify(emailResult),
-                req.user.id,
-              ],
-            );
-          }
-        } catch (err) {
-          logger.error("Auto loan-approved email error:", err);
-        }
-      })();
-    }
-
     await logAudit({
       user: req.user,
-      action: "created",
+      action: "application_submitted",
       entityType: "loan",
       entityId: loan.id,
       entityCode: loan.loan_code,
-      description: `Issued loan ${loan.loan_code} of KES ${principal.toLocaleString()} to client ${client_id}`,
+      description: `Loan application submitted: KES ${principal.toLocaleString()} for ${months} months`,
       newValues: {
         principal_amount: principal,
         interest_rate: annualRate,
@@ -441,22 +285,436 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     });
 
     logger.info(
-      `✓ Loan created: ${loanCode}, KES ${principal}, ${annualRate}% per annum`,
+      `✓ Loan application submitted: ${loanCode}, KES ${principal}`,
     );
 
     res.status(201).json({
       success: true,
-      message: "Loan created successfully",
+      message: "Loan application submitted for review",
       data: {
         ...loan,
         annual_interest_rate: annualRate,
         monthly_interest_rate: monthlyRate,
-        monthly_payment: monthlyPayment,
       },
     });
   } catch (error) {
-    logger.error("Create loan error:", error);
-    res.status(500).json({ error: "Failed to create loan" });
+    logger.error("Submit loan application error:", error);
+    res.status(500).json({ error: "Failed to submit application" });
+  }
+});
+
+// ============================================================
+// APPLICATION WORKFLOW: review → approve/reject → disburse
+// ============================================================
+
+// Mark as under review
+router.post(
+  "/:id/review",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      const result = await query(
+        `UPDATE loans SET
+          status = 'under_review', reviewed_by = $1, reviewed_at = NOW(),
+          review_notes = COALESCE($2, review_notes), updated_at = NOW()
+        WHERE id = $3 AND status = 'pending'
+        RETURNING *`,
+        [req.user.id, notes || null, id],
+      );
+      if (result.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ error: "Loan not found or not in pending status" });
+      }
+      await logAudit({
+        user: req.user,
+        action: "application_review_started",
+        entityType: "loan",
+        entityId: id,
+        entityCode: result.rows[0].loan_code,
+        description: "Started reviewing loan application",
+        req,
+      });
+      res.json({
+        success: true,
+        message: "Loan marked as under review",
+        data: result.rows[0],
+      });
+    } catch (error) {
+      logger.error("Review loan error:", error);
+      res.status(500).json({ error: "Failed to mark as under review" });
+    }
+  },
+);
+
+// Approve (capital availability is checked HERE, not at application)
+router.post(
+  "/:id/approve",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+
+      const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
+        id,
+      ]);
+      if (loanCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Loan not found" });
+      }
+      const loan = loanCheck.rows[0];
+      if (!["pending", "under_review"].includes(loan.status)) {
+        return res
+          .status(400)
+          .json({ error: `Cannot approve loan with status: ${loan.status}` });
+      }
+
+      const poolCheck = await query(`
+        SELECT (initial_capital - total_disbursed + total_collected) AS available
+        FROM capital_pool ORDER BY id DESC LIMIT 1
+      `);
+      if (poolCheck.rows.length > 0) {
+        const available = parseFloat(poolCheck.rows[0].available);
+        if (parseFloat(loan.principal_amount) > available) {
+          return res.status(400).json({
+            error: `Insufficient capital. Available: KES ${available.toLocaleString()}, Required: KES ${parseFloat(
+              loan.principal_amount,
+            ).toLocaleString()}`,
+          });
+        }
+      }
+
+      const result = await query(
+        `UPDATE loans SET
+          status = 'approved', approved_by = $1, approved_at = NOW(),
+          review_notes = COALESCE($2, review_notes), updated_at = NOW()
+        WHERE id = $3 RETURNING *`,
+        [req.user.id, notes || null, id],
+      );
+      await logAudit({
+        user: req.user,
+        action: "application_approved",
+        entityType: "loan",
+        entityId: id,
+        entityCode: loan.loan_code,
+        description: `Approved loan application: KES ${parseFloat(
+          loan.principal_amount,
+        ).toLocaleString()}`,
+        req,
+      });
+      res.json({
+        success: true,
+        message: "Loan approved! Ready for disbursement.",
+        data: result.rows[0],
+      });
+    } catch (error) {
+      logger.error("Approve loan error:", error);
+      res.status(500).json({ error: "Failed to approve loan" });
+    }
+  },
+);
+
+// Reject (reason required)
+router.post(
+  "/:id/reject",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      if (!reason || reason.trim().length === 0) {
+        return res
+          .status(400)
+          .json({ error: "Rejection reason is required" });
+      }
+      const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
+        id,
+      ]);
+      if (loanCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Loan not found" });
+      }
+      const loan = loanCheck.rows[0];
+      if (!["pending", "under_review"].includes(loan.status)) {
+        return res
+          .status(400)
+          .json({ error: `Cannot reject loan with status: ${loan.status}` });
+      }
+      const result = await query(
+        `UPDATE loans SET
+          status = 'rejected', rejected_by = $1, rejected_at = NOW(),
+          rejection_reason = $2, updated_at = NOW()
+        WHERE id = $3 RETURNING *`,
+        [req.user.id, reason, id],
+      );
+      await logAudit({
+        user: req.user,
+        action: "application_rejected",
+        entityType: "loan",
+        entityId: id,
+        entityCode: loan.loan_code,
+        description: `Rejected loan application: ${reason}`,
+        newValues: { rejection_reason: reason },
+        req,
+      });
+      res.json({
+        success: true,
+        message: "Loan application rejected",
+        data: result.rows[0],
+      });
+    } catch (error) {
+      logger.error("Reject loan error:", error);
+      res.status(500).json({ error: "Failed to reject loan" });
+    }
+  },
+);
+
+// Disburse — money goes out: loan becomes active, schedule is
+// generated, capital pool is debited, and the loan-approved SMS +
+// agreement-PDF email fire HERE (relocated from loan creation).
+router.post(
+  "/:id/disburse",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        disbursement_method,
+        disbursement_reference,
+        disbursement_date,
+        start_date,
+      } = req.body;
+
+      const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
+        id,
+      ]);
+      if (loanCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Loan not found" });
+      }
+      const loan = loanCheck.rows[0];
+      if (loan.status !== "approved") {
+        return res.status(400).json({
+          error: `Cannot disburse loan with status: ${loan.status}. Loan must be approved first.`,
+        });
+      }
+
+      const effectiveStart =
+        start_date ||
+        disbursement_date ||
+        new Date().toISOString().split("T")[0];
+      const endDate = new Date(effectiveStart);
+      endDate.setMonth(
+        endDate.getMonth() + parseInt(loan.loan_duration_months, 10),
+      );
+
+      const result = await query(
+        `UPDATE loans SET
+          status = 'active', disbursed_by = $1, disbursed_at = NOW(),
+          disbursement_method = $2, disbursement_reference = $3,
+          start_date = $4, end_date = $5, updated_at = NOW()
+        WHERE id = $6 RETURNING *`,
+        [
+          req.user.id,
+          disbursement_method || "cash",
+          disbursement_reference || null,
+          effectiveStart,
+          endDate.toISOString().split("T")[0],
+          id,
+        ],
+      );
+      const active = result.rows[0];
+
+      // Payment schedule (created at disbursement, not application)
+      const months = parseInt(loan.loan_duration_months, 10);
+      const monthlyPayment = parseFloat(loan.total_amount_due) / months;
+      for (let i = 1; i <= months; i++) {
+        const dueDate = new Date(effectiveStart);
+        dueDate.setMonth(dueDate.getMonth() + i);
+        await query(
+          `INSERT INTO payment_schedules (
+            loan_id, payment_number, due_date, amount_due, status
+          ) VALUES ($1, $2, $3, $4, 'pending')`,
+          [id, i, dueDate.toISOString().split("T")[0], monthlyPayment.toFixed(2)],
+        );
+      }
+
+      // Capital pool: principal is now lent out
+      const principal = parseFloat(loan.principal_amount);
+      await query(
+        `UPDATE capital_pool
+           SET total_disbursed = total_disbursed + $1, updated_at = NOW()
+         WHERE id = (SELECT id FROM capital_pool ORDER BY id DESC LIMIT 1)`,
+        [principal],
+      );
+      await query(
+        `INSERT INTO capital_transactions (transaction_type, amount, loan_id, description)
+         VALUES ('loan_disbursed', $1, $2, $3)`,
+        [principal, id, `Loan ${loan.loan_code} disbursed`],
+      );
+
+      // Loan-approved SMS (relocated here from loan creation).
+      if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+        try {
+          const c = await query(
+            "SELECT phone_number, first_name FROM clients WHERE id = $1",
+            [loan.client_id],
+          );
+          if (c.rows[0]?.phone_number) {
+            const smsMessage = templates.loanApproved(
+              c.rows[0].first_name,
+              principal,
+              loan.loan_code,
+            );
+            sendSMS(c.rows[0].phone_number, smsMessage).then((smsResult) => {
+              query(
+                `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+                 VALUES ($1, $2, $3, $4, 'loan_approved', $5, $6, $7)`,
+                [
+                  loan.client_id,
+                  id,
+                  c.rows[0].phone_number,
+                  smsMessage,
+                  smsResult.success ? "sent" : "failed",
+                  JSON.stringify(smsResult),
+                  req.user.id,
+                ],
+              ).catch((err) => logger.error("SMS log error:", err));
+            });
+          }
+        } catch (err) {
+          logger.error("Disbursement SMS error:", err);
+        }
+      }
+
+      // Loan-approved email + agreement PDF (relocated here).
+      if (
+        process.env.EMAIL_ENABLED === "true" &&
+        process.env.EMAIL_AUTO_CONFIRMATIONS === "true"
+      ) {
+        (async () => {
+          try {
+            const c = await query(
+              "SELECT email, first_name FROM clients WHERE id = $1",
+              [loan.client_id],
+            );
+            const recipient = c.rows[0];
+            if (recipient?.email) {
+              const company = await getCompanySettings();
+              const template = emailTemplates.loanApproved({
+                clientName: recipient.first_name,
+                loanCode: loan.loan_code,
+                principalAmount: loan.principal_amount,
+                totalDue: loan.total_amount_due,
+                duration: loan.loan_duration_months,
+                company,
+              });
+              const { buffer, filename } = await buildLoanAgreementPdf(id);
+              const emailResult = await sendEmail({
+                to: recipient.email,
+                subject: template.subject,
+                html: template.html,
+                attachments: [{ filename, content: buffer }],
+              });
+              await query(
+                `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, has_attachment, attachment_name, status, provider_response, sent_by)
+                 VALUES ($1, $2, $3, $4, 'loan_agreement', true, $5, $6, $7, $8)`,
+                [
+                  loan.client_id,
+                  id,
+                  recipient.email,
+                  template.subject,
+                  filename,
+                  emailResult.success ? "sent" : "failed",
+                  JSON.stringify(emailResult),
+                  req.user.id,
+                ],
+              );
+            }
+          } catch (err) {
+            logger.error("Disbursement email error:", err);
+          }
+        })();
+      }
+
+      await logAudit({
+        user: req.user,
+        action: "loan_disbursed",
+        entityType: "loan",
+        entityId: id,
+        entityCode: loan.loan_code,
+        description: `Disbursed loan: KES ${principal.toLocaleString()} via ${
+          disbursement_method || "cash"
+        }`,
+        newValues: { disbursement_method, disbursement_reference },
+        req,
+      });
+      logger.info(
+        `✓ Loan ${loan.loan_code} disbursed: KES ${principal.toLocaleString()}`,
+      );
+
+      res.json({
+        success: true,
+        message: "Loan disbursed successfully",
+        data: active,
+      });
+    } catch (error) {
+      logger.error("Disburse loan error:", error);
+      res.status(500).json({ error: "Failed to disburse loan" });
+    }
+  },
+);
+
+// Application queue
+router.get("/applications/queue", async (req, res) => {
+  try {
+    const { status } = req.query;
+    let queryText = `
+      SELECT l.*,
+        c.first_name, c.last_name, c.phone_number, c.client_code, c.county,
+        creator.first_name AS created_by_name,
+        reviewer.first_name AS reviewed_by_name,
+        approver.first_name AS approved_by_name
+      FROM loans l
+      JOIN clients c ON l.client_id = c.id
+      LEFT JOIN users creator ON l.created_by = creator.id
+      LEFT JOIN users reviewer ON l.reviewed_by = reviewer.id
+      LEFT JOIN users approver ON l.approved_by = approver.id
+      WHERE l.status IN ('pending', 'under_review', 'approved', 'rejected')
+    `;
+    const params = [];
+    if (status && status !== "all") {
+      params.push(status);
+      queryText += ` AND l.status = $${params.length}`;
+    }
+    queryText += ` ORDER BY l.application_date DESC, l.created_at DESC`;
+    const result = await query(queryText, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error("Get applications queue error:", error);
+    res.status(500).json({ error: "Failed to fetch applications" });
+  }
+});
+
+// Application stats
+router.get("/applications/stats", async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending,
+        COUNT(CASE WHEN status = 'under_review' THEN 1 END) AS under_review,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) AS approved,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) AS rejected,
+        COUNT(CASE WHEN status = 'rejected' AND rejected_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS rejected_30d,
+        COUNT(CASE WHEN status = 'active' AND disbursed_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS disbursed_30d,
+        AVG(EXTRACT(EPOCH FROM (approved_at - application_date::timestamp)) / 3600)::int AS avg_approval_hours
+      FROM loans
+      WHERE status IN ('pending', 'under_review', 'approved', 'rejected', 'active')
+    `);
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error("Application stats error:", error);
+    res.status(500).json({ error: "Failed to fetch stats" });
   }
 });
 // ============================================================

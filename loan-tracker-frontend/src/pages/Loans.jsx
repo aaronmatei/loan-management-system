@@ -175,7 +175,7 @@ function Loans() {
     try {
       const response = await api.post("/loans", formData);
       setSuccess(
-        `✅ Loan ${response.data.data.loan_code} created successfully!`,
+        `✅ Application ${response.data.data.loan_code} submitted! A manager will review it shortly.`,
       );
 
       // Reset form
@@ -200,9 +200,10 @@ function Loans() {
       setShowForm(false);
       fetchLoans();
       fetchPoolStatus();
-      setTimeout(() => setSuccess(""), 3000);
+      // New loans are applications now — take the user to the queue.
+      navigate("/applications");
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to create loan");
+      setError(err.response?.data?.error || "Failed to submit application");
     } finally {
       setSubmitting(false);
     }
@@ -227,6 +228,16 @@ function Loans() {
 
   // ✅ Apply all filters in combination (AND logic), client-side
   const filteredLoans = loans.filter((loan) => {
+    // Applications live on the Applications page, not here — only
+    // show real loans (active/completed/defaulted/suspended).
+    if (
+      ["pending", "under_review", "approved", "rejected"].includes(
+        loan.status,
+      )
+    ) {
+      return false;
+    }
+
     // Search: loan code, client first/last name, or phone number
     const q = searchQuery.trim().toLowerCase();
     if (q) {
@@ -333,7 +344,7 @@ function Loans() {
           disabled={clients.length === 0}
           className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {showForm ? "✖ Cancel" : "+ Create Loan"}
+          {showForm ? "✖ Cancel" : "+ New Application"}
         </button>
       </div>
 
@@ -359,7 +370,7 @@ function Loans() {
       {showForm && (
         <div className="bg-white rounded-xl shadow-md p-8 mb-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">
-            Create New Loan
+            📋 New Loan Application
           </h2>
 
           {poolStatus && (
@@ -775,7 +786,7 @@ function Loans() {
                 }
                 className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Creating..." : "✓ Create Loan"}
+                {submitting ? "Submitting..." : "📋 Submit Application"}
               </button>
             </div>
           </form>

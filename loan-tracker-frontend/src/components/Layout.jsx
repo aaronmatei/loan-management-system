@@ -39,6 +39,12 @@ function Layout({ children }) {
       icon: "👥",
       permission: "clients:view",
     },
+    {
+      path: "/applications",
+      label: "Applications",
+      icon: "📋",
+      permission: "loans:view",
+    },
     { path: "/loans", label: "Loans", icon: "💰", permission: "loans:view" },
     {
       path: "/payments",
