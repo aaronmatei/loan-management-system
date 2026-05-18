@@ -40,7 +40,7 @@ function buildStatus(pool, activeLoans) {
 // ============================================================
 // GET CURRENT POOL STATUS
 // ============================================================
-router.get("/status", async (req, res) => {
+router.get("/status", authorize("admin", "manager"), async (req, res) => {
   try {
     const poolResult = await query(POOL_QUERY);
     if (poolResult.rows.length === 0) {
@@ -158,7 +158,7 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
 // ============================================================
 // CAPITAL TRANSACTIONS (audit log — last 50)
 // ============================================================
-router.get("/transactions", async (req, res) => {
+router.get("/transactions", authorize("admin", "manager"), async (req, res) => {
   try {
     const result = await query(`
       SELECT

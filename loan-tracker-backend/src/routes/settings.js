@@ -1,10 +1,11 @@
 import express from "express";
 import { query } from "../config/database.js";
-import { verifyToken } from "../middleware/auth.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
 router.use(verifyToken);
+router.use(authorize("admin"));
 
 // Get company settings
 router.get("/company", async (req, res) => {

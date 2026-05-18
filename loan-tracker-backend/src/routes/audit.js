@@ -1,12 +1,13 @@
 import express from "express";
 import { query } from "../config/database.js";
-import { verifyToken } from "../middleware/auth.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 
 const router = express.Router();
 
 router.use(verifyToken);
+router.use(authorize("admin", "manager"));
 
 // ============================================================
 // GET AUDIT LOGS (with filters)

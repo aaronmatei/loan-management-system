@@ -1,6 +1,6 @@
 import express from "express";
 import { query } from "../config/database.js";
-import { verifyToken } from "../middleware/auth.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 import { logAudit } from "../services/auditService.js";
 import logger from "../config/logger.js";
 
@@ -382,7 +382,7 @@ router.get("/:id", async (req, res) => {
 // ============================================================
 // CREATE CLIENT
 // ============================================================
-router.post("/", async (req, res) => {
+router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
     const {
       first_name,
@@ -496,7 +496,7 @@ router.post("/", async (req, res) => {
 // ============================================================
 // UPDATE CLIENT
 // ============================================================
-router.put("/:id", async (req, res) => {
+router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -643,7 +643,7 @@ router.put("/:id", async (req, res) => {
 // ============================================================
 // DELETE CLIENT (Soft delete - mark as inactive)
 // ============================================================
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authorize("admin"), async (req, res) => {
   try {
     const { id } = req.params;
 

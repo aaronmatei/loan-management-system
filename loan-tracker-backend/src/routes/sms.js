@@ -1,11 +1,14 @@
 import express from "express";
 import { query } from "../config/database.js";
-import { verifyToken } from "../middleware/auth.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 import { sendSMS, templates } from "../services/smsService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
 router.use(verifyToken);
+// Matrix: viewers have no SMS access (spec's file list omitted this,
+// but the permission matrix is explicit).
+router.use(authorize("admin", "manager", "loan_officer"));
 
 // Log an SMS to the database
 const logSMS = async (data) => {

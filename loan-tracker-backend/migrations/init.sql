@@ -8,8 +8,10 @@ CREATE TABLE IF NOT EXISTS users (
   first_name VARCHAR(100),
   last_name VARCHAR(100),
   role VARCHAR(20) DEFAULT 'loan_officer',
+  phone_number VARCHAR(20),
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMP,
+  created_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -143,6 +145,8 @@ CREATE INDEX IF NOT EXISTS idx_payment_schedules_status ON payment_schedules(sta
 CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions(client_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);

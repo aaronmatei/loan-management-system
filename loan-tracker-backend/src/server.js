@@ -20,6 +20,7 @@ import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
 import settingsRoutes from "./routes/settings.js";
 import auditRoutes from "./routes/audit.js";
+import userRoutes from "./routes/users.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -69,6 +70,7 @@ app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/audit", auditRoutes);
+app.use("/api/users", userRoutes);
 
 // 404 handler
 app.use((req, res) => {

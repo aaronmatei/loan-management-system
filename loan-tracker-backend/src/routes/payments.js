@@ -1,6 +1,6 @@
 import express from "express";
 import { query } from "../config/database.js";
-import { verifyToken } from "../middleware/auth.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 import { sendSMS, templates } from "../services/smsService.js";
 import {
   sendEmail,
@@ -75,7 +75,7 @@ router.get("/", async (req, res) => {
 // ============================================================
 // RECORD PAYMENT (with overpayment handling)
 // ============================================================
-router.post("/", async (req, res) => {
+router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
     const {
       loan_id,
@@ -604,7 +604,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
 // ============================================================
 // MARK REFUND AS PAID
 // ============================================================
-router.post("/refund/:loanId", async (req, res) => {
+router.post("/refund/:loanId", authorize("admin", "manager"), async (req, res) => {
   try {
     const { loanId } = req.params;
     const { refund_method, refund_reference, refunded_date } = req.body;

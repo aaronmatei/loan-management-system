@@ -1,6 +1,6 @@
 import express from "express";
 import { query } from "../config/database.js";
-import { verifyToken } from "../middleware/auth.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 import {
   sendEmail,
   templates,
@@ -16,6 +16,9 @@ import logger from "../config/logger.js";
 
 const router = express.Router();
 router.use(verifyToken);
+// Matrix: viewers have no Email access (spec's file list omitted this,
+// but the permission matrix is explicit).
+router.use(authorize("admin", "manager", "loan_officer"));
 
 // Log an email to the database
 const logEmail = async (data) => {

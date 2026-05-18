@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { hasPermission, getRoleBadge } from "../utils/permissions";
 
 function Layout({ children }) {
   const navigate = useNavigate();
@@ -27,22 +28,54 @@ function Layout({ children }) {
   }, []);
 
   const menuItems = [
-    { path: "/", label: "Dashboard", icon: "📊" },
-    { path: "/clients", label: "Clients", icon: "👥" },
-    { path: "/loans", label: "Loans", icon: "💰" },
-    { path: "/payments", label: "Payments", icon: "💵" },
+    { path: "/", label: "Dashboard", icon: "📊", permission: "dashboard:view" },
+    {
+      path: "/clients",
+      label: "Clients",
+      icon: "👥",
+      permission: "clients:view",
+    },
+    { path: "/loans", label: "Loans", icon: "💰", permission: "loans:view" },
+    {
+      path: "/payments",
+      label: "Payments",
+      icon: "💵",
+      permission: "payments:view",
+    },
     {
       path: "/overdue",
       label: "Overdue",
       icon: "⚠️",
       badge: overdueCount,
+      permission: "overdue:view",
     },
-    { path: "/reports", label: "Reports", icon: "📈" },
-    { path: "/sms", label: "SMS", icon: "📱" },
-    { path: "/email", label: "Email", icon: "✉️" },
-    { path: "/settings", label: "Settings", icon: "⚙️" },
-    { path: "/audit", label: "Audit Log", icon: "🔍" },
+    {
+      path: "/reports",
+      label: "Reports",
+      icon: "📈",
+      permission: "reports:view",
+    },
+    { path: "/sms", label: "SMS", icon: "📱", permission: "sms:send" },
+    { path: "/email", label: "Email", icon: "✉️", permission: "email:send" },
+    {
+      path: "/audit",
+      label: "Audit Log",
+      icon: "🔍",
+      permission: "audit:view",
+    },
+    { path: "/users", label: "Users", icon: "👤", roles: ["admin"] },
+    { path: "/settings", label: "Settings", icon: "⚙️", roles: ["admin"] },
   ];
+
+  // Hide nav entries the current role can't use. Backend authorize()
+  // is the real gate; this is UX only.
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (item.permission) return hasPermission(user?.role, item.permission);
+    if (item.roles) return item.roles.includes(user?.role);
+    return true;
+  });
+
+  const roleBadge = getRoleBadge(user?.role);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -54,7 +87,7 @@ function Layout({ children }) {
         </div>
 
         <ul className="flex-1 space-y-2">
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
             <li key={item.path}>
               <button
                 onClick={() => navigate(item.path)}
@@ -84,7 +117,11 @@ function Layout({ children }) {
             <p className="text-sm font-semibold">
               {user?.first_name} {user?.last_name}
             </p>
-            <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
+            <span
+              className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${roleBadge.color}`}
+            >
+              {roleBadge.label}
+            </span>
           </div>
           <button
             onClick={logout}

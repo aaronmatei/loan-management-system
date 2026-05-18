@@ -1,6 +1,6 @@
 import express from "express";
 import { query } from "../config/database.js";
-import { verifyToken } from "../middleware/auth.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 import { sendSMS, templates } from "../services/smsService.js";
 import {
   sendEmail,
@@ -127,7 +127,7 @@ router.get("/:id", async (req, res) => {
 // ============================================================
 // CREATE LOAN (with automatic payment schedule)
 // ============================================================
-router.post("/", async (req, res) => {
+router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
     const {
       client_id,
@@ -461,7 +461,7 @@ router.post("/", async (req, res) => {
 // ============================================================
 // UPDATE LOAN (status / notes / purpose — with restrictions)
 // ============================================================
-router.put("/:id", async (req, res) => {
+router.put("/:id", authorize("admin", "manager"), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, notes, purpose } = req.body;
@@ -575,7 +575,7 @@ router.put("/:id", async (req, res) => {
 // ============================================================
 // UPDATE LOAN STATUS
 // ============================================================
-router.put("/:id/status", async (req, res) => {
+router.put("/:id/status", authorize("admin", "manager"), async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
