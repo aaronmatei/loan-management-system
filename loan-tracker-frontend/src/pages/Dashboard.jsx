@@ -133,22 +133,22 @@ function Dashboard() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-white/20">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 pt-4 border-t border-white/20">
+            <div className="flex justify-between items-center sm:block">
               <p className="text-xs text-blue-100">Total Disbursed</p>
-              <p className="text-lg font-bold">
+              <p className="text-base sm:text-lg font-bold whitespace-nowrap">
                 KES {poolStatus.total_disbursed.toLocaleString()}
               </p>
             </div>
-            <div>
+            <div className="flex justify-between items-center sm:block">
               <p className="text-xs text-blue-100">Total Collected</p>
-              <p className="text-lg font-bold">
+              <p className="text-base sm:text-lg font-bold whitespace-nowrap">
                 KES {poolStatus.total_collected.toLocaleString()}
               </p>
             </div>
-            <div>
+            <div className="flex justify-between items-center sm:block">
               <p className="text-xs text-blue-100">Interest Earned</p>
-              <p className="text-lg font-bold text-green-300">
+              <p className="text-base sm:text-lg font-bold text-green-300 whitespace-nowrap">
                 +KES {poolStatus.total_interest_earned.toLocaleString()}
               </p>
             </div>
