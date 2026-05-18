@@ -152,6 +152,17 @@ function LoanDetails() {
         >
           📄 Download Statement
         </button>
+        <button
+          onClick={() =>
+            downloadPdf(
+              `/reports/pdf/loan-agreement/${loan.id}`,
+              `loan_agreement_${loan.loan_code}.pdf`,
+            )
+          }
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold"
+        >
+          📄 Download Agreement
+        </button>
         {(loan.status === "active" ||
           loan.status === "defaulted" ||
           loan.status === "suspended") && (

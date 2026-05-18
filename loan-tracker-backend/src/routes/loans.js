@@ -128,6 +128,12 @@ router.post("/", async (req, res) => {
       loan_duration_months,
       start_date,
       purpose,
+      guarantor_name,
+      guarantor_phone,
+      guarantor_id_number,
+      collateral_description,
+      late_payment_fee,
+      penalty_rate,
     } = req.body;
 
     // Validation
@@ -246,8 +252,10 @@ router.post("/", async (req, res) => {
       `INSERT INTO loans (
         loan_code, client_id, principal_amount, interest_rate,
         loan_duration_months, start_date, end_date,
-        total_amount_due, total_interest, status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10)
+        total_amount_due, total_interest, status, created_by, purpose,
+        guarantor_name, guarantor_phone, guarantor_id_number,
+        collateral_description, late_payment_fee, penalty_rate
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         loanCode,
@@ -260,6 +268,13 @@ router.post("/", async (req, res) => {
         totalAmountDue,
         totalInterest,
         req.user.id,
+        purpose || null,
+        guarantor_name || null,
+        guarantor_phone || null,
+        guarantor_id_number || null,
+        collateral_description || null,
+        late_payment_fee || 500,
+        penalty_rate || 5.0,
       ],
     );
 

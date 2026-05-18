@@ -35,6 +35,12 @@ function Loans() {
     loan_duration_months: "12",
     start_date: new Date().toISOString().split("T")[0],
     purpose: "",
+    guarantor_name: "",
+    guarantor_phone: "",
+    guarantor_id_number: "",
+    collateral_description: "",
+    late_payment_fee: 500,
+    penalty_rate: 5,
   });
 
   useEffect(() => {
@@ -175,6 +181,12 @@ function Loans() {
         loan_duration_months: "12",
         start_date: new Date().toISOString().split("T")[0],
         purpose: "",
+        guarantor_name: "",
+        guarantor_phone: "",
+        guarantor_id_number: "",
+        collateral_description: "",
+        late_payment_fee: 500,
+        penalty_rate: 5,
       });
       setSelectedClient(null);
       setClientSearch("");
@@ -545,6 +557,89 @@ function Loans() {
                   placeholder="Business expansion, school fees, etc."
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
                 />
+              </div>
+            </div>
+
+            {/* Agreement Details Section */}
+            <div className="border-t-2 border-gray-100 pt-4 mt-4">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">
+                📋 Agreement Details (Optional)
+              </h3>
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <h4 className="font-semibold text-gray-700 mb-2">
+                  Guarantor Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input
+                    type="text"
+                    name="guarantor_name"
+                    value={formData.guarantor_name || ""}
+                    onChange={handleInputChange}
+                    placeholder="Guarantor Name"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    name="guarantor_phone"
+                    value={formData.guarantor_phone || ""}
+                    onChange={handleInputChange}
+                    placeholder="Phone Number"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    name="guarantor_id_number"
+                    value={formData.guarantor_id_number || ""}
+                    onChange={handleInputChange}
+                    placeholder="ID Number"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Collateral / Security (Optional)
+                </label>
+                <textarea
+                  name="collateral_description"
+                  value={formData.collateral_description || ""}
+                  onChange={handleInputChange}
+                  rows="2"
+                  placeholder="Describe any collateral or security (e.g., Vehicle KCA 123A, Title Deed, etc.)"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Late Payment Fee (KES)
+                  </label>
+                  <input
+                    type="number"
+                    name="late_payment_fee"
+                    value={formData.late_payment_fee ?? 500}
+                    onChange={handleInputChange}
+                    placeholder="500"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Penalty Rate (% per month on overdue)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    name="penalty_rate"
+                    value={formData.penalty_rate ?? 5}
+                    onChange={handleInputChange}
+                    placeholder="5.0"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
