@@ -232,6 +232,62 @@ router.post("/", async (req, res) => {
       if (newOverpayment > 0) {
         logger.info(`💰 Overpayment of KES ${newOverpayment} - refund pending`);
       }
+
+      // Loan-completion SMS. Same guard as the payment-received hook so
+      // both behave consistently; sendSMS() no-ops unless SMS_ENABLED.
+      if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+        try {
+          const completionClient = await query(
+            "SELECT phone_number, first_name FROM clients WHERE id = $1",
+            [loan.client_id],
+          );
+
+          if (completionClient.rows[0]?.phone_number) {
+            const clientName = completionClient.rows[0].first_name;
+            const phoneNumber = completionClient.rows[0].phone_number;
+            const isOverpaid = newOverpayment > 0;
+            const completionMessage = isOverpaid
+              ? templates.loanCompletedWithOverpayment(
+                  clientName,
+                  loan.loan_code,
+                  newOverpayment,
+                )
+              : templates.loanCompleted(clientName, loan.loan_code);
+
+            // Slight delay so it lands after the payment-received SMS
+            setTimeout(() => {
+              sendSMS(phoneNumber, completionMessage)
+                .then((smsResult) =>
+                  query(
+                    `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [
+                      loan.client_id,
+                      loan_id,
+                      phoneNumber,
+                      completionMessage,
+                      isOverpaid
+                        ? "loan_completed_overpayment"
+                        : "loan_completed",
+                      smsResult.success ? "sent" : "failed",
+                      JSON.stringify(smsResult),
+                      req.user.id,
+                    ],
+                  ).then(() =>
+                    logger.info(
+                      `✓ Loan completion SMS logged for ${loan.loan_code}`,
+                    ),
+                  ),
+                )
+                .catch((err) =>
+                  logger.error("Loan completion SMS error:", err),
+                );
+            }, 2000);
+          }
+        } catch (err) {
+          logger.error("Loan completion SMS error:", err);
+        }
+      }
     }
 
     // ✅ Update capital pool. Split the amount actually applied to the
@@ -265,11 +321,10 @@ router.post("/", async (req, res) => {
       ],
     );
 
-    // Auto-send SMS confirmation (only if enabled)
-    if (
-      process.env.SMS_ENABLED === "true" &&
-      process.env.SMS_AUTO_CONFIRMATIONS === "true"
-    ) {
+    // Auto payment-confirmation SMS. Always logged (consistent with the
+    // manual Send endpoints); sendSMS() itself no-ops when SMS_ENABLED
+    // is not 'true', so a real message only goes out when enabled.
+    if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
       try {
         const clientResult = await query(
           "SELECT phone_number, first_name FROM clients WHERE id = $1",
@@ -461,6 +516,46 @@ router.post("/refund/:loanId", async (req, res) => {
     logger.info(
       `✓ Refund processed for loan ${loan.loan_code}: KES ${loan.overpayment_amount}`,
     );
+
+    // Refund-processed SMS (same guard as the other payment-flow hooks)
+    if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+      try {
+        const refundClient = await query(
+          "SELECT phone_number, first_name FROM clients WHERE id = $1",
+          [loan.client_id],
+        );
+
+        if (refundClient.rows[0]?.phone_number) {
+          const clientName = refundClient.rows[0].first_name;
+          const phoneNumber = refundClient.rows[0].phone_number;
+          const message = templates.refundProcessed(
+            clientName,
+            loan.overpayment_amount,
+            loan.loan_code,
+          );
+
+          const smsResult = await sendSMS(phoneNumber, message);
+
+          await query(
+            `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+             VALUES ($1, $2, $3, $4, 'refund_processed', $5, $6, $7)`,
+            [
+              loan.client_id,
+              loanId,
+              phoneNumber,
+              message,
+              smsResult.success ? "sent" : "failed",
+              JSON.stringify(smsResult),
+              req.user.id,
+            ],
+          );
+
+          logger.info(`✓ Refund SMS logged for ${loan.loan_code}`);
+        }
+      } catch (err) {
+        logger.error("Refund SMS error:", err);
+      }
+    }
 
     res.json({
       success: true,

@@ -97,7 +97,10 @@ export const templates = {
     `Congratulations ${clientName}! Your loan ${loanCode} of KES ${parseFloat(amount).toLocaleString()} has been approved and disbursed. Repayment terms apply. - ${process.env.COMPANY_NAME}`,
 
   loanCompleted: (clientName, loanCode) =>
-    `Congratulations ${clientName}! Your loan ${loanCode} has been fully repaid. You can now apply for a new loan. Thank you for your business! - ${process.env.COMPANY_NAME}`,
+    `Congratulations ${clientName}! 🎉 Your loan ${loanCode} has been fully repaid. Thank you for your timely payments. You can now apply for a new loan. - ${process.env.COMPANY_NAME}`,
+
+  loanCompletedWithOverpayment: (clientName, loanCode, overpaymentAmount) =>
+    `Congratulations ${clientName}! 🎉 Your loan ${loanCode} has been fully repaid. We have noted an overpayment of KES ${parseFloat(overpaymentAmount).toLocaleString()} which will be refunded to you. - ${process.env.COMPANY_NAME}`,
 
   refundProcessed: (clientName, amount, loanCode) =>
     `Dear ${clientName}, your refund of KES ${parseFloat(amount).toLocaleString()} for loan ${loanCode} has been processed. Thank you. - ${process.env.COMPANY_NAME}`,
