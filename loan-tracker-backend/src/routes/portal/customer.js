@@ -3,6 +3,11 @@ import bcryptjs from "bcryptjs";
 import { query } from "../../config/database.js";
 import { verifyCustomer } from "../../middleware/customerAuth.js";
 import { validatePassword } from "../../utils/validators.js";
+import {
+  buildLoanStatementPdf,
+  buildClientStatementPdf,
+  NotFoundError,
+} from "../../utils/pdfDocuments.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -366,6 +371,81 @@ router.post("/change-password", async (req, res) => {
   } catch (error) {
     logger.error("Change password error:", error);
     res.status(500).json({ error: "Failed to change password" });
+  }
+});
+
+// Stream a PDF buffer as an attachment (mirrors reports.js servePdf).
+const sendPdf = (res, buffer, filename) => {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${filename}"`,
+  );
+  res.send(buffer);
+};
+
+// Full account statement (all loans at the current tenant). The
+// builder is scoped to (clientId, tenantId); currentClientId is the
+// customer's OWN client at the selected tenant, so this is inherently
+// self-scoped.
+router.get("/statement", async (req, res) => {
+  try {
+    const { buffer, filename } = await buildClientStatementPdf(
+      req.currentClientId,
+      req.currentTenantId,
+    );
+    await query(
+      `INSERT INTO customer_activities
+         (platform_customer_id, tenant_id, client_id, activity_type)
+       VALUES ($1,$2,$3,'downloaded_statement')`,
+      [req.platformCustomerId, req.currentTenantId, req.currentClientId],
+    );
+    sendPdf(res, buffer, filename);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ error: error.message });
+    }
+    logger.error("Customer statement error:", error);
+    res.status(500).json({ error: "Failed to generate statement" });
+  }
+});
+
+// Per-loan statement. The PDF builder scopes by tenant only, so we
+// FIRST verify the loan is this customer's own (client_id +
+// tenant_id) — otherwise a customer could pull another customer's
+// same-tenant loan statement.
+router.get("/loans/:id/statement", async (req, res) => {
+  try {
+    const owns = await query(
+      `SELECT 1 FROM loans
+       WHERE id = $1 AND client_id = $2 AND tenant_id = $3`,
+      [req.params.id, req.currentClientId, req.currentTenantId],
+    );
+    if (owns.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+    const { buffer, filename } = await buildLoanStatementPdf(
+      req.params.id,
+      req.currentTenantId,
+    );
+    await query(
+      `INSERT INTO customer_activities
+         (platform_customer_id, tenant_id, client_id, activity_type, details)
+       VALUES ($1,$2,$3,'downloaded_statement',$4)`,
+      [
+        req.platformCustomerId,
+        req.currentTenantId,
+        req.currentClientId,
+        JSON.stringify({ loan_id: req.params.id }),
+      ],
+    );
+    sendPdf(res, buffer, filename);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ error: error.message });
+    }
+    logger.error("Customer loan statement error:", error);
+    res.status(500).json({ error: "Failed to generate statement" });
   }
 });
 

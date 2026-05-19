@@ -12,6 +12,27 @@ function LoanDetails() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("schedule");
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadStatement = async () => {
+    setDownloading(true);
+    try {
+      const res = await portalApi.get(
+        `/portal/customer/loans/${id}/statement`,
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `loan_statement_${data?.loan?.loan_code || id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Failed to download statement");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     portalApi
@@ -51,12 +72,21 @@ function LoanDetails() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <button
-          onClick={() => navigate("/portal/loans")}
-          className="text-indigo-600 mb-4 font-semibold"
-        >
-          ← Back to Loans
-        </button>
+        <div className="flex justify-between items-center mb-4">
+          <button
+            onClick={() => navigate("/portal/loans")}
+            className="text-indigo-600 font-semibold"
+          >
+            ← Back to Loans
+          </button>
+          <button
+            onClick={downloadStatement}
+            disabled={downloading}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+          >
+            {downloading ? "Preparing…" : "⬇ Download Statement"}
+          </button>
+        </div>
 
         <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
           <div className="flex justify-between items-start mb-4">

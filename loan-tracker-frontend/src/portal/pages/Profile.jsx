@@ -22,6 +22,7 @@ function Profile() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [dl, setDl] = useState(false);
   const [form, setForm] = useState({});
   const [pwd, setPwd] = useState({
     current_password: "",
@@ -96,6 +97,27 @@ function Profile() {
       alert(err.response?.data?.error || "Change failed");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const downloadStatement = async () => {
+    setDl(true);
+    try {
+      const res = await portalApi.get("/portal/customer/statement", {
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `account_statement_${
+        data?.client?.client_code || "statement"
+      }.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Failed to download statement");
+    } finally {
+      setDl(false);
     }
   };
 
@@ -266,6 +288,21 @@ function Profile() {
               </button>
             </div>
           )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-5">
+          <h2 className="font-bold text-gray-800 mb-2">📄 Statements</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Download your full account statement at{" "}
+            {client?.tenant_name || "this lender"}.
+          </p>
+          <button
+            onClick={downloadStatement}
+            disabled={dl}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:opacity-50"
+          >
+            {dl ? "Preparing…" : "⬇ Download Account Statement"}
+          </button>
         </div>
 
         <div className="bg-white rounded-xl shadow p-5">
