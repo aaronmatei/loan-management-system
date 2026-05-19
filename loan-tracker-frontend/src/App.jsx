@@ -12,6 +12,11 @@ import CustomerLogin from "./portal/pages/Login";
 import CustomerRegister from "./portal/pages/Register";
 import TenantPicker from "./portal/pages/TenantPicker";
 import CustomerDashboard from "./portal/pages/Dashboard";
+import CustomerMyLoans from "./portal/pages/MyLoans";
+import CustomerLoanDetails from "./portal/pages/LoanDetails";
+import CustomerProfile from "./portal/pages/Profile";
+import CustomerForgotPassword from "./portal/pages/ForgotPassword";
+import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -89,12 +94,44 @@ function App() {
             <Route path="/portal/login" element={<CustomerLogin />} />
             <Route path="/portal/register" element={<CustomerRegister />} />
             <Route
+              path="/portal/forgot-password"
+              element={<CustomerForgotPassword />}
+            />
+            <Route
               path="/portal/select-tenant"
               element={<TenantPicker />}
             />
             <Route
               path="/portal/dashboard"
-              element={<CustomerDashboard />}
+              element={
+                <PortalProtectedRoute>
+                  <CustomerDashboard />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/loans"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerMyLoans />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/loans/:id"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerLoanDetails />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/profile"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerProfile />
+                </PortalProtectedRoute>
+              }
             />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>

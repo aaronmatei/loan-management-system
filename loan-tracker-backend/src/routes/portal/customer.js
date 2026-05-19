@@ -189,6 +189,43 @@ router.get("/loans/:id", async (req, res) => {
   }
 });
 
+// Current customer profile (safe fields only — never password_hash
+// / otp). Includes the client_code at the currently-selected tenant.
+router.get("/profile", async (req, res) => {
+  try {
+    const c = req.customer;
+    let clientCode = null;
+    if (req.currentClientId) {
+      const cc = await query(
+        "SELECT client_code FROM clients WHERE id = $1",
+        [req.currentClientId],
+      );
+      clientCode = cc.rows[0]?.client_code || null;
+    }
+    res.json({
+      success: true,
+      data: {
+        id: c.id,
+        phone_number: c.phone_number,
+        email: c.email,
+        id_number: c.id_number,
+        first_name: c.first_name,
+        last_name: c.last_name,
+        date_of_birth: c.date_of_birth,
+        gender: c.gender,
+        profile_photo_url: c.profile_photo_url,
+        phone_verified: c.phone_verified,
+        email_verified: c.email_verified,
+        created_at: c.created_at,
+        client_code: clientCode,
+      },
+    });
+  } catch (error) {
+    logger.error("Get profile error:", error);
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
 router.put("/profile", async (req, res) => {
   try {
     const { email, date_of_birth, gender } = req.body;

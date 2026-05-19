@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
-import TenantSwitcher from "../components/TenantSwitcher";
-import DevTenantSwitcher from "../components/DevTenantSwitcher";
-import CurrentTenantBanner from "../components/CurrentTenantBanner";
+import PortalLayout from "../components/PortalLayout";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -26,61 +24,37 @@ function CustomerDashboard() {
       .finally(() => setLoading(false));
   }, [navigate]);
 
-  const logout = () => {
-    ["portal_token", "portal_customer", "portal_current_tenant", "portal_tenants"].forEach(
-      (k) => localStorage.removeItem(k),
-    );
-    navigate("/portal/login");
-  };
-
-  if (loading)
-    return <div className="p-8 text-center text-gray-600">Loading…</div>;
-  if (!data)
+  if (loading) {
     return (
-      <div className="p-8 text-center text-gray-600">
-        No data.{" "}
-        <button onClick={logout} className="text-indigo-600 underline">
-          Logout
-        </button>
-      </div>
+      <PortalLayout>
+        <div className="p-8 text-center text-gray-600">Loading…</div>
+      </PortalLayout>
     );
+  }
+  if (!data) {
+    return (
+      <PortalLayout>
+        <div className="p-8 text-center text-gray-600">No data.</div>
+      </PortalLayout>
+    );
+  }
 
-  const { tenant, client, active_loans, next_payment, stats, pending_applications } =
+  const { client, active_loans, next_payment, stats, pending_applications } =
     data;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DevTenantSwitcher />
-      <CurrentTenantBanner />
-      <header
-        className="text-white"
-        style={{
-          background: `linear-gradient(135deg, ${
-            tenant?.brand_color || "#4F46E5"
-          }, #7C3AED)`,
-        }}
-      >
-        <div className="max-w-5xl mx-auto px-4 lg:px-8 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs opacity-80">{tenant?.business_name}</p>
-            <h1 className="text-xl lg:text-2xl font-bold">
-              Hi {client?.first_name} 👋
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <TenantSwitcher />
-            <button
-              onClick={logout}
-              className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-lg text-sm"
-            >
-              Logout
-            </button>
-          </div>
+    <PortalLayout>
+      <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+            Hi {client?.first_name} 👋
+          </h1>
+          <p className="text-gray-600 mt-1">
+            {client?.client_code}
+          </p>
         </div>
-      </header>
 
-      <main className="max-w-5xl mx-auto p-4 lg:p-8 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl shadow p-4">
             <p className="text-xs text-gray-500 uppercase">Active Loans</p>
             <p className="text-2xl font-bold mt-1">
@@ -117,9 +91,10 @@ function CustomerDashboard() {
           </h2>
           {active_loans?.length ? (
             active_loans.map((l) => (
-              <div
+              <button
                 key={l.id}
-                className="px-4 py-3 border-b last:border-0 flex justify-between"
+                onClick={() => navigate(`/portal/loans/${l.id}`)}
+                className="w-full text-left px-4 py-3 border-b last:border-0 flex justify-between hover:bg-gray-50"
               >
                 <div>
                   <p className="font-mono text-sm text-indigo-600">
@@ -137,7 +112,7 @@ function CustomerDashboard() {
                     Due {KES(l.total_amount_due)}
                   </p>
                 </div>
-              </div>
+              </button>
             ))
           ) : (
             <p className="px-4 py-6 text-gray-500 text-sm">
@@ -167,8 +142,8 @@ function CustomerDashboard() {
             ))}
           </section>
         )}
-      </main>
-    </div>
+      </div>
+    </PortalLayout>
   );
 }
 
