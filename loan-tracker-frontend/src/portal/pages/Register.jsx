@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import DevTenantSwitcher from "../components/DevTenantSwitcher";
+import PasswordInput from "../components/PasswordInput";
 
 // Two-step: details → OTP + password. Portal registration is scoped
 // to a lender (subdomain); in production that comes from the host,
@@ -19,6 +20,7 @@ function CustomerRegister() {
     last_name: "",
     otp: "",
     password: "",
+    confirmPassword: "",
   });
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -59,6 +61,10 @@ function CustomerRegister() {
 
   const submitOtp = async (e) => {
     e.preventDefault();
+    if (form.password !== form.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await portalApi.post("/portal/auth/verify-otp", {
@@ -203,13 +209,24 @@ function CustomerRegister() {
               <label className="block text-sm font-semibold mb-1">
                 Set a Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={form.password}
                 onChange={set("password")}
                 required
                 minLength="12"
                 placeholder="Min 12 chars, 1 upper, 1 number, 1 symbol"
+                className={field}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">
+                Confirm Password
+              </label>
+              <PasswordInput
+                value={form.confirmPassword}
+                onChange={set("confirmPassword")}
+                required
+                placeholder="Re-enter your password"
                 className={field}
               />
             </div>

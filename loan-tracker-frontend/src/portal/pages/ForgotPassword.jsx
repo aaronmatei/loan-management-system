@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import DevTenantSwitcher from "../components/DevTenantSwitcher";
+import PasswordInput from "../components/PasswordInput";
 
 // Mirrors the backend validatePassword used by /portal/auth/
 // reset-password: >=12 chars, an uppercase letter, a digit, and a
@@ -147,8 +148,7 @@ function ForgotPassword() {
                 <label className="block text-sm font-semibold mb-1">
                   New Password
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -160,8 +160,7 @@ function ForgotPassword() {
                 <label className="block text-sm font-semibold mb-1">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
