@@ -561,6 +561,250 @@ router.post("/change-password", async (req, res) => {
   }
 });
 
+// ── Customer loan applications ────────────────────────────────
+// Static loan policy (no per-tenant policy table yet).
+const LOAN_POLICY = {
+  min_amount: 1000,
+  max_amount: 1000000,
+  min_duration: 1,
+  max_duration: 24,
+  default_interest_rate: 15.0, // annual %
+  require_guarantor: false,
+  require_collateral: false,
+  max_pending_applications: 3,
+};
+
+router.get("/tenant-policy", async (req, res) => {
+  try {
+    const t = await query(
+      "SELECT business_name, brand_color FROM tenants WHERE id = $1",
+      [req.currentTenantId],
+    );
+    res.json({
+      success: true,
+      data: { tenant: t.rows[0], policy: LOAN_POLICY },
+    });
+  } catch (error) {
+    logger.error("Tenant policy error:", error);
+    res.status(500).json({ error: "Failed to fetch tenant policy" });
+  }
+});
+
+router.post("/applications", async (req, res) => {
+  try {
+    const {
+      principal_amount,
+      loan_duration_months,
+      annual_interest_rate,
+      purpose,
+      guarantor_name,
+      guarantor_phone,
+      guarantor_id_number,
+      collateral_description,
+      review_notes,
+    } = req.body || {};
+
+    if (!principal_amount || !loan_duration_months || !purpose) {
+      return res
+        .status(400)
+        .json({ error: "Amount, duration, and purpose are required" });
+    }
+    const principal = parseFloat(principal_amount);
+    const months = parseInt(loan_duration_months, 10);
+    if (!(principal >= LOAN_POLICY.min_amount)) {
+      return res.status(400).json({
+        error: `Minimum loan amount is KES ${LOAN_POLICY.min_amount.toLocaleString()}`,
+      });
+    }
+    if (principal > LOAN_POLICY.max_amount) {
+      return res.status(400).json({
+        error: `Maximum loan amount is KES ${LOAN_POLICY.max_amount.toLocaleString()}`,
+      });
+    }
+    if (
+      !(
+        months >= LOAN_POLICY.min_duration &&
+        months <= LOAN_POLICY.max_duration
+      )
+    ) {
+      return res.status(400).json({
+        error: `Duration must be between ${LOAN_POLICY.min_duration}-${LOAN_POLICY.max_duration} months`,
+      });
+    }
+
+    const pending = await query(
+      `SELECT COUNT(*) AS count FROM loans
+       WHERE client_id = $1 AND tenant_id = $2
+         AND status IN ('pending','under_review','approved')`,
+      [req.currentClientId, req.currentTenantId],
+    );
+    if (
+      parseInt(pending.rows[0].count, 10) >=
+      LOAN_POLICY.max_pending_applications
+    ) {
+      return res.status(429).json({
+        error: `You already have ${LOAN_POLICY.max_pending_applications} pending applications. Please wait for them to be processed.`,
+      });
+    }
+
+    // App convention: interest_rate is the MONTHLY rate as a percent
+    // (annual % = interest_rate * 12). Store annual/12; do money math
+    // with the fraction so totals match the portal calculator.
+    const annualRate =
+      parseFloat(annual_interest_rate) || LOAN_POLICY.default_interest_rate;
+    const monthlyPct = parseFloat((annualRate / 12).toFixed(4));
+    const monthlyFraction = annualRate / 100 / 12;
+    const totalInterest = parseFloat(
+      (principal * monthlyFraction * months).toFixed(2),
+    );
+    const totalAmountDue = parseFloat(
+      (principal + totalInterest).toFixed(2),
+    );
+
+    // Mirror staff loans.js loan_code exactly (per-tenant COUNT,
+    // LN-YYYY-#### 4-digit) so customer apps are indistinguishable
+    // from staff-created loans in the shared queue/workflow.
+    const cnt = await query(
+      "SELECT COUNT(*) AS count FROM loans WHERE tenant_id = $1",
+      [req.currentTenantId],
+    );
+    const year = new Date().getFullYear();
+    const loanCode = `LN-${year}-${String(
+      parseInt(cnt.rows[0].count, 10) + 1,
+    ).padStart(4, "0")}`;
+
+    const result = await query(
+      `INSERT INTO loans (
+         tenant_id, loan_code, client_id, principal_amount, interest_rate,
+         loan_duration_months, total_amount_due, total_interest,
+         status, purpose,
+         guarantor_name, guarantor_phone, guarantor_id_number,
+         collateral_description, late_payment_fee, penalty_rate,
+         application_date, application_source, review_notes,
+         submitted_by_customer, platform_customer_id, created_by
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11,$12,$13,500,5.00,
+         NOW()::date,'customer_portal',$14,true,$15,NULL)
+       RETURNING id, loan_code, status, principal_amount,
+                 total_amount_due, loan_duration_months`,
+      [
+        req.currentTenantId,
+        loanCode,
+        req.currentClientId,
+        principal,
+        monthlyPct,
+        months,
+        totalAmountDue,
+        totalInterest,
+        purpose,
+        guarantor_name || null,
+        guarantor_phone || null,
+        guarantor_id_number || null,
+        collateral_description || null,
+        review_notes || null,
+        req.platformCustomerId,
+      ],
+    );
+    const loan = result.rows[0];
+
+    await query(
+      `INSERT INTO customer_activities
+         (platform_customer_id, tenant_id, client_id, activity_type, details)
+       VALUES ($1,$2,$3,'submitted_application',$4)`,
+      [
+        req.platformCustomerId,
+        req.currentTenantId,
+        req.currentClientId,
+        JSON.stringify({
+          loan_id: loan.id,
+          loan_code: loan.loan_code,
+          amount: principal,
+          months,
+        }),
+      ],
+    );
+
+    res.status(201).json({
+      success: true,
+      message:
+        "✅ Application submitted! The lender will review it shortly.",
+      data: {
+        loan_id: loan.id,
+        loan_code: loan.loan_code,
+        status: loan.status,
+        principal_amount: principal,
+        total_amount_due: totalAmountDue,
+        duration_months: months,
+      },
+    });
+  } catch (error) {
+    logger.error("Customer application error:", error);
+    res.status(500).json({ error: "Failed to submit application" });
+  }
+});
+
+router.get("/applications", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT l.*,
+              ur.first_name AS reviewer_name,
+              ua.first_name AS approver_name
+       FROM loans l
+       LEFT JOIN users ur ON l.reviewed_by = ur.id
+       LEFT JOIN users ua ON l.approved_by = ua.id
+       WHERE l.client_id = $1 AND l.tenant_id = $2
+         AND l.status IN ('pending','under_review','approved','rejected')
+       ORDER BY l.application_date DESC NULLS LAST, l.created_at DESC`,
+      [req.currentClientId, req.currentTenantId],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Get applications error:", error);
+    res.status(500).json({ error: "Failed to fetch applications" });
+  }
+});
+
+router.delete("/applications/:id", async (req, res) => {
+  try {
+    const lr = await query(
+      `SELECT * FROM loans
+       WHERE id = $1 AND client_id = $2 AND tenant_id = $3`,
+      [req.params.id, req.currentClientId, req.currentTenantId],
+    );
+    if (lr.rows.length === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+    const loan = lr.rows[0];
+    if (loan.status !== "pending") {
+      return res.status(400).json({
+        error: `Cannot cancel application with status: ${loan.status}`,
+      });
+    }
+    await query(
+      `UPDATE loans
+       SET status = 'rejected',
+           rejection_reason = 'Cancelled by customer',
+           rejected_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
+      [req.params.id, req.currentTenantId],
+    );
+    await query(
+      `INSERT INTO customer_activities
+         (platform_customer_id, tenant_id, client_id, activity_type, details)
+       VALUES ($1,$2,$3,'cancelled_application',$4)`,
+      [
+        req.platformCustomerId,
+        req.currentTenantId,
+        req.currentClientId,
+        JSON.stringify({ loan_id: req.params.id, loan_code: loan.loan_code }),
+      ],
+    );
+    res.json({ success: true, message: "Application cancelled" });
+  } catch (error) {
+    logger.error("Cancel application error:", error);
+    res.status(500).json({ error: "Failed to cancel application" });
+  }
+});
+
 // Stream a PDF buffer as an attachment (mirrors reports.js servePdf).
 const sendPdf = (res, buffer, filename) => {
   res.setHeader("Content-Type", "application/pdf");

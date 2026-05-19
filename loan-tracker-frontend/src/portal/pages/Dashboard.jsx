@@ -75,6 +75,19 @@ function CustomerDashboard() {
           ) : null;
         })()}
 
+        <button
+          onClick={() => navigate("/portal/apply")}
+          className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition flex items-center justify-between"
+        >
+          <div className="text-left">
+            <p className="font-bold text-lg">📝 Apply for New Loan</p>
+            <p className="text-sm text-green-100">
+              Quick approval • 24–48 hours
+            </p>
+          </div>
+          <span className="text-2xl">→</span>
+        </button>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl shadow p-4">
             <p className="text-xs text-gray-500 uppercase">Active Loans</p>

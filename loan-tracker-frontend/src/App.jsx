@@ -18,6 +18,8 @@ import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
 import CustomerAllLoans from "./portal/pages/AllLoans";
+import CustomerApplyLoan from "./portal/pages/ApplyLoan";
+import CustomerApplications from "./portal/pages/Applications";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -124,6 +126,22 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerAllLoans />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/apply"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerApplyLoan />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/applications"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerApplications />
                 </PortalProtectedRoute>
               }
             />
