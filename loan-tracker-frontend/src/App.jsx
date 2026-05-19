@@ -104,7 +104,11 @@ function App() {
             />
             <Route
               path="/portal/add-lender"
-              element={<CustomerAddLender />}
+              element={
+                <PortalProtectedRoute>
+                  <CustomerAddLender />
+                </PortalProtectedRoute>
+              }
             />
             <Route
               path="/portal/dashboard"

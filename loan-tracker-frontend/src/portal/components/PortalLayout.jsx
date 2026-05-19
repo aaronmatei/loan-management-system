@@ -9,6 +9,7 @@ import DevTenantSwitcher from "./DevTenantSwitcher";
 const MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: "🏠" },
   { path: "/portal/loans", label: "My Loans", icon: "💰" },
+  { path: "/portal/add-lender", label: "Add Lender", icon: "➕" },
   { path: "/portal/profile", label: "Profile", icon: "👤" },
 ];
 

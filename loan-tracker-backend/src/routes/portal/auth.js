@@ -478,10 +478,40 @@ router.post("/select-tenant", async (req, res) => {
 // ── add tenant link (logged-in customer at a new lender) ──────
 router.post("/add-tenant", tenantContext, async (req, res) => {
   try {
-    const { customer_id, password } = req.body;
-    if (!req.tenant) {
-      return res.status(400).json({ error: "Tenant context required" });
+    const { customer_id, password, target_tenant_id, target_subdomain } =
+      req.body;
+
+    // Resolve the target tenant: explicit body id/subdomain (the
+    // list-based Add-Lender UI) takes precedence; otherwise fall back
+    // to tenantContext's req.tenant (X-Tenant-Subdomain / host) so the
+    // original flow keeps working.
+    let targetTenant = null;
+    if (target_tenant_id) {
+      const tr = await query(
+        "SELECT * FROM tenants WHERE id = $1 AND status = 'active'",
+        [target_tenant_id],
+      );
+      targetTenant = tr.rows[0] || null;
+    } else if (target_subdomain) {
+      const tr = await query(
+        "SELECT * FROM tenants WHERE subdomain = $1 AND status = 'active'",
+        [target_subdomain],
+      );
+      targetTenant = tr.rows[0] || null;
+    } else if (req.tenant) {
+      targetTenant = req.tenant;
     }
+    if (!targetTenant) {
+      return res
+        .status(404)
+        .json({ error: "Tenant not found or inactive" });
+    }
+    if (!targetTenant.allow_self_signup) {
+      return res.status(403).json({
+        error: `${targetTenant.business_name} does not allow self-signup. Please contact them directly.`,
+      });
+    }
+
     const cr = await query(
       "SELECT * FROM platform_customers WHERE id = $1",
       [customer_id],
@@ -495,63 +525,109 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
 
     const exists = await query(
       "SELECT id FROM customer_tenant_links WHERE platform_customer_id = $1 AND tenant_id = $2",
-      [customer_id, req.tenant.id],
+      [customer_id, targetTenant.id],
     );
     if (exists.rows.length > 0) {
-      return res
-        .status(409)
-        .json({ error: "Already linked to this tenant" });
+      return res.status(409).json({
+        error: `You already have an account with ${targetTenant.business_name}`,
+      });
     }
 
     let clientId;
+    let clientCode;
+    let isNewClient = false;
+    // phoneVariants() handles 07.../+254... so we don't create a
+    // duplicate client for a differently-formatted phone.
     const existingClient = await query(
-      "SELECT id FROM clients WHERE phone_number = ANY($1::text[]) AND tenant_id = $2 LIMIT 1",
-      [phoneVariants(customer.phone_number), req.tenant.id],
+      `SELECT id, client_code, id_number
+         FROM clients
+        WHERE phone_number = ANY($1::text[]) AND tenant_id = $2 LIMIT 1`,
+      [phoneVariants(customer.phone_number), targetTenant.id],
     );
     if (existingClient.rows.length > 0) {
-      clientId = existingClient.rows[0].id;
+      const ec = existingClient.rows[0];
+      // Security: same phone but a different national ID is a
+      // different person — refuse to auto-link.
+      if (
+        ec.id_number &&
+        customer.id_number &&
+        ec.id_number !== customer.id_number
+      ) {
+        return res.status(409).json({
+          error:
+            "A client with this phone exists at this lender but the ID number does not match.",
+        });
+      }
+      clientId = ec.id;
+      clientCode = ec.client_code;
     } else {
       const cnt = await query(
         "SELECT COUNT(*) AS count FROM clients WHERE tenant_id = $1",
-        [req.tenant.id],
+        [targetTenant.id],
       );
       const year = new Date().getFullYear();
-      const clientCode = `CLT-${year}-${String(
+      clientCode = `CLT-${year}-${String(
         parseInt(cnt.rows[0].count, 10) + 1,
       ).padStart(5, "0")}`;
       const ncl = await query(
         `INSERT INTO clients (
            tenant_id, client_code, first_name, last_name,
-           phone_number, id_number, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,'active') RETURNING id`,
+           phone_number, id_number, email, status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'active') RETURNING id`,
         [
-          req.tenant.id,
+          targetTenant.id,
           clientCode,
           customer.first_name,
           customer.last_name,
           customer.phone_number,
           customer.id_number,
+          customer.email || null,
         ],
       );
       clientId = ncl.rows[0].id;
+      isNewClient = true;
     }
 
     await query(
       `INSERT INTO customer_tenant_links (platform_customer_id, tenant_id, client_id, status)
        VALUES ($1,$2,$3,'active')`,
-      [customer_id, req.tenant.id, clientId],
+      [customer_id, targetTenant.id, clientId],
     );
     await query(
-      `INSERT INTO customer_activities (platform_customer_id, tenant_id, client_id, activity_type)
-       VALUES ($1,$2,$3,'added_tenant_link')`,
-      [customer_id, req.tenant.id, clientId],
+      `INSERT INTO customer_activities
+         (platform_customer_id, tenant_id, client_id, activity_type, details)
+       VALUES ($1,$2,$3,'added_tenant_link',$4)`,
+      [
+        customer_id,
+        targetTenant.id,
+        clientId,
+        JSON.stringify({
+          tenant_name: targetTenant.business_name,
+          is_new_client: isNewClient,
+        }),
+      ],
     );
 
     res.json({
       success: true,
-      message: `Linked to ${req.tenant.business_name}`,
-      tenant_id: req.tenant.id,
+      message: `Successfully linked to ${targetTenant.business_name}! ${
+        isNewClient
+          ? "A new account was created."
+          : "Auto-linked to your existing client record."
+      }`,
+      tenant_id: targetTenant.id,
       client_id: clientId,
+      tenant: {
+        id: targetTenant.id,
+        business_name: targetTenant.business_name,
+        subdomain: targetTenant.subdomain,
+        brand_color: targetTenant.brand_color,
+      },
+      client: {
+        id: clientId,
+        client_code: clientCode,
+        is_new: isNewClient,
+      },
     });
   } catch (error) {
     logger.error("Add tenant error:", error);

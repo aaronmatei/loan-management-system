@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
-import DevTenantSwitcher from "../components/DevTenantSwitcher";
+import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
 
-// Existing customer links a NEW lender. The target lender is whatever
-// portalApi will send as X-Tenant-Subdomain (the dev switcher in dev,
-// the host subdomain in prod) — same resolution add-tenant's
-// tenantContext uses on the backend. Backend verifies the password,
-// auto-links to an existing client at that tenant (or creates one),
-// and returns {tenant_id, client_id} (no token) — so afterwards we
-// refresh the tenant list and send the customer to the picker, which
-// issues a token scoped to the chosen lender.
 function AddLender() {
   const navigate = useNavigate();
+  const [available, setAvailable] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [target, setTarget] = useState(null);
-  const [currentTenants, setCurrentTenants] = useState([]);
+  const [success, setSuccess] = useState(null);
 
   const customer = (() => {
     try {
@@ -26,54 +20,58 @@ function AddLender() {
       return {};
     }
   })();
-
-  useEffect(() => {
-    if (!localStorage.getItem("portal_token")) {
-      navigate("/portal/login");
-      return;
-    }
-    let tenants = [];
+  const currentTenants = (() => {
     try {
-      tenants = JSON.parse(localStorage.getItem("portal_tenants") || "[]");
+      return JSON.parse(localStorage.getItem("portal_tenants") || "[]");
     } catch {
-      tenants = [];
+      return [];
     }
-    setCurrentTenants(tenants);
+  })();
 
-    // Resolve the lender being added the same way portalApi does.
-    const host = window.location.hostname;
-    let sub = null;
-    if (host !== "localhost" && host !== "127.0.0.1") {
-      const parts = host.split(".");
-      if (parts.length >= 2 && parts[0] !== "www") sub = parts[0];
-    } else {
-      sub = localStorage.getItem("dev_tenant_subdomain");
-    }
-    if (sub && tenants.some((t) => t.subdomain === sub)) {
-      alert("You already have an account with this lender.");
-      navigate("/portal/select-tenant");
-      return;
-    }
-    setTarget(sub);
-  }, [navigate]);
+  const loadAvailable = () => {
+    setLoading(true);
+    portalApi
+      .get("/portal/customer/available-tenants")
+      .then((r) => setAvailable(r.data.data || []))
+      .catch((err) => {
+        if (err.response?.data?.action === "select_tenant") {
+          navigate("/portal/select-tenant");
+        }
+      })
+      .finally(() => setLoading(false));
+  };
 
-  const submit = async (e) => {
+  useEffect(loadAvailable, [navigate]);
+
+  const confirmAdd = async (e) => {
     e.preventDefault();
+    if (!password) return;
     setSubmitting(true);
     try {
-      await portalApi.post("/portal/auth/add-tenant", {
+      const res = await portalApi.post("/portal/auth/add-tenant", {
+        target_tenant_id: selected.id,
         customer_id: customer.id,
         password,
       });
-      // Refresh the tenant list (current token still valid for the
-      // previously-selected tenant) then go pick the new lender.
-      const r = await portalApi.get("/portal/customer/tenants");
-      localStorage.setItem(
-        "portal_tenants",
-        JSON.stringify(r.data.data.tenants || []),
-      );
-      alert("✅ Lender added. Choose it to continue.");
-      navigate("/portal/select-tenant");
+      setSuccess({
+        tenant: res.data.tenant,
+        client: res.data.client,
+        message: res.data.message,
+      });
+      // Refresh linked tenants (current token still valid for the
+      // selected tenant) so the picker shows the new lender.
+      try {
+        const tr = await portalApi.get("/portal/customer/tenants");
+        localStorage.setItem(
+          "portal_tenants",
+          JSON.stringify(tr.data.data.tenants || []),
+        );
+      } catch {
+        /* non-fatal — picker re-fetches on next login */
+      }
+      setSelected(null);
+      setPassword("");
+      loadAvailable();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to add lender");
     } finally {
@@ -82,71 +80,208 @@ function AddLender() {
   };
 
   return (
-    <>
-      <DevTenantSwitcher />
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            Add a Lender
-          </h1>
-          <p className="text-gray-600 mb-5">
-            {target ? (
-              <>
-                Link <strong className="capitalize">{target}</strong> to your
-                account
-              </>
-            ) : (
-              "Select a lender (dev switcher / subdomain) first"
-            )}
-          </p>
+    <PortalLayout>
+      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+          ➕ Add Another Lender
+        </h1>
+        <p className="text-gray-600 mt-1 mb-6">
+          Link your account to more lenders for one-stop loan management.
+        </p>
 
-          {currentTenants.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm">
-              <p className="text-blue-800 font-semibold">
-                You're already a customer at:
+        {success && (
+          <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+            <span className="text-3xl">🎉</span>
+            <div className="flex-1">
+              <h3 className="font-bold text-green-900">Successfully Added!</h3>
+              <p className="text-green-700 mt-1">{success.message}</p>
+              <p className="text-sm text-green-600 mt-2">
+                Client code at {success.tenant?.business_name}:{" "}
+                <strong className="font-mono">
+                  {success.client?.client_code}
+                </strong>
               </p>
-              <ul className="mt-1 ml-4 list-disc text-blue-900">
-                {currentTenants.map((t) => (
-                  <li key={t.tenant_id}>{t.business_name}</li>
-                ))}
-              </ul>
+              <button
+                onClick={() => navigate("/portal/select-tenant")}
+                className="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold"
+              >
+                View All My Lenders →
+              </button>
             </div>
-          )}
+            <button
+              onClick={() => setSuccess(null)}
+              className="text-green-700"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
-          <form onSubmit={submit} className="space-y-4">
-            <div>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+          <h3 className="font-bold text-blue-900 mb-2">
+            📋 Your Current Lenders
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {currentTenants.map((t) => (
+              <span
+                key={t.tenant_id}
+                className="px-3 py-1 bg-white rounded-full text-sm font-semibold text-blue-700 border border-blue-200"
+              >
+                {t.business_name}
+              </span>
+            ))}
+          </div>
+          <p className="text-xs text-blue-600 mt-2">
+            Linked to {currentTenants.length} lender
+            {currentTenants.length !== 1 ? "s" : ""}.
+          </p>
+        </div>
+
+        <h2 className="text-xl font-bold text-gray-800 mb-4">
+          🏦 Available Lenders ({available.length})
+        </h2>
+
+        {loading ? (
+          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
+            Loading…
+          </div>
+        ) : available.length === 0 ? (
+          <div className="bg-white rounded-xl shadow p-12 text-center">
+            <p className="text-5xl mb-3">🎉</p>
+            <p className="font-semibold text-gray-800">
+              You're linked to all available lenders!
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {available.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setSelected(t);
+                  setPassword("");
+                }}
+                className="text-left bg-white rounded-xl shadow p-5 hover:shadow-lg transition relative overflow-hidden"
+              >
+                <div
+                  className="absolute top-0 left-0 right-0 h-2"
+                  style={{ backgroundColor: t.brand_color || "#4F46E5" }}
+                />
+                <div className="flex items-start gap-3 mb-3">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0"
+                    style={{ backgroundColor: t.brand_color || "#4F46E5" }}
+                  >
+                    {t.business_name?.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800">
+                      {t.business_name}
+                    </h3>
+                    <p className="text-xs text-gray-500 capitalize">
+                      {t.business_type}
+                    </p>
+                  </div>
+                </div>
+                {(t.city || t.county) && (
+                  <p className="text-sm text-gray-600 mb-2">
+                    📍 {[t.city, t.county].filter(Boolean).join(", ")}
+                  </p>
+                )}
+                {t.is_existing_client && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-3">
+                    <p className="text-xs font-semibold text-green-800">
+                      ✨ We found your existing account here!
+                    </p>
+                    <p className="text-xs text-green-700">
+                      Your loans will auto-link.
+                    </p>
+                  </div>
+                )}
+                <span
+                  className="block w-full mt-4 py-2 rounded-lg font-semibold text-white text-center"
+                  style={{ backgroundColor: t.brand_color || "#4F46E5" }}
+                >
+                  ➕ Add This Lender
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="text-center mb-4">
+              <div
+                className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-white font-bold text-3xl"
+                style={{
+                  backgroundColor: selected.brand_color || "#4F46E5",
+                }}
+              >
+                {selected.business_name?.charAt(0)}
+              </div>
+              <h3 className="text-2xl font-bold mt-3">
+                {selected.business_name}
+              </h3>
+              <p className="text-sm text-gray-500 capitalize">
+                {selected.business_type}
+              </p>
+            </div>
+            {selected.is_existing_client && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                <p className="text-sm font-semibold text-green-800">
+                  ✨ You already have a client account here — your loans
+                  will auto-link.
+                </p>
+              </div>
+            )}
+            <p className="text-gray-600 mb-4 text-sm">
+              Confirm your password to link{" "}
+              <strong>{selected.business_name}</strong> to your account.
+            </p>
+            <form onSubmit={confirmAdd}>
               <label className="block text-sm font-semibold mb-1">
-                Confirm your password
+                Confirm Password
               </label>
               <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                autoFocus
+                placeholder="Enter your password"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none mb-4"
               />
-            </div>
-            <button
-              type="submit"
-              disabled={submitting || !target}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
-            >
-              {submitting
-                ? "Adding…"
-                : target
-                  ? `Add ${target} →`
-                  : "Pick a lender first"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/portal/select-tenant")}
-              className="w-full py-2 text-gray-600 text-sm"
-            >
-              Cancel
-            </button>
-          </form>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelected(null);
+                    setPassword("");
+                  }}
+                  disabled={submitting}
+                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !password}
+                  className="flex-1 py-2 text-white rounded-lg font-semibold disabled:opacity-50"
+                  style={{
+                    backgroundColor: selected.brand_color || "#4F46E5",
+                  }}
+                >
+                  {submitting ? "Adding…" : "✓ Confirm & Add"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
-    </>
+      )}
+    </PortalLayout>
   );
 }
 

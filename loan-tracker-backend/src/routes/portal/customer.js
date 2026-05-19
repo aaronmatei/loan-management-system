@@ -66,6 +66,43 @@ router.get("/tenants", async (req, res) => {
   }
 });
 
+// Active, portal-enabled, self-signup tenants the customer is NOT
+// yet linked to. is_existing_client is a best-effort hint (exact
+// phone+id match); the actual auto-link in /auth/add-tenant uses
+// phoneVariants so it can still link a 07.../+254... variant.
+router.get("/available-tenants", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT
+         t.id, t.business_name, t.subdomain, t.brand_color,
+         t.business_type, t.physical_address, t.city, t.county,
+         EXISTS(
+           SELECT 1 FROM clients c
+           WHERE c.tenant_id = t.id
+             AND c.phone_number = $1 AND c.id_number = $2
+         ) AS is_existing_client
+       FROM tenants t
+       WHERE t.status = 'active'
+         AND t.customer_portal_enabled = true
+         AND t.allow_self_signup = true
+         AND t.id NOT IN (
+           SELECT tenant_id FROM customer_tenant_links
+           WHERE platform_customer_id = $3 AND status = 'active'
+         )
+       ORDER BY is_existing_client DESC, t.business_name ASC`,
+      [
+        req.customer.phone_number,
+        req.customer.id_number,
+        req.platformCustomerId,
+      ],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Available tenants error:", error);
+    res.status(500).json({ error: "Failed to fetch available tenants" });
+  }
+});
+
 // Dashboard for the currently selected tenant
 router.get("/dashboard", async (req, res) => {
   try {
