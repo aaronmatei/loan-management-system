@@ -9,6 +9,12 @@ import {
 } from "../services/emailService.js";
 import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
+import {
+  notifyApplicationSubmitted,
+  notifyApplicationApproved,
+  notifyApplicationRejected,
+  notifyCapitalLow,
+} from "../services/notificationService.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 
@@ -284,6 +290,15 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       req,
     });
 
+    try {
+      const ci = await query("SELECT * FROM clients WHERE id = $1", [
+        client_id,
+      ]);
+      if (ci.rows[0]) await notifyApplicationSubmitted(loan, ci.rows[0]);
+    } catch (err) {
+      logger.error("notifyApplicationSubmitted error:", err);
+    }
+
     logger.info(
       `✓ Loan application submitted: ${loanCode}, KES ${principal}`,
     );
@@ -404,6 +419,10 @@ router.post(
         ).toLocaleString()}`,
         req,
       });
+      if (loan.created_by) {
+        await notifyApplicationApproved(result.rows[0], loan.created_by);
+      }
+
       res.json({
         success: true,
         message: "Loan approved! Ready for disbursement.",
@@ -458,6 +477,14 @@ router.post(
         newValues: { rejection_reason: reason },
         req,
       });
+      if (loan.created_by) {
+        await notifyApplicationRejected(
+          result.rows[0],
+          loan.created_by,
+          reason,
+        );
+      }
+
       res.json({
         success: true,
         message: "Loan application rejected",
@@ -552,6 +579,24 @@ router.post(
          VALUES ('loan_disbursed', $1, $2, $3)`,
         [principal, id, `Loan ${loan.loan_code} disbursed`],
       );
+
+      // Disbursement is the big capital outflow now — warn admins if
+      // the pool is running low.
+      try {
+        const cp = await query(
+          `SELECT initial_capital,
+                  (initial_capital - total_disbursed + total_collected) AS available
+           FROM capital_pool ORDER BY id DESC LIMIT 1`,
+        );
+        if (cp.rows[0]) {
+          await notifyCapitalLow(
+            cp.rows[0].available,
+            cp.rows[0].initial_capital,
+          );
+        }
+      } catch (err) {
+        logger.error("notifyCapitalLow (disburse) error:", err);
+      }
 
       // Loan-approved SMS (relocated here from loan creation).
       if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {

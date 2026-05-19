@@ -102,16 +102,18 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 -- Create NOTIFICATIONS table
+-- In-app notifications (also upgraded by migrations/add_notifications.sql)
 CREATE TABLE IF NOT EXISTS notifications (
   id SERIAL PRIMARY KEY,
-  client_id INT REFERENCES clients(id),
-  loan_id INT REFERENCES loans(id),
-  notification_type VARCHAR(30),
-  channel VARCHAR(20),
-  recipient VARCHAR(100),
-  message TEXT,
-  status VARCHAR(20) DEFAULT 'pending',
-  sent_at TIMESTAMP,
+  user_id INTEGER REFERENCES users(id),
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  icon VARCHAR(20),
+  link VARCHAR(255),
+  metadata JSONB,
+  is_read BOOLEAN DEFAULT FALSE,
+  read_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -159,7 +161,9 @@ CREATE INDEX IF NOT EXISTS idx_payment_schedules_loan ON payment_schedules(loan_
 CREATE INDEX IF NOT EXISTS idx_payment_schedules_status ON payment_schedules(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions(client_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
+CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notif_unread ON notifications(user_id, is_read) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_notif_date ON notifications(created_at DESC);
 -- Create BACKUPS table (also in migrations/add_backups.sql)
 CREATE TABLE IF NOT EXISTS backups (
   id SERIAL PRIMARY KEY,

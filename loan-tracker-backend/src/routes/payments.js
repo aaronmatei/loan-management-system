@@ -9,6 +9,11 @@ import {
 } from "../services/emailService.js";
 import { buildReceiptPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
+import {
+  notifyLargePayment,
+  notifyLoanCompleted,
+  notifyRefundPending,
+} from "../services/notificationService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -501,6 +506,27 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       },
       req,
     });
+
+    try {
+      const ci = await query("SELECT * FROM clients WHERE id = $1", [
+        loan.client_id,
+      ]);
+      const client = ci.rows[0];
+      if (client) {
+        await notifyLargePayment(transaction, loan, client);
+        if (isFullyPaid) {
+          await notifyLoanCompleted(loan, client);
+          if (newOverpayment > 0) {
+            await notifyRefundPending(
+              { ...loan, overpayment_amount: newOverpayment },
+              client,
+            );
+          }
+        }
+      }
+    } catch (err) {
+      logger.error("Payment notification error:", err);
+    }
 
     logger.info(
       `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,

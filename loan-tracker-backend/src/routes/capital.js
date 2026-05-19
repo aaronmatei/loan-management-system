@@ -2,6 +2,7 @@ import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { logAudit } from "../services/auditService.js";
+import { notifyCapitalLow } from "../services/notificationService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -140,6 +141,19 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
     const activeResult = await query(
       `SELECT COUNT(*) AS count FROM loans WHERE status = 'active'`,
     );
+
+    try {
+      const u = updated.rows[0];
+      if (u) {
+        const avail =
+          parseFloat(u.initial_capital) -
+          parseFloat(u.total_disbursed) +
+          parseFloat(u.total_collected);
+        await notifyCapitalLow(avail, u.initial_capital);
+      }
+    } catch (err) {
+      logger.error("notifyCapitalLow (adjust) error:", err);
+    }
 
     res.json({
       success: true,

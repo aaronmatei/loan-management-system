@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import { hasPermission, getRoleBadge } from "../utils/permissions";
+import NotificationBell from "./NotificationBell";
 
 function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -211,7 +212,14 @@ function Layout({ children }) {
             <h1 className="text-lg font-bold text-gray-800">
               {getCurrentPageTitle()}
             </h1>
-            <div className="w-10" />
+            <NotificationBell />
+          </div>
+        </header>
+
+        {/* Desktop top bar (notification bell) */}
+        <header className="hidden lg:flex bg-white border-b border-gray-200 shadow-sm">
+          <div className="flex-1 flex items-center justify-end px-8 py-3">
+            <NotificationBell />
           </div>
         </header>
 

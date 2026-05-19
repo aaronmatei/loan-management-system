@@ -23,6 +23,7 @@ import UserManagement from "./pages/UserManagement";
 import Backup from "./pages/Backup";
 import Analytics from "./pages/Analytics";
 import Applications from "./pages/Applications";
+import Notifications from "./pages/Notifications";
 import Layout from "./components/Layout";
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/applications" element={<Applications />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="/clients" element={<Clients />} />
               <Route
                 path="/clients/:id/profile"
