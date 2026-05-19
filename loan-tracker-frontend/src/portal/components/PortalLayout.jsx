@@ -8,7 +8,8 @@ import DevTenantSwitcher from "./DevTenantSwitcher";
 // the rest of the portal uses; never refetches what pages already own.
 const MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: "🏠" },
-  { path: "/portal/loans", label: "My Loans", icon: "💰" },
+  { path: "/portal/all-loans", label: "All Lenders", icon: "📊" },
+  { path: "/portal/loans", label: "Current Lender", icon: "💰" },
   { path: "/portal/add-lender", label: "Add Lender", icon: "➕" },
   { path: "/portal/profile", label: "Profile", icon: "👤" },
 ];

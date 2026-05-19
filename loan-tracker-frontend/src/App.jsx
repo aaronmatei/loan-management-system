@@ -17,6 +17,7 @@ import CustomerLoanDetails from "./portal/pages/LoanDetails";
 import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
+import CustomerAllLoans from "./portal/pages/AllLoans";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -115,6 +116,14 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerDashboard />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/all-loans"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerAllLoans />
                 </PortalProtectedRoute>
               }
             />

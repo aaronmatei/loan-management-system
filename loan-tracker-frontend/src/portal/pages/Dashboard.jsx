@@ -54,6 +54,27 @@ function CustomerDashboard() {
           </p>
         </div>
 
+        {(() => {
+          let n = 0;
+          try {
+            n = JSON.parse(
+              localStorage.getItem("portal_tenants") || "[]",
+            ).length;
+          } catch {
+            n = 0;
+          }
+          return n > 1 ? (
+            <button
+              onClick={() => navigate("/portal/all-loans")}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-700 text-white py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 font-semibold"
+            >
+              <span>📊</span>
+              <span>View All Loans Across All Lenders</span>
+              <span>→</span>
+            </button>
+          ) : null;
+        })()}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl shadow p-4">
             <p className="text-xs text-gray-500 uppercase">Active Loans</p>

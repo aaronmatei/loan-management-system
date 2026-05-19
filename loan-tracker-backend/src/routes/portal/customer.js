@@ -103,6 +103,156 @@ router.get("/available-tenants", async (req, res) => {
   }
 });
 
+// ALL loans across ALL the customer's linked tenants. Authenticated
+// as the platform customer (verifyCustomer); scoped strictly to the
+// client_ids/tenant_ids the customer is actively linked to.
+router.get("/all-loans", async (req, res) => {
+  try {
+    const { tenant_id, status, sort = "newest" } = req.query;
+
+    const ORDER = {
+      newest: "l.created_at DESC",
+      oldest: "l.created_at ASC",
+      highest_balance:
+        "(l.total_amount_due - COALESCE((SELECT SUM(amount_paid) FROM transactions WHERE loan_id = l.id AND payment_status = 'completed'),0)) DESC",
+      lowest_balance:
+        "(l.total_amount_due - COALESCE((SELECT SUM(amount_paid) FROM transactions WHERE loan_id = l.id AND payment_status = 'completed'),0)) ASC",
+    };
+    const orderBy = ORDER[sort] || ORDER.newest;
+
+    const links = await query(
+      `SELECT client_id, tenant_id FROM customer_tenant_links
+       WHERE platform_customer_id = $1 AND status = 'active'`,
+      [req.platformCustomerId],
+    );
+    if (links.rows.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          loans: [],
+          summary: {
+            total_loans: 0,
+            total_active: 0,
+            total_completed: 0,
+            total_defaulted: 0,
+            total_lenders: 0,
+            total_balance: 0,
+            by_tenant: [],
+          },
+        },
+      });
+    }
+    const clientIds = links.rows.map((r) => r.client_id);
+    const tenantIds = [...new Set(links.rows.map((r) => r.tenant_id))];
+
+    // client_id (a global PK) already pins each loan to one of the
+    // customer's own client records; the tenant_id filter is a
+    // belt-and-braces guard.
+    const params = [clientIds, tenantIds];
+    let where =
+      "l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])";
+    if (tenant_id) {
+      params.push(parseInt(tenant_id, 10));
+      where += ` AND l.tenant_id = $${params.length}`;
+    }
+    if (status) {
+      params.push(status);
+      where += ` AND l.status = $${params.length}`;
+    }
+
+    const loans = await query(
+      `SELECT
+         l.*,
+         t.business_name   AS tenant_name,
+         t.subdomain       AS tenant_subdomain,
+         t.brand_color     AS tenant_brand_color,
+         c.client_code,
+         COALESCE(SUM(tx.amount_paid),0) AS total_paid,
+         (SELECT json_build_object(
+            'amount_due', ps.amount_due,
+            'due_date', ps.due_date,
+            'payment_number', ps.payment_number)
+          FROM payment_schedules ps
+          WHERE ps.loan_id = l.id
+            AND ps.status IN ('pending','overdue')
+          ORDER BY ps.due_date ASC LIMIT 1) AS next_payment
+       FROM loans l
+       JOIN tenants t ON l.tenant_id = t.id
+       JOIN clients c ON l.client_id = c.id
+       LEFT JOIN transactions tx
+         ON tx.loan_id = l.id AND tx.payment_status = 'completed'
+       WHERE ${where}
+       GROUP BY l.id, t.id, c.id
+       ORDER BY ${orderBy}`,
+      params,
+    );
+
+    const summary = (
+      await query(
+        `SELECT
+           COUNT(*)::int AS total_loans,
+           COUNT(*) FILTER (WHERE status='active')::int    AS total_active,
+           COUNT(*) FILTER (WHERE status='completed')::int  AS total_completed,
+           COUNT(*) FILTER (WHERE status='defaulted')::int  AS total_defaulted
+         FROM loans
+         WHERE client_id = ANY($1::int[]) AND tenant_id = ANY($2::int[])`,
+        [clientIds, tenantIds],
+      )
+    ).rows[0];
+
+    // Per-tenant: balance = active total_due − payments on ACTIVE
+    // loans (so a completed loan's payments don't shrink the active
+    // outstanding figure — the spec's LIMIT 1 / mixed-scope bug).
+    const byTenant = (
+      await query(
+        `SELECT
+           t.id AS tenant_id, t.business_name, t.subdomain, t.brand_color,
+           COUNT(l.id)::int AS total_loans,
+           COUNT(l.id) FILTER (WHERE l.status='active')::int AS active_loans,
+           COALESCE(SUM(l.total_amount_due) FILTER (WHERE l.status='active'),0) AS total_due,
+           COALESCE((
+             SELECT SUM(tx.amount_paid)
+             FROM transactions tx
+             JOIN loans la ON tx.loan_id = la.id
+             WHERE la.tenant_id = t.id
+               AND la.client_id = ANY($1::int[])
+               AND la.status = 'active'
+               AND tx.payment_status = 'completed'
+           ),0) AS total_paid
+         FROM tenants t
+         LEFT JOIN loans l
+           ON l.tenant_id = t.id AND l.client_id = ANY($1::int[])
+         WHERE t.id = ANY($2::int[])
+         GROUP BY t.id
+         ORDER BY active_loans DESC, t.business_name ASC`,
+        [clientIds, tenantIds],
+      )
+    ).rows;
+
+    const totalBalance = byTenant.reduce(
+      (s, t) =>
+        s + (parseFloat(t.total_due) - parseFloat(t.total_paid)),
+      0,
+    );
+
+    res.json({
+      success: true,
+      data: {
+        loans: loans.rows,
+        summary: {
+          ...summary,
+          total_lenders: byTenant.length,
+          total_balance: totalBalance,
+          by_tenant: byTenant,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("All loans error:", error);
+    res.status(500).json({ error: "Failed to fetch all loans" });
+  }
+});
+
 // Dashboard for the currently selected tenant
 router.get("/dashboard", async (req, res) => {
   try {
