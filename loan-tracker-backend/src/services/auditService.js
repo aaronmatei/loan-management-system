@@ -56,11 +56,12 @@ export const logAudit = async (options) => {
 
     await query(
       `INSERT INTO audit_logs (
-        user_id, user_email, user_name, action, entity_type, entity_id,
+        tenant_id, user_id, user_email, user_name, action, entity_type, entity_id,
         entity_code, description, old_values, new_values, ip_address,
         user_agent, metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
+        user?.tenant_id || null,
         user?.id || null,
         user?.email || "system",
         userName,

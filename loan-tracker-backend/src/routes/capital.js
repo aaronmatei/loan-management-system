@@ -9,8 +9,12 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-// Always operate on the latest pool row
-const POOL_QUERY = `SELECT * FROM capital_pool ORDER BY id DESC LIMIT 1`;
+// Capital is per-tenant. Always scope by the acting user's tenant
+// (platform admins operate on their own tenant's pool here).
+const poolFor = (tid) => ({
+  text: "SELECT * FROM capital_pool WHERE tenant_id = $1",
+  values: [tid],
+});
 
 function buildStatus(pool, activeLoans) {
   const initial = parseFloat(pool.initial_capital);
@@ -43,13 +47,21 @@ function buildStatus(pool, activeLoans) {
 // ============================================================
 router.get("/status", authorize("admin", "manager"), async (req, res) => {
   try {
-    const poolResult = await query(POOL_QUERY);
+    const tid = req.user?.tenant_id;
+    if (!tid) {
+      return res
+        .status(400)
+        .json({ error: "No tenant context — re-login required" });
+    }
+    const pf = poolFor(tid);
+    const poolResult = await query(pf.text, pf.values);
     if (poolResult.rows.length === 0) {
       return res.status(404).json({ error: "Capital pool not initialized" });
     }
 
     const activeResult = await query(
-      `SELECT COUNT(*) AS count FROM loans WHERE status = 'active'`,
+      `SELECT COUNT(*) AS count FROM loans WHERE status = 'active' AND tenant_id = $1`,
+      [tid],
     );
     const activeLoans = parseInt(activeResult.rows[0].count, 10);
 
@@ -83,7 +95,14 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
         .json({ error: "amount must be a positive number" });
     }
 
-    const poolResult = await query(POOL_QUERY);
+    const tid = req.user?.tenant_id;
+    if (!tid) {
+      return res
+        .status(400)
+        .json({ error: "No tenant context — re-login required" });
+    }
+    const pf = poolFor(tid);
+    const poolResult = await query(pf.text, pf.values);
     if (poolResult.rows.length === 0) {
       return res.status(404).json({ error: "Capital pool not initialized" });
     }
@@ -112,9 +131,10 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
     );
 
     await query(
-      `INSERT INTO capital_transactions (transaction_type, amount, description)
-       VALUES ($1, $2, $3)`,
+      `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, description)
+       VALUES ($1, $2, $3, $4)`,
       [
+        tid,
         type === "add" ? "capital_added" : "capital_withdrawn",
         value,
         description || (type === "add" ? "Capital added" : "Capital withdrawn"),
@@ -137,9 +157,10 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
       `✓ Capital ${type} of KES ${value} by ${req.user?.email}`,
     );
 
-    const updated = await query(POOL_QUERY);
+    const updated = await query(pf.text, pf.values);
     const activeResult = await query(
-      `SELECT COUNT(*) AS count FROM loans WHERE status = 'active'`,
+      `SELECT COUNT(*) AS count FROM loans WHERE status = 'active' AND tenant_id = $1`,
+      [tid],
     );
 
     try {
@@ -186,9 +207,12 @@ router.get("/transactions", authorize("admin", "manager"), async (req, res) => {
         l.loan_code
       FROM capital_transactions ct
       LEFT JOIN loans l ON ct.loan_id = l.id
+      WHERE ct.tenant_id = $1
       ORDER BY ct.created_at DESC, ct.id DESC
       LIMIT 50
-    `);
+    `,
+      [req.user?.tenant_id],
+    );
 
     res.json({ success: true, data: result.rows });
   } catch (error) {

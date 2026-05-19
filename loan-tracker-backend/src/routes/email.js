@@ -13,6 +13,7 @@ import {
   NotFoundError,
 } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
+import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -27,11 +28,12 @@ const logEmail = async (data) => {
     await query(
       `
       INSERT INTO email_logs (
-        client_id, loan_id, recipient_email, subject, message_type,
+        tenant_id, client_id, loan_id, recipient_email, subject, message_type,
         has_attachment, attachment_name, status, provider_response, sent_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `,
       [
+        data.tenant_id || null,
         data.client_id || null,
         data.loan_id || null,
         data.recipient_email,
@@ -67,9 +69,12 @@ router.post("/send", async (req, res) => {
         .json({ error: "Client, subject, and message are required" });
     }
 
-    const clientResult = await query("SELECT * FROM clients WHERE id = $1", [
-      client_id,
-    ]);
+    const tid = tenantId(req);
+    const ct = tenantClause(req, 1);
+    const clientResult = await query(
+      `SELECT * FROM clients WHERE id = $1${ct.clause}`,
+      [client_id, ...ct.params],
+    );
     if (clientResult.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
@@ -79,7 +84,7 @@ router.post("/send", async (req, res) => {
       return res.status(400).json({ error: "Client has no email address" });
     }
 
-    const company = await getCompanySettings();
+    const company = await getCompanySettings(client.tenant_id);
     const template = templates.custom({
       subject,
       message,
@@ -89,7 +94,10 @@ router.post("/send", async (req, res) => {
 
     const attachments = [];
     if (attach_statement) {
-      const { buffer, filename } = await buildClientStatementPdf(client.id);
+      const { buffer, filename } = await buildClientStatementPdf(
+        client.id,
+        tid,
+      );
       attachments.push({ filename, content: buffer });
     }
 
@@ -101,6 +109,7 @@ router.post("/send", async (req, res) => {
     });
 
     await logEmail({
+      tenant_id: client.tenant_id,
       client_id: client.id,
       recipient_email: client.email,
       subject: template.subject,
@@ -133,9 +142,12 @@ router.post("/send-statement/:clientId", async (req, res) => {
     const { clientId } = req.params;
     const { custom_message } = req.body;
 
-    const clientResult = await query("SELECT * FROM clients WHERE id = $1", [
-      clientId,
-    ]);
+    const tid = tenantId(req);
+    const ct = tenantClause(req, 1);
+    const clientResult = await query(
+      `SELECT * FROM clients WHERE id = $1${ct.clause}`,
+      [clientId, ...ct.params],
+    );
     if (clientResult.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
@@ -145,9 +157,9 @@ router.post("/send-statement/:clientId", async (req, res) => {
       return res.status(400).json({ error: "Client has no email address" });
     }
 
-    const { buffer, filename } = await buildClientStatementPdf(client.id);
+    const { buffer, filename } = await buildClientStatementPdf(client.id, tid);
 
-    const company = await getCompanySettings();
+    const company = await getCompanySettings(client.tenant_id);
     const subject = `Your Account Statement - ${client.client_code}`;
     const template = templates.custom({
       subject,
@@ -166,6 +178,7 @@ router.post("/send-statement/:clientId", async (req, res) => {
     });
 
     await logEmail({
+      tenant_id: client.tenant_id,
       client_id: client.id,
       recipient_email: client.email,
       subject,
@@ -200,16 +213,18 @@ router.post("/send-agreement/:loanId", async (req, res) => {
   try {
     const { loanId } = req.params;
 
+    const tid = tenantId(req);
+    const lt = tenantClause(req, 1, "l.tenant_id");
     const loanResult = await query(
       `
-      SELECT l.id, l.loan_code, l.principal_amount, l.total_amount_due,
+      SELECT l.id, l.tenant_id, l.loan_code, l.principal_amount, l.total_amount_due,
         l.loan_duration_months, l.client_id,
         c.first_name, c.email
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      WHERE l.id = $1
+      WHERE l.id = $1${lt.clause}
     `,
-      [loanId],
+      [loanId, ...lt.params],
     );
     if (loanResult.rows.length === 0) {
       return res.status(404).json({ error: "Loan not found" });
@@ -220,9 +235,9 @@ router.post("/send-agreement/:loanId", async (req, res) => {
       return res.status(400).json({ error: "Client has no email address" });
     }
 
-    const { buffer, filename } = await buildLoanAgreementPdf(loan.id);
+    const { buffer, filename } = await buildLoanAgreementPdf(loan.id, tid);
 
-    const company = await getCompanySettings();
+    const company = await getCompanySettings(loan.tenant_id);
     const template = templates.loanApproved({
       clientName: loan.first_name,
       loanCode: loan.loan_code,
@@ -240,6 +255,7 @@ router.post("/send-agreement/:loanId", async (req, res) => {
     });
 
     await logEmail({
+      tenant_id: loan.tenant_id,
       client_id: loan.client_id,
       loan_id: loan.id,
       recipient_email: loan.email,
@@ -273,19 +289,23 @@ router.post("/send-agreement/:loanId", async (req, res) => {
 // Send overdue notices to all overdue clients with an email address
 router.post("/send-overdue-reminders", async (req, res) => {
   try {
-    const overdueClients = await query(`
+    const ot = tenantClause(req, 0, "l.tenant_id");
+    const overdueClients = await query(
+      `
       SELECT DISTINCT
         c.id as client_id, c.first_name, c.last_name, c.email,
-        l.id as loan_id, l.loan_code,
+        l.id as loan_id, l.loan_code, l.tenant_id,
         SUM(ps.amount_due - COALESCE(ps.amount_paid, 0)) as total_overdue,
         MAX(CURRENT_DATE - ps.due_date) as max_days_late
       FROM payment_schedules ps
       JOIN loans l ON ps.loan_id = l.id
       JOIN clients c ON l.client_id = c.id
       WHERE ps.status = 'overdue'
-        AND c.email IS NOT NULL
-      GROUP BY c.id, c.first_name, c.last_name, c.email, l.id, l.loan_code
-    `);
+        AND c.email IS NOT NULL${ot.clause}
+      GROUP BY c.id, c.first_name, c.last_name, c.email, l.id, l.loan_code, l.tenant_id
+    `,
+      ot.params,
+    );
 
     if (overdueClients.rows.length === 0) {
       return res.json({
@@ -297,9 +317,16 @@ router.post("/send-overdue-reminders", async (req, res) => {
       });
     }
 
-    const company = await getCompanySettings();
+    // Per-tenant branding (memoised — platform admin may span tenants).
+    const companyCache = {};
+    const companyFor = async (t) => {
+      if (!(t in companyCache)) companyCache[t] = await getCompanySettings(t);
+      return companyCache[t];
+    };
+
     const results = [];
     for (const client of overdueClients.rows) {
+      const company = await companyFor(client.tenant_id);
       const template = templates.overdueNotice({
         clientName: client.first_name,
         amount: client.total_overdue,
@@ -315,6 +342,7 @@ router.post("/send-overdue-reminders", async (req, res) => {
       });
 
       await logEmail({
+        tenant_id: client.tenant_id,
         client_id: client.client_id,
         loan_id: client.loan_id,
         recipient_email: client.email,
@@ -381,12 +409,23 @@ router.get("/logs", async (req, res) => {
       params.push(message_type);
     }
 
+    const lt = tenantClause(req, paramCount, "el.tenant_id");
+    if (lt.clause) {
+      paramCount++;
+      queryText += lt.clause;
+      params.push(...lt.params);
+    }
+
     queryText += ` ORDER BY el.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(limit, offset);
 
     const result = await query(queryText, params);
 
-    const countResult = await query("SELECT COUNT(*) FROM email_logs");
+    const ct = tenantClause(req, 0);
+    const countResult = await query(
+      `SELECT COUNT(*) FROM email_logs WHERE 1=1${ct.clause}`,
+      ct.params,
+    );
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -405,7 +444,9 @@ router.get("/logs", async (req, res) => {
 // Get email statistics
 router.get("/stats", async (req, res) => {
   try {
-    const stats = await query(`
+    const st = tenantClause(req, 0);
+    const stats = await query(
+      `
       SELECT
         COUNT(*) as total_sent,
         COUNT(CASE WHEN status = 'sent' THEN 1 END) as successful,
@@ -414,7 +455,10 @@ router.get("/stats", async (req, res) => {
         COUNT(CASE WHEN has_attachment = true THEN 1 END) as with_attachments,
         COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as last_30_days
       FROM email_logs
-    `);
+      WHERE 1=1${st.clause}
+    `,
+      st.params,
+    );
 
     res.json({
       success: true,
@@ -443,11 +487,12 @@ router.post("/bulk-send", async (req, res) => {
         .json({ error: "Subject and message are required" });
     }
 
+    const bt = tenantClause(req, 1);
     const clientsResult = await query(
-      `SELECT id, first_name, last_name, email
+      `SELECT id, tenant_id, first_name, last_name, email
        FROM clients
-       WHERE id = ANY($1) AND email IS NOT NULL`,
-      [client_ids],
+       WHERE id = ANY($1) AND email IS NOT NULL${bt.clause}`,
+      [client_ids, ...bt.params],
     );
     const recipients = clientsResult.rows;
     if (recipients.length === 0) {
@@ -456,12 +501,17 @@ router.post("/bulk-send", async (req, res) => {
         .json({ error: "No clients have email addresses" });
     }
 
-    // The custom template renders via baseLayout, which needs the
-    // company object — fetch once (not per recipient).
-    const company = await getCompanySettings();
+    // Per-tenant branding (memoised — scoped to caller's tenant, but a
+    // platform admin's selection may span tenants).
+    const companyCache = {};
+    const companyFor = async (t) => {
+      if (!(t in companyCache)) companyCache[t] = await getCompanySettings(t);
+      return companyCache[t];
+    };
 
     const results = [];
     for (const client of recipients) {
+      const company = await companyFor(client.tenant_id);
       const personalizedMessage = message
         .replaceAll("{first_name}", client.first_name || "")
         .replaceAll("{last_name}", client.last_name || "");
@@ -481,10 +531,11 @@ router.post("/bulk-send", async (req, res) => {
 
       await query(
         `INSERT INTO email_logs (
-          client_id, recipient_email, subject, message_type,
+          tenant_id, client_id, recipient_email, subject, message_type,
           status, provider_response, sent_by
-        ) VALUES ($1, $2, $3, 'bulk_custom', $4, $5, $6)`,
+        ) VALUES ($1, $2, $3, $4, 'bulk_custom', $5, $6, $7)`,
         [
+          client.tenant_id,
           client.id,
           client.email,
           subject,

@@ -4,6 +4,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
 import { logAudit } from "../services/auditService.js";
+import { tenantClause } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -102,15 +103,20 @@ router.use(authorize("admin"));
 // List users
 router.get("/", async (req, res) => {
   try {
-    const result = await query(`
+    const ut = tenantClause(req, 0, "u.tenant_id");
+    const result = await query(
+      `
       SELECT
         u.id, u.email, u.first_name, u.last_name, u.phone_number,
         u.role, u.is_active, u.last_login, u.created_at,
         creator.first_name AS created_by_name
       FROM users u
       LEFT JOIN users creator ON u.created_by = creator.id
+      WHERE 1=1${ut.clause}
       ORDER BY u.created_at DESC
-    `);
+    `,
+      ut.params,
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logger.error("Get users error:", error);
@@ -167,12 +173,13 @@ router.post("/", async (req, res) => {
 
     const result = await query(
       `INSERT INTO users (
-        username, email, password_hash, first_name, last_name,
+        tenant_id, username, email, password_hash, first_name, last_name,
         phone_number, role, is_active, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9)
       RETURNING id, email, first_name, last_name, phone_number, role,
                 is_active, created_at`,
       [
+        req.user?.tenant_id || null,
         username,
         normalizedEmail,
         passwordHash,
@@ -222,7 +229,11 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    const existing = await query("SELECT * FROM users WHERE id = $1", [id]);
+    const xt = tenantClause(req, 1);
+    const existing = await query(
+      `SELECT * FROM users WHERE id = $1${xt.clause}`,
+      [id, ...xt.params],
+    );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -241,8 +252,10 @@ router.put("/:id", async (req, res) => {
       currentUser.role === "admin" &&
       ((role && role !== "admin") || is_active === false);
     if (losingAdmin) {
+      // Per-tenant: each tenant needs its own last active admin.
       const adminCount = await query(
-        "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND is_active = true",
+        "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND is_active = true AND tenant_id = $1",
+        [currentUser.tenant_id],
       );
       if (parseInt(adminCount.rows[0].count, 10) <= 1) {
         return res.status(400).json({
@@ -259,7 +272,7 @@ router.put("/:id", async (req, res) => {
         role = COALESCE($4, role),
         is_active = COALESCE($5, is_active),
         updated_at = NOW()
-      WHERE id = $6
+      WHERE id = $6 AND tenant_id = $7
       RETURNING id, email, first_name, last_name, phone_number, role,
                 is_active, last_login`,
       [
@@ -269,6 +282,7 @@ router.put("/:id", async (req, res) => {
         role ?? null,
         is_active ?? null,
         id,
+        currentUser.tenant_id,
       ],
     );
 
@@ -310,15 +324,19 @@ router.post("/:id/reset-password", async (req, res) => {
       });
     }
 
-    const user = await query("SELECT email FROM users WHERE id = $1", [id]);
+    const rt = tenantClause(req, 1);
+    const user = await query(
+      `SELECT email, tenant_id FROM users WHERE id = $1${rt.clause}`,
+      [id, ...rt.params],
+    );
     if (user.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
     const passwordHash = await bcryptjs.hash(new_password, 10);
     await query(
-      "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2",
-      [passwordHash, id],
+      "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3",
+      [passwordHash, id, user.rows[0].tenant_id],
     );
 
     await logAudit({

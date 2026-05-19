@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
+import { tenantClause } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -15,7 +16,9 @@ router.use(verifyToken);
 // ============================================================
 router.get("/revenue-trends", async (req, res) => {
   try {
-    const result = await query(`
+    const t = tenantClause(req, 0);
+    const result = await query(
+      `
       WITH months AS (
         SELECT generate_series(
           DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months'),
@@ -28,6 +31,7 @@ router.get("/revenue-trends", async (req, res) => {
                SUM(principal_amount) AS disbursed,
                COUNT(*) AS new_loans
         FROM loans
+        WHERE 1=1${t.clause}
         GROUP BY 1
       ),
       coll AS (
@@ -35,7 +39,7 @@ router.get("/revenue-trends", async (req, res) => {
                SUM(amount_paid) AS collected,
                COUNT(*) AS txns
         FROM transactions
-        WHERE payment_status = 'completed'
+        WHERE payment_status = 'completed'${t.clause}
         GROUP BY 1
       )
       SELECT
@@ -49,7 +53,9 @@ router.get("/revenue-trends", async (req, res) => {
       LEFT JOIN disb d ON d.m = m.month
       LEFT JOIN coll c ON c.m = m.month
       ORDER BY m.month ASC
-    `);
+    `,
+      t.params,
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logger.error("Revenue trends error:", error);
@@ -62,14 +68,19 @@ router.get("/revenue-trends", async (req, res) => {
 // ============================================================
 router.get("/portfolio-breakdown", async (req, res) => {
   try {
-    const result = await query(`
+    const t = tenantClause(req, 0);
+    const result = await query(
+      `
       SELECT status,
              COUNT(*)::int AS count,
              COALESCE(SUM(principal_amount), 0) AS total_value
       FROM loans
+      WHERE 1=1${t.clause}
       GROUP BY status
       ORDER BY count DESC
-    `);
+    `,
+      t.params,
+    );
     const total = result.rows.reduce(
       (sum, row) => sum + parseInt(row.count, 10),
       0,
@@ -106,6 +117,7 @@ router.get("/top-clients", async (req, res) => {
           : "total_borrowed";
     const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
+    const tc = tenantClause(req, 1, "c.tenant_id");
     const result = await query(
       `SELECT
         c.id, c.first_name, c.last_name, c.client_code, c.phone_number,
@@ -119,10 +131,10 @@ router.get("/top-clients", async (req, res) => {
            WHERE l.client_id = c.id
              AND t.payment_status = 'completed') AS total_paid
       FROM clients c
-      WHERE (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id) > 0
+      WHERE (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id) > 0${tc.clause}
       ORDER BY ${orderBy} DESC
       LIMIT $1`,
-      [safeLimit],
+      [safeLimit, ...tc.params],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -136,7 +148,9 @@ router.get("/top-clients", async (req, res) => {
 // ============================================================
 router.get("/geographic", async (req, res) => {
   try {
-    const result = await query(`
+    const tc = tenantClause(req, 0, "c.tenant_id");
+    const result = await query(
+      `
       SELECT
         COALESCE(c.county, 'Unknown') AS county,
         COUNT(DISTINCT c.id) AS client_count,
@@ -144,11 +158,14 @@ router.get("/geographic", async (req, res) => {
         COALESCE(SUM(l.principal_amount), 0) AS total_disbursed
       FROM clients c
       LEFT JOIN loans l ON c.id = l.client_id
+      WHERE 1=1${tc.clause}
       GROUP BY c.county
       HAVING COUNT(DISTINCT c.id) > 0
       ORDER BY client_count DESC
       LIMIT 15
-    `);
+    `,
+      tc.params,
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logger.error("Geographic error:", error);
@@ -161,7 +178,9 @@ router.get("/geographic", async (req, res) => {
 // ============================================================
 router.get("/loan-distribution", async (req, res) => {
   try {
-    const result = await query(`
+    const t = tenantClause(req, 0);
+    const result = await query(
+      `
       SELECT
         CASE
           WHEN principal_amount < 10000 THEN '< 10K'
@@ -186,9 +205,12 @@ router.get("/loan-distribution", async (req, res) => {
         COUNT(*) AS count,
         COALESCE(SUM(principal_amount), 0) AS total_value
       FROM loans
+      WHERE 1=1${t.clause}
       GROUP BY range, sort_order
       ORDER BY sort_order
-    `);
+    `,
+      t.params,
+    );
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logger.error("Loan distribution error:", error);
@@ -205,7 +227,9 @@ router.get("/loan-distribution", async (req, res) => {
 // ============================================================
 router.get("/default-trend", async (req, res) => {
   try {
-    const result = await query(`
+    const t = tenantClause(req, 0, "l.tenant_id");
+    const result = await query(
+      `
       WITH months AS (
         SELECT generate_series(
           DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months'),
@@ -224,10 +248,12 @@ router.get("/default-trend", async (req, res) => {
            AND l.status = 'defaulted'
           THEN l.id END) AS defaulted_loans
       FROM months m
-      LEFT JOIN loans l ON DATE_TRUNC('month', l.start_date) <= m.month
+      LEFT JOIN loans l ON DATE_TRUNC('month', l.start_date) <= m.month${t.clause}
       GROUP BY m.month
       ORDER BY m.month ASC
-    `);
+    `,
+      t.params,
+    );
     const data = result.rows.map((row) => ({
       ...row,
       default_rate:
@@ -251,15 +277,19 @@ router.get("/default-trend", async (req, res) => {
 // ============================================================
 router.get("/payment-methods", async (req, res) => {
   try {
-    const result = await query(`
+    const t = tenantClause(req, 0);
+    const result = await query(
+      `
       SELECT payment_method,
              COUNT(*)::int AS count,
              COALESCE(SUM(amount_paid), 0) AS total_amount
       FROM transactions
-      WHERE payment_status = 'completed'
+      WHERE payment_status = 'completed'${t.clause}
       GROUP BY payment_method
       ORDER BY count DESC
-    `);
+    `,
+      t.params,
+    );
     const total = result.rows.reduce(
       (sum, row) => sum + parseInt(row.count, 10),
       0,
@@ -285,29 +315,34 @@ router.get("/kpis", async (req, res) => {
   try {
     // interest_rate stores the MONTHLY rate as a percent, so annual
     // % = interest_rate * 12 (the spec's *12*100 was a 100x bug).
-    const kpis = await query(`
+    const k = tenantClause(req, 0);
+    const c = k.clause;
+    const kpis = await query(
+      `
       SELECT
-        (SELECT COUNT(*) FROM clients WHERE status = 'active') AS active_clients,
-        (SELECT COUNT(*) FROM loans WHERE status = 'active') AS active_loans,
-        (SELECT COALESCE(SUM(principal_amount), 0) FROM loans WHERE status = 'active') AS active_portfolio,
+        (SELECT COUNT(*) FROM clients WHERE status = 'active'${c}) AS active_clients,
+        (SELECT COUNT(*) FROM loans WHERE status = 'active'${c}) AS active_loans,
+        (SELECT COALESCE(SUM(principal_amount), 0) FROM loans WHERE status = 'active'${c}) AS active_portfolio,
 
         (SELECT COALESCE(SUM(amount_paid), 0) FROM transactions
           WHERE payment_status = 'completed'
-            AND payment_date >= CURRENT_DATE - INTERVAL '30 days') AS collections_30d,
+            AND payment_date >= CURRENT_DATE - INTERVAL '30 days'${c}) AS collections_30d,
         (SELECT COALESCE(SUM(principal_amount), 0) FROM loans
-          WHERE start_date >= CURRENT_DATE - INTERVAL '30 days') AS disbursements_30d,
+          WHERE start_date >= CURRENT_DATE - INTERVAL '30 days'${c}) AS disbursements_30d,
 
-        (SELECT COUNT(*) FROM loans WHERE status = 'defaulted') AS total_defaulted,
-        (SELECT COUNT(*) FROM payment_schedules WHERE status = 'overdue') AS overdue_count,
+        (SELECT COUNT(*) FROM loans WHERE status = 'defaulted'${c}) AS total_defaulted,
+        (SELECT COUNT(*) FROM payment_schedules WHERE status = 'overdue'${c}) AS overdue_count,
         (SELECT COALESCE(SUM(amount_due - COALESCE(amount_paid, 0)), 0)
-          FROM payment_schedules WHERE status = 'overdue') AS total_overdue_amount,
+          FROM payment_schedules WHERE status = 'overdue'${c}) AS total_overdue_amount,
 
-        (SELECT COUNT(*) FROM clients WHERE created_at >= CURRENT_DATE - INTERVAL '30 days') AS new_clients_30d,
-        (SELECT COUNT(*) FROM loans WHERE start_date >= CURRENT_DATE - INTERVAL '30 days') AS new_loans_30d,
+        (SELECT COUNT(*) FROM clients WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'${c}) AS new_clients_30d,
+        (SELECT COUNT(*) FROM loans WHERE start_date >= CURRENT_DATE - INTERVAL '30 days'${c}) AS new_loans_30d,
 
-        (SELECT COALESCE(AVG(principal_amount), 0) FROM loans WHERE status = 'active') AS avg_loan_size,
-        (SELECT COALESCE(AVG(interest_rate * 12), 0) FROM loans WHERE status = 'active') AS avg_interest_rate
-    `);
+        (SELECT COALESCE(AVG(principal_amount), 0) FROM loans WHERE status = 'active'${c}) AS avg_loan_size,
+        (SELECT COALESCE(AVG(interest_rate * 12), 0) FROM loans WHERE status = 'active'${c}) AS avg_interest_rate
+    `,
+      k.params,
+    );
     res.json({ success: true, data: kpis.rows[0] });
   } catch (error) {
     logger.error("KPIs error:", error);

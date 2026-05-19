@@ -18,6 +18,14 @@ export function verifyToken(req, res, next) {
   //Verify token
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Customer (portal) tokens share JWT_SECRET but must NEVER satisfy
+    // staff auth — they have no role and would otherwise pass any
+    // verifyToken-only route.
+    if (decoded.user_type === "customer") {
+      return res
+        .status(403)
+        .json({ error: "Staff access only" });
+    }
     req.user = decoded;
     next();
   } catch (error) {

@@ -26,7 +26,11 @@ const getTransporter = () => {
 // company_settings table (same source as the loan agreement PDF) with
 // environment variables as a fallback. Queried per send rather than
 // cached so Settings-page edits take effect without a restart.
-export const getCompanySettings = async () => {
+// `tid` is the tenant whose branding to use (the client/loan's
+// tenant). Required for correct per-tenant letterheads; when absent
+// (or no row) we fall back to environment defaults rather than
+// leaking another tenant's company details.
+export const getCompanySettings = async (tid) => {
   const fallback = {
     name: process.env.COMPANY_NAME || "Your Company",
     phone: process.env.COMPANY_PHONE || "",
@@ -35,9 +39,11 @@ export const getCompanySettings = async () => {
     website: process.env.COMPANY_WEBSITE || "",
     address: "",
   };
+  if (tid == null) return fallback;
   try {
     const result = await query(
-      "SELECT * FROM company_settings ORDER BY id LIMIT 1",
+      "SELECT * FROM company_settings WHERE tenant_id = $1",
+      [tid],
     );
     const c = result.rows[0];
     if (!c) return fallback;

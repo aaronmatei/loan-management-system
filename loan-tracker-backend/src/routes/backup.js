@@ -16,7 +16,23 @@ import logger from "../config/logger.js";
 
 const router = express.Router();
 router.use(verifyToken);
-router.use(authorize("admin")); // backup/restore is admin-only
+
+// Backups here are whole-DATABASE pg_dumps spanning every tenant — a
+// tenant admin must NOT be able to list, download (all tenants' PII +
+// password hashes), restore (overwrite every tenant) or upload-restore
+// arbitrary SQL. In the shared-DB model this is a PLATFORM operation,
+// so it is restricted to platform administrators (stricter than the
+// previous authorize("admin"), which any tenant's admin satisfied).
+router.use(authorize("admin"));
+router.use((req, res, next) => {
+  if (!req.user?.is_platform_admin) {
+    return res.status(403).json({
+      error:
+        "Database backup & restore is restricted to platform administrators",
+    });
+  }
+  next();
+});
 
 const upload = multer({
   dest: BACKUP_DIR_RESOLVED,

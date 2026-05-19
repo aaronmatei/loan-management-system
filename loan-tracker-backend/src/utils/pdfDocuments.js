@@ -39,6 +39,16 @@ const formatDate = (date) => {
   });
 };
 
+// Tenant scoping for the primary-record lookups. `tid` is the
+// caller's tenant id (number) or null/undefined for a platform
+// admin, in which case no scope is applied. Mirrors
+// utils/tenantScope.js but takes a raw id since these builders are
+// not request-bound (also called by the email service).
+const tClause = (tid, startParam, col = "tenant_id") =>
+  tid == null
+    ? { clause: "", params: [] }
+    : { clause: ` AND ${col} = $${startParam + 1}`, params: [tid] };
+
 // Collect a PDFKit document into a single Buffer. Listeners must be
 // attached before doc.end(); the promise resolves once flushed.
 const streamToBuffer = (doc) =>
@@ -52,10 +62,12 @@ const streamToBuffer = (doc) =>
 // ============================================================
 // CLIENT STATEMENT
 // ============================================================
-export const buildClientStatementPdf = async (clientId) => {
-  const clientResult = await query("SELECT * FROM clients WHERE id = $1", [
-    clientId,
-  ]);
+export const buildClientStatementPdf = async (clientId, tid) => {
+  const ct = tClause(tid, 1);
+  const clientResult = await query(
+    `SELECT * FROM clients WHERE id = $1${ct.clause}`,
+    [clientId, ...ct.params],
+  );
   if (clientResult.rows.length === 0) {
     throw new NotFoundError("Client not found");
   }
@@ -244,15 +256,16 @@ export const buildClientStatementPdf = async (clientId) => {
 // ============================================================
 // LOAN STATEMENT
 // ============================================================
-export const buildLoanStatementPdf = async (loanId) => {
+export const buildLoanStatementPdf = async (loanId, tid) => {
+  const lt = tClause(tid, 1, "l.tenant_id");
   const loanResult = await query(
     `
       SELECT l.*, c.first_name, c.last_name, c.phone_number, c.email, c.client_code
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      WHERE l.id = $1
+      WHERE l.id = $1${lt.clause}
     `,
-    [loanId],
+    [loanId, ...lt.params],
   );
 
   if (loanResult.rows.length === 0) {
@@ -372,7 +385,8 @@ export const buildLoanStatementPdf = async (loanId) => {
 // ============================================================
 // PAYMENT RECEIPT
 // ============================================================
-export const buildReceiptPdf = async (transactionId) => {
+export const buildReceiptPdf = async (transactionId, tid) => {
+  const tt = tClause(tid, 1, "t.tenant_id");
   const result = await query(
     `
       SELECT t.*,
@@ -381,9 +395,9 @@ export const buildReceiptPdf = async (transactionId) => {
       FROM transactions t
       JOIN loans l ON t.loan_id = l.id
       JOIN clients c ON t.client_id = c.id
-      WHERE t.id = $1
+      WHERE t.id = $1${tt.clause}
     `,
-    [transactionId],
+    [transactionId, ...tt.params],
   );
 
   if (result.rows.length === 0) {
@@ -459,7 +473,8 @@ export const buildReceiptPdf = async (transactionId) => {
 // ============================================================
 // LOAN AGREEMENT
 // ============================================================
-export const buildLoanAgreementPdf = async (loanId) => {
+export const buildLoanAgreementPdf = async (loanId, tid) => {
+  const lt = tClause(tid, 1, "l.tenant_id");
   const loanResult = await query(
     `
       SELECT l.*,
@@ -468,9 +483,9 @@ export const buildLoanAgreementPdf = async (loanId) => {
         c.business_name, c.business_type
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      WHERE l.id = $1
+      WHERE l.id = $1${lt.clause}
     `,
-    [loanId],
+    [loanId, ...lt.params],
   );
 
   if (loanResult.rows.length === 0) {
@@ -478,8 +493,13 @@ export const buildLoanAgreementPdf = async (loanId) => {
   }
   const loan = loanResult.rows[0];
 
+  // The agreement is between the loan's own lender (tenant) and the
+  // borrower — always derive branding from the loan's tenant, never a
+  // global singleton, so a platform admin generating it still gets
+  // the correct lender's letterhead.
   const companyResult = await query(
-    "SELECT * FROM company_settings ORDER BY id LIMIT 1",
+    "SELECT * FROM company_settings WHERE tenant_id = $1",
+    [loan.tenant_id],
   );
   const company = companyResult.rows[0] || {
     company_name: "Your Company",

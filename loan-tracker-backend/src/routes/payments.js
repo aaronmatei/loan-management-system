@@ -9,6 +9,7 @@ import {
 } from "../services/emailService.js";
 import { buildReceiptPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
+import { tenantClause } from "../utils/tenantScope.js";
 import {
   notifyLargePayment,
   notifyLoanCompleted,
@@ -56,12 +57,22 @@ router.get("/", async (req, res) => {
       params.push(client_id);
     }
 
+    const tcl = tenantClause(req, paramCount, "t.tenant_id");
+    if (tcl.clause) {
+      paramCount++;
+      queryText += tcl.clause;
+    }
+
     queryText += ` ORDER BY t.payment_date DESC, t.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    params.push(limit, offset);
+    params.push(...tcl.params, limit, offset);
 
     const result = await query(queryText, params);
 
-    const countResult = await query("SELECT COUNT(*) FROM transactions");
+    const cclt = tenantClause(req, 0);
+    const countResult = await query(
+      `SELECT COUNT(*) FROM transactions WHERE 1=1${cclt.clause}`,
+      cclt.params,
+    );
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -98,10 +109,12 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       });
     }
 
-    // Get loan details
-    const loanResult = await query("SELECT * FROM loans WHERE id = $1", [
-      loan_id,
-    ]);
+    // Get loan details (tenant-scoped — staff only touch their own loans)
+    const lt = tenantClause(req, 1);
+    const loanResult = await query(
+      `SELECT * FROM loans WHERE id = $1${lt.clause}`,
+      [loan_id, ...lt.params],
+    );
 
     if (loanResult.rows.length === 0) {
       return res.status(404).json({ error: "Loan not found" });
@@ -145,19 +158,23 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
 
     // Generate transaction code
     const year = new Date().getFullYear();
-    const countResult = await query("SELECT COUNT(*) FROM transactions");
+    const countResult = await query(
+      "SELECT COUNT(*) FROM transactions WHERE tenant_id = $1",
+      [loan.tenant_id],
+    );
     const txnCount = parseInt(countResult.rows[0].count) + 1;
     const transactionCode = `TXN-${year}-${String(txnCount).padStart(5, "0")}`;
 
     // Record the transaction (full amount paid by client)
     const txnResult = await query(
       `INSERT INTO transactions (
-        transaction_code, loan_id, client_id, amount_paid,
+        tenant_id, transaction_code, loan_id, client_id, amount_paid,
         payment_date, payment_method, payment_reference,
         payment_status, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'completed', $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'completed', $9)
       RETURNING *`,
       [
+        loan.tenant_id,
         transactionCode,
         loan_id,
         loan.client_id,
@@ -223,13 +240,18 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     // ✅ Update loan status based on actual amounts
     if (isFullyPaid) {
       await query(
-        `UPDATE loans 
-         SET status = 'completed', 
+        `UPDATE loans
+         SET status = 'completed',
              overpayment_amount = $1,
              refund_status = $2,
-             updated_at = NOW() 
-         WHERE id = $3`,
-        [newOverpayment, newOverpayment > 0 ? "pending" : null, loan_id],
+             updated_at = NOW()
+         WHERE id = $3 AND tenant_id = $4`,
+        [
+          newOverpayment,
+          newOverpayment > 0 ? "pending" : null,
+          loan_id,
+          loan.tenant_id,
+        ],
       );
 
       // Also mark any remaining pending schedules as paid
@@ -312,14 +334,15 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
          SET total_collected = total_collected + $1,
              total_interest_earned = total_interest_earned + $2,
              updated_at = NOW()
-       WHERE id = (SELECT id FROM capital_pool ORDER BY id DESC LIMIT 1)`,
-      [principalPortion, interestPortion],
+       WHERE tenant_id = $3`,
+      [principalPortion, interestPortion, loan.tenant_id],
     );
 
     await query(
-      `INSERT INTO capital_transactions (transaction_type, amount, loan_id, transaction_id, description)
-       VALUES ('payment_received', $1, $2, $3, $4)`,
+      `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, transaction_id, description)
+       VALUES ($1, 'payment_received', $2, $3, $4, $5)`,
       [
+        loan.tenant_id,
         actualPaymentApplied,
         loan_id,
         transaction.id,
@@ -557,14 +580,15 @@ router.get("/loan/:loanId/summary", async (req, res) => {
   try {
     const { loanId } = req.params;
 
+    const lt = tenantClause(req, 1, "l.tenant_id");
     const loanResult = await query(
-      `SELECT 
+      `SELECT
         l.*,
         c.first_name, c.last_name, c.phone_number, c.client_code, c.email
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      WHERE l.id = $1`,
-      [loanId],
+      WHERE l.id = $1${lt.clause}`,
+      [loanId, ...lt.params],
     );
 
     if (loanResult.rows.length === 0) {
@@ -642,10 +666,12 @@ router.post("/refund/:loanId", authorize("admin", "manager"), async (req, res) =
       });
     }
 
-    // Get loan
-    const loanResult = await query("SELECT * FROM loans WHERE id = $1", [
-      loanId,
-    ]);
+    // Get loan (tenant-scoped)
+    const lt = tenantClause(req, 1);
+    const loanResult = await query(
+      `SELECT * FROM loans WHERE id = $1${lt.clause}`,
+      [loanId, ...lt.params],
+    );
 
     if (loanResult.rows.length === 0) {
       return res.status(404).json({ error: "Loan not found" });
@@ -668,14 +694,20 @@ router.post("/refund/:loanId", authorize("admin", "manager"), async (req, res) =
 
     // Update loan with refund details
     await query(
-      `UPDATE loans 
+      `UPDATE loans
        SET refund_status = 'refunded',
            refund_method = $1,
            refund_reference = $2,
            refunded_date = $3,
            updated_at = NOW()
-       WHERE id = $4`,
-      [refund_method, refund_reference || null, refunded_date, loanId],
+       WHERE id = $4 AND tenant_id = $5`,
+      [
+        refund_method,
+        refund_reference || null,
+        refunded_date,
+        loanId,
+        loan.tenant_id,
+      ],
     );
 
     logger.info(

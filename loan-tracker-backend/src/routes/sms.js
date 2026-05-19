@@ -3,6 +3,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { sendSMS, templates } from "../services/smsService.js";
 import { logAudit } from "../services/auditService.js";
+import { tenantClause } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -17,11 +18,12 @@ const logSMS = async (data) => {
     await query(
       `
       INSERT INTO sms_logs (
-        client_id, loan_id, phone_number, message, message_type,
+        tenant_id, client_id, loan_id, phone_number, message, message_type,
         status, provider_response, sent_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `,
       [
+        data.tenant_id || null,
         data.client_id || null,
         data.loan_id || null,
         data.phone_number,
@@ -48,9 +50,11 @@ router.post("/send", async (req, res) => {
         .json({ error: "Client and message are required" });
     }
 
-    const clientResult = await query("SELECT * FROM clients WHERE id = $1", [
-      client_id,
-    ]);
+    const ct = tenantClause(req, 1);
+    const clientResult = await query(
+      `SELECT * FROM clients WHERE id = $1${ct.clause}`,
+      [client_id, ...ct.params],
+    );
     if (clientResult.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
@@ -64,6 +68,7 @@ router.post("/send", async (req, res) => {
     const result = await sendSMS(client.phone_number, message);
 
     await logSMS({
+      tenant_id: client.tenant_id,
       client_id: client.id,
       phone_number: client.phone_number,
       message,
@@ -91,19 +96,23 @@ router.post("/send", async (req, res) => {
 // Send overdue notifications to all overdue clients
 router.post("/send-overdue-reminders", async (req, res) => {
   try {
-    const overdueClients = await query(`
+    const ot = tenantClause(req, 0, "l.tenant_id");
+    const overdueClients = await query(
+      `
       SELECT DISTINCT
         c.id as client_id, c.first_name, c.last_name, c.phone_number,
-        l.id as loan_id, l.loan_code,
+        l.id as loan_id, l.loan_code, l.tenant_id,
         SUM(ps.amount_due - COALESCE(ps.amount_paid, 0)) as total_overdue,
         MAX(CURRENT_DATE - ps.due_date) as max_days_late
       FROM payment_schedules ps
       JOIN loans l ON ps.loan_id = l.id
       JOIN clients c ON l.client_id = c.id
       WHERE ps.status = 'overdue'
-        AND c.phone_number IS NOT NULL
-      GROUP BY c.id, c.first_name, c.last_name, c.phone_number, l.id, l.loan_code
-    `);
+        AND c.phone_number IS NOT NULL${ot.clause}
+      GROUP BY c.id, c.first_name, c.last_name, c.phone_number, l.id, l.loan_code, l.tenant_id
+    `,
+      ot.params,
+    );
 
     if (overdueClients.rows.length === 0) {
       return res.json({
@@ -117,6 +126,7 @@ router.post("/send-overdue-reminders", async (req, res) => {
       phone: client.phone_number,
       client_id: client.client_id,
       loan_id: client.loan_id,
+      tenant_id: client.tenant_id,
       message: templates.overdueNotice(
         client.first_name,
         client.total_overdue,
@@ -130,6 +140,7 @@ router.post("/send-overdue-reminders", async (req, res) => {
       const result = await sendSMS(recipient.phone, recipient.message);
 
       await logSMS({
+        tenant_id: recipient.tenant_id,
         client_id: recipient.client_id,
         loan_id: recipient.loan_id,
         phone_number: recipient.phone,
@@ -171,6 +182,7 @@ router.post("/send-payment-confirmation", async (req, res) => {
   try {
     const { transaction_id } = req.body;
 
+    const tt = tenantClause(req, 1, "t.tenant_id");
     const result = await query(
       `
       SELECT t.*, c.first_name, c.last_name, c.phone_number,
@@ -179,9 +191,9 @@ router.post("/send-payment-confirmation", async (req, res) => {
       FROM transactions t
       JOIN clients c ON t.client_id = c.id
       JOIN loans l ON t.loan_id = l.id
-      WHERE t.id = $1
+      WHERE t.id = $1${tt.clause}
     `,
-      [transaction_id],
+      [transaction_id, ...tt.params],
     );
 
     if (result.rows.length === 0) {
@@ -199,6 +211,7 @@ router.post("/send-payment-confirmation", async (req, res) => {
     const smsResult = await sendSMS(txn.phone_number, message);
 
     await logSMS({
+      tenant_id: txn.tenant_id,
       client_id: txn.client_id,
       loan_id: txn.loan_id,
       phone_number: txn.phone_number,
@@ -253,12 +266,23 @@ router.get("/logs", async (req, res) => {
       params.push(message_type);
     }
 
+    const lt = tenantClause(req, paramCount, "sl.tenant_id");
+    if (lt.clause) {
+      paramCount++;
+      queryText += lt.clause;
+      params.push(...lt.params);
+    }
+
     queryText += ` ORDER BY sl.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(limit, offset);
 
     const result = await query(queryText, params);
 
-    const countResult = await query("SELECT COUNT(*) FROM sms_logs");
+    const ct = tenantClause(req, 0);
+    const countResult = await query(
+      `SELECT COUNT(*) FROM sms_logs WHERE 1=1${ct.clause}`,
+      ct.params,
+    );
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -277,7 +301,9 @@ router.get("/logs", async (req, res) => {
 // Get SMS statistics
 router.get("/stats", async (req, res) => {
   try {
-    const stats = await query(`
+    const st = tenantClause(req, 0);
+    const stats = await query(
+      `
       SELECT
         COUNT(*) as total_sent,
         COUNT(CASE WHEN status = 'sent' THEN 1 END) as successful,
@@ -287,7 +313,10 @@ router.get("/stats", async (req, res) => {
         COUNT(CASE WHEN message_type = 'payment_received' THEN 1 END) as payment_confirmations,
         COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as last_30_days
       FROM sms_logs
-    `);
+      WHERE 1=1${st.clause}
+    `,
+      st.params,
+    );
 
     res.json({
       success: true,
@@ -314,11 +343,12 @@ router.post("/bulk-send", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    const bt = tenantClause(req, 1);
     const clientsResult = await query(
-      `SELECT id, first_name, last_name, phone_number
+      `SELECT id, tenant_id, first_name, last_name, phone_number
        FROM clients
-       WHERE id = ANY($1) AND phone_number IS NOT NULL`,
-      [client_ids],
+       WHERE id = ANY($1) AND phone_number IS NOT NULL${bt.clause}`,
+      [client_ids, ...bt.params],
     );
     const recipients = clientsResult.rows;
     if (recipients.length === 0) {
@@ -335,10 +365,11 @@ router.post("/bulk-send", async (req, res) => {
 
       await query(
         `INSERT INTO sms_logs (
-          client_id, phone_number, message, message_type,
+          tenant_id, client_id, phone_number, message, message_type,
           status, provider_response, sent_by
-        ) VALUES ($1, $2, $3, 'bulk_custom', $4, $5, $6)`,
+        ) VALUES ($1, $2, $3, $4, 'bulk_custom', $5, $6, $7)`,
         [
+          client.tenant_id,
           client.id,
           client.phone_number,
           personalizedMessage,

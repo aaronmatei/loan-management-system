@@ -2,6 +2,7 @@ import express from "express";
 import ExcelJS from "exceljs";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
+import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 import {
   buildClientStatementPdf,
@@ -58,7 +59,9 @@ router.get("/export/clients", async (req, res) => {
   try {
     // Subqueries (not JOINs) so transaction rows don't fan out and
     // inflate total_borrowed.
-    const result = await query(`
+    const tc = tenantClause(req, 0, "c.tenant_id");
+    const result = await query(
+      `
       SELECT
         c.*,
         (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id)
@@ -71,8 +74,11 @@ router.get("/export/clients", async (req, res) => {
            WHERE l.client_id = c.id
              AND t.payment_status = 'completed') AS total_paid
       FROM clients c
+      WHERE 1=1${tc.clause}
       ORDER BY c.created_at DESC
-    `);
+    `,
+      tc.params,
+    );
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Clients");
@@ -129,6 +135,7 @@ router.get("/export/clients", async (req, res) => {
 router.get("/export/loans", async (req, res) => {
   try {
     const { status } = req.query;
+    const params = [];
     let queryText = `
       SELECT
         l.loan_code,
@@ -141,15 +148,21 @@ router.get("/export/loans", async (req, res) => {
       FROM loans l
       JOIN clients c ON l.client_id = c.id
       LEFT JOIN transactions t ON l.id = t.loan_id AND t.payment_status = 'completed'
+      WHERE 1=1
     `;
 
     if (status) {
-      queryText += ` WHERE l.status = $1`;
+      params.push(status);
+      queryText += ` AND l.status = $${params.length}`;
     }
+
+    const tc = tenantClause(req, params.length, "l.tenant_id");
+    queryText += tc.clause;
+    params.push(...tc.params);
 
     queryText += ` GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code ORDER BY l.created_at DESC`;
 
-    const result = await query(queryText, status ? [status] : []);
+    const result = await query(queryText, params);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Loans");
@@ -239,6 +252,10 @@ router.get("/export/payments", async (req, res) => {
       queryText += ` AND t.payment_date <= $${params.length}`;
     }
 
+    const tc = tenantClause(req, params.length, "t.tenant_id");
+    queryText += tc.clause;
+    params.push(...tc.params);
+
     queryText += ` ORDER BY t.payment_date DESC`;
 
     const result = await query(queryText, params);
@@ -306,7 +323,9 @@ router.get("/export/payments", async (req, res) => {
 // Export overdue payments
 router.get("/export/overdue", async (req, res) => {
   try {
-    const result = await query(`
+    const tc = tenantClause(req, 0, "l.tenant_id");
+    const result = await query(
+      `
       SELECT
         ps.payment_number, ps.due_date, ps.amount_due, ps.amount_paid,
         (ps.amount_due - COALESCE(ps.amount_paid, 0)) as balance_due,
@@ -316,9 +335,11 @@ router.get("/export/overdue", async (req, res) => {
       FROM payment_schedules ps
       JOIN loans l ON ps.loan_id = l.id
       JOIN clients c ON l.client_id = c.id
-      WHERE ps.status = 'overdue'
+      WHERE ps.status = 'overdue'${tc.clause}
       ORDER BY days_late DESC
-    `);
+    `,
+      tc.params,
+    );
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Overdue Payments");
@@ -386,7 +407,7 @@ router.get("/export/overdue", async (req, res) => {
 router.get("/pdf/client-statement/:clientId", (req, res) =>
   servePdf(
     res,
-    () => buildClientStatementPdf(req.params.clientId),
+    () => buildClientStatementPdf(req.params.clientId, tenantId(req)),
     "Failed to generate statement",
     "Generate client statement error:",
   ),
@@ -396,7 +417,7 @@ router.get("/pdf/client-statement/:clientId", (req, res) =>
 router.get("/pdf/loan-statement/:loanId", (req, res) =>
   servePdf(
     res,
-    () => buildLoanStatementPdf(req.params.loanId),
+    () => buildLoanStatementPdf(req.params.loanId, tenantId(req)),
     "Failed to generate statement",
     "Generate loan statement error:",
   ),
@@ -406,7 +427,7 @@ router.get("/pdf/loan-statement/:loanId", (req, res) =>
 router.get("/pdf/receipt/:transactionId", (req, res) =>
   servePdf(
     res,
-    () => buildReceiptPdf(req.params.transactionId),
+    () => buildReceiptPdf(req.params.transactionId, tenantId(req)),
     "Failed to generate receipt",
     "Generate receipt error:",
   ),
@@ -416,7 +437,7 @@ router.get("/pdf/receipt/:transactionId", (req, res) =>
 router.get("/pdf/loan-agreement/:loanId", (req, res) =>
   servePdf(
     res,
-    () => buildLoanAgreementPdf(req.params.loanId),
+    () => buildLoanAgreementPdf(req.params.loanId, tenantId(req)),
     "Failed to generate loan agreement",
     "Generate loan agreement error:",
   ),

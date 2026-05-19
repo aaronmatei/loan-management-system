@@ -2,6 +2,7 @@ import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { runOverdueCheck } from "../utils/overdueChecker.js";
+import { tenantClause } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -63,6 +64,14 @@ router.get("/", async (req, res) => {
         OR l.loan_code ILIKE ${p}
         OR c.client_code ILIKE ${p}
       )`;
+    }
+
+    // Tenant scope — appended to the shared filter so the data, count
+    // and summary queries all stay consistent.
+    const ovt = tenantClause(req, filterParams.length, "l.tenant_id");
+    if (ovt.clause) {
+      filters += ovt.clause;
+      filterParams.push(...ovt.params);
     }
 
     // --- Page of rows -----------------------------------------------------

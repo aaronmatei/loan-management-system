@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
+import { tenantClause } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 
@@ -82,12 +83,23 @@ router.get("/", async (req, res) => {
       params.push(`%${search}%`);
     }
 
+    const at = tenantClause(req, paramCount, "al.tenant_id");
+    if (at.clause) {
+      paramCount++;
+      queryText += at.clause;
+      params.push(...at.params);
+    }
+
     queryText += ` ORDER BY al.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(limit, offset);
 
     const result = await query(queryText, params);
 
-    const countResult = await query("SELECT COUNT(*) FROM audit_logs");
+    const ct = tenantClause(req, 0, "tenant_id");
+    const countResult = await query(
+      `SELECT COUNT(*) FROM audit_logs WHERE 1=1${ct.clause}`,
+      ct.params,
+    );
     const total = parseInt(countResult.rows[0].count, 10);
 
     res.json({
@@ -108,7 +120,9 @@ router.get("/", async (req, res) => {
 // ============================================================
 router.get("/stats", async (req, res) => {
   try {
-    const totalsResult = await query(`
+    const t = tenantClause(req, 0);
+    const totalsResult = await query(
+      `
       SELECT
         COUNT(*) AS total_logs,
         COUNT(DISTINCT user_id) AS unique_users,
@@ -116,18 +130,26 @@ router.get("/stats", async (req, res) => {
         COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) AS week_count,
         COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS month_count
       FROM audit_logs
-    `);
+      WHERE 1=1${t.clause}
+    `,
+      t.params,
+    );
 
-    const actionsResult = await query(`
+    const actionsResult = await query(
+      `
       SELECT action, COUNT(*) AS count
       FROM audit_logs
-      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'${t.clause}
       GROUP BY action
       ORDER BY count DESC
       LIMIT 10
-    `);
+    `,
+      t.params,
+    );
 
-    const usersResult = await query(`
+    const ut = tenantClause(req, 0, "u.tenant_id");
+    const usersResult = await query(
+      `
       SELECT
         u.id, u.first_name, u.last_name, u.email,
         COUNT(al.id) AS activity_count
@@ -135,10 +157,13 @@ router.get("/stats", async (req, res) => {
       LEFT JOIN audit_logs al
         ON u.id = al.user_id
        AND al.created_at >= CURRENT_DATE - INTERVAL '30 days'
+      WHERE 1=1${ut.clause}
       GROUP BY u.id
       ORDER BY activity_count DESC
       LIMIT 10
-    `);
+    `,
+      ut.params,
+    );
 
     res.json({
       success: true,
@@ -161,13 +186,14 @@ router.get("/entity/:entityType/:entityId", async (req, res) => {
   try {
     const { entityType, entityId } = req.params;
 
+    const et = tenantClause(req, 2, "al.tenant_id");
     const result = await query(
       `SELECT al.*, u.first_name, u.last_name
        FROM audit_logs al
        LEFT JOIN users u ON al.user_id = u.id
-       WHERE al.entity_type = $1 AND al.entity_id = $2
+       WHERE al.entity_type = $1 AND al.entity_id = $2${et.clause}
        ORDER BY al.created_at DESC`,
-      [entityType, entityId],
+      [entityType, entityId, ...et.params],
     );
 
     res.json({ success: true, data: result.rows });
@@ -200,6 +226,10 @@ router.get("/export", async (req, res) => {
       params.push(date_to);
       queryText += ` AND al.created_at <= $${params.length}::date + INTERVAL '1 day'`;
     }
+
+    const at = tenantClause(req, params.length, "al.tenant_id");
+    queryText += at.clause;
+    params.push(...at.params);
 
     queryText += ` ORDER BY al.created_at DESC`;
 

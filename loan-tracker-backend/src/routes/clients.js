@@ -2,6 +2,7 @@ import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { logAudit } from "../services/auditService.js";
+import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 
@@ -129,14 +130,25 @@ router.get("/", async (req, res) => {
       params.push(status);
     }
 
+    // Tenant scope (no-op for platform admins / pre-migration tokens)
+    const ts = tenantClause(req, paramCount);
+    if (ts.clause) {
+      paramCount++;
+      queryText += ts.clause;
+    }
+
     // Add pagination
     queryText += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    params.push(limit, offset);
+    params.push(...ts.params, limit, offset);
 
     const result = await query(queryText, params);
 
-    // Get total count
-    const countResult = await query("SELECT COUNT(*) FROM clients");
+    // Get total count (same tenant scope)
+    const cTs = tenantClause(req, 0);
+    const countResult = await query(
+      `SELECT COUNT(*) FROM clients WHERE 1=1${cTs.clause}`,
+      cTs.params,
+    );
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -159,9 +171,11 @@ router.get("/:id/credit-profile", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const clientResult = await query("SELECT * FROM clients WHERE id = $1", [
-      id,
-    ]);
+    const cpTs = tenantClause(req, 1);
+    const clientResult = await query(
+      `SELECT * FROM clients WHERE id = $1${cpTs.clause}`,
+      [id, ...cpTs.params],
+    );
     if (clientResult.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
@@ -364,7 +378,11 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await query("SELECT * FROM clients WHERE id = $1", [id]);
+    const gTs = tenantClause(req, 1);
+    const result = await query(
+      `SELECT * FROM clients WHERE id = $1${gTs.clause}`,
+      [id, ...gTs.params],
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
@@ -405,10 +423,20 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       });
     }
 
-    // ✅ Check phone number uniqueness
+    // Writes always bind to the acting user's tenant (clients.tenant_id
+    // is NOT NULL). Uniqueness is now per-tenant (migration made
+    // (tenant_id, phone_number) etc. unique), so different lenders may
+    // reuse the same phone/code.
+    const tid = req.user?.tenant_id;
+    if (!tid) {
+      return res
+        .status(400)
+        .json({ error: "No tenant context — re-login required" });
+    }
+
     const phoneCheck = await query(
-      "SELECT id FROM clients WHERE phone_number = $1",
-      [phone_number],
+      "SELECT id FROM clients WHERE phone_number = $1 AND tenant_id = $2",
+      [phone_number, tid],
     );
     if (phoneCheck.rows.length > 0) {
       return res.status(409).json({
@@ -416,11 +444,10 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       });
     }
 
-    // ✅ Check email uniqueness (if provided)
     if (email) {
       const emailCheck = await query(
-        "SELECT id FROM clients WHERE email = $1",
-        [email],
+        "SELECT id FROM clients WHERE email = $1 AND tenant_id = $2",
+        [email, tid],
       );
       if (emailCheck.rows.length > 0) {
         return res.status(409).json({
@@ -429,11 +456,10 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       }
     }
 
-    // ✅ Check ID number uniqueness (if provided)
     if (id_number) {
       const idCheck = await query(
-        "SELECT id FROM clients WHERE id_number = $1",
-        [id_number],
+        "SELECT id FROM clients WHERE id_number = $1 AND tenant_id = $2",
+        [id_number, tid],
       );
       if (idCheck.rows.length > 0) {
         return res.status(409).json({
@@ -442,20 +468,24 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       }
     }
 
-    // Generate client code
+    // Generate client code (per-tenant sequence)
     const year = new Date().getFullYear();
-    const countResult = await query("SELECT COUNT(*) FROM clients");
+    const countResult = await query(
+      "SELECT COUNT(*) FROM clients WHERE tenant_id = $1",
+      [tid],
+    );
     const clientCount = parseInt(countResult.rows[0].count) + 1;
     const clientCode = `CLT-${year}-${String(clientCount).padStart(4, "0")}`;
 
-    // Insert client
+    // Insert client (tenant-bound)
     const result = await query(
       `INSERT INTO clients (
-        client_code, first_name, last_name, phone_number, email,
+        tenant_id, client_code, first_name, last_name, phone_number, email,
         id_number, business_name, business_type, address, city, county, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')
       RETURNING *`,
       [
+        tid,
         clientCode,
         first_name,
         last_name,
@@ -514,13 +544,19 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
       status,
     } = req.body;
 
-    // Check client exists
-    const existing = await query("SELECT * FROM clients WHERE id = $1", [id]);
+    // Check client exists (tenant-scoped; platform admin sees all)
+    const eTs = tenantClause(req, 1);
+    const existing = await query(
+      `SELECT * FROM clients WHERE id = $1${eTs.clause}`,
+      [id, ...eTs.params],
+    );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
 
     const currentClient = existing.rows[0];
+    // Uniqueness/update are scoped to the client's own tenant.
+    const ctid = currentClient.tenant_id;
 
     // Validation
     if (!first_name || !last_name || !phone_number) {
@@ -532,8 +568,8 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
     // Check uniqueness for phone_number (excluding current client)
     if (phone_number !== currentClient.phone_number) {
       const phoneCheck = await query(
-        "SELECT id FROM clients WHERE phone_number = $1 AND id != $2",
-        [phone_number, id],
+        "SELECT id FROM clients WHERE phone_number = $1 AND id != $2 AND tenant_id = $3",
+        [phone_number, id, ctid],
       );
       if (phoneCheck.rows.length > 0) {
         return res.status(409).json({
@@ -545,8 +581,8 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
     // Check email uniqueness if provided and changed
     if (email && email !== currentClient.email) {
       const emailCheck = await query(
-        "SELECT id FROM clients WHERE email = $1 AND id != $2",
-        [email, id],
+        "SELECT id FROM clients WHERE email = $1 AND id != $2 AND tenant_id = $3",
+        [email, id, ctid],
       );
       if (emailCheck.rows.length > 0) {
         return res.status(409).json({
@@ -558,8 +594,8 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
     // Check id_number uniqueness if provided and changed
     if (id_number && id_number !== currentClient.id_number) {
       const idCheck = await query(
-        "SELECT id FROM clients WHERE id_number = $1 AND id != $2",
-        [id_number, id],
+        "SELECT id FROM clients WHERE id_number = $1 AND id != $2 AND tenant_id = $3",
+        [id_number, id, ctid],
       );
       if (idCheck.rows.length > 0) {
         return res.status(409).json({
@@ -598,7 +634,7 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         county = $10,
         status = COALESCE($11, status),
         updated_at = NOW()
-      WHERE id = $12
+      WHERE id = $12 AND tenant_id = $13
       RETURNING *`,
       [
         first_name,
@@ -613,6 +649,7 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         county || null,
         status || null,
         id,
+        ctid,
       ],
     );
 
@@ -648,10 +685,11 @@ router.delete("/:id", authorize("admin"), async (req, res) => {
   try {
     const { id } = req.params;
 
+    const dTs = tenantClause(req, 1);
     const result = await query(
-      `UPDATE clients SET status = 'inactive', updated_at = NOW() 
-       WHERE id = $1 RETURNING *`,
-      [id],
+      `UPDATE clients SET status = 'inactive', updated_at = NOW()
+       WHERE id = $1${dTs.clause} RETURNING *`,
+      [id, ...dTs.params],
     );
 
     if (result.rows.length === 0) {
@@ -715,12 +753,15 @@ router.post(
         }
       }
 
+      // Tenant-scope the bulk update so a tenant can't flip another
+      // tenant's clients by guessing ids.
+      const bTs = tenantClause(req, 2);
       const result = await query(
         `UPDATE clients
          SET status = $1, updated_at = NOW()
-         WHERE id = ANY($2)
+         WHERE id = ANY($2)${bTs.clause}
          RETURNING id, client_code, first_name, last_name`,
-        [status, client_ids],
+        [status, client_ids, ...bTs.params],
       );
 
       await logAudit({
@@ -776,9 +817,9 @@ router.post("/bulk/export", async (req, res) => {
            WHERE l.client_id = c.id
              AND t.payment_status = 'completed') AS total_paid
       FROM clients c
-      WHERE c.id = ANY($1)
+      WHERE c.id = ANY($1)${tenantClause(req, 1, "c.tenant_id").clause}
       ORDER BY c.created_at DESC`,
-      [client_ids],
+      [client_ids, ...tenantClause(req, 1, "c.tenant_id").params],
     );
 
     const workbook = new ExcelJS.Workbook();

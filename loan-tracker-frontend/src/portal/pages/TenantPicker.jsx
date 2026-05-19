@@ -1,0 +1,121 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import portalApi from "../services/portalApi";
+
+function TenantPicker() {
+  const navigate = useNavigate();
+  const [tenants, setTenants] = useState([]);
+  const [customer, setCustomer] = useState(null);
+  const [selecting, setSelecting] = useState(null);
+
+  useEffect(() => {
+    const stored = JSON.parse(
+      localStorage.getItem("portal_tenants") || "[]",
+    );
+    const c = JSON.parse(localStorage.getItem("portal_customer") || "{}");
+    if (stored.length === 0) {
+      navigate("/portal/login");
+      return;
+    }
+    setTenants(stored);
+    setCustomer(c);
+  }, [navigate]);
+
+  const selectTenant = async (tenant) => {
+    setSelecting(tenant.tenant_id);
+    try {
+      const res = await portalApi.post("/portal/auth/select-tenant", {
+        tenant_id: tenant.tenant_id,
+      });
+      localStorage.setItem("portal_token", res.data.token);
+      localStorage.setItem(
+        "portal_current_tenant",
+        JSON.stringify(res.data.current_tenant),
+      );
+      navigate("/portal/dashboard");
+    } catch {
+      alert("Failed to select tenant");
+      setSelecting(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 p-4">
+      <div className="max-w-2xl mx-auto pt-12">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">
+            Hi {customer?.first_name}! 👋
+          </h1>
+          <p className="text-indigo-100 text-lg">
+            You have accounts with {tenants.length} lenders
+          </p>
+          <p className="text-indigo-200 text-sm mt-2">
+            Select a lender to view your loans
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {tenants.map((tenant) => (
+            <button
+              key={tenant.tenant_id}
+              onClick={() => selectTenant(tenant)}
+              disabled={selecting === tenant.tenant_id}
+              className="w-full bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition transform hover:-translate-y-1 disabled:opacity-50 text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl"
+                    style={{
+                      backgroundColor: tenant.brand_color || "#4F46E5",
+                    }}
+                  >
+                    {tenant.business_name?.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">
+                      {tenant.business_name}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Member since{" "}
+                      {new Date(tenant.linked_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-indigo-600">
+                    {tenant.active_loans}
+                  </p>
+                  <p className="text-xs text-gray-500">active loans</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  Client Code:{" "}
+                  <span className="font-mono font-semibold">
+                    {tenant.client_code}
+                  </span>
+                </p>
+                <span className="text-indigo-600 font-semibold">View →</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => {
+              localStorage.removeItem("portal_token");
+              navigate("/portal/login");
+            }}
+            className="text-indigo-100 hover:text-white text-sm"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default TenantPicker;

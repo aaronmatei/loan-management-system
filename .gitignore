@@ -33,3 +33,9 @@ Thumbs.db
 # DB backups — full dumps contain client PII + password hashes.
 # NOTE: scoped to the backups dir so migrations/*.sql stay tracked.
 **/loan-tracker-backend/backups/
+
+# Loose pre-migration safety dumps at the backend root (NOT under
+# backups/, so the rule above misses them). Same PII/hash risk.
+# Kept narrow so migrations/*.sql remain tracked.
+backup_before_*.sql
+**/loan-tracker-backend/backup_*.sql

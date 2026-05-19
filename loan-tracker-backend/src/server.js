@@ -25,22 +25,27 @@ import backupRoutes from "./routes/backup.js";
 import analyticsRoutes from "./routes/analytics.js";
 import notificationRoutes from "./routes/notifications.js";
 import tenantRoutes from "./routes/tenants.js";
+import portalAuthRoutes from "./routes/portal/auth.js";
+import portalCustomerRoutes from "./routes/portal/customer.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
 
 // CORS - allow both 5173 and 5174
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:3000",
-    ],
+    origin: ["http://localhost:5173", "http://localhost:3000"],
     credentials: true,
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Tenant-Subdomain",
+      "X-Tenant-ID",
+      "X-Requested-With",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
@@ -65,6 +70,8 @@ app.get("/health", (req, res) => {
 // ⚠️ THIS LINE IS CRITICAL - Routes must be registered!
 app.use("/api/auth", authRoutes);
 app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
+app.use("/api/portal/auth", portalAuthRoutes); // public: customer auth/OTP
+app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
 app.use("/api/clients", clientRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);

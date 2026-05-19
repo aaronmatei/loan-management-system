@@ -9,6 +9,7 @@ import {
 } from "../services/emailService.js";
 import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
+import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import {
   notifyApplicationSubmitted,
   notifyApplicationApproved,
@@ -59,16 +60,27 @@ router.get("/", async (req, res) => {
       params.push(client_id);
     }
 
-    queryText += ` 
+    // Tenant scope (no-op for platform admins / pre-migration tokens)
+    const lt = tenantClause(req, paramCount, "l.tenant_id");
+    if (lt.clause) {
+      paramCount++;
+      queryText += lt.clause;
+    }
+
+    queryText += `
       GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code
-      ORDER BY l.created_at DESC 
+      ORDER BY l.created_at DESC
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;
-    params.push(limit, offset);
+    params.push(...lt.params, limit, offset);
 
     const result = await query(queryText, params);
 
-    const countResult = await query("SELECT COUNT(*) FROM loans");
+    const cT = tenantClause(req, 0);
+    const countResult = await query(
+      `SELECT COUNT(*) FROM loans WHERE 1=1${cT.clause}`,
+      cT.params,
+    );
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -102,8 +114,8 @@ router.get("/:id", async (req, res) => {
         c.client_code
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      WHERE l.id = $1`,
-      [id],
+      WHERE l.id = $1${tenantClause(req, 1, "l.tenant_id").clause}`,
+      [id, ...tenantClause(req, 1, "l.tenant_id").params],
     );
 
     if (loanResult.rows.length === 0) {
@@ -167,17 +179,21 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       });
     }
 
-    const clientCheck = await query("SELECT id FROM clients WHERE id = $1", [
-      client_id,
-    ]);
+    // Client must belong to the acting tenant (platform admin bypasses).
+    const ccT = tenantClause(req, 1);
+    const clientCheck = await query(
+      `SELECT id FROM clients WHERE id = $1${ccT.clause}`,
+      [client_id, ...ccT.params],
+    );
     if (clientCheck.rows.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
 
     // ✅ Client credit eligibility: block risky lending
+    const clT = tenantClause(req, 1);
     const clientLoans = await query(
-      `SELECT status FROM loans WHERE client_id = $1`,
-      [client_id],
+      `SELECT status FROM loans WHERE client_id = $1${clT.clause}`,
+      [client_id, ...clT.params],
     );
 
     const activeLoans = clientLoans.rows.filter(
@@ -187,12 +203,13 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       (l) => l.status === "defaulted",
     ).length;
 
+    const odT = tenantClause(req, 1, "l.tenant_id");
     const overdueCheck = await query(
       `SELECT COUNT(*) AS overdue_count
        FROM payment_schedules ps
        JOIN loans l ON ps.loan_id = l.id
-       WHERE l.client_id = $1 AND ps.status = 'overdue'`,
-      [client_id],
+       WHERE l.client_id = $1 AND ps.status = 'overdue'${odT.clause}`,
+      [client_id, ...odT.params],
     );
     const overdueCount = parseInt(overdueCheck.rows[0].overdue_count, 10);
 
@@ -234,8 +251,18 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     const totalInterest = principal * (annualRate / 100) * years;
     const totalAmountDue = principal + totalInterest;
 
+    // Writes bind to the acting tenant (loans.tenant_id is NOT NULL).
+    const wTid = req.user?.tenant_id;
+    if (!wTid) {
+      return res
+        .status(400)
+        .json({ error: "No tenant context — re-login required" });
+    }
     const year = new Date().getFullYear();
-    const countResult = await query("SELECT COUNT(*) FROM loans");
+    const countResult = await query(
+      "SELECT COUNT(*) FROM loans WHERE tenant_id = $1",
+      [wTid],
+    );
     const loanCount = parseInt(countResult.rows[0].count) + 1;
     const loanCode = `LN-${year}-${String(loanCount).padStart(4, "0")}`;
 
@@ -243,16 +270,17 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     // no capital movement, no notifications until disbursement.
     const loanResult = await query(
       `INSERT INTO loans (
-        loan_code, client_id, principal_amount, interest_rate,
+        tenant_id, loan_code, client_id, principal_amount, interest_rate,
         loan_duration_months, total_amount_due, total_interest,
         status, created_by, purpose,
         guarantor_name, guarantor_phone, guarantor_id_number,
         collateral_description, late_payment_fee, penalty_rate,
         application_date, application_source, review_notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, $12, $13, $14, $15,
-                CURRENT_DATE, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, $15, $16,
+                CURRENT_DATE, $17, $18)
       RETURNING *`,
       [
+        wTid,
         loanCode,
         client_id,
         principal,
@@ -330,13 +358,14 @@ router.post(
     try {
       const { id } = req.params;
       const { notes } = req.body || {};
+      const rvT = tenantClause(req, 3);
       const result = await query(
         `UPDATE loans SET
           status = 'under_review', reviewed_by = $1, reviewed_at = NOW(),
           review_notes = COALESCE($2, review_notes), updated_at = NOW()
-        WHERE id = $3 AND status = 'pending'
+        WHERE id = $3 AND status = 'pending'${rvT.clause}
         RETURNING *`,
-        [req.user.id, notes || null, id],
+        [req.user.id, notes || null, id, ...rvT.params],
       );
       if (result.rows.length === 0) {
         return res
@@ -373,9 +402,11 @@ router.post(
       const { id } = req.params;
       const { notes } = req.body || {};
 
-      const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
-        id,
-      ]);
+      const apT = tenantClause(req, 1);
+      const loanCheck = await query(
+        `SELECT * FROM loans WHERE id = $1${apT.clause}`,
+        [id, ...apT.params],
+      );
       if (loanCheck.rows.length === 0) {
         return res.status(404).json({ error: "Loan not found" });
       }
@@ -386,10 +417,12 @@ router.post(
           .json({ error: `Cannot approve loan with status: ${loan.status}` });
       }
 
-      const poolCheck = await query(`
-        SELECT (initial_capital - total_disbursed + total_collected) AS available
-        FROM capital_pool ORDER BY id DESC LIMIT 1
-      `);
+      // Per-tenant capital pool (NOT the global "latest" row).
+      const poolCheck = await query(
+        `SELECT (initial_capital - total_disbursed + total_collected) AS available
+         FROM capital_pool WHERE tenant_id = $1`,
+        [loan.tenant_id],
+      );
       if (poolCheck.rows.length > 0) {
         const available = parseFloat(poolCheck.rows[0].available);
         if (parseFloat(loan.principal_amount) > available) {
@@ -405,8 +438,8 @@ router.post(
         `UPDATE loans SET
           status = 'approved', approved_by = $1, approved_at = NOW(),
           review_notes = COALESCE($2, review_notes), updated_at = NOW()
-        WHERE id = $3 RETURNING *`,
-        [req.user.id, notes || null, id],
+        WHERE id = $3 AND tenant_id = $4 RETURNING *`,
+        [req.user.id, notes || null, id, loan.tenant_id],
       );
       await logAudit({
         user: req.user,
@@ -448,9 +481,11 @@ router.post(
           .status(400)
           .json({ error: "Rejection reason is required" });
       }
-      const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
-        id,
-      ]);
+      const rjT = tenantClause(req, 1);
+      const loanCheck = await query(
+        `SELECT * FROM loans WHERE id = $1${rjT.clause}`,
+        [id, ...rjT.params],
+      );
       if (loanCheck.rows.length === 0) {
         return res.status(404).json({ error: "Loan not found" });
       }
@@ -464,8 +499,8 @@ router.post(
         `UPDATE loans SET
           status = 'rejected', rejected_by = $1, rejected_at = NOW(),
           rejection_reason = $2, updated_at = NOW()
-        WHERE id = $3 RETURNING *`,
-        [req.user.id, reason, id],
+        WHERE id = $3 AND tenant_id = $4 RETURNING *`,
+        [req.user.id, reason, id, loan.tenant_id],
       );
       await logAudit({
         user: req.user,
@@ -513,9 +548,11 @@ router.post(
         start_date,
       } = req.body || {};
 
-      const loanCheck = await query("SELECT * FROM loans WHERE id = $1", [
-        id,
-      ]);
+      const dbT = tenantClause(req, 1);
+      const loanCheck = await query(
+        `SELECT * FROM loans WHERE id = $1${dbT.clause}`,
+        [id, ...dbT.params],
+      );
       if (loanCheck.rows.length === 0) {
         return res.status(404).json({ error: "Loan not found" });
       }
@@ -540,7 +577,7 @@ router.post(
           status = 'active', disbursed_by = $1, disbursed_at = NOW(),
           disbursement_method = $2, disbursement_reference = $3,
           start_date = $4, end_date = $5, updated_at = NOW()
-        WHERE id = $6 RETURNING *`,
+        WHERE id = $6 AND tenant_id = $7 RETURNING *`,
         [
           req.user.id,
           disbursement_method || "cash",
@@ -548,6 +585,7 @@ router.post(
           effectiveStart,
           endDate.toISOString().split("T")[0],
           id,
+          loan.tenant_id,
         ],
       );
       const active = result.rows[0];
@@ -560,9 +598,15 @@ router.post(
         dueDate.setMonth(dueDate.getMonth() + i);
         await query(
           `INSERT INTO payment_schedules (
-            loan_id, payment_number, due_date, amount_due, status
-          ) VALUES ($1, $2, $3, $4, 'pending')`,
-          [id, i, dueDate.toISOString().split("T")[0], monthlyPayment.toFixed(2)],
+            tenant_id, loan_id, payment_number, due_date, amount_due, status
+          ) VALUES ($1, $2, $3, $4, $5, 'pending')`,
+          [
+            loan.tenant_id,
+            id,
+            i,
+            dueDate.toISOString().split("T")[0],
+            monthlyPayment.toFixed(2),
+          ],
         );
       }
 
@@ -571,13 +615,13 @@ router.post(
       await query(
         `UPDATE capital_pool
            SET total_disbursed = total_disbursed + $1, updated_at = NOW()
-         WHERE id = (SELECT id FROM capital_pool ORDER BY id DESC LIMIT 1)`,
-        [principal],
+         WHERE tenant_id = $2`,
+        [principal, loan.tenant_id],
       );
       await query(
-        `INSERT INTO capital_transactions (transaction_type, amount, loan_id, description)
-         VALUES ('loan_disbursed', $1, $2, $3)`,
-        [principal, id, `Loan ${loan.loan_code} disbursed`],
+        `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, description)
+         VALUES ($1, 'loan_disbursed', $2, $3, $4)`,
+        [loan.tenant_id, principal, id, `Loan ${loan.loan_code} disbursed`],
       );
 
       // Disbursement is the big capital outflow now — warn admins if
@@ -586,7 +630,8 @@ router.post(
         const cp = await query(
           `SELECT initial_capital,
                   (initial_capital - total_disbursed + total_collected) AS available
-           FROM capital_pool ORDER BY id DESC LIMIT 1`,
+           FROM capital_pool WHERE tenant_id = $1`,
+          [loan.tenant_id],
         );
         if (cp.rows[0]) {
           await notifyCapitalLow(
@@ -732,6 +777,9 @@ router.get("/applications/queue", async (req, res) => {
       params.push(status);
       queryText += ` AND l.status = $${params.length}`;
     }
+    const aqT = tenantClause(req, params.length, "l.tenant_id");
+    queryText += aqT.clause;
+    params.push(...aqT.params);
     queryText += ` ORDER BY l.application_date DESC, l.created_at DESC`;
     const result = await query(queryText, params);
     res.json({ success: true, data: result.rows });
@@ -744,8 +792,9 @@ router.get("/applications/queue", async (req, res) => {
 // Application stats
 router.get("/applications/stats", async (req, res) => {
   try {
-    const result = await query(`
-      SELECT
+    const asT = tenantClause(req, 0);
+    const result = await query(
+      `SELECT
         COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending,
         COUNT(CASE WHEN status = 'under_review' THEN 1 END) AS under_review,
         COUNT(CASE WHEN status = 'approved' THEN 1 END) AS approved,
@@ -754,8 +803,9 @@ router.get("/applications/stats", async (req, res) => {
         COUNT(CASE WHEN status = 'active' AND disbursed_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS disbursed_30d,
         AVG(EXTRACT(EPOCH FROM (approved_at - application_date::timestamp)) / 3600)::int AS avg_approval_hours
       FROM loans
-      WHERE status IN ('pending', 'under_review', 'approved', 'rejected', 'active')
-    `);
+      WHERE status IN ('pending', 'under_review', 'approved', 'rejected', 'active')${asT.clause}`,
+      asT.params,
+    );
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     logger.error("Application stats error:", error);
@@ -770,12 +820,17 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
     const { id } = req.params;
     const { status, notes, purpose } = req.body;
 
-    const existing = await query("SELECT * FROM loans WHERE id = $1", [id]);
+    const exT = tenantClause(req, 1);
+    const existing = await query(
+      `SELECT * FROM loans WHERE id = $1${exT.clause}`,
+      [id, ...exT.params],
+    );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: "Loan not found" });
     }
 
     const currentLoan = existing.rows[0];
+    const cLtid = currentLoan.tenant_id;
 
     // Cannot modify completed loans (status can only stay 'completed')
     if (
@@ -823,9 +878,9 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
         purpose = COALESCE($2, purpose),
         notes = COALESCE($3, notes),
         updated_at = NOW()
-      WHERE id = $4
+      WHERE id = $4 AND tenant_id = $5
       RETURNING *`,
-      [status || null, purpose || null, notes || null, id],
+      [status || null, purpose || null, notes || null, id, cLtid],
     );
 
     // Marking defaulted: push pending installments to overdue
@@ -892,9 +947,10 @@ router.put("/:id/status", authorize("admin", "manager"), async (req, res) => {
     // Capture the prior status/code before updating so the audit trail
     // records the old -> new transition (this route did not previously
     // fetch the loan first).
+    const psT = tenantClause(req, 1);
     const existing = await query(
-      "SELECT status, loan_code FROM loans WHERE id = $1",
-      [id],
+      `SELECT status, loan_code, tenant_id FROM loans WHERE id = $1${psT.clause}`,
+      [id, ...psT.params],
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: "Loan not found" });
@@ -903,8 +959,8 @@ router.put("/:id/status", authorize("admin", "manager"), async (req, res) => {
 
     const result = await query(
       `UPDATE loans SET status = $1, updated_at = NOW()
-       WHERE id = $2 RETURNING *`,
-      [status, id],
+       WHERE id = $2 AND tenant_id = $3 RETURNING *`,
+      [status, id, prev.tenant_id],
     );
 
     await logAudit({
@@ -949,10 +1005,11 @@ router.post(
         });
       }
 
+      const ccT = tenantClause(req, 1);
       const completedCheck = await query(
         `SELECT COUNT(*) AS count FROM loans
-         WHERE id = ANY($1) AND status = 'completed'`,
-        [loan_ids],
+         WHERE id = ANY($1) AND status = 'completed'${ccT.clause}`,
+        [loan_ids, ...ccT.params],
       );
       const completedCount = parseInt(completedCheck.rows[0].count, 10);
       if (completedCount > 0) {
@@ -961,26 +1018,28 @@ router.post(
         });
       }
 
+      const uT = tenantClause(req, 3);
       const result = await query(
         `UPDATE loans
          SET status = $1,
              notes = COALESCE($2, notes),
              updated_at = NOW()
-         WHERE id = ANY($3) AND status != 'completed'
+         WHERE id = ANY($3) AND status != 'completed'${uT.clause}
          RETURNING id, loan_code, status`,
-        [status, notes || null, loan_ids],
+        [status, notes || null, loan_ids, ...uT.params],
       );
 
       // Marking defaulted pushes pending installments to overdue
       // (mirrors the single-loan PUT, including the ::date cast).
       if (status === "defaulted") {
+        const psdT = tenantClause(req, 1);
         await query(
           `UPDATE payment_schedules
            SET status = 'overdue',
                days_late = (CURRENT_DATE - due_date::date),
                updated_at = NOW()
-           WHERE loan_id = ANY($1) AND status = 'pending'`,
-          [loan_ids],
+           WHERE loan_id = ANY($1) AND status = 'pending'${psdT.clause}`,
+          [loan_ids, ...psdT.params],
         );
       }
 
@@ -1035,9 +1094,9 @@ router.post("/bulk/export", async (req, res) => {
              AND t.payment_status = 'completed') AS total_paid
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      WHERE l.id = ANY($1)
+      WHERE l.id = ANY($1)${tenantClause(req, 1, "l.tenant_id").clause}
       ORDER BY l.created_at DESC`,
-      [loan_ids],
+      [loan_ids, ...tenantClause(req, 1, "l.tenant_id").params],
     );
 
     const workbook = new ExcelJS.Workbook();

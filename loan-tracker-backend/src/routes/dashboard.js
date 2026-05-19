@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
+import { tenantClause } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -12,9 +13,15 @@ router.use(verifyToken);
 // ============================================================
 router.get("/summary", async (req, res) => {
   try {
+    // Tenant scoping: ts for plain tenant_id tables, tsL for joins
+    // aliased on loans (l). Empty clause for platform admins.
+    const ts = tenantClause(req, 0);
+    const tsL = tenantClause(req, 0, "l.tenant_id");
+
     // Get all loans aggregates
-    const loansStats = await query(`
-      SELECT 
+    const loansStats = await query(
+      `
+      SELECT
         COUNT(*) as total_loans,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_loans,
         COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_loans,
@@ -25,28 +32,39 @@ router.get("/summary", async (req, res) => {
         COALESCE(SUM(CASE WHEN refund_status = 'pending' THEN overpayment_amount ELSE 0 END), 0) as total_overpayment,
         COUNT(CASE WHEN refund_status = 'pending' THEN 1 END) as pending_refunds
       FROM loans
-    `);
+      WHERE 1=1${ts.clause}
+    `,
+      ts.params,
+    );
 
     // Get total collected (sum of all payments)
-    const paymentsStats = await query(`
-      SELECT 
+    const paymentsStats = await query(
+      `
+      SELECT
         COUNT(*) as total_transactions,
         COALESCE(SUM(amount_paid), 0) as total_collected
       FROM transactions
-      WHERE payment_status = 'completed'
-    `);
+      WHERE payment_status = 'completed'${ts.clause}
+    `,
+      ts.params,
+    );
 
     // Get clients count
-    const clientsStats = await query(`
-      SELECT 
+    const clientsStats = await query(
+      `
+      SELECT
         COUNT(*) as total_clients,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_clients
       FROM clients
-    `);
+      WHERE 1=1${ts.clause}
+    `,
+      ts.params,
+    );
 
     // Get overdue payments (covers both freshly past-due 'pending'
     // installments and those already promoted to 'overdue')
-    const overdueStats = await query(`
+    const overdueStats = await query(
+      `
       SELECT
         COUNT(*) as overdue_count,
         COUNT(DISTINCT ps.loan_id) as overdue_loans,
@@ -58,11 +76,14 @@ router.get("/summary", async (req, res) => {
               ps.status = 'overdue'
               OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
             )
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)
-    `);
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsL.clause}
+    `,
+      tsL.params,
+    );
 
     // Top 5 most overdue payments with client info
-    const mostOverdue = await query(`
+    const mostOverdue = await query(
+      `
       SELECT
         ps.id,
         ps.loan_id,
@@ -81,21 +102,26 @@ router.get("/summary", async (req, res) => {
               ps.status = 'overdue'
               OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
             )
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsL.clause}
       ORDER BY days_late DESC
       LIMIT 5
-    `);
+    `,
+      tsL.params,
+    );
 
     // Get upcoming payments (next 7 days)
-    const upcomingStats = await query(`
-      SELECT 
+    const upcomingStats = await query(
+      `
+      SELECT
         COUNT(*) as upcoming_count,
         COALESCE(SUM(amount_due - COALESCE(amount_paid, 0)), 0) as upcoming_amount
       FROM payment_schedules
-      WHERE status = 'pending' 
-        AND due_date >= CURRENT_DATE 
-        AND due_date <= CURRENT_DATE + INTERVAL '7 days'
-    `);
+      WHERE status = 'pending'
+        AND due_date >= CURRENT_DATE
+        AND due_date <= CURRENT_DATE + INTERVAL '7 days'${ts.clause}
+    `,
+      ts.params,
+    );
 
     const loansData = loansStats.rows[0];
     const paymentsData = paymentsStats.rows[0];
@@ -156,30 +182,40 @@ router.get("/summary", async (req, res) => {
 // ============================================================
 router.get("/recent-activities", async (req, res) => {
   try {
+    const tsL = tenantClause(req, 0, "l.tenant_id");
+    const tsT = tenantClause(req, 0, "t.tenant_id");
+
     // Recent loans (last 5)
-    const recentLoans = await query(`
-      SELECT 
+    const recentLoans = await query(
+      `
+      SELECT
         l.id, l.loan_code, l.principal_amount, l.status, l.created_at,
         c.first_name, c.last_name, c.phone_number
       FROM loans l
       JOIN clients c ON l.client_id = c.id
+      WHERE 1=1${tsL.clause}
       ORDER BY l.created_at DESC
       LIMIT 5
-    `);
+    `,
+      tsL.params,
+    );
 
     // Recent payments (last 5)
-    const recentPayments = await query(`
-      SELECT 
+    const recentPayments = await query(
+      `
+      SELECT
         t.id, t.transaction_code, t.amount_paid, t.payment_date, t.payment_method,
         c.first_name, c.last_name,
         l.loan_code
       FROM transactions t
       JOIN clients c ON t.client_id = c.id
       JOIN loans l ON t.loan_id = l.id
-      WHERE t.payment_status = 'completed'
+      WHERE t.payment_status = 'completed'${tsT.clause}
       ORDER BY t.payment_date DESC, t.created_at DESC
       LIMIT 5
-    `);
+    `,
+      tsT.params,
+    );
 
     res.json({
       success: true,
@@ -199,32 +235,40 @@ router.get("/recent-activities", async (req, res) => {
 // ============================================================
 router.get("/monthly-trends", async (req, res) => {
   try {
+    const ts = tenantClause(req, 0);
+
     // Loans by month
-    const loansTrend = await query(`
-      SELECT 
+    const loansTrend = await query(
+      `
+      SELECT
         TO_CHAR(created_at, 'YYYY-MM') as month,
         TO_CHAR(created_at, 'Mon YYYY') as month_label,
         COUNT(*) as count,
         COALESCE(SUM(principal_amount), 0) as total_amount
       FROM loans
-      WHERE created_at >= CURRENT_DATE - INTERVAL '6 months'
+      WHERE created_at >= CURRENT_DATE - INTERVAL '6 months'${ts.clause}
       GROUP BY TO_CHAR(created_at, 'YYYY-MM'), TO_CHAR(created_at, 'Mon YYYY')
       ORDER BY month ASC
-    `);
+    `,
+      ts.params,
+    );
 
     // Payments by month
-    const paymentsTrend = await query(`
-      SELECT 
+    const paymentsTrend = await query(
+      `
+      SELECT
         TO_CHAR(payment_date, 'YYYY-MM') as month,
         TO_CHAR(payment_date, 'Mon YYYY') as month_label,
         COUNT(*) as count,
         COALESCE(SUM(amount_paid), 0) as total_amount
       FROM transactions
       WHERE payment_status = 'completed'
-        AND payment_date >= CURRENT_DATE - INTERVAL '6 months'
+        AND payment_date >= CURRENT_DATE - INTERVAL '6 months'${ts.clause}
       GROUP BY TO_CHAR(payment_date, 'YYYY-MM'), TO_CHAR(payment_date, 'Mon YYYY')
       ORDER BY month ASC
-    `);
+    `,
+      ts.params,
+    );
 
     res.json({
       success: true,

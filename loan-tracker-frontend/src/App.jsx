@@ -8,6 +8,10 @@ import {
 import { AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import CustomerLogin from "./portal/pages/Login";
+import CustomerRegister from "./portal/pages/Register";
+import TenantPicker from "./portal/pages/TenantPicker";
+import CustomerDashboard from "./portal/pages/Dashboard";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -82,6 +86,16 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/portal/login" element={<CustomerLogin />} />
+            <Route path="/portal/register" element={<CustomerRegister />} />
+            <Route
+              path="/portal/select-tenant"
+              element={<TenantPicker />}
+            />
+            <Route
+              path="/portal/dashboard"
+              element={<CustomerDashboard />}
+            />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         )}
