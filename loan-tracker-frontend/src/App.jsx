@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -80,6 +81,7 @@ function App() {
         ) : (
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -85,6 +85,12 @@ function Login() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+        <p className="text-center mt-4 text-sm text-gray-600">
+          Don't have an account?{' '}
+          <Link to="/signup" className="text-indigo-600 font-semibold">
+            Sign up free
+          </Link>
+        </p>
       </div>
     </div>
   );

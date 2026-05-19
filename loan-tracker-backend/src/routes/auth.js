@@ -68,9 +68,54 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Generate JWT token
+    // Enrich with tenant info. Guarded so this keeps working BEFORE
+    // the multitenancy migration runs (tenants table / tenant_id
+    // columns don't exist yet → fall back to single-tenant). After
+    // the migration this transparently becomes tenant-aware.
+    let t = {};
+    try {
+      const tr = await query(
+        `SELECT u.tenant_id, u.is_platform_admin,
+                tn.subdomain, tn.business_name,
+                tn.plan AS tenant_plan, tn.status AS tenant_status,
+                tn.brand_color
+         FROM users u
+         LEFT JOIN tenants tn ON u.tenant_id = tn.id
+         WHERE u.id = $1`,
+        [user.id],
+      );
+      t = tr.rows[0] || {};
+    } catch {
+      t = {}; // pre-migration: stay single-tenant
+    }
+
+    // Block suspended/cancelled tenants (platform admins exempt)
+    if (
+      t.tenant_id &&
+      !t.is_platform_admin &&
+      t.tenant_status &&
+      t.tenant_status !== "active"
+    ) {
+      return res.status(403).json({
+        error: "Account suspended",
+        message:
+          "Your business account is currently suspended. Please contact support.",
+      });
+    }
+
+    // Generate JWT token (include tenant claims only when present)
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        ...(t.tenant_id
+          ? {
+              tenant_id: t.tenant_id,
+              is_platform_admin: !!t.is_platform_admin,
+            }
+          : {}),
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || "7d" },
     );
@@ -101,6 +146,17 @@ router.post("/login", async (req, res) => {
         last_name: user.last_name,
         full_name: `${user.first_name} ${user.last_name}`, // Computed full name
         role: user.role,
+        tenant_id: t.tenant_id || null,
+        is_platform_admin: !!t.is_platform_admin,
+        tenant: t.tenant_id
+          ? {
+              id: t.tenant_id,
+              subdomain: t.subdomain,
+              business_name: t.business_name,
+              plan: t.tenant_plan,
+              brand_color: t.brand_color,
+            }
+          : null,
       },
     });
   } catch (error) {

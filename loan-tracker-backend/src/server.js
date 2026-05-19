@@ -24,6 +24,7 @@ import userRoutes from "./routes/users.js";
 import backupRoutes from "./routes/backup.js";
 import analyticsRoutes from "./routes/analytics.js";
 import notificationRoutes from "./routes/notifications.js";
+import tenantRoutes from "./routes/tenants.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
@@ -63,6 +64,7 @@ app.get("/health", (req, res) => {
 
 // ⚠️ THIS LINE IS CRITICAL - Routes must be registered!
 app.use("/api/auth", authRoutes);
+app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
 app.use("/api/clients", clientRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);
