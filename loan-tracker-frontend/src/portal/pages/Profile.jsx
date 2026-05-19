@@ -2,56 +2,71 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import PasswordInput from "../components/PasswordInput";
 
 const field =
   "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
 
+// Mirrors the backend validatePassword (>=12, upper, digit, symbol).
+const PASSWORD_RULE = "Min 12 chars, 1 uppercase, 1 number, 1 symbol";
+const validPassword = (p) =>
+  p.length >= 12 &&
+  /[A-Z]/.test(p) &&
+  /[0-9]/.test(p) &&
+  /[^A-Za-z0-9]/.test(p);
+
 function Profile() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [form, setForm] = useState({
-    email: "",
-    date_of_birth: "",
-    gender: "",
+  const [showPwd, setShowPwd] = useState(false);
+  const [form, setForm] = useState({});
+  const [pwd, setPwd] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
   });
 
-  useEffect(() => {
+  const load = () => {
     portalApi
       .get("/portal/customer/profile")
       .then((r) => {
-        const p = r.data.data;
-        setProfile(p);
+        const d = r.data.data;
+        setData(d);
         setForm({
-          email: p.email || "",
-          date_of_birth: p.date_of_birth
-            ? String(p.date_of_birth).split("T")[0]
+          email: d.customer?.email || "",
+          date_of_birth: d.customer?.date_of_birth
+            ? String(d.customer.date_of_birth).split("T")[0]
             : "",
-          gender: p.gender || "",
+          gender: d.customer?.gender || "",
+          address: d.client?.address || "",
+          city: d.client?.city || "",
+          county: d.client?.county || "",
+          business_type: d.client?.business_type || "",
+          business_name: d.client?.business_name || "",
         });
       })
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
           navigate("/portal/select-tenant");
         } else {
-          setError(err.response?.data?.error || "Failed to load profile");
+          alert(err.response?.data?.error || "Failed to load profile");
         }
       })
       .finally(() => setLoading(false));
-  }, [navigate]);
+  };
 
-  const save = async (e) => {
-    e.preventDefault();
+  useEffect(load, [navigate]);
+
+  const save = async () => {
     setSaving(true);
     try {
-      await portalApi.put("/portal/customer/profile", {
-        email: form.email || null,
-        date_of_birth: form.date_of_birth || null,
-        gender: form.gender || null,
-      });
-      alert("Profile updated");
+      await portalApi.put("/portal/customer/profile", form);
+      alert("✅ Profile updated");
+      setEditing(false);
+      load();
     } catch (err) {
       alert(err.response?.data?.error || "Update failed");
     } finally {
@@ -59,63 +74,107 @@ function Profile() {
     }
   };
 
-  const ReadOnly = ({ label, value }) => (
+  const changePassword = async () => {
+    if (pwd.new_password !== pwd.confirm_password) {
+      alert("Passwords do not match");
+      return;
+    }
+    if (!validPassword(pwd.new_password)) {
+      alert(PASSWORD_RULE);
+      return;
+    }
+    setSaving(true);
+    try {
+      await portalApi.post("/portal/customer/change-password", {
+        current_password: pwd.current_password,
+        new_password: pwd.new_password,
+      });
+      alert("✅ Password changed");
+      setShowPwd(false);
+      setPwd({ current_password: "", new_password: "", confirm_password: "" });
+    } catch (err) {
+      alert(err.response?.data?.error || "Change failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <PortalLayout>
+        <div className="p-8 text-center text-gray-500">Loading…</div>
+      </PortalLayout>
+    );
+  }
+  if (!data) return <PortalLayout><div /></PortalLayout>;
+
+  const { customer, client } = data;
+  const Row = ({ label, children }) => (
     <div>
       <p className="text-xs text-gray-500 uppercase">{label}</p>
-      <p className="font-semibold text-gray-800">{value || "—"}</p>
+      <div className="font-semibold text-gray-800">{children}</div>
     </div>
   );
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">
-          👤 My Profile
-        </h1>
-
-        {loading && (
-          <p className="text-center text-gray-500 py-10">Loading…</p>
-        )}
-        {error && <p className="text-center text-red-600 py-10">{error}</p>}
-
-        {profile && (
-          <>
-            <div className="bg-white rounded-xl shadow p-5 mb-6 grid grid-cols-2 gap-4">
-              <ReadOnly
-                label="Name"
-                value={`${profile.first_name} ${profile.last_name}`}
-              />
-              <ReadOnly label="Phone" value={profile.phone_number} />
-              <ReadOnly label="ID Number" value={profile.id_number} />
-              <ReadOnly
-                label="Client Code (this lender)"
-                value={profile.client_code}
-              />
-            </div>
-
-            <form
-              onSubmit={save}
-              className="bg-white rounded-xl shadow p-5 space-y-4"
+      <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+            👤 My Profile
+          </h1>
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold"
             >
-              <h2 className="font-bold text-gray-800">Editable details</h2>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) =>
-                    setForm({ ...form, email: e.target.value })
-                  }
-                  placeholder="you@example.com"
-                  className={field}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Date of Birth
-                </label>
+              ✏️ Edit
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-5 grid grid-cols-2 gap-4">
+          <Row label="Name">
+            {customer.first_name} {customer.last_name}
+          </Row>
+          <Row label="Phone">
+            {customer.phone_number}
+            {customer.phone_verified && (
+              <span className="ml-2 text-green-600 text-xs">✓ Verified</span>
+            )}
+          </Row>
+          <Row label="ID Number">{customer.id_number}</Row>
+          <Row label={`Client Code · ${client?.tenant_name || ""}`}>
+            <span className="font-mono">{client?.client_code || "—"}</span>
+          </Row>
+          <Row label="Member Since">
+            {new Date(customer.created_at).toLocaleDateString()}
+          </Row>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-5 space-y-4">
+          <h2 className="font-bold text-gray-800">Personal details</h2>
+          <div>
+            <label className="block text-sm font-semibold mb-1">Email</label>
+            {editing ? (
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) =>
+                  setForm({ ...form, email: e.target.value })
+                }
+                className={field}
+              />
+            ) : (
+              <p>{customer.email || "—"}</p>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold mb-1">
+                Date of Birth
+              </label>
+              {editing ? (
                 <input
                   type="date"
                   value={form.date_of_birth}
@@ -124,11 +183,19 @@ function Profile() {
                   }
                   className={field}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Gender
-                </label>
+              ) : (
+                <p>
+                  {customer.date_of_birth
+                    ? new Date(customer.date_of_birth).toLocaleDateString()
+                    : "—"}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">
+                Gender
+              </label>
+              {editing ? (
                 <select
                   value={form.gender}
                   onChange={(e) =>
@@ -141,17 +208,132 @@ function Profile() {
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                 </select>
-              </div>
+              ) : (
+                <p className="capitalize">{customer.gender || "—"}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-5 space-y-4">
+          <h2 className="font-bold text-gray-800">
+            🏢 {client?.tenant_name || "Lender"} account
+          </h2>
+          {[
+            ["address", "Address"],
+            ["city", "City"],
+            ["county", "County"],
+            ["business_type", "Business Type"],
+            ["business_name", "Business Name"],
+          ].map(([key, label]) => (
+            <div key={key}>
+              <label className="block text-sm font-semibold mb-1">
+                {label}
+              </label>
+              {editing ? (
+                <input
+                  type="text"
+                  value={form[key]}
+                  onChange={(e) =>
+                    setForm({ ...form, [key]: e.target.value })
+                  }
+                  className={field}
+                />
+              ) : (
+                <p>{client?.[key] || "—"}</p>
+              )}
+            </div>
+          ))}
+
+          {editing && (
+            <div className="flex gap-2 pt-2">
               <button
-                type="submit"
+                onClick={() => {
+                  setEditing(false);
+                  load();
+                }}
                 disabled={saving}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+                className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold"
               >
-                {saving ? "Saving…" : "Save changes"}
+                Cancel
               </button>
-            </form>
-          </>
-        )}
+              <button
+                onClick={save}
+                disabled={saving}
+                className="flex-1 py-2 bg-indigo-600 text-white rounded-lg font-semibold disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "💾 Save Changes"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-5">
+          <h2 className="font-bold text-gray-800 mb-4">🔒 Security</h2>
+          {!showPwd ? (
+            <button
+              onClick={() => setShowPwd(true)}
+              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold"
+            >
+              🔑 Change Password
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Current Password
+                </label>
+                <PasswordInput
+                  value={pwd.current_password}
+                  onChange={(e) =>
+                    setPwd({ ...pwd, current_password: e.target.value })
+                  }
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  New Password
+                </label>
+                <PasswordInput
+                  value={pwd.new_password}
+                  onChange={(e) =>
+                    setPwd({ ...pwd, new_password: e.target.value })
+                  }
+                  placeholder={PASSWORD_RULE}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Confirm New Password
+                </label>
+                <PasswordInput
+                  value={pwd.confirm_password}
+                  onChange={(e) =>
+                    setPwd({ ...pwd, confirm_password: e.target.value })
+                  }
+                  className={field}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowPwd(false)}
+                  className="flex-1 py-2 bg-gray-200 rounded-lg font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={changePassword}
+                  disabled={saving}
+                  className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Change Password"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </PortalLayout>
   );

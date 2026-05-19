@@ -15,15 +15,29 @@ const STATUS_BADGE = {
   rejected: "bg-gray-200 text-gray-600",
 };
 
+const TABS = [
+  { value: "all", label: "All", emoji: "📋" },
+  { value: "active", label: "Active", emoji: "🟢" },
+  { value: "completed", label: "Completed", emoji: "✅" },
+  { value: "defaulted", label: "Defaulted", emoji: "⚠️" },
+  { value: "pending", label: "Pending", emoji: "⏳" },
+];
+
 function MyLoans() {
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
+    setLoading(true);
+    const url =
+      filter === "all"
+        ? "/portal/customer/loans"
+        : `/portal/customer/loans?status=${filter}`;
     portalApi
-      .get("/portal/customer/loans")
+      .get(url)
       .then((r) => setLoans(r.data.data || []))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
@@ -33,26 +47,48 @@ function MyLoans() {
         }
       })
       .finally(() => setLoading(false));
-  }, [navigate]);
+  }, [filter, navigate]);
 
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-1">
           💰 My Loans
         </h1>
+        <p className="text-gray-600 mb-5">
+          View all your loans and their status
+        </p>
+
+        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setFilter(t.value)}
+              className={`px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition ${
+                filter === t.value
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              {t.emoji} {t.label}
+            </button>
+          ))}
+        </div>
 
         {loading && (
-          <p className="text-center text-gray-500 py-10">Loading…</p>
+          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
+            Loading…
+          </div>
         )}
         {error && (
-          <p className="text-center text-red-600 py-10">{error}</p>
+          <div className="bg-white rounded-xl p-12 text-center text-red-600">
+            {error}
+          </div>
         )}
-
         {!loading && !error && loans.length === 0 && (
-          <div className="bg-white rounded-xl shadow p-10 text-center text-gray-500">
-            <p className="text-4xl mb-2">📭</p>
-            <p>No loans at this lender yet.</p>
+          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
+            <p className="text-5xl mb-3">📭</p>
+            <p>No loans found.</p>
           </div>
         )}
 
@@ -66,52 +102,68 @@ function MyLoans() {
               <button
                 key={loan.id}
                 onClick={() => navigate(`/portal/loans/${loan.id}`)}
-                className="w-full text-left bg-white border rounded-xl p-4 hover:shadow-md transition"
+                className="w-full text-left bg-white rounded-xl shadow p-4 lg:p-6 hover:shadow-lg transition"
               >
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-3">
                   <div>
                     <p className="font-mono font-bold text-indigo-600">
                       {loan.loan_code || `#${loan.id}`}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Principal {KES(loan.principal_amount)}
+                    <p className="text-sm text-gray-500">
+                      {loan.purpose || "Loan"}
                     </p>
                   </div>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                      STATUS_BADGE[loan.status] || "bg-gray-100 text-gray-600"
+                      STATUS_BADGE[loan.status] ||
+                      "bg-gray-100 text-gray-600"
                     }`}
                   >
                     {String(loan.status || "").replace("_", " ")}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-sm mb-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3 text-sm">
                   <div>
-                    <p className="text-xs text-gray-500">Due</p>
-                    <p className="font-semibold">{KES(due)}</p>
+                    <p className="text-xs text-gray-500">Principal</p>
+                    <p className="font-bold">{KES(loan.principal_amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Total Due</p>
+                    <p className="font-bold">{KES(due)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Paid</p>
-                    <p className="font-semibold text-green-600">
-                      {KES(paid)}
-                    </p>
+                    <p className="font-bold text-green-600">{KES(paid)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Balance</p>
-                    <p className="font-semibold text-red-600">
-                      {KES(balance)}
-                    </p>
+                    <p className="font-bold text-red-600">{KES(balance)}</p>
                   </div>
                 </div>
-                <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full"
-                    style={{ width: `${progress}%` }}
-                  />
+                {["active", "completed"].includes(loan.status) && (
+                  <>
+                    <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {progress.toFixed(1)}% repaid
+                    </p>
+                  </>
+                )}
+                <div className="mt-3 pt-3 border-t flex justify-between items-center text-xs text-gray-500">
+                  <span>
+                    📅{" "}
+                    {loan.created_at
+                      ? new Date(loan.created_at).toLocaleDateString()
+                      : "—"}
+                  </span>
+                  <span className="text-indigo-600 font-semibold">
+                    View Details →
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {progress.toFixed(1)}% repaid · View details →
-                </p>
               </button>
             );
           })}

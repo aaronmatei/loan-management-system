@@ -16,6 +16,7 @@ import CustomerMyLoans from "./portal/pages/MyLoans";
 import CustomerLoanDetails from "./portal/pages/LoanDetails";
 import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
+import CustomerAddLender from "./portal/pages/AddLender";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -100,6 +101,10 @@ function App() {
             <Route
               path="/portal/select-tenant"
               element={<TenantPicker />}
+            />
+            <Route
+              path="/portal/add-lender"
+              element={<CustomerAddLender />}
             />
             <Route
               path="/portal/dashboard"
