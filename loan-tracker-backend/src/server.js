@@ -29,6 +29,7 @@ import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
 import platformAdminRoutes from "./routes/platform/admin.js";
 import platformBillingRoutes from "./routes/platform/billing.js";
+import onboardingRoutes from "./routes/onboarding.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
@@ -76,6 +77,7 @@ app.use("/api/portal/auth", portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
 app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
+app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);

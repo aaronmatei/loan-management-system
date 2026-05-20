@@ -26,6 +26,7 @@ import PlatformTenantDetail from "./admin/pages/TenantDetail";
 import PlatformBilling from "./admin/pages/Billing";
 import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
 import LandingHome from "./landing/pages/Home";
+import OnboardingWizard from "./onboarding/OnboardingWizard";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -92,6 +93,10 @@ function App() {
             <Route
               path="/admin/billing/:id"
               element={<PlatformInvoiceDetail />}
+            />
+            <Route
+              path="/onboarding"
+              element={<OnboardingWizard />}
             />
             <Route
               path="/*"

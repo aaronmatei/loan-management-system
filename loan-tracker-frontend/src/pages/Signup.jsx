@@ -62,7 +62,10 @@ function Signup() {
       alert(
         `🎉 Welcome to ${formData.business_name}! Your 14-day trial has started.`,
       );
-      navigate("/");
+      // Hard navigation so App.jsx re-reads localStorage and the
+      // authed branch (which holds /onboarding) renders. navigate()
+      // alone would still see user=null in the AuthContext state.
+      window.location.href = "/onboarding";
     } catch (err) {
       alert(
         "Signup failed: " + (err.response?.data?.error || err.message),

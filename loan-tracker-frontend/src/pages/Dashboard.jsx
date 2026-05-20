@@ -15,6 +15,28 @@ function Dashboard() {
   const [poolStatus, setPoolStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // First-mount: if the tenant hasn't finished onboarding, send them
+  // to the wizard. Also handle the ?welcome=true banner shown right
+  // after the wizard's final "Take Me to My Dashboard" button.
+  useEffect(() => {
+    api
+      .get("/onboarding/status")
+      .then((r) => {
+        if (r.data?.data && !r.data.data.onboarding_completed) {
+          navigate("/onboarding");
+        }
+      })
+      .catch(() => {
+        /* non-fatal: stay on dashboard */
+      });
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("welcome") === "true") {
+      setShowWelcome(true);
+      window.history.replaceState({}, "", "/");
+    }
+  }, [navigate]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -90,6 +112,25 @@ function Dashboard() {
           <span className="font-semibold">{user?.first_name}</span>! 👋
         </p>
       </div>
+
+      {showWelcome && (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-4 mb-4 flex justify-between items-center">
+          <div>
+            <h3 className="font-bold">🎉 Welcome to your dashboard!</h3>
+            <p className="text-sm">
+              Your first loan application is in the Applications queue — review
+              and disburse it from there.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowWelcome(false)}
+            className="text-white text-2xl leading-none"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {user?.is_platform_admin && (
         <button
