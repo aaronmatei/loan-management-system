@@ -29,6 +29,7 @@ import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
 import platformAdminRoutes from "./routes/platform/admin.js";
 import platformCronRoutes from "./routes/platform/cron.js";
+import platformAuditRoutes from "./routes/platform/audit.js";
 import platformBillingRoutes from "./routes/platform/billing.js";
 import onboardingRoutes from "./routes/onboarding.js";
 import whiteLabelRoutes from "./routes/whiteLabel.js";
@@ -82,6 +83,7 @@ app.use("/api/portal/auth", portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
 app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/cron", platformCronRoutes);   // verifyToken + is_platform_admin
+app.use("/api/platform/audit", platformAuditRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/white-label", whiteLabelRoutes);

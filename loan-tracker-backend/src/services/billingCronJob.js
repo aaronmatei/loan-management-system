@@ -24,6 +24,7 @@
 import cron from "node-cron";
 import { query } from "../config/database.js";
 import { sendEmail } from "./emailService.js";
+import { logSystemAction } from "./auditService.js";
 import logger from "../config/logger.js";
 
 const FOUNDING_TENANT_ID = 1; // never auto-suspended
@@ -158,6 +159,21 @@ export async function autoSuspendTenants() {
           }),
         ],
       );
+
+      // Audit (user=null → System actor). Critical severity.
+      await logSystemAction({
+        tenantId: row.id,
+        action: "tenant.auto_suspended",
+        entityType: "tenant",
+        entityId: row.id,
+        entityLabel: row.business_name,
+        description: `Auto-suspended ${row.business_name} (unpaid invoice past grace period)`,
+        severity: "critical",
+        metadata: {
+          oldest_due_date: row.oldest_due_date,
+          auto: true,
+        },
+      });
     } catch (err) {
       logger.error(`autoSuspend tenant=${row.id} error:`, err);
     }
@@ -221,6 +237,18 @@ export async function autoReactivateTenants() {
          VALUES ($1, 'auto_reactivated', $2)`,
         [row.id, JSON.stringify({ auto: true })],
       );
+
+      // Audit (System actor). Info severity — recovery, not incident.
+      await logSystemAction({
+        tenantId: row.id,
+        action: "tenant.auto_reactivated",
+        entityType: "tenant",
+        entityId: row.id,
+        entityLabel: row.business_name,
+        description: `Auto-reactivated ${row.business_name} (all invoices paid)`,
+        severity: "info",
+        metadata: { auto: true },
+      });
     } catch (err) {
       logger.error(`autoReactivate tenant=${row.id} error:`, err);
     }

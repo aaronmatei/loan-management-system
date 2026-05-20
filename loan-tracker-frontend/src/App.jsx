@@ -36,6 +36,7 @@ import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import PlatformAdminRoute from "./admin/components/PlatformAdminRoute";
 import AdminLogin from "./admin/pages/AdminLogin";
 import CronManager from "./admin/pages/CronManager";
+import PlatformAuditLog from "./admin/pages/PlatformAuditLog";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -164,6 +165,14 @@ function App() {
               element={
                 <PlatformAdminRoute>
                   <CronManager />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
+              path="/admin/audit"
+              element={
+                <PlatformAdminRoute>
+                  <PlatformAuditLog />
                 </PlatformAdminRoute>
               }
             />

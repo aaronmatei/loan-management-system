@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../../config/database.js";
 import { verifyToken } from "../../middleware/auth.js";
+import { logTenantAction } from "../../services/auditService.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -226,6 +227,23 @@ router.put("/tenants/:id/status", async (req, res) => {
     logger.info(
       `Platform admin ${req.user.email} set tenant ${id} status -> ${status}`,
     );
+
+    // Audit: 'tenant.suspended' / 'tenant.activated' / etc. Severity
+    // bumps to 'critical' for suspensions (handled inside helper).
+    const map = {
+      active: "activated",
+      trial: "trial_set",
+      suspended: "suspended",
+      cancelled: "cancelled",
+    };
+    await logTenantAction(
+      req.user,
+      map[status] || status,
+      result.rows[0],
+      req,
+      { metadata: { reason: reason || null, previous_status: status } },
+    );
+
     res.json({
       success: true,
       message: `Tenant status updated to ${status}`,
