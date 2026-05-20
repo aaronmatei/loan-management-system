@@ -5,6 +5,7 @@ const MENU = [
   { path: "/admin/dashboard", label: "Overview", icon: "📊" },
   { path: "/admin/tenants", label: "Tenants", icon: "🏢" },
   { path: "/admin/billing", label: "Billing", icon: "💰" },
+  { path: "/admin/cron", label: "Cron Jobs", icon: "⏰" },
 ];
 
 function PlatformLayout({ children }) {

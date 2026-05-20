@@ -9,6 +9,14 @@ function ProtectedRoute({ element, allowedRoles = [] }) {
     return <Navigate to="/login" replace />;
   }
 
+  // Platform admins are confined to /admin/* — bounce them out of
+  // any tenant-staff route they land on (typed URL, stale bookmark,
+  // etc.). The backend tenant routes still bypass-scope for them via
+  // is_platform_admin, but UX-wise we want them in the platform UI.
+  if (user.is_platform_admin) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return (
       <div style={{

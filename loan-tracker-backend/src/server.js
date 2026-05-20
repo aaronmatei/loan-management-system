@@ -28,12 +28,14 @@ import tenantRoutes from "./routes/tenants.js";
 import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
 import platformAdminRoutes from "./routes/platform/admin.js";
+import platformCronRoutes from "./routes/platform/cron.js";
 import platformBillingRoutes from "./routes/platform/billing.js";
 import onboardingRoutes from "./routes/onboarding.js";
 import whiteLabelRoutes from "./routes/whiteLabel.js";
 import widgetRoutes from "./routes/widget.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { setupPaymentNotifications } from "./services/paymentReminderJob.js";
+import { setupBillingCron } from "./services/billingCronJob.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -79,6 +81,7 @@ app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
 app.use("/api/portal/auth", portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
 app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
+app.use("/api/platform/cron", platformCronRoutes);   // verifyToken + is_platform_admin
 app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/white-label", whiteLabelRoutes);
@@ -131,4 +134,5 @@ app.listen(PORT, () => {
   // Register the daily backup cron (no-ops unless BACKUP_SCHEDULE_ENABLED)
   setupScheduledBackups();
   setupPaymentNotifications();
+  setupBillingCron();
 });

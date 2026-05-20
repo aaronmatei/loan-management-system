@@ -30,10 +30,10 @@ const pool = new Pool({
 });
 const q = (text, params) => pool.query(text, params);
 
-// ── Config ───────────────────────────────────────────────────────
-const CLIENT_CODE = "CLT-2026-0501";
-const TENANT_SUBDOMAIN = "abclenders";
-const PASSWORD = "Customer2026";
+// ── Config (env-overridable so the script can run in a loop) ─────
+const CLIENT_CODE = process.env.CLIENT_CODE || "CLT-ABC-2026-00224";
+const TENANT_SUBDOMAIN = process.env.TENANT_SUBDOMAIN || "abclenders";
+const PASSWORD = process.env.PASSWORD || "Customer2026";
 // ─────────────────────────────────────────────────────────────────
 
 function normalizePhone(p) {
@@ -83,13 +83,18 @@ async function main() {
   const phone = normalizePhone(client.phone_number);
   console.log(`📋 Phone normalized: ${client.phone_number} → ${phone}\n`);
 
-  // 4. Client at target tenant
+  // 4. Client at target tenant.
+  // Phone match needs to be format-agnostic: legacy seeds use the
+  // local 0xxx form, new rows use the canonical +254xxx form. We
+  // strip everything but digits and compare on the 9-digit tail (the
+  // subscriber number) so 0716697425 ≡ +254716697425 ≡ 254716697425.
   console.log(`📋 Checking client record at ${tenant.business_name}…`);
+  const tail = phone.replace(/\D/g, "").slice(-9);
   const existAtTarget = await q(
     `SELECT id, client_code FROM clients
       WHERE tenant_id = $1
-        AND phone_number IN ($2, $3)`,
-    [tenant.id, phone, client.phone_number],
+        AND REGEXP_REPLACE(phone_number, '\\D', '', 'g') LIKE '%' || $2`,
+    [tenant.id, tail],
   );
   let targetClientId;
   if (existAtTarget.rows.length > 0) {

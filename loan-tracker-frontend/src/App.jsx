@@ -33,6 +33,9 @@ import WhiteLabelSettings from "./pages/WhiteLabelSettings";
 import EmbedSettings from "./pages/EmbedSettings";
 import CalculatorWidget from "./widget/CalculatorWidget";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
+import PlatformAdminRoute from "./admin/components/PlatformAdminRoute";
+import AdminLogin from "./admin/pages/AdminLogin";
+import CronManager from "./admin/pages/CronManager";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -118,23 +121,51 @@ function App() {
             />
             <Route
               path="/admin/dashboard"
-              element={<PlatformDashboard />}
+              element={
+                <PlatformAdminRoute>
+                  <PlatformDashboard />
+                </PlatformAdminRoute>
+              }
             />
             <Route
               path="/admin/tenants"
-              element={<PlatformTenants />}
+              element={
+                <PlatformAdminRoute>
+                  <PlatformTenants />
+                </PlatformAdminRoute>
+              }
             />
             <Route
               path="/admin/tenants/:id"
-              element={<PlatformTenantDetail />}
+              element={
+                <PlatformAdminRoute>
+                  <PlatformTenantDetail />
+                </PlatformAdminRoute>
+              }
             />
             <Route
               path="/admin/billing"
-              element={<PlatformBilling />}
+              element={
+                <PlatformAdminRoute>
+                  <PlatformBilling />
+                </PlatformAdminRoute>
+              }
             />
             <Route
               path="/admin/billing/:id"
-              element={<PlatformInvoiceDetail />}
+              element={
+                <PlatformAdminRoute>
+                  <PlatformInvoiceDetail />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
+              path="/admin/cron"
+              element={
+                <PlatformAdminRoute>
+                  <CronManager />
+                </PlatformAdminRoute>
+              }
             />
             <Route
               path="/onboarding"
@@ -143,6 +174,13 @@ function App() {
             <Route
               path="/*"
               element={
+                // Platform admins must not see the staff Layout —
+                // they land here on / after login, on refresh from
+                // localStorage, or via direct nav. Bounce them to
+                // their own dashboard before Layout renders.
+                user?.is_platform_admin ? (
+                  <Navigate to="/admin/dashboard" replace />
+                ) : (
                 <Layout>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
@@ -170,6 +208,7 @@ function App() {
                     <Route path="*" element={<Navigate to="/" />} />
                   </Routes>
                 </Layout>
+                )
               }
             />
           </Routes>
@@ -180,6 +219,7 @@ function App() {
               element={<CalculatorWidget />}
             />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/portal/login" element={<CustomerLogin />} />
             <Route path="/portal/register" element={<CustomerRegister />} />

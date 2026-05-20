@@ -18,9 +18,16 @@ function Login() {
 
     try {
       const response = await api.post('/auth/login', { email, password });
+      const u = response.data.user;
+      // Platform admins must use /admin/login. Reject here without
+      // persisting credentials so this door stays staff-only.
+      if (u?.is_platform_admin) {
+        setError('This account is a platform admin. Please use /admin/login.');
+        return;
+      }
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      setUser(response.data.user);
+      localStorage.setItem('user', JSON.stringify(u));
+      setUser(u);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
