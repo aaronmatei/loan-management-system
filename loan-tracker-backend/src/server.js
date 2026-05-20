@@ -33,6 +33,7 @@ import onboardingRoutes from "./routes/onboarding.js";
 import whiteLabelRoutes from "./routes/whiteLabel.js";
 import widgetRoutes from "./routes/widget.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
+import { setupPaymentNotifications } from "./services/paymentReminderJob.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -129,4 +130,5 @@ app.listen(PORT, () => {
 
   // Register the daily backup cron (no-ops unless BACKUP_SCHEDULE_ENABLED)
   setupScheduledBackups();
+  setupPaymentNotifications();
 });

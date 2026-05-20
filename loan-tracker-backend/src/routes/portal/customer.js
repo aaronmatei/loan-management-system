@@ -10,6 +10,7 @@ import {
 } from "../../utils/pdfDocuments.js";
 import logger from "../../config/logger.js";
 import smsService from "../../services/smsService.js";
+import notificationDispatcher from "../../services/notificationDispatcher.js";
 
 const router = express.Router();
 router.use(verifyCustomer);
@@ -789,45 +790,31 @@ router.post("/applications", async (req, res) => {
       ],
     );
 
-    // Fire-and-forget SMS to the customer confirming submission.
-    // Mirrors the payments.js pattern: gated by SMS_AUTO_CONFIRMATIONS,
-    // logged to sms_logs, never blocks the response.
-    if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
-      try {
-        const meta = await query(
-          `SELECT pc.phone_number, pc.first_name, t.business_name
-             FROM platform_customers pc
-             CROSS JOIN tenants t
-            WHERE pc.id = $1 AND t.id = $2`,
-          [req.platformCustomerId, req.currentTenantId],
-        );
-        const m = meta.rows[0];
-        if (m?.phone_number) {
-          const smsMessage = smsService.templates.applicationSubmitted(
-            m.first_name,
-            principal,
-            loan.loan_code,
-            m.business_name,
-          );
-          smsService.sendSMS(m.phone_number, smsMessage).then((r) => {
-            query(
-              `INSERT INTO sms_logs (tenant_id, client_id, loan_id, phone_number, message, message_type, status, provider_response)
-               VALUES ($1, $2, $3, $4, $5, 'application_submitted', $6, $7)`,
-              [
-                req.currentTenantId,
-                req.currentClientId,
-                loan.id,
-                m.phone_number,
-                smsMessage,
-                r.success ? "sent" : "failed",
-                JSON.stringify(r),
-              ],
-            ).catch((err) => logger.error("SMS log error:", err));
-          });
-        }
-      } catch (err) {
-        logger.error("Application SMS error:", err);
+    // Fire SMS + email via the central dispatcher. Per-tenant prefs
+    // gate each channel; sms_logs and email_logs get written.
+    try {
+      const meta = await query(
+        `SELECT pc.phone_number, pc.first_name, pc.last_name, pc.email
+           FROM platform_customers pc WHERE pc.id = $1`,
+        [req.platformCustomerId],
+      );
+      const c = meta.rows[0];
+      if (c) {
+        notificationDispatcher
+          .notify("application_submitted", {
+            tenantId: req.currentTenantId,
+            customer: { ...c, client_id: req.currentClientId },
+            data: {
+              loan_id: loan.id,
+              loan_code: loan.loan_code,
+              amount: principal,
+              duration_months: months,
+            },
+          })
+          .catch((err) => logger.error("notify error:", err));
       }
+    } catch (err) {
+      logger.error("Application notification error:", err);
     }
 
     res.status(201).json({

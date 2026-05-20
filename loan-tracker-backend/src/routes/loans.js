@@ -16,6 +16,7 @@ import {
   notifyApplicationRejected,
   notifyCapitalLow,
 } from "../services/notificationService.js";
+import notificationDispatcher from "../services/notificationDispatcher.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 
@@ -381,6 +382,29 @@ router.post(
         description: "Started reviewing loan application",
         req,
       });
+
+      // Customer SMS + Email via central dispatcher.
+      try {
+        const loan = result.rows[0];
+        const meta = await query(
+          `SELECT c.phone_number, c.first_name, c.last_name, c.email
+             FROM clients c WHERE c.id = $1`,
+          [loan.client_id],
+        );
+        const c = meta.rows[0];
+        if (c) {
+          notificationDispatcher
+            .notify("application_under_review", {
+              tenantId: loan.tenant_id,
+              customer: { ...c, client_id: loan.client_id },
+              data: { loan_id: loan.id, loan_code: loan.loan_code },
+            })
+            .catch((err) => logger.error("notify error:", err));
+        }
+      } catch (err) {
+        logger.error("Review notification error:", err);
+      }
+
       res.json({
         success: true,
         message: "Loan marked as under review",
@@ -456,46 +480,32 @@ router.post(
         await notifyApplicationApproved(result.rows[0], loan.created_by);
       }
 
-      // Customer SMS: application decision (not yet disbursed).
-      // Gated by SMS_AUTO_CONFIRMATIONS, fire-and-forget, logged to
-      // sms_logs with message_type='application_approved'.
-      if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
-        try {
-          const meta = await query(
-            `SELECT c.phone_number, c.first_name, t.business_name
-               FROM clients c
-               JOIN tenants  t ON t.id = c.tenant_id
-              WHERE c.id = $1`,
-            [loan.client_id],
-          );
-          const m = meta.rows[0];
-          if (m?.phone_number) {
-            const msg = templates.applicationApproved(
-              m.first_name,
-              loan.principal_amount,
-              loan.loan_code,
-              m.business_name,
-            );
-            sendSMS(m.phone_number, msg).then((r) => {
-              query(
-                `INSERT INTO sms_logs (tenant_id, client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
-                 VALUES ($1, $2, $3, $4, $5, 'application_approved', $6, $7, $8)`,
-                [
-                  loan.tenant_id,
-                  loan.client_id,
-                  loan.id,
-                  m.phone_number,
-                  msg,
-                  r.success ? "sent" : "failed",
-                  JSON.stringify(r),
-                  req.user.id,
-                ],
-              ).catch((err) => logger.error("SMS log error:", err));
-            });
-          }
-        } catch (err) {
-          logger.error("Approve SMS error:", err);
+      // Customer SMS + Email via central dispatcher (migration 013
+      // tenant prefs gate each channel).
+      try {
+        const meta = await query(
+          `SELECT c.phone_number, c.first_name, c.last_name, c.email
+             FROM clients c WHERE c.id = $1`,
+          [loan.client_id],
+        );
+        const c = meta.rows[0];
+        if (c) {
+          notificationDispatcher
+            .notify("application_approved", {
+              tenantId: loan.tenant_id,
+              customer: { ...c, client_id: loan.client_id },
+              data: {
+                loan_id: loan.id,
+                loan_code: loan.loan_code,
+                amount: loan.principal_amount,
+                duration_months: loan.loan_duration_months,
+                interest_rate: loan.interest_rate,
+              },
+            })
+            .catch((err) => logger.error("notify error:", err));
         }
+      } catch (err) {
+        logger.error("Approve notification error:", err);
       }
 
       res.json({
@@ -562,45 +572,29 @@ router.post(
         );
       }
 
-      // Customer SMS: rejection (with reason). Same gating/logging
-      // pattern as approve above.
-      if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
-        try {
-          const meta = await query(
-            `SELECT c.phone_number, c.first_name, t.business_name
-               FROM clients c
-               JOIN tenants  t ON t.id = c.tenant_id
-              WHERE c.id = $1`,
-            [loan.client_id],
-          );
-          const m = meta.rows[0];
-          if (m?.phone_number) {
-            const msg = templates.applicationRejected(
-              m.first_name,
-              loan.loan_code,
-              m.business_name,
-              reason,
-            );
-            sendSMS(m.phone_number, msg).then((r) => {
-              query(
-                `INSERT INTO sms_logs (tenant_id, client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
-                 VALUES ($1, $2, $3, $4, $5, 'application_rejected', $6, $7, $8)`,
-                [
-                  loan.tenant_id,
-                  loan.client_id,
-                  loan.id,
-                  m.phone_number,
-                  msg,
-                  r.success ? "sent" : "failed",
-                  JSON.stringify(r),
-                  req.user.id,
-                ],
-              ).catch((err) => logger.error("SMS log error:", err));
-            });
-          }
-        } catch (err) {
-          logger.error("Reject SMS error:", err);
+      // Customer SMS + Email via central dispatcher.
+      try {
+        const meta = await query(
+          `SELECT c.phone_number, c.first_name, c.last_name, c.email
+             FROM clients c WHERE c.id = $1`,
+          [loan.client_id],
+        );
+        const c = meta.rows[0];
+        if (c) {
+          notificationDispatcher
+            .notify("application_rejected", {
+              tenantId: loan.tenant_id,
+              customer: { ...c, client_id: loan.client_id },
+              data: {
+                loan_id: loan.id,
+                loan_code: loan.loan_code,
+                reason,
+              },
+            })
+            .catch((err) => logger.error("notify error:", err));
         }
+      } catch (err) {
+        logger.error("Reject notification error:", err);
       }
 
       res.json({

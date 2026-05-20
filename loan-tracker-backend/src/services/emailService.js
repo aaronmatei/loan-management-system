@@ -70,7 +70,13 @@ export const testConnection = async () => {
   }
 };
 
-export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
+export const sendEmail = async ({
+  to,
+  subject,
+  html,
+  attachments = [],
+  fromName, // optional per-call override (e.g. tenant's business name)
+}) => {
   try {
     if (process.env.EMAIL_ENABLED !== "true") {
       logger.info(
@@ -87,12 +93,16 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       return { success: false, error: "Recipient email is required" };
     }
 
-    const fromName = process.env.EMAIL_FROM_NAME || "Loan Tracker";
+    // Per-call override wins; otherwise fall back to env. The address
+    // (EMAIL_FROM / EMAIL_USER) stays global so SMTP DMARC/SPF pass —
+    // we only change the display name per call.
+    const effectiveFromName =
+      fromName || process.env.EMAIL_FROM_NAME || "Loan Tracker";
     const fromAddress =
       process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
     const info = await getTransporter().sendMail({
-      from: `"${fromName}" <${fromAddress}>`,
+      from: `"${effectiveFromName}" <${fromAddress}>`,
       to,
       subject,
       html,
@@ -460,6 +470,105 @@ export const templates = {
       body: `
         <p>Dear <strong>${clientName}</strong>,</p>
         <div style="white-space:pre-wrap;">${message.replace(/\n/g, "<br>")}</div>
+      `,
+    }),
+  }),
+
+  // ── Application-lifecycle templates (added with NotificationService).
+  //    Mirror the SMS counterparts in smsService.js so SMS and email
+  //    say the same thing in different formats.
+
+  applicationSubmitted: ({ clientName, amount, loanCode, months, company }) => ({
+    subject: `Loan Application Received — ${loanCode}`,
+    html: baseLayout({
+      accent: "linear-gradient(135deg, #4F46E5, #7C3AED)",
+      contentBg: "#f9fafb",
+      border: "#e5e7eb",
+      title: "✅ Application Received",
+      subtitle: "We'll review it shortly",
+      company,
+      body: `
+        <p>Hi <strong>${clientName}</strong>,</p>
+        <p>Thank you for applying for a loan with ${company.name}. We've received your application and will review it within 24–48 hours.</p>
+        <div class="info-box">
+          <div class="info-row"><span class="label">Reference:</span><span class="value">${loanCode}</span></div>
+          <div class="info-row"><span class="label">Amount:</span><span class="value">${money(amount)}</span></div>
+          <div class="info-row" style="border-bottom:none;"><span class="label">Duration:</span><span class="value">${months || ""} months</span></div>
+        </div>
+        <p class="muted">You'll receive another update as soon as the review begins.</p>
+      `,
+    }),
+  }),
+
+  applicationUnderReview: ({ clientName, loanCode, company }) => ({
+    subject: `Application Under Review — ${loanCode}`,
+    html: baseLayout({
+      accent: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+      contentBg: "#f9fafb",
+      border: "#dbeafe",
+      title: "🔍 Application Under Review",
+      subtitle: "Your application is being evaluated",
+      company,
+      body: `
+        <p>Hi <strong>${clientName}</strong>,</p>
+        <p>Good news — your loan application <strong>${loanCode}</strong> is now being reviewed by our team.</p>
+        <div class="info-box" style="border-left-color:#2563eb;">
+          <p style="margin:0;color:#1e40af;"><strong>What's happening:</strong> Our team is carefully reviewing your application. We'll notify you of the decision shortly.</p>
+        </div>
+        <p class="muted">If you have any questions, please contact us using the details below.</p>
+      `,
+    }),
+  }),
+
+  applicationApproved: ({ clientName, amount, loanCode, months, rate, company }) => ({
+    subject: `🎉 Loan Approved — ${loanCode}`,
+    html: baseLayout({
+      accent: "linear-gradient(135deg, #16a34a, #059669)",
+      contentBg: "#f9fafb",
+      border: "#dcfce7",
+      title: "🎉 Approved!",
+      subtitle: "Visit us to complete disbursement",
+      company,
+      body: `
+        <p>Congratulations, <strong>${clientName}</strong>!</p>
+        <p>Your loan application has been <strong style="color:#16a34a;">APPROVED</strong>.</p>
+        <div class="info-box" style="border-left-color:#16a34a;">
+          <div class="info-row"><span class="label">Reference:</span><span class="value">${loanCode}</span></div>
+          <div class="info-row"><span class="label">Amount Approved:</span><span class="value">${money(amount)}</span></div>
+          <div class="info-row"><span class="label">Duration:</span><span class="value">${months || ""} months</span></div>
+          <div class="info-row" style="border-bottom:none;"><span class="label">Interest Rate:</span><span class="value">${rate || ""}% p.a.</span></div>
+        </div>
+        <p><strong>Next steps:</strong></p>
+        <ol>
+          <li>Visit ${company.name} to complete documentation</li>
+          <li>Sign the loan agreement</li>
+          <li>Receive your disbursement</li>
+        </ol>
+        <p class="muted">Please contact us within 7 days to claim your loan.</p>
+      `,
+    }),
+  }),
+
+  applicationRejected: ({ clientName, loanCode, reason, company }) => ({
+    subject: `Loan Application Update — ${loanCode}`,
+    html: baseLayout({
+      accent: "linear-gradient(135deg, #6b7280, #4b5563)",
+      contentBg: "#f9fafb",
+      border: "#e5e7eb",
+      title: "Application Update",
+      subtitle: "",
+      company,
+      body: `
+        <p>Hi <strong>${clientName}</strong>,</p>
+        <p>Thank you for applying with ${company.name}. After careful review, we regret to inform you that we are unable to approve your loan application <strong>${loanCode}</strong> at this time.</p>
+        ${reason ? `<div class="info-box" style="border-left-color:#ef4444;background:#fef2f2;"><p style="margin:0;"><strong style="color:#991b1b;">Reason:</strong> <span style="color:#7f1d1d;">${reason}</span></p></div>` : ""}
+        <p>This decision doesn't reflect on your potential to qualify in the future. We encourage you to:</p>
+        <ul>
+          <li>Review your application details</li>
+          <li>Work on improving your eligibility</li>
+          <li>Reapply when you're ready</li>
+        </ul>
+        <p class="muted">If you have questions about this decision, please contact us.</p>
       `,
     }),
   }),

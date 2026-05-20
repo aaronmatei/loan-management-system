@@ -103,6 +103,9 @@ export const templates = {
   applicationSubmitted: (clientName, amount, loanCode, businessName) =>
     `Hi ${clientName}, your loan application for KES ${parseFloat(amount).toLocaleString()} at ${businessName || process.env.COMPANY_NAME} has been received. Ref: ${loanCode}. We will respond shortly.`,
 
+  applicationUnderReview: (clientName, loanCode, businessName) =>
+    `Hi ${clientName}, your loan application ${loanCode} at ${businessName || process.env.COMPANY_NAME} is now UNDER REVIEW. We'll notify you of the decision soon.`,
+
   applicationApproved: (clientName, amount, loanCode, businessName) =>
     `🎉 ${clientName}, your loan application ${loanCode} for KES ${parseFloat(amount).toLocaleString()} has been APPROVED by ${businessName || process.env.COMPANY_NAME}. Visit us to complete disbursement.`,
 
