@@ -10,6 +10,7 @@ const MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: "🏠" },
   { path: "/portal/all-loans", label: "All Lenders", icon: "📊" },
   { path: "/portal/loans", label: "Current Lender", icon: "💰" },
+  { path: "/portal/calculator", label: "Calculator", icon: "🧮" },
   { path: "/portal/apply", label: "Apply for Loan", icon: "📝" },
   { path: "/portal/applications", label: "My Applications", icon: "📋" },
   { path: "/portal/add-lender", label: "Add Lender", icon: "➕" },

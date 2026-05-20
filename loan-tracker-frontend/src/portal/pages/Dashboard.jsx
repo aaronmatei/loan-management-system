@@ -9,6 +9,10 @@ function CustomerDashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Quick Calculator state — calc widget at the bottom of the dashboard
+  const [calcPolicy, setCalcPolicy] = useState(null);
+  const [calcAmount, setCalcAmount] = useState(50000);
+  const [calcDuration, setCalcDuration] = useState(6);
 
   useEffect(() => {
     portalApi
@@ -22,7 +26,38 @@ function CustomerDashboard() {
         }
       })
       .finally(() => setLoading(false));
+    // Best-effort fetch for the Quick Calculator. If it fails (e.g. no
+    // active link yet), the widget simply hides itself.
+    portalApi
+      .get("/portal/customer/calculator-policies")
+      .then((r) => {
+        const list = r.data.data || [];
+        const current = (() => {
+          try {
+            return JSON.parse(
+              localStorage.getItem("portal_current_tenant") || "{}",
+            );
+          } catch {
+            return {};
+          }
+        })();
+        const pick =
+          list.find((t) => t.tenant_id === current?.id) || list[0] || null;
+        setCalcPolicy(pick);
+      })
+      .catch(() => {});
   }, [navigate]);
+
+  // Live compute (memo-light — three primitives so this is fine inline)
+  const calcResult = (() => {
+    if (!calcPolicy || !calcAmount || !calcDuration) return null;
+    const p = parseFloat(calcAmount);
+    const m = parseInt(calcDuration, 10);
+    const r = parseFloat(calcPolicy.default_interest_rate) / 12 / 100;
+    const interest = p * r * m;
+    const total = p + interest;
+    return { monthly: total / m, interest, total };
+  })();
 
   if (loading) {
     return (
@@ -154,6 +189,106 @@ function CustomerDashboard() {
             </p>
           )}
         </section>
+
+        {calcPolicy && (
+          <section className="bg-white rounded-xl shadow overflow-hidden">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <h2 className="font-bold text-gray-800">
+                🧮 Quick Loan Calculator
+              </h2>
+              <button
+                onClick={() => navigate("/portal/calculator")}
+                className="text-xs font-semibold text-indigo-600 hover:underline"
+              >
+                Open full calculator →
+              </button>
+            </div>
+            <div className="p-4 grid md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Amount (KES)
+                  </label>
+                  <input
+                    type="number"
+                    value={calcAmount}
+                    onChange={(e) => setCalcAmount(e.target.value)}
+                    min={calcPolicy.min_amount}
+                    max={calcPolicy.max_amount}
+                    step="1000"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none font-bold text-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Duration
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 3, 6, 12, 18, 24].map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setCalcDuration(m)}
+                        className={`py-2 rounded-lg text-sm font-semibold transition ${
+                          calcDuration === m
+                            ? "bg-indigo-600 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        {m}mo
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-4 flex flex-col justify-between">
+                {calcResult ? (
+                  <>
+                    <div>
+                      <p className="text-xs text-gray-600">Monthly Payment</p>
+                      <p className="text-2xl font-bold text-indigo-700">
+                        {KES(calcResult.monthly)}
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs">
+                        <p className="text-gray-600">
+                          Total interest:{" "}
+                          <span className="font-semibold text-orange-600">
+                            {KES(calcResult.interest)}
+                          </span>
+                        </p>
+                        <p className="text-gray-600">
+                          Total to repay:{" "}
+                          <span className="font-semibold">
+                            {KES(calcResult.total)}
+                          </span>
+                        </p>
+                        <p className="text-gray-500">
+                          @ {calcPolicy.default_interest_rate}% p.a.
+                          {calcPolicy.business_name
+                            ? ` · ${calcPolicy.business_name}`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/portal/apply?amount=${calcAmount}&duration=${calcDuration}`,
+                        )
+                      }
+                      className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm"
+                    >
+                      Apply for This Loan →
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    Enter amount and duration.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         {pending_applications?.length > 0 && (
           <section className="bg-white rounded-xl shadow">

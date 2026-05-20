@@ -805,6 +805,37 @@ router.delete("/applications/:id", async (req, res) => {
   }
 });
 
+// One row per active customer-tenant link, with the loan policy
+// defaults the in-portal calculator uses. Same constants as the
+// public widget endpoint (/api/widget/calculator/:subdomain) so the
+// numbers match across the two surfaces. When a per-tenant policy
+// table exists these can swap to real values.
+router.get("/calculator-policies", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT
+         t.id AS tenant_id,
+         t.business_name, t.subdomain, t.brand_color, t.logo_url,
+         c.client_code,
+         15.00      AS default_interest_rate,
+         1000       AS min_amount,
+         1000000    AS max_amount,
+         24         AS max_duration_months
+       FROM customer_tenant_links ctl
+       JOIN tenants t ON ctl.tenant_id = t.id
+       JOIN clients c ON ctl.client_id = c.id
+       WHERE ctl.platform_customer_id = $1
+         AND ctl.status = 'active'
+       ORDER BY t.business_name`,
+      [req.platformCustomerId],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Calculator policies error:", error);
+    res.status(500).json({ error: "Failed to fetch policies" });
+  }
+});
+
 // Stream a PDF buffer as an attachment (mirrors reports.js servePdf).
 const sendPdf = (res, buffer, filename) => {
   res.setHeader("Content-Type", "application/pdf");

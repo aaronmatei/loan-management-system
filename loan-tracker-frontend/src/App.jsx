@@ -21,6 +21,7 @@ import CustomerAddLender from "./portal/pages/AddLender";
 import CustomerAllLoans from "./portal/pages/AllLoans";
 import CustomerApplyLoan from "./portal/pages/ApplyLoan";
 import CustomerApplications from "./portal/pages/Applications";
+import CustomerCalculator from "./portal/pages/Calculator";
 import PlatformDashboard from "./admin/pages/Dashboard";
 import PlatformTenants from "./admin/pages/Tenants";
 import PlatformTenantDetail from "./admin/pages/TenantDetail";
@@ -243,6 +244,14 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerLoanDetails />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/calculator"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerCalculator />
                 </PortalProtectedRoute>
               }
             />
