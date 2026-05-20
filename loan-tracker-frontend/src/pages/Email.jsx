@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
+import { useSortableTable } from "../hooks/useSortableTable";
+import SortableHeader from "../components/SortableHeader";
 
 function Email() {
   const [stats, setStats] = useState(null);
@@ -145,11 +147,18 @@ function Email() {
     return true;
   });
 
+  // Sort then paginate
+  const {
+    sortedData: sortedLogs,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(filteredLogs, "created_at", "desc");
+
   // Pagination
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedLogs.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+  const paginatedLogs = sortedLogs.slice(startIndex, endIndex);
 
   // Filter counts for dropdowns
   const typeCounts = {
@@ -398,24 +407,23 @@ function Email() {
           <table className="w-full">
             <thead className="bg-gray-50 sticky top-0 z-10 border-b-2 border-gray-200 shadow-sm">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Recipient
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Subject
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Attachment
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Status
-                </th>
+                {[
+                  ["Date", "created_at"],
+                  ["Recipient", "recipient_email"],
+                  ["Subject", "subject"],
+                  ["Type", "email_type"],
+                  ["Attachment", "has_attachment"],
+                  ["Status", "status"],
+                ].map(([label, key]) => (
+                  <SortableHeader
+                    key={key}
+                    label={label}
+                    sortKey={key}
+                    requestSort={requestSort}
+                    getSortIndicator={getSortIndicator}
+                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>

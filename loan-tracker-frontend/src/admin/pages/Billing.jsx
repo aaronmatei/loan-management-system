@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
+import { useSortableTable } from "../../hooks/useSortableTable";
+import SortableHeader from "../../components/SortableHeader";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(1)}K`;
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
@@ -44,6 +46,13 @@ function BillingDashboard() {
   useEffect(() => {
     load();
   }, [filter]);
+
+  // Client-side sort over the current (server-filtered) result set.
+  const {
+    sortedData: sortedInvoices,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(invoices, "billing_year", "desc");
 
   const generateMonthly = async () => {
     if (
@@ -180,19 +189,56 @@ function BillingDashboard() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="text-left p-3">Invoice</th>
-                    <th className="text-left p-3">Tenant</th>
-                    <th className="text-left p-3 hidden lg:table-cell">
-                      Period
-                    </th>
-                    <th className="text-right p-3">Interest</th>
-                    <th className="text-right p-3">Total</th>
-                    <th className="text-center p-3">Status</th>
+                    <SortableHeader
+                      label="Invoice"
+                      sortKey="invoice_number"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      className="text-left p-3"
+                    />
+                    <SortableHeader
+                      label="Tenant"
+                      sortKey="business_name"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      className="text-left p-3"
+                    />
+                    <SortableHeader
+                      label="Period"
+                      sortKey="billing_year"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      className="text-left p-3 hidden lg:table-cell"
+                    />
+                    <SortableHeader
+                      label="Interest"
+                      sortKey="interest_amount"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3"
+                    />
+                    <SortableHeader
+                      label="Total"
+                      sortKey="total_amount"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3"
+                    />
+                    <SortableHeader
+                      label="Status"
+                      sortKey="status"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="center"
+                      className="text-center p-3"
+                    />
                     <th className="text-right p-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map((i) => (
+                  {sortedInvoices.map((i) => (
                     <tr key={i.id} className="border-b hover:bg-gray-50">
                       <td className="p-3">
                         <p className="font-mono font-semibold">

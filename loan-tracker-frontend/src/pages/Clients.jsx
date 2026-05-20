@@ -7,6 +7,8 @@ import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
 import PermissionGate from "../components/PermissionGate";
 import { bulkExport } from "../utils/bulkExport";
+import { useSortableTable } from "../hooks/useSortableTable";
+import SortableHeader from "../components/SortableHeader";
 
 function Clients() {
   const navigate = useNavigate();
@@ -109,11 +111,19 @@ function Clients() {
       )
     : clients;
 
+  // Sort the filtered set, then paginate the sorted view. Default
+  // sort matches the prior implicit order (created_at desc).
+  const {
+    sortedData: sortedClients,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(filteredClients, "created_at", "desc");
+
   const itemsPerPage = 50;
-  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedClients.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedClients = filteredClients.slice(startIndex, endIndex);
+  const paginatedClients = sortedClients.slice(startIndex, endIndex);
 
   // ── Bulk selection ──────────────────────────────────────────
   const bulk = useBulkSelection(paginatedClients);
@@ -502,27 +512,24 @@ function Clients() {
                       className="w-4 h-4 cursor-pointer"
                     />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Code
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Name
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Phone
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Email
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Business
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    City
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Status
-                  </th>
+                  {[
+                    ["Code", "client_code"],
+                    ["Name", "first_name"],
+                    ["Phone", "phone_number"],
+                    ["Email", "email"],
+                    ["Business", "business_name"],
+                    ["City", "city"],
+                    ["Status", "status"],
+                  ].map(([label, key]) => (
+                    <SortableHeader
+                      key={key}
+                      label={label}
+                      sortKey={key}
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase"
+                    />
+                  ))}
                 </tr>
               </thead>
               <tbody>

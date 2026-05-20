@@ -5,7 +5,7 @@ import React, { useState } from "react";
 // policy here — that lives in customer.js /tenant-policy and Settings.
 function LoanSettingsStep({ data, onNext, onBack }) {
   const [form, setForm] = useState({
-    default_interest_rate: data.default_interest_rate || 15,
+    default_interest_rate: data.default_interest_rate || 50,
     min_loan_amount: data.min_loan_amount || 1000,
     max_loan_amount: data.max_loan_amount || 500000,
     default_duration_months: data.default_duration_months || 6,

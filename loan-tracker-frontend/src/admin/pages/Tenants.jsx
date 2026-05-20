@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
+import { useSortableTable } from "../../hooks/useSortableTable";
+import SortableHeader from "../../components/SortableHeader";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
 
@@ -29,6 +31,15 @@ function PlatformTenants() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, search]);
+
+  // Sort the current server response client-side. Server-side
+  // filtering means sorting reorders only what's already loaded —
+  // good enough for the platform admin view (small tenant counts).
+  const {
+    sortedData: sortedTenants,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(tenants, "created_at", "desc");
 
   const updateStatus = async (tenant, newStatus) => {
     let reason = null;
@@ -99,23 +110,57 @@ function PlatformTenants() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="text-left p-3">Tenant</th>
-                    <th className="text-left p-3 hidden lg:table-cell">
-                      Subdomain
-                    </th>
-                    <th className="text-right p-3">Clients</th>
-                    <th className="text-right p-3 hidden lg:table-cell">
-                      Loans
-                    </th>
-                    <th className="text-right p-3 hidden lg:table-cell">
-                      Disbursed
-                    </th>
-                    <th className="text-center p-3">Status</th>
+                    <SortableHeader
+                      label="Tenant"
+                      sortKey="business_name"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      className="text-left p-3"
+                    />
+                    <SortableHeader
+                      label="Subdomain"
+                      sortKey="subdomain"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      className="text-left p-3 hidden lg:table-cell"
+                    />
+                    <SortableHeader
+                      label="Clients"
+                      sortKey="client_count"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3"
+                    />
+                    <SortableHeader
+                      label="Loans"
+                      sortKey="loan_count"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3 hidden lg:table-cell"
+                    />
+                    <SortableHeader
+                      label="Disbursed"
+                      sortKey="total_disbursed"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3 hidden lg:table-cell"
+                    />
+                    <SortableHeader
+                      label="Status"
+                      sortKey="status"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="center"
+                      className="text-center p-3"
+                    />
                     <th className="text-right p-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tenants.map((t) => (
+                  {sortedTenants.map((t) => (
                     <tr key={t.id} className="border-b hover:bg-gray-50">
                       <td className="p-3">
                         <div className="flex items-center gap-2">

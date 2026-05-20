@@ -24,11 +24,13 @@ router.get("/calculator/:subdomain", async (req, res) => {
          hide_platform_branding, white_label_tier,
          custom_domain,
          physical_address, city, county,
-         -- Defaults until a per-tenant loan_policy table exists.
-         15.00      AS default_interest_rate,
-         1000       AS min_amount,
-         1000000    AS max_amount,
-         24         AS max_duration_months
+         -- Per-tenant loan policy (migration 012). Coalesced in case
+         -- a row pre-dates the migration's UPDATE backfill.
+         COALESCE(default_interest_rate, 50.00) AS default_interest_rate,
+         COALESCE(min_loan_amount,       1000)  AS min_amount,
+         COALESCE(max_loan_amount,    1000000)  AS max_amount,
+         24                                     AS max_duration_months,
+         COALESCE(default_loan_duration, 6)     AS default_duration_months
        FROM tenants
        WHERE subdomain = $1 AND status = 'active'`,
       [req.params.subdomain],

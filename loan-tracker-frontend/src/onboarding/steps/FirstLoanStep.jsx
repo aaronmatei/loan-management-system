@@ -11,7 +11,7 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
   const [form, setForm] = useState({
     principal_amount: 50000,
     loan_duration_months: data.default_duration_months || 6,
-    annual_interest_rate: data.default_interest_rate || 15,
+    annual_interest_rate: data.default_interest_rate || 50,
     purpose: "Business expansion",
   });
   const [saving, setSaving] = useState(false);

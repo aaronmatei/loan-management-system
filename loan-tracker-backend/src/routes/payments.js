@@ -555,6 +555,11 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,
     );
 
+    // Build the receipt block the frontend modal needs: remaining
+    // balance, next unpaid installment, % complete. Tenant-scoped via
+    // the loan we already validated above.
+    const receipt = await buildReceiptBlock(loan.id, loan.tenant_id);
+
     res.status(201).json({
       success: true,
       message:
@@ -565,6 +570,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         ...transaction,
         overpayment_amount: newOverpayment,
         loan_status: isFullyPaid ? "completed" : "active",
+        receipt,
       },
     });
   } catch (error) {
@@ -572,6 +578,71 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     res.status(500).json({ error: "Failed to record payment" });
   }
 });
+
+/**
+ * Compose the receipt block returned alongside a freshly-recorded
+ * payment. Reads the live loan totals (so it reflects this payment),
+ * joins the client, and looks up the next pending installment.
+ *
+ * Tenant-scoped: caller passes tenantId, we hard-AND it into the
+ * loan SELECT. Returns null on miss rather than throwing — the
+ * receipt is a UX enhancement, not part of the payment contract.
+ */
+async function buildReceiptBlock(loanId, tenantId) {
+  try {
+    const loanRes = await query(
+      `SELECT
+         l.id, l.loan_code, l.principal_amount, l.total_interest,
+         l.total_amount_due, l.amount_paid,
+         c.first_name, c.last_name, c.phone_number, c.client_code
+       FROM loans l
+       JOIN clients c ON c.id = l.client_id
+       WHERE l.id = $1 AND l.tenant_id = $2`,
+      [loanId, tenantId],
+    );
+    if (loanRes.rows.length === 0) return null;
+    const l = loanRes.rows[0];
+
+    const totalDue = parseFloat(l.total_amount_due);
+    const totalPaid = parseFloat(l.amount_paid || 0);
+    const remaining = Math.max(0, totalDue - totalPaid);
+
+    const nextRes = await query(
+      `SELECT payment_number, due_date, amount_due, amount_paid
+         FROM payment_schedules
+        WHERE loan_id = $1 AND status = 'pending'
+        ORDER BY due_date ASC
+        LIMIT 1`,
+      [loanId],
+    );
+    const next = nextRes.rows[0] || null;
+    const nextAmount = next
+      ? Math.max(0, parseFloat(next.amount_due) - parseFloat(next.amount_paid || 0))
+      : 0;
+
+    return {
+      loan_id: l.id,
+      loan_code: l.loan_code,
+      client_name: `${l.first_name} ${l.last_name}`,
+      client_phone: l.phone_number,
+      client_code: l.client_code,
+      principal: parseFloat(l.principal_amount),
+      total_interest: parseFloat(l.total_interest || 0),
+      total_amount_due: totalDue,
+      total_paid: totalPaid,
+      remaining_balance: remaining,
+      is_fully_paid: remaining === 0,
+      next_payment_number: next?.payment_number || null,
+      next_payment_amount: nextAmount,
+      next_payment_date: next?.due_date || null,
+      completion_percentage:
+        totalDue > 0 ? ((totalPaid / totalDue) * 100).toFixed(1) : "0",
+    };
+  } catch (err) {
+    logger.error("buildReceiptBlock error:", err);
+    return null;
+  }
+}
 
 // ============================================================
 // GET LOAN PAYMENT SUMMARY

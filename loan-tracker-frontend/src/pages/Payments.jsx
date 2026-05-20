@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import api from "../services/api";
+import { useSortableTable } from "../hooks/useSortableTable";
+import SortableHeader from "../components/SortableHeader";
+import PaymentReceipt from "../components/PaymentReceipt";
 
 function Payments() {
   const [payments, setPayments] = useState([]);
@@ -30,9 +33,19 @@ function Payments() {
     notes: "",
   });
 
+  // Receipt modal state — populated from POST /payments response.
+  const [receiptModal, setReceiptModal] = useState(null);
+  const [tenantBranding, setTenantBranding] = useState(null);
+
   useEffect(() => {
     fetchPayments();
     fetchLoans();
+    // Best-effort tenant branding for the receipt header. White-label
+    // settings live behind admin auth, so we degrade gracefully on 403.
+    api
+      .get("/white-label/settings")
+      .then((r) => setTenantBranding(r.data.data || null))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -124,9 +137,16 @@ function Payments() {
 
     try {
       const response = await api.post("/payments", formData);
+      const txn = response.data.data;
       setSuccess(
-        `✅ Payment ${response.data.data.transaction_code} recorded successfully!`,
+        `✅ Payment ${txn.transaction_code} recorded successfully!`,
       );
+
+      // Show the receipt modal if the backend returned a receipt block
+      // (added with migration 012 / payments.js update).
+      if (txn.receipt) {
+        setReceiptModal({ payment: txn, receipt: txn.receipt });
+      }
 
       setFormData({
         loan_id: "",
@@ -151,11 +171,18 @@ function Payments() {
     }
   };
 
+  // Sort then paginate
+  const {
+    sortedData: sortedPayments,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(payments, "payment_date", "desc");
+
   // Pagination math (same pattern as Clients/Overdue pages)
-  const totalPages = Math.ceil(payments.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedPayments.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedPayments = payments.slice(startIndex, endIndex);
+  const paginatedPayments = sortedPayments.slice(startIndex, endIndex);
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -517,27 +544,24 @@ function Payments() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Transaction
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Loan
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Client
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Amount
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Method
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Reference
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Date
-                </th>
+                {[
+                  ["Transaction", "transaction_code"],
+                  ["Loan", "loan_code"],
+                  ["Client", "first_name"],
+                  ["Amount", "amount_paid"],
+                  ["Method", "payment_method"],
+                  ["Reference", "payment_reference"],
+                  ["Date", "payment_date"],
+                ].map(([label, key]) => (
+                  <SortableHeader
+                    key={key}
+                    label={label}
+                    sortKey={key}
+                    requestSort={requestSort}
+                    getSortIndicator={getSortIndicator}
+                    className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase"
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -647,6 +671,15 @@ function Payments() {
             </div>
           )}
         </div>
+      )}
+
+      {receiptModal && (
+        <PaymentReceipt
+          payment={receiptModal.payment}
+          receipt={receiptModal.receipt}
+          tenant={tenantBranding}
+          onClose={() => setReceiptModal(null)}
+        />
       )}
     </div>
   );

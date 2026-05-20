@@ -43,7 +43,7 @@ function CalculatorWidget() {
     if (!amount || !duration) return;
     const principal = parseFloat(amount);
     const months = parseInt(duration, 10);
-    const annualRate = parseFloat(tenant?.default_interest_rate || 15);
+    const annualRate = parseFloat(tenant?.default_interest_rate || 50);
     const monthlyRate = annualRate / 12 / 100;
     const totalInterest = principal * monthlyRate * months;
     const totalAmountDue = principal + totalInterest;

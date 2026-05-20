@@ -6,6 +6,8 @@ import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
 import PermissionGate from "../components/PermissionGate";
 import { bulkExport } from "../utils/bulkExport";
+import { useSortableTable } from "../hooks/useSortableTable";
+import SortableHeader from "../components/SortableHeader";
 
 function Loans() {
   const navigate = useNavigate();
@@ -36,7 +38,7 @@ function Loans() {
   const [formData, setFormData] = useState({
     client_id: "",
     principal_amount: "",
-    annual_interest_rate: "12", // ✅ Per annum default 12%
+    annual_interest_rate: "50", // ✅ Per annum default 50% (platform default)
     loan_duration_months: "12",
     start_date: new Date().toISOString().split("T")[0],
     purpose: "",
@@ -280,12 +282,28 @@ function Loans() {
     setFilters({ status: "all", refundStatus: "all" });
   };
 
+  // Derive `balance` so it's sortable alongside the real columns
+  // (the row already reads loan.total_amount_due - loan.total_paid
+  // inline; this just exposes the same number to the sort hook).
+  const filteredLoansWithBalance = filteredLoans.map((l) => ({
+    ...l,
+    balance:
+      parseFloat(l.total_amount_due || 0) - parseFloat(l.total_paid || 0),
+  }));
+
+  // Sort filtered set, then paginate. Default mirrors prior order.
+  const {
+    sortedData: sortedLoans,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(filteredLoansWithBalance, "created_at", "desc");
+
   // Pagination (totals row still uses the full filtered set)
   const itemsPerPage = 50;
-  const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedLoans.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedLoans = filteredLoans.slice(startIndex, endIndex);
+  const paginatedLoans = sortedLoans.slice(startIndex, endIndex);
 
   // ── Bulk selection ──────────────────────────────────────────
   const bulk = useBulkSelection(paginatedLoans);
@@ -1069,30 +1087,26 @@ function Loans() {
                       className="w-4 h-4 cursor-pointer"
                     />
                   </th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Loan Code
-                  </th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Client
-                  </th>
-                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Principal
-                  </th>
-                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Total to Pay
-                  </th>
-                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Paid
-                  </th>
-                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Balance
-                  </th>
-                  <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                    Refund Due
-                  </th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Status
-                  </th>
+                  {[
+                    ["Loan Code", "loan_code", "left"],
+                    ["Client", "first_name", "left"],
+                    ["Principal", "principal_amount", "right"],
+                    ["Total to Pay", "total_amount_due", "right"],
+                    ["Paid", "total_paid", "right"],
+                    ["Balance", "balance", "right"],
+                    ["Refund Due", "overpayment_amount", "right"],
+                    ["Status", "status", "left"],
+                  ].map(([label, key, align]) => (
+                    <SortableHeader
+                      key={key}
+                      label={label}
+                      sortKey={key}
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align={align}
+                      className={`px-4 py-4 text-${align} text-xs font-semibold text-gray-600 uppercase`}
+                    />
+                  ))}
                   <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
                     View
                   </th>

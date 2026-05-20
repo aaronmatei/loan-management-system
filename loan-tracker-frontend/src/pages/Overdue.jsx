@@ -5,6 +5,8 @@ import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
 import { bulkExport } from "../utils/bulkExport";
+import { useSortableTable } from "../hooks/useSortableTable";
+import SortableHeader from "../components/SortableHeader";
 
 // Days-late badge colour, 4 severity tiers
 function daysBadgeClass(days) {
@@ -118,11 +120,18 @@ function Overdue() {
   );
   const filteredLoans = new Set(filtered.map((p) => p.loan_id)).size;
 
+  // Sort then paginate — default: most overdue first
+  const {
+    sortedData: sortedOverdue,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(filtered, "days_late", "desc");
+
   // Pagination math (same pattern as Clients/Loans pages)
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedOverdue.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginated = filtered.slice(startIndex, endIndex);
+  const paginated = sortedOverdue.slice(startIndex, endIndex);
 
   // Severity counts for the dropdown — from the API summary so they
   // reflect the full data set, not the current page
@@ -454,27 +463,25 @@ function Overdue() {
                           className="w-4 h-4 cursor-pointer"
                         />
                       </th>
-                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                        Client
-                      </th>
-                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                        Loan Code
-                      </th>
-                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                        Payment #
-                      </th>
-                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                        Due Date
-                      </th>
-                      <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
-                        Days Late
-                      </th>
-                      <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                        Amount Due
-                      </th>
-                      <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600 uppercase">
-                        Balance
-                      </th>
+                      {[
+                        ["Client", "first_name", "left"],
+                        ["Loan Code", "loan_code", "left"],
+                        ["Payment #", "payment_number", "left"],
+                        ["Due Date", "due_date", "left"],
+                        ["Days Late", "days_late", "center"],
+                        ["Amount Due", "amount_due", "right"],
+                        ["Balance", "amount_due", "right"],
+                      ].map(([label, key, align], i) => (
+                        <SortableHeader
+                          key={`${key}-${i}`}
+                          label={label}
+                          sortKey={key}
+                          requestSort={requestSort}
+                          getSortIndicator={getSortIndicator}
+                          align={align}
+                          className={`px-4 py-4 text-${align} text-xs font-semibold text-gray-600 uppercase`}
+                        />
+                      ))}
                       <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
                         Action
                       </th>

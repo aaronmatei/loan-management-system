@@ -562,13 +562,15 @@ router.post("/change-password", async (req, res) => {
 });
 
 // ── Customer loan applications ────────────────────────────────
-// Static loan policy (no per-tenant policy table yet).
+// Floor for guarantor/collateral/max-pending policy (no per-tenant
+// table for these yet). Rate / amount / duration now come from
+// tenants columns added in migration 012.
 const LOAN_POLICY = {
   min_amount: 1000,
   max_amount: 1000000,
   min_duration: 1,
   max_duration: 24,
-  default_interest_rate: 15.0, // annual %
+  default_interest_rate: 50.0, // annual % — fallback if DB read fails
   require_guarantor: false,
   require_collateral: false,
   max_pending_applications: 3,
@@ -577,12 +579,29 @@ const LOAN_POLICY = {
 router.get("/tenant-policy", async (req, res) => {
   try {
     const t = await query(
-      "SELECT business_name, brand_color FROM tenants WHERE id = $1",
+      `SELECT business_name, brand_color,
+              COALESCE(default_interest_rate, 50.00) AS default_interest_rate,
+              COALESCE(min_loan_amount,       1000)  AS min_amount,
+              COALESCE(max_loan_amount,    1000000)  AS max_amount,
+              COALESCE(default_loan_duration, 6)     AS default_duration
+         FROM tenants WHERE id = $1`,
       [req.currentTenantId],
     );
+    const row = t.rows[0] || {};
     res.json({
       success: true,
-      data: { tenant: t.rows[0], policy: LOAN_POLICY },
+      data: {
+        tenant: { business_name: row.business_name, brand_color: row.brand_color },
+        policy: {
+          ...LOAN_POLICY,
+          min_amount: parseFloat(row.min_amount ?? LOAN_POLICY.min_amount),
+          max_amount: parseFloat(row.max_amount ?? LOAN_POLICY.max_amount),
+          default_interest_rate: parseFloat(
+            row.default_interest_rate ?? LOAN_POLICY.default_interest_rate,
+          ),
+          default_duration: parseInt(row.default_duration ?? 6, 10),
+        },
+      },
     });
   } catch (error) {
     logger.error("Tenant policy error:", error);
@@ -806,10 +825,9 @@ router.delete("/applications/:id", async (req, res) => {
 });
 
 // One row per active customer-tenant link, with the loan policy
-// defaults the in-portal calculator uses. Same constants as the
-// public widget endpoint (/api/widget/calculator/:subdomain) so the
-// numbers match across the two surfaces. When a per-tenant policy
-// table exists these can swap to real values.
+// each tenant has configured (migration 012 added the columns).
+// COALESCE keeps the endpoint working for any tenant row that
+// pre-dates the migration's backfill.
 router.get("/calculator-policies", async (req, res) => {
   try {
     const r = await query(
@@ -817,10 +835,11 @@ router.get("/calculator-policies", async (req, res) => {
          t.id AS tenant_id,
          t.business_name, t.subdomain, t.brand_color, t.logo_url,
          c.client_code,
-         15.00      AS default_interest_rate,
-         1000       AS min_amount,
-         1000000    AS max_amount,
-         24         AS max_duration_months
+         COALESCE(t.default_interest_rate, 50.00) AS default_interest_rate,
+         COALESCE(t.min_loan_amount,       1000)  AS min_amount,
+         COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
+         24                                       AS max_duration_months,
+         COALESCE(t.default_loan_duration, 6)     AS default_duration_months
        FROM customer_tenant_links ctl
        JOIN tenants t ON ctl.tenant_id = t.id
        JOIN clients c ON ctl.client_id = c.id
