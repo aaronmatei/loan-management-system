@@ -11,6 +11,7 @@ import {
 import logger from "../../config/logger.js";
 import smsService from "../../services/smsService.js";
 import notificationDispatcher from "../../services/notificationDispatcher.js";
+import { nextLoanCode } from "../../utils/clientCode.js";
 
 const router = express.Router();
 router.use(verifyCustomer);
@@ -728,17 +729,10 @@ router.post("/applications", async (req, res) => {
       (principal + totalInterest).toFixed(2),
     );
 
-    // Mirror staff loans.js loan_code exactly (per-tenant COUNT,
-    // LN-YYYY-#### 4-digit) so customer apps are indistinguishable
-    // from staff-created loans in the shared queue/workflow.
-    const cnt = await query(
-      "SELECT COUNT(*) AS count FROM loans WHERE tenant_id = $1",
-      [req.currentTenantId],
-    );
-    const year = new Date().getFullYear();
-    const loanCode = `LN-${year}-${String(
-      parseInt(cnt.rows[0].count, 10) + 1,
-    ).padStart(4, "0")}`;
+    // Canonical loan_code (LN-<PREFIX>-<YEAR>-<NNNNN>) via shared
+    // helper — same code generator the staff loans.js uses, so
+    // customer apps remain indistinguishable in the shared queue.
+    const loanCode = await nextLoanCode(query, req.currentTenantId);
 
     const result = await query(
       `INSERT INTO loans (

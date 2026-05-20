@@ -10,6 +10,7 @@ import {
 import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
+import { nextLoanCode } from "../utils/clientCode.js";
 import {
   notifyApplicationSubmitted,
   notifyApplicationApproved,
@@ -259,13 +260,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         .status(400)
         .json({ error: "No tenant context — re-login required" });
     }
-    const year = new Date().getFullYear();
-    const countResult = await query(
-      "SELECT COUNT(*) FROM loans WHERE tenant_id = $1",
-      [wTid],
-    );
-    const loanCount = parseInt(countResult.rows[0].count) + 1;
-    const loanCode = `LN-${year}-${String(loanCount).padStart(4, "0")}`;
+    // Canonical loan_code via shared helper (LN-<PREFIX>-<YEAR>-<NNNNN>).
+    // MAX(suffix)+1 sequence — safe against historic deletions.
+    const loanCode = await nextLoanCode(query, wTid);
 
     // Create as a PENDING application: no start/end date, no schedule,
     // no capital movement, no notifications until disbursement.

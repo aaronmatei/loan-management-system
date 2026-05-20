@@ -32,12 +32,34 @@ export function tenantPrefix(subdomain) {
  * @returns {Promise<string>} e.g. "CLT-TSD-2026-00502"
  */
 export async function nextClientCode(query, tenantId) {
+  return nextScopedCode(query, tenantId, "CLT", "client_code", "clients");
+}
+
+/**
+ * Generate the next loan_code for a tenant.
+ * Same canonical format as client codes: LN-<PREFIX>-<YEAR>-<NNNNN>.
+ * Used by both the staff loan-create path (routes/loans.js) and the
+ * customer-portal application path (routes/portal/customer.js).
+ *
+ * @returns {Promise<string>} e.g. "LN-TSD-2026-00764"
+ */
+export async function nextLoanCode(query, tenantId) {
+  return nextScopedCode(query, tenantId, "LN", "loan_code", "loans");
+}
+
+/**
+ * Internal helper — both code generators do MAX(suffix)+1 keyed by
+ * tenant. Considers BOTH the new `<KIND>-<PREFIX>-<YEAR>-<NNNNN>`
+ * shape AND the legacy `<KIND>-<YEAR>-<NNNN>` shape so the sequence
+ * keeps climbing after the normalization migration runs.
+ */
+async function nextScopedCode(query, tenantId, kind, codeColumn, table) {
   const r = await query(
     `SELECT t.subdomain,
-            MAX(CAST(SUBSTRING(c.client_code FROM 'CLT-[A-Z]+-\\d+-(\\d+)$') AS INTEGER)) AS max_pref,
-            MAX(CAST(SUBSTRING(c.client_code FROM 'CLT-\\d+-(\\d+)$')        AS INTEGER)) AS max_legacy
+            MAX(CAST(SUBSTRING(${codeColumn} FROM '${kind}-[A-Z]+-\\d+-(\\d+)$') AS INTEGER)) AS max_pref,
+            MAX(CAST(SUBSTRING(${codeColumn} FROM '${kind}-\\d+-(\\d+)$')        AS INTEGER)) AS max_legacy
        FROM tenants t
-       LEFT JOIN clients c ON c.tenant_id = t.id
+       LEFT JOIN ${table} x ON x.tenant_id = t.id
       WHERE t.id = $1
       GROUP BY t.subdomain`,
     [tenantId],
@@ -49,5 +71,5 @@ export async function nextClientCode(query, tenantId) {
   const next =
     Math.max(parseInt(max_pref || 0, 10), parseInt(max_legacy || 0, 10)) + 1;
   const year = new Date().getFullYear();
-  return `CLT-${tenantPrefix(subdomain)}-${year}-${String(next).padStart(5, "0")}`;
+  return `${kind}-${tenantPrefix(subdomain)}-${year}-${String(next).padStart(5, "0")}`;
 }
