@@ -20,6 +20,11 @@ import CustomerAddLender from "./portal/pages/AddLender";
 import CustomerAllLoans from "./portal/pages/AllLoans";
 import CustomerApplyLoan from "./portal/pages/ApplyLoan";
 import CustomerApplications from "./portal/pages/Applications";
+import PlatformDashboard from "./admin/pages/Dashboard";
+import PlatformTenants from "./admin/pages/Tenants";
+import PlatformTenantDetail from "./admin/pages/TenantDetail";
+import PlatformBilling from "./admin/pages/Billing";
+import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -66,9 +71,33 @@ function App() {
     <AuthContext.Provider value={{ user, setUser, logout }}>
       <Router>
         {user ? (
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
+          <Routes>
+            <Route
+              path="/admin/dashboard"
+              element={<PlatformDashboard />}
+            />
+            <Route
+              path="/admin/tenants"
+              element={<PlatformTenants />}
+            />
+            <Route
+              path="/admin/tenants/:id"
+              element={<PlatformTenantDetail />}
+            />
+            <Route
+              path="/admin/billing"
+              element={<PlatformBilling />}
+            />
+            <Route
+              path="/admin/billing/:id"
+              element={<PlatformInvoiceDetail />}
+            />
+            <Route
+              path="/*"
+              element={
+                <Layout>
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/applications" element={<Applications />} />
               <Route path="/notifications" element={<Notifications />} />
@@ -88,9 +117,12 @@ function App() {
               <Route path="/audit" element={<AuditLog />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/backup" element={<Backup />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </Layout>
+                    <Route path="*" element={<Navigate to="/" />} />
+                  </Routes>
+                </Layout>
+              }
+            />
+          </Routes>
         ) : (
           <Routes>
             <Route path="/login" element={<Login />} />

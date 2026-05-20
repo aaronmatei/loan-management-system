@@ -27,6 +27,8 @@ import notificationRoutes from "./routes/notifications.js";
 import tenantRoutes from "./routes/tenants.js";
 import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
+import platformAdminRoutes from "./routes/platform/admin.js";
+import platformBillingRoutes from "./routes/platform/billing.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
@@ -72,6 +74,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
 app.use("/api/portal/auth", portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
+app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
+app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
 app.use("/api/clients", clientRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);

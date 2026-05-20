@@ -91,6 +91,17 @@ function Dashboard() {
         </p>
       </div>
 
+      {user?.is_platform_admin && (
+        <button
+          onClick={() => navigate("/admin/dashboard")}
+          className="w-full bg-gradient-to-r from-purple-600 to-indigo-700 text-white py-3 px-4 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 hover:shadow-lg transition"
+        >
+          <span>👑</span>
+          <span className="font-semibold">Go to Platform Admin</span>
+          <span>→</span>
+        </button>
+      )}
+
       {/* Capital Pool */}
       {poolStatus && (
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-xl shadow-lg p-6 mb-6 text-white">
