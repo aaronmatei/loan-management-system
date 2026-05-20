@@ -29,6 +29,8 @@ import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
 import LandingHome from "./landing/pages/Home";
 import OnboardingWizard from "./onboarding/OnboardingWizard";
 import WhiteLabelSettings from "./pages/WhiteLabelSettings";
+import EmbedSettings from "./pages/EmbedSettings";
+import CalculatorWidget from "./widget/CalculatorWidget";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -110,6 +112,10 @@ function App() {
         {user ? (
           <Routes>
             <Route
+              path="/widget/calculator/:subdomain"
+              element={<CalculatorWidget />}
+            />
+            <Route
               path="/admin/dashboard"
               element={<PlatformDashboard />}
             />
@@ -156,6 +162,7 @@ function App() {
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/white-label" element={<WhiteLabelSettings />} />
+              <Route path="/embed" element={<EmbedSettings />} />
               <Route path="/audit" element={<AuditLog />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/backup" element={<Backup />} />
@@ -167,6 +174,10 @@ function App() {
           </Routes>
         ) : (
           <Routes>
+            <Route
+              path="/widget/calculator/:subdomain"
+              element={<CalculatorWidget />}
+            />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/portal/login" element={<CustomerLogin />} />

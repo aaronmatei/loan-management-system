@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import DevTenantSwitcher from "../components/DevTenantSwitcher";
 import PasswordInput from "../components/PasswordInput";
@@ -9,6 +9,12 @@ import PasswordInput from "../components/PasswordInput";
 // here we collect it so portalApi can send X-Tenant-Subdomain.
 function CustomerRegister() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Widget hand-off: ?amount=&duration=&source=widget pre-fills the
+  // apply page after successful registration.
+  const widgetAmount = searchParams.get("amount");
+  const widgetDuration = searchParams.get("duration");
+  const fromWidget = searchParams.get("source") === "widget";
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [customerId, setCustomerId] = useState(null);
@@ -84,7 +90,15 @@ function CustomerRegister() {
         );
       }
       alert("Registration successful! 🎉");
-      navigate("/portal/dashboard");
+      if (fromWidget && widgetAmount) {
+        const p = new URLSearchParams({
+          amount: widgetAmount,
+          ...(widgetDuration ? { duration: widgetDuration } : {}),
+        });
+        navigate(`/portal/apply?${p}`);
+      } else {
+        navigate("/portal/dashboard");
+      }
     } catch (err) {
       alert(err.response?.data?.error || "Verification failed");
     } finally {
@@ -111,6 +125,14 @@ function CustomerRegister() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
       <DevTenantSwitcher />
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
+        {fromWidget && widgetAmount && (
+          <div className="mb-4 bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg py-2 px-3">
+            📊 Applying for KES{" "}
+            <strong>{parseFloat(widgetAmount).toLocaleString()}</strong>
+            {widgetDuration ? ` over ${widgetDuration} months` : ""}. Finish
+            sign-up to continue.
+          </div>
+        )}
         <h2 className="text-3xl font-bold text-gray-800 mb-2">
           Create Account
         </h2>

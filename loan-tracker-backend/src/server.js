@@ -31,6 +31,7 @@ import platformAdminRoutes from "./routes/platform/admin.js";
 import platformBillingRoutes from "./routes/platform/billing.js";
 import onboardingRoutes from "./routes/onboarding.js";
 import whiteLabelRoutes from "./routes/whiteLabel.js";
+import widgetRoutes from "./routes/widget.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
@@ -80,6 +81,7 @@ app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platfor
 app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/white-label", whiteLabelRoutes);
+app.use("/api/widget", widgetRoutes); // PUBLIC — embeddable on third-party sites
 app.use("/api/clients", clientRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);

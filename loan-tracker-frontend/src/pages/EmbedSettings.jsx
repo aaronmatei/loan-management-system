@@ -1,0 +1,203 @@
+import React, { useState, useEffect } from "react";
+import api from "../services/api";
+
+function EmbedSettings() {
+  const [tenant, setTenant] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(null);
+  const [previewSize, setPreviewSize] = useState("mobile");
+
+  useEffect(() => {
+    api
+      .get("/white-label/settings")
+      .then((r) => setTenant(r.data.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading)
+    return <div className="p-8 text-center text-gray-500">Loading…</div>;
+  if (!tenant) return null;
+
+  const baseUrl =
+    import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+  const widgetUrl = `${baseUrl}/widget/calculator/${tenant.subdomain}`;
+  const brand = tenant.brand_color || "#4F46E5";
+
+  const iframeCode = `<iframe
+  src="${widgetUrl}"
+  width="100%"
+  height="650"
+  frameborder="0"
+  style="border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);"
+  title="Loan Calculator">
+</iframe>`;
+
+  const linkCode = `<a href="${widgetUrl}" target="_blank" rel="noopener">
+  📊 Use Our Loan Calculator
+</a>`;
+
+  const buttonCode = `<a href="${widgetUrl}" target="_blank" rel="noopener"
+  style="display: inline-block; padding: 12px 24px; background: ${brand};
+         color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+  💰 Calculate Your Loan
+</a>`;
+
+  const copy = (code, type) => {
+    navigator.clipboard.writeText(code);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const CopyCard = ({ title, desc, code, type }) => (
+    <div className="bg-white rounded-xl shadow p-4">
+      <h3 className="font-bold text-gray-800 mb-1">{title}</h3>
+      <p className="text-sm text-gray-600 mb-3">{desc}</p>
+      <pre className="bg-gray-900 text-green-400 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+        {code}
+      </pre>
+      <button
+        onClick={() => copy(code, type)}
+        className="mt-2 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm"
+      >
+        {copied === type ? "✅ Copied!" : "📋 Copy"}
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+          🧮 Loan Calculator Widget
+        </h1>
+        <p className="text-gray-600 mt-1">
+          Embed your branded calculator on your website
+        </p>
+      </div>
+
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-4 mb-6 border border-indigo-200">
+        <h2 className="font-bold text-indigo-900 mb-2">💡 Why use this?</h2>
+        <ul className="space-y-1 text-sm text-indigo-800">
+          <li>✓ Capture leads directly from YOUR website</li>
+          <li>✓ Help visitors estimate loans before applying</li>
+          <li>✓ Branded with your business name and color</li>
+          <li>
+            ✓ "Apply Now" goes straight to your customer portal with the
+            amount/duration pre-filled
+          </li>
+        </ul>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <CopyCard
+            title="📦 Embed (iframe)"
+            desc="Best option — embeds the full calculator on any page."
+            code={iframeCode}
+            type="iframe"
+          />
+          <CopyCard
+            title="🔘 Button Link"
+            desc="Opens the calculator in a new tab."
+            code={buttonCode}
+            type="button"
+          />
+          <CopyCard
+            title="🔗 Simple Link"
+            desc="Just a plain text link."
+            code={linkCode}
+            type="link"
+          />
+          <div className="bg-white rounded-xl shadow p-4">
+            <h3 className="font-bold text-gray-800 mb-1">🌐 Direct URL</h3>
+            <p className="text-sm text-gray-600 mb-3">Share the widget directly.</p>
+            <div className="bg-gray-100 p-3 rounded-lg text-sm font-mono break-all">
+              {widgetUrl}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => copy(widgetUrl, "url")}
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm"
+              >
+                {copied === "url" ? "✅ Copied!" : "📋 Copy URL"}
+              </button>
+              <a
+                href={widgetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg font-semibold text-sm text-center hover:bg-indigo-50"
+              >
+                Open ↗
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="bg-white rounded-xl shadow p-4 sticky top-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-bold text-gray-800">👁️ Live preview</h3>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPreviewSize("mobile")}
+                  className={`px-2 py-1 text-xs rounded ${
+                    previewSize === "mobile"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  📱
+                </button>
+                <button
+                  onClick={() => setPreviewSize("desktop")}
+                  className={`px-2 py-1 text-xs rounded ${
+                    previewSize === "desktop"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  💻
+                </button>
+              </div>
+            </div>
+            <div
+              className="mx-auto bg-gray-100 rounded-lg p-2 transition-all"
+              style={{ maxWidth: previewSize === "mobile" ? "375px" : "100%" }}
+            >
+              <iframe
+                src={widgetUrl}
+                width="100%"
+                height="650"
+                frameBorder="0"
+                title="Calculator Preview"
+                className="rounded-lg shadow"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              This is what visitors will see when embedded on your website
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4 lg:p-6 mt-6">
+        <h2 className="font-bold text-xl mb-4">📘 How to embed</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {[
+            ["1. Copy code", "Click Copy on the iframe option — that's the recommended embed."],
+            ["2. Paste on your site", "Add the snippet to your site's HTML where you want the calculator."],
+            ["3. Get leads", "Visitors calculate → click Apply → become your customers."],
+          ].map(([t, d]) => (
+            <div key={t} className="border-l-4 border-indigo-600 pl-3">
+              <p className="font-bold text-sm mb-1">{t}</p>
+              <p className="text-xs text-gray-600">{d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default EmbedSettings;

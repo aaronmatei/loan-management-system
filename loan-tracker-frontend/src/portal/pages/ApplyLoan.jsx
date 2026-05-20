@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 
@@ -7,13 +7,18 @@ const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
 function ApplyLoan() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Widget hand-off: ?amount=&duration=&source=widget pre-fills the
+  // form so the customer just confirms purpose and submits.
+  const preAmount = searchParams.get("amount") || "";
+  const preDuration = searchParams.get("duration") || "6";
   const [policy, setPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    principal_amount: "",
-    loan_duration_months: "6",
+    principal_amount: preAmount,
+    loan_duration_months: preDuration,
     purpose: "",
     guarantor_name: "",
     guarantor_phone: "",
