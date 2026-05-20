@@ -9,6 +9,7 @@ import {
   NotFoundError,
 } from "../../utils/pdfDocuments.js";
 import logger from "../../config/logger.js";
+import smsService from "../../services/smsService.js";
 
 const router = express.Router();
 router.use(verifyCustomer);
@@ -391,12 +392,58 @@ router.get("/loans/:id", async (req, res) => {
         JSON.stringify({ loan_id: req.params.id }),
       ],
     );
+    // Annotate each transaction with running balance / % complete +
+    // build the loan-level receipt_summary. Same shape as the staff
+    // /payments/loan/:id/summary endpoint so the portal frontend can
+    // share rendering logic.
+    const loanRow = loan.rows[0];
+    const totalDue = parseFloat(loanRow.total_amount_due);
+    const totalPaid = parseFloat(loanRow.total_paid || 0);
+    const balance = Math.max(0, totalDue - totalPaid);
+
+    const ascTxns = [...txns.rows].reverse();
+    let running = 0;
+    const annotated = ascTxns.map((t) => {
+      running += parseFloat(t.amount_paid || 0);
+      const remaining = Math.max(0, totalDue - running);
+      return {
+        ...t,
+        receipt: {
+          total_paid_after_this: running,
+          remaining_balance_after_this: remaining,
+          completion_percentage_after_this:
+            totalDue > 0 ? ((running / totalDue) * 100).toFixed(1) : "0",
+        },
+      };
+    });
+    const transactionsWithReceipt = annotated.reverse();
+
+    const nextPayment = schedule.rows.find((s) => s.status === "pending");
+
     res.json({
       success: true,
       data: {
-        loan: loan.rows[0],
+        loan: loanRow,
         schedule: schedule.rows,
-        transactions: txns.rows,
+        transactions: transactionsWithReceipt,
+        receipt_summary: {
+          total_paid: totalPaid,
+          remaining_balance: balance,
+          is_fully_paid: balance === 0,
+          next_payment_number: nextPayment?.payment_number || null,
+          next_payment_amount: nextPayment
+            ? Math.max(
+                0,
+                parseFloat(nextPayment.amount_due) -
+                  parseFloat(nextPayment.amount_paid || 0),
+              )
+            : 0,
+          next_payment_date: nextPayment?.due_date || null,
+          completion_percentage:
+            totalDue > 0
+              ? ((Math.min(totalPaid, totalDue) / totalDue) * 100).toFixed(1)
+              : "0",
+        },
       },
     });
   } catch (error) {
@@ -741,6 +788,47 @@ router.post("/applications", async (req, res) => {
         }),
       ],
     );
+
+    // Fire-and-forget SMS to the customer confirming submission.
+    // Mirrors the payments.js pattern: gated by SMS_AUTO_CONFIRMATIONS,
+    // logged to sms_logs, never blocks the response.
+    if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+      try {
+        const meta = await query(
+          `SELECT pc.phone_number, pc.first_name, t.business_name
+             FROM platform_customers pc
+             CROSS JOIN tenants t
+            WHERE pc.id = $1 AND t.id = $2`,
+          [req.platformCustomerId, req.currentTenantId],
+        );
+        const m = meta.rows[0];
+        if (m?.phone_number) {
+          const smsMessage = smsService.templates.applicationSubmitted(
+            m.first_name,
+            principal,
+            loan.loan_code,
+            m.business_name,
+          );
+          smsService.sendSMS(m.phone_number, smsMessage).then((r) => {
+            query(
+              `INSERT INTO sms_logs (tenant_id, client_id, loan_id, phone_number, message, message_type, status, provider_response)
+               VALUES ($1, $2, $3, $4, $5, 'application_submitted', $6, $7)`,
+              [
+                req.currentTenantId,
+                req.currentClientId,
+                loan.id,
+                m.phone_number,
+                smsMessage,
+                r.success ? "sent" : "failed",
+                JSON.stringify(r),
+              ],
+            ).catch((err) => logger.error("SMS log error:", err));
+          });
+        }
+      } catch (err) {
+        logger.error("Application SMS error:", err);
+      }
+    }
 
     res.status(201).json({
       success: true,

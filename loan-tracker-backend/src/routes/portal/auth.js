@@ -5,6 +5,7 @@ import { query } from "../../config/database.js";
 import { sendOTP, verifyOTP } from "../../services/otpService.js";
 import { tenantContext } from "../../middleware/tenantContext.js";
 import { validatePassword } from "../../utils/validators.js";
+import { nextClientCode } from "../../utils/clientCode.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -213,14 +214,7 @@ router.post("/verify-otp", tenantContext, async (req, res) => {
         clientId = existingClient.rows[0].id;
         logger.info(`✓ Linked existing client at tenant ${req.tenant.id}`);
       } else {
-        const cnt = await query(
-          "SELECT COUNT(*) AS count FROM clients WHERE tenant_id = $1",
-          [req.tenant.id],
-        );
-        const year = new Date().getFullYear();
-        const clientCode = `CLT-${year}-${String(
-          parseInt(cnt.rows[0].count, 10) + 1,
-        ).padStart(5, "0")}`;
+        const clientCode = await nextClientCode(query, req.tenant.id);
         const ncl = await query(
           `INSERT INTO clients (
              tenant_id, client_code, first_name, last_name,
@@ -561,14 +555,7 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
       clientId = ec.id;
       clientCode = ec.client_code;
     } else {
-      const cnt = await query(
-        "SELECT COUNT(*) AS count FROM clients WHERE tenant_id = $1",
-        [targetTenant.id],
-      );
-      const year = new Date().getFullYear();
-      clientCode = `CLT-${year}-${String(
-        parseInt(cnt.rows[0].count, 10) + 1,
-      ).padStart(5, "0")}`;
+      clientCode = await nextClientCode(query, targetTenant.id);
       const ncl = await query(
         `INSERT INTO clients (
            tenant_id, client_code, first_name, last_name,

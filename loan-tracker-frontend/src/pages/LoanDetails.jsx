@@ -104,7 +104,13 @@ function LoanDetails() {
     );
   }
 
-  const { loan, summary, schedule, transactions } = loanData;
+  const {
+    loan,
+    summary,
+    schedule,
+    transactions,
+    receipt_summary: receiptSummary,
+  } = loanData;
   const today = new Date();
 
   // Calculate days until/since due
@@ -538,6 +544,9 @@ function LoanDetails() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Notes
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Balance After
+                  </th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
                     Receipt
                   </th>
@@ -569,6 +578,24 @@ function LoanDetails() {
                     <td className="px-6 py-3 text-gray-500 text-sm">
                       {txn.notes || "-"}
                     </td>
+                    <td className="px-6 py-3 text-right">
+                      {txn.receipt ? (
+                        <div>
+                          <p className="font-bold text-orange-600">
+                            KES{" "}
+                            {parseFloat(
+                              txn.receipt.remaining_balance_after_this,
+                            ).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {txn.receipt.completion_percentage_after_this}%
+                            paid
+                          </p>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td className="px-6 py-3 text-center">
                       <button
                         onClick={() =>
@@ -587,6 +614,70 @@ function LoanDetails() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Loan-level receipt summary (current status + next payment). */}
+        {receiptSummary && transactions.length > 0 && (
+          <div className="p-4 lg:p-6 border-t bg-gradient-to-br from-indigo-50 to-purple-50">
+            <h3 className="font-bold mb-3 text-gray-800">📊 Current Status</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center">
+              <div>
+                <p className="text-xs text-gray-500">Total Loan</p>
+                <p className="font-bold">
+                  KES{" "}
+                  {parseFloat(loan.total_amount_due).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Total Paid</p>
+                <p className="font-bold text-green-600">
+                  KES{" "}
+                  {parseFloat(receiptSummary.total_paid).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Remaining</p>
+                <p className="font-bold text-orange-600">
+                  KES{" "}
+                  {parseFloat(
+                    receiptSummary.remaining_balance,
+                  ).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Progress</p>
+                <p className="font-bold text-indigo-600">
+                  {receiptSummary.completion_percentage}%
+                </p>
+              </div>
+            </div>
+            {receiptSummary.next_payment_date &&
+              !receiptSummary.is_fully_paid && (
+                <div className="mt-3 pt-3 border-t border-indigo-200 text-center">
+                  <p className="text-xs text-gray-500">📅 Next Payment Due</p>
+                  <p className="font-bold text-xl text-blue-600">
+                    KES{" "}
+                    {parseFloat(
+                      receiptSummary.next_payment_amount,
+                    ).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-blue-600">
+                    {new Date(
+                      receiptSummary.next_payment_date,
+                    ).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              )}
+            {receiptSummary.is_fully_paid && (
+              <p className="mt-3 text-center text-green-700 font-bold">
+                🎉 LOAN FULLY PAID!
+              </p>
+            )}
           </div>
         )}
       </div>

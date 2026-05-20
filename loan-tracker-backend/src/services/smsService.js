@@ -96,6 +96,19 @@ export const templates = {
   loanApproved: (clientName, amount, loanCode) =>
     `Congratulations ${clientName}! Your loan ${loanCode} of KES ${parseFloat(amount).toLocaleString()} has been approved and disbursed. Repayment terms apply. - ${process.env.COMPANY_NAME}`,
 
+  // New (2026-05): customer-facing application lifecycle messages.
+  // `loanApproved` above is misnamed historically — it's used on
+  // disbursement. These three sit alongside it for the application
+  // submission / decision points.
+  applicationSubmitted: (clientName, amount, loanCode, businessName) =>
+    `Hi ${clientName}, your loan application for KES ${parseFloat(amount).toLocaleString()} at ${businessName || process.env.COMPANY_NAME} has been received. Ref: ${loanCode}. We will respond shortly.`,
+
+  applicationApproved: (clientName, amount, loanCode, businessName) =>
+    `🎉 ${clientName}, your loan application ${loanCode} for KES ${parseFloat(amount).toLocaleString()} has been APPROVED by ${businessName || process.env.COMPANY_NAME}. Visit us to complete disbursement.`,
+
+  applicationRejected: (clientName, loanCode, businessName, reason) =>
+    `Hi ${clientName}, your loan application ${loanCode} at ${businessName || process.env.COMPANY_NAME} could not be approved.${reason ? ` Reason: ${reason}.` : ""} You may re-apply in the future.`,
+
   loanCompleted: (clientName, loanCode) =>
     `Congratulations ${clientName}! 🎉 Your loan ${loanCode} has been fully repaid. Thank you for your timely payments. You can now apply for a new loan. - ${process.env.COMPANY_NAME}`,
 

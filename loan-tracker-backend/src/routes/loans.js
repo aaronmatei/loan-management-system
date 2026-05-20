@@ -456,6 +456,48 @@ router.post(
         await notifyApplicationApproved(result.rows[0], loan.created_by);
       }
 
+      // Customer SMS: application decision (not yet disbursed).
+      // Gated by SMS_AUTO_CONFIRMATIONS, fire-and-forget, logged to
+      // sms_logs with message_type='application_approved'.
+      if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+        try {
+          const meta = await query(
+            `SELECT c.phone_number, c.first_name, t.business_name
+               FROM clients c
+               JOIN tenants  t ON t.id = c.tenant_id
+              WHERE c.id = $1`,
+            [loan.client_id],
+          );
+          const m = meta.rows[0];
+          if (m?.phone_number) {
+            const msg = templates.applicationApproved(
+              m.first_name,
+              loan.principal_amount,
+              loan.loan_code,
+              m.business_name,
+            );
+            sendSMS(m.phone_number, msg).then((r) => {
+              query(
+                `INSERT INTO sms_logs (tenant_id, client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+                 VALUES ($1, $2, $3, $4, $5, 'application_approved', $6, $7, $8)`,
+                [
+                  loan.tenant_id,
+                  loan.client_id,
+                  loan.id,
+                  m.phone_number,
+                  msg,
+                  r.success ? "sent" : "failed",
+                  JSON.stringify(r),
+                  req.user.id,
+                ],
+              ).catch((err) => logger.error("SMS log error:", err));
+            });
+          }
+        } catch (err) {
+          logger.error("Approve SMS error:", err);
+        }
+      }
+
       res.json({
         success: true,
         message: "Loan approved! Ready for disbursement.",
@@ -518,6 +560,47 @@ router.post(
           loan.created_by,
           reason,
         );
+      }
+
+      // Customer SMS: rejection (with reason). Same gating/logging
+      // pattern as approve above.
+      if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+        try {
+          const meta = await query(
+            `SELECT c.phone_number, c.first_name, t.business_name
+               FROM clients c
+               JOIN tenants  t ON t.id = c.tenant_id
+              WHERE c.id = $1`,
+            [loan.client_id],
+          );
+          const m = meta.rows[0];
+          if (m?.phone_number) {
+            const msg = templates.applicationRejected(
+              m.first_name,
+              loan.loan_code,
+              m.business_name,
+              reason,
+            );
+            sendSMS(m.phone_number, msg).then((r) => {
+              query(
+                `INSERT INTO sms_logs (tenant_id, client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
+                 VALUES ($1, $2, $3, $4, $5, 'application_rejected', $6, $7, $8)`,
+                [
+                  loan.tenant_id,
+                  loan.client_id,
+                  loan.id,
+                  m.phone_number,
+                  msg,
+                  r.success ? "sent" : "failed",
+                  JSON.stringify(r),
+                  req.user.id,
+                ],
+              ).catch((err) => logger.error("SMS log error:", err));
+            });
+          }
+        } catch (err) {
+          logger.error("Reject SMS error:", err);
+        }
       }
 
       res.json({

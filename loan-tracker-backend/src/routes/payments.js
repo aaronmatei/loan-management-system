@@ -697,6 +697,29 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const overpayment = parseFloat(loan.overpayment_amount || 0);
     const balance = Math.max(0, totalDue - totalPaid);
 
+    // Annotate each transaction with running balance / % complete.
+    // Transactions arrive DESC by payment_date, so we reverse, fold,
+    // then put them back in DESC order for the response.
+    const ascTxns = [...transactionsResult.rows].reverse();
+    let running = 0;
+    const annotated = ascTxns.map((t) => {
+      running += parseFloat(t.amount_paid || 0);
+      const remaining = Math.max(0, totalDue - running);
+      return {
+        ...t,
+        receipt: {
+          total_paid_after_this: running,
+          remaining_balance_after_this: remaining,
+          completion_percentage_after_this:
+            totalDue > 0 ? ((running / totalDue) * 100).toFixed(1) : "0",
+        },
+      };
+    });
+    const transactionsWithReceipt = annotated.reverse(); // back to DESC
+
+    // Next pending installment (used for the bottom summary card).
+    const nextPayment = scheduleResult.rows.find((s) => s.status === "pending");
+
     res.json({
       success: true,
       data: {
@@ -712,8 +735,29 @@ router.get("/loan/:loanId/summary", async (req, res) => {
             100
           ).toFixed(1),
         },
+        // Same data shape the POST /payments receipt uses, lifted to
+        // the loan-detail level so the frontend can render a single
+        // "current status" card under the payment history.
+        receipt_summary: {
+          total_paid: totalPaid,
+          remaining_balance: balance,
+          is_fully_paid: balance === 0,
+          next_payment_number: nextPayment?.payment_number || null,
+          next_payment_amount: nextPayment
+            ? Math.max(
+                0,
+                parseFloat(nextPayment.amount_due) -
+                  parseFloat(nextPayment.amount_paid || 0),
+              )
+            : 0,
+          next_payment_date: nextPayment?.due_date || null,
+          completion_percentage:
+            totalDue > 0
+              ? ((Math.min(totalPaid, totalDue) / totalDue) * 100).toFixed(1)
+              : "0",
+        },
         schedule: scheduleResult.rows,
-        transactions: transactionsResult.rows,
+        transactions: transactionsWithReceipt,
       },
     });
   } catch (error) {

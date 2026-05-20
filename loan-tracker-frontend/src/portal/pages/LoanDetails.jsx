@@ -58,7 +58,12 @@ function LoanDetails() {
   }
   if (!data) return <PortalLayout><div /></PortalLayout>;
 
-  const { loan, schedule, transactions } = data;
+  const {
+    loan,
+    schedule,
+    transactions,
+    receipt_summary: receiptSummary,
+  } = data;
   const due = parseFloat(loan.total_amount_due || 0);
   const paid = parseFloat(loan.total_paid || 0);
   const balance = Math.max(0, due - paid);
@@ -267,37 +272,118 @@ function LoanDetails() {
           )}
 
           {tab === "history" && (
-            <div className="p-4">
+            <div className="p-4 space-y-3">
               {(transactions || []).length === 0 ? (
                 <p className="text-center text-gray-500 py-6">
                   No payments yet.
                 </p>
               ) : (
-                <div className="space-y-2">
+                <>
                   {transactions.map((t) => (
                     <div
                       key={t.id}
-                      className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                      className="border-2 border-gray-100 rounded-xl p-3 hover:border-indigo-200 transition"
                     >
-                      <div>
-                        <p className="font-semibold">
-                          {KES(t.amount_paid)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {day(t.payment_date)} · {t.payment_method}
-                        </p>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-bold text-green-600 text-lg">
+                            +{KES(t.amount_paid)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {day(t.payment_date)} · {t.payment_method}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 font-mono">
+                            {t.transaction_code}
+                          </p>
+                          <p className="text-xs text-green-600 font-semibold capitalize">
+                            {t.payment_status}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 font-mono">
-                          {t.transaction_code}
-                        </p>
-                        <p className="text-xs text-green-600 font-semibold capitalize">
-                          {t.payment_status}
-                        </p>
-                      </div>
+                      {t.receipt && (
+                        <div className="bg-gray-50 rounded-lg p-2 mt-2">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-600">After this</span>
+                            <span className="font-bold">
+                              {t.receipt.completion_percentage_after_this}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div
+                              className="bg-gradient-to-r from-green-500 to-emerald-600 h-1.5 rounded-full"
+                              style={{
+                                width: `${Math.min(
+                                  parseFloat(
+                                    t.receipt
+                                      .completion_percentage_after_this,
+                                  ),
+                                  100,
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 mt-2 text-xs">
+                            <div>
+                              <p className="text-gray-500">Remaining</p>
+                              <p className="font-bold text-orange-600">
+                                {KES(t.receipt.remaining_balance_after_this)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Total Paid</p>
+                              <p className="font-bold text-green-600">
+                                {KES(t.receipt.total_paid_after_this)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
-                </div>
+
+                  {receiptSummary && (
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 mt-4">
+                      <h3 className="font-bold mb-3 text-gray-800">
+                        📊 Current Status
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3 text-center">
+                        <div>
+                          <p className="text-xs text-gray-500">Total Paid</p>
+                          <p className="font-bold text-green-600">
+                            {KES(receiptSummary.total_paid)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Remaining</p>
+                          <p className="font-bold text-orange-600">
+                            {KES(receiptSummary.remaining_balance)}
+                          </p>
+                        </div>
+                      </div>
+                      {receiptSummary.next_payment_date &&
+                        !receiptSummary.is_fully_paid && (
+                          <div className="mt-3 pt-3 border-t border-indigo-200 text-center">
+                            <p className="text-xs text-gray-500">
+                              📅 Next Payment
+                            </p>
+                            <p className="font-bold text-lg text-blue-600">
+                              {KES(receiptSummary.next_payment_amount)}
+                            </p>
+                            <p className="text-xs text-blue-600">
+                              {day(receiptSummary.next_payment_date)}
+                            </p>
+                          </div>
+                        )}
+                      {receiptSummary.is_fully_paid && (
+                        <p className="mt-3 text-center text-green-700 font-bold">
+                          🎉 LOAN FULLY PAID!
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

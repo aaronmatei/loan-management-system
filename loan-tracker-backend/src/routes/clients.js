@@ -3,6 +3,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
+import { nextClientCode } from "../utils/clientCode.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 
@@ -468,14 +469,10 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       }
     }
 
-    // Generate client code (per-tenant sequence)
-    const year = new Date().getFullYear();
-    const countResult = await query(
-      "SELECT COUNT(*) FROM clients WHERE tenant_id = $1",
-      [tid],
-    );
-    const clientCount = parseInt(countResult.rows[0].count) + 1;
-    const clientCode = `CLT-${year}-${String(clientCount).padStart(4, "0")}`;
+    // Per-tenant client_code via shared helper. Produces
+    // CLT-<PREFIX>-<YEAR>-<NNNNN> using MAX(suffix)+1 — safe even if
+    // earlier rows were deleted (unlike the old COUNT(*)+1 path).
+    const clientCode = await nextClientCode(query, tid);
 
     // Insert client (tenant-bound)
     const result = await query(
