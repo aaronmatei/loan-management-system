@@ -1,0 +1,517 @@
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+
+// NOTE: the testimonials, stats numbers, contact email/phone, and
+// /privacy /terms footer links below are MARKETING PLACEHOLDERS —
+// replace with real copy/links before going to production.
+function LandingHome() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* ============= NAVBAR ============= */}
+      <nav className="bg-white border-b sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex justify-between items-center">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="text-3xl">🏦</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-700 bg-clip-text text-transparent">
+                LendFlow
+              </span>
+            </Link>
+
+            <div className="hidden lg:flex items-center gap-8">
+              <a href="#features" className="text-gray-700 hover:text-indigo-600 font-semibold">Features</a>
+              <a href="#how-it-works" className="text-gray-700 hover:text-indigo-600 font-semibold">How It Works</a>
+              <a href="#pricing" className="text-gray-700 hover:text-indigo-600 font-semibold">Pricing</a>
+              <a href="#faq" className="text-gray-700 hover:text-indigo-600 font-semibold">FAQ</a>
+              <Link to="/login" className="text-gray-700 hover:text-indigo-600 font-semibold">Login</Link>
+              <Link
+                to="/signup"
+                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition"
+              >
+                Start Free Trial
+              </Link>
+            </div>
+
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2"
+              aria-label="Open menu"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+
+          {mobileMenuOpen && (
+            <div className="lg:hidden mt-3 pb-3 border-t pt-3 space-y-2">
+              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">Features</a>
+              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">How It Works</a>
+              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">Pricing</a>
+              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">FAQ</a>
+              <Link to="/login" className="block px-3 py-2 hover:bg-gray-100 rounded">Login</Link>
+              <Link
+                to="/signup"
+                className="block px-3 py-2 bg-indigo-600 text-white rounded-lg font-bold text-center"
+              >
+                Start Free Trial →
+              </Link>
+            </div>
+          )}
+        </div>
+      </nav>
+
+      {/* ============= HERO ============= */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-16 lg:py-24">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+
+        <div className="max-w-7xl mx-auto px-4 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-block px-4 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold mb-4">
+                🚀 Built for Kenyan Lenders
+              </div>
+              <h1 className="text-4xl lg:text-6xl font-bold leading-tight text-gray-900 mb-6">
+                Run Your{" "}
+                <span className="bg-gradient-to-r from-indigo-600 to-purple-700 bg-clip-text text-transparent">
+                  Lending Business
+                </span>{" "}
+                Without the Spreadsheets
+              </h1>
+              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+                The cloud-based loan management system for microfinance, chamas,
+                and individual lenders. Track loans, manage clients, and grow
+                your portfolio — all in one place.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  to="/signup"
+                  className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 text-center"
+                >
+                  Start Free Trial →
+                </Link>
+                <a
+                  href="#features"
+                  className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold text-lg hover:border-indigo-600 hover:text-indigo-600 transition text-center"
+                >
+                  See How It Works
+                </a>
+              </div>
+              <div className="mt-6 flex items-center gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <span className="text-green-500">✓</span>
+                  No credit card needed
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-green-500">✓</span>
+                  Setup in 5 minutes
+                </div>
+              </div>
+            </div>
+
+            {/* Hero mockup */}
+            <div className="relative">
+              <div className="relative bg-white rounded-2xl shadow-2xl p-6 transform rotate-2">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b">
+                  <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                  <div className="ml-2 text-xs text-gray-500 font-mono">yourbusiness.lendflow.co.ke</div>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-lg p-3">
+                      <p className="text-xs opacity-80">Active Loans</p>
+                      <p className="text-2xl font-bold">127</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-lg p-3">
+                      <p className="text-xs opacity-80">Collected Today</p>
+                      <p className="text-2xl font-bold">KES 84K</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="bg-gray-50 rounded p-2 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-semibold">LN-2026-145</p>
+                        <p className="text-xs text-gray-500">Mary Akinyi</p>
+                      </div>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-semibold">LN-2026-144</p>
+                        <p className="text-xs text-gray-500">Peter Kamau</p>
+                      </div>
+                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Due</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute -bottom-4 -right-4 bg-yellow-300 rounded-full px-4 py-2 shadow-lg transform -rotate-12">
+                <p className="text-sm font-bold">🇰🇪 Made in Kenya</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============= STATS BAR (placeholder numbers — tune before launch) ============= */}
+      <section className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white py-8">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <p className="text-3xl lg:text-4xl font-bold">4+</p>
+              <p className="text-indigo-100 text-sm">Active Lenders</p>
+            </div>
+            <div>
+              <p className="text-3xl lg:text-4xl font-bold">1.2K+</p>
+              <p className="text-indigo-100 text-sm">Borrowers Served</p>
+            </div>
+            <div>
+              <p className="text-3xl lg:text-4xl font-bold">5M+</p>
+              <p className="text-indigo-100 text-sm">KES Disbursed</p>
+            </div>
+            <div>
+              <p className="text-3xl lg:text-4xl font-bold">99.9%</p>
+              <p className="text-indigo-100 text-sm">Uptime</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============= FEATURES ============= */}
+      <section id="features" className="py-16 lg:py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-5xl font-bold mb-4">
+              Everything You Need to{" "}
+              <span className="text-indigo-600">Manage Loans</span>
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Built specifically for African lenders. No more spreadsheets, lost
+              records, or manual calculations.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { icon: "👥", title: "Client Management", description: "Store complete client profiles with KYC documents, business info, and loan history.", color: "from-blue-500 to-cyan-600" },
+              { icon: "💰", title: "Loan Tracking", description: "Manage active loans, payment schedules, and automatic interest calculations.", color: "from-green-500 to-emerald-600" },
+              { icon: "📱", title: "Customer Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-purple-500 to-pink-600" },
+              { icon: "📊", title: "Reports & Analytics", description: "Real-time insights into your portfolio. Export to Excel or PDF anytime.", color: "from-orange-500 to-red-600" },
+              { icon: "💳", title: "M-Pesa Ready", description: "Built for the Kenyan market. Record M-Pesa payments instantly.", color: "from-yellow-500 to-orange-600" },
+              { icon: "🔔", title: "SMS Notifications", description: "Automatic SMS for payment reminders, loan approvals, and overdue alerts.", color: "from-indigo-500 to-purple-600" },
+              { icon: "👨‍💼", title: "Multi-User Roles", description: "Add staff with different permission levels. Track who did what.", color: "from-teal-500 to-cyan-600" },
+              { icon: "🔐", title: "Secure & Encrypted", description: "Bank-grade security. Your data is encrypted and backed up daily.", color: "from-rose-500 to-red-600" },
+              { icon: "📈", title: "Loan Applications", description: "Customers apply online. Review, approve, and disburse — all digital.", color: "from-pink-500 to-rose-600" },
+            ].map((feature, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all transform hover:-translate-y-1"
+              >
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center text-3xl mb-4`}>
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============= HOW IT WORKS ============= */}
+      <section id="how-it-works" className="py-16 lg:py-24">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-5xl font-bold mb-4">
+              Get Started in <span className="text-indigo-600">3 Easy Steps</span>
+            </h2>
+            <p className="text-xl text-gray-600">
+              From signup to your first loan in less than 10 minutes
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {[
+              { number: "1", title: "Sign Up Free", description: "Create your account and customize your business details. Your own subdomain in 60 seconds.", emoji: "🚀" },
+              { number: "2", title: "Add Clients & Loans", description: "Import existing records or start fresh. Track loans, payments, and schedules.", emoji: "📝" },
+              { number: "3", title: "Grow Your Business", description: "Let customers apply online, manage your portfolio, and watch your business scale.", emoji: "📈" },
+            ].map((step, idx, arr) => (
+              <div key={idx} className="relative">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-full flex items-center justify-center text-3xl font-bold shadow-lg mb-4">
+                    {step.number}
+                  </div>
+                  <div className="text-5xl mb-3">{step.emoji}</div>
+                  <h3 className="text-2xl font-bold mb-2">{step.title}</h3>
+                  <p className="text-gray-600">{step.description}</p>
+                </div>
+                {idx < arr.length - 1 && (
+                  <div className="hidden lg:block absolute top-8 left-full w-full">
+                    <div className="border-t-2 border-dashed border-gray-300 -ml-8 mr-8"></div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link
+              to="/signup"
+              className="inline-block px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition"
+            >
+              Start Your Free Trial →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============= PRICING ============= */}
+      <section id="pricing" className="py-16 lg:py-24 bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-5xl font-bold mb-4">
+              Simple, <span className="text-indigo-600">Performance-Based</span>{" "}
+              Pricing
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              We only succeed when you do. Pay only when you earn.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-lg p-8 border-2 border-gray-200">
+              <h3 className="text-2xl font-bold mb-2">Free Trial</h3>
+              <p className="text-gray-500 mb-4">14 days</p>
+              <p className="text-5xl font-bold mb-6">
+                KES 0
+                <span className="text-lg font-normal text-gray-500">/14 days</span>
+              </p>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Full platform access</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Up to 50 clients</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Customer portal included</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> SMS notifications</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Email support</li>
+              </ul>
+              <Link
+                to="/signup"
+                className="block w-full py-3 text-center border-2 border-indigo-600 text-indigo-600 rounded-lg font-bold hover:bg-indigo-50"
+              >
+                Start Free Trial
+              </Link>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-2xl shadow-2xl p-8 transform lg:scale-105 relative">
+              <div className="absolute top-0 right-4 -translate-y-1/2 bg-yellow-400 text-gray-900 px-4 py-1 rounded-full text-xs font-bold">
+                MOST POPULAR
+              </div>
+              <h3 className="text-2xl font-bold mb-2">Pay-As-You-Grow</h3>
+              <p className="text-indigo-100 mb-4">Everyone uses this</p>
+              <p className="text-5xl font-bold mb-2">5%</p>
+              <p className="text-indigo-100 text-sm mb-6">of interest earned monthly</p>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center gap-2">✓ Everything in Free Trial</li>
+                <li className="flex items-center gap-2">✓ Unlimited clients</li>
+                <li className="flex items-center gap-2">✓ Unlimited loans</li>
+                <li className="flex items-center gap-2">✓ Custom branding</li>
+                <li className="flex items-center gap-2">✓ Priority support</li>
+                <li className="flex items-center gap-2">✓ All future features</li>
+              </ul>
+              <Link
+                to="/signup"
+                className="block w-full py-3 text-center bg-white text-indigo-600 rounded-lg font-bold hover:shadow-lg"
+              >
+                Start Free Trial
+              </Link>
+              <p className="text-xs text-indigo-200 text-center mt-3">
+                Example: Earn KES 100K interest → Pay KES 5K
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg p-8 border-2 border-gray-200">
+              <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
+              <p className="text-gray-500 mb-4">For large operations</p>
+              <p className="text-3xl font-bold mb-6">
+                Custom
+                <span className="text-lg font-normal text-gray-500"> pricing</span>
+              </p>
+              <ul className="space-y-2 mb-6 text-sm">
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Everything in Pay-As-You-Grow</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Custom integrations</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Dedicated account manager</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Custom features</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> SLA guarantee</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> White-label option</li>
+              </ul>
+              <a
+                href="mailto:sales@lendflow.co.ke"
+                className="block w-full py-3 text-center border-2 border-indigo-600 text-indigo-600 rounded-lg font-bold hover:bg-indigo-50"
+              >
+                Contact Sales
+              </a>
+            </div>
+          </div>
+
+          <div className="text-center mt-12">
+            <p className="text-sm text-gray-600">
+              💡 <strong>Why 5%?</strong> We only earn when you earn interest. No
+              upfront costs, no monthly minimums. If you don't have an active
+              month, you don't pay.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ============= TESTIMONIALS (placeholders) ============= */}
+      <section className="py-16 lg:py-24">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-5xl font-bold mb-4">
+              Loved by Kenyan Lenders
+            </h2>
+            <p className="text-xl text-gray-600">
+              Real stories from real lenders using LendFlow
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {[
+              { quote: "Before LendFlow, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance, Nairobi", rating: 5 },
+              { quote: "The SMS notifications alone are worth it. Customers don't forget to pay anymore. My collection rate is up 30%.", author: "John K.", business: "Quick Loans Co, Mombasa", rating: 5 },
+              { quote: "I run a chama with 50 members. LendFlow keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Chama, Kisumu", rating: 5 },
+            ].map((t, idx) => (
+              <div key={idx} className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-md p-6">
+                <div className="flex gap-1 mb-3">
+                  {[...Array(t.rating)].map((_, i) => (
+                    <span key={i} className="text-yellow-400 text-xl">★</span>
+                  ))}
+                </div>
+                <p className="text-gray-700 mb-4 italic">"{t.quote}"</p>
+                <div className="border-t pt-3">
+                  <p className="font-bold">{t.author}</p>
+                  <p className="text-sm text-gray-500">{t.business}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============= FAQ ============= */}
+      <section id="faq" className="py-16 lg:py-24 bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl lg:text-5xl font-bold mb-4">
+              Frequently Asked <span className="text-indigo-600">Questions</span>
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              { q: "Is my data safe?", a: "Yes! We use bank-grade encryption. Your data is backed up daily and stored in secure data centers. Only authorized staff at YOUR business can access YOUR data." },
+              { q: "How does the 5% pricing work?", a: "At the end of each month, we calculate the interest you earned from loan repayments. You pay 5% of that interest as a platform fee. If you had a quiet month with no payments, you don't pay anything." },
+              { q: "Can my customers really apply for loans online?", a: "Yes! Each tenant gets their own customer portal where borrowers can register, apply for new loans, track applications, and view their existing loans 24/7. It's a separate experience from your admin dashboard." },
+              { q: "Do I need technical skills?", a: "Not at all. If you can use WhatsApp, you can use LendFlow. We provide free onboarding and training. Most lenders are up and running in less than an hour." },
+              { q: "What if I want to leave?", a: "You can export all your data anytime in Excel or CSV format. No vendor lock-in. We're confident you'll love it, but your data is always yours." },
+              { q: "Do you integrate with M-Pesa?", a: "Yes, you can record M-Pesa payments manually now. Direct M-Pesa STK Push integration is coming soon for tenants with a business paybill account." },
+              { q: "Is there a setup fee?", a: "No. Sign up is free, the 14-day trial is free, and there are no setup fees. You only pay 5% of interest earned after your trial ends." },
+            ].map((faq, idx) => (
+              <FAQItem key={idx} {...faq} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============= FINAL CTA ============= */}
+      <section className="py-16 lg:py-24 bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+        <div className="max-w-4xl mx-auto px-4 text-center relative">
+          <h2 className="text-4xl lg:text-6xl font-bold mb-4">
+            Ready to Transform Your Lending Business?
+          </h2>
+          <p className="text-xl lg:text-2xl text-indigo-100 mb-8">
+            Join Kenyan lenders already growing with LendFlow
+          </p>
+          <Link
+            to="/signup"
+            className="inline-block px-10 py-5 bg-white text-indigo-700 rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl transition transform hover:-translate-y-1"
+          >
+            Start Your Free Trial Today →
+          </Link>
+          <p className="mt-6 text-indigo-100 text-sm">
+            ✓ 14 days free • ✓ No credit card • ✓ Setup in 5 minutes
+          </p>
+        </div>
+      </section>
+
+      {/* ============= FOOTER (legal links are placeholders — /privacy /terms not built) ============= */}
+      <footer className="bg-gray-900 text-gray-400 py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-3xl">🏦</span>
+                <span className="text-xl font-bold text-white">LendFlow</span>
+              </div>
+              <p className="text-sm">
+                Cloud-based loan management for African lenders. Built in Kenya,
+                for Kenya.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-bold text-white mb-3">Product</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#features" className="hover:text-white">Features</a></li>
+                <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
+                <li><a href="#how-it-works" className="hover:text-white">How It Works</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-white mb-3">Support</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#faq" className="hover:text-white">FAQ</a></li>
+                <li><a href="mailto:support@lendflow.co.ke" className="hover:text-white">Contact Support</a></li>
+                <li><a href="tel:+254700000000" className="hover:text-white">+254 700 000 000</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-white mb-3">Legal</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="/privacy" className="hover:text-white">Privacy Policy</a></li>
+                <li><a href="/terms" className="hover:text-white">Terms of Service</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 pt-8 flex flex-col lg:flex-row justify-between items-center text-sm">
+            <p>© {new Date().getFullYear()} LendFlow. All rights reserved.</p>
+            <p>🇰🇪 Proudly built in Kenya</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function FAQItem({ q, a }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-white rounded-lg shadow-sm border">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full text-left p-4 flex justify-between items-center hover:bg-gray-50"
+      >
+        <span className="font-semibold text-lg">{q}</span>
+        <span className={`text-2xl transition-transform ${open ? "rotate-45" : ""}`}>+</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 text-gray-600 border-t pt-3">{a}</div>
+      )}
+    </div>
+  );
+}
+
+export default LandingHome;

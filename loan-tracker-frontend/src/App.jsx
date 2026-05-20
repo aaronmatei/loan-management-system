@@ -25,6 +25,7 @@ import PlatformTenants from "./admin/pages/Tenants";
 import PlatformTenantDetail from "./admin/pages/TenantDetail";
 import PlatformBilling from "./admin/pages/Billing";
 import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
+import LandingHome from "./landing/pages/Home";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -201,6 +202,7 @@ function App() {
                 </PortalProtectedRoute>
               }
             />
+            <Route path="/" element={<LandingHome />} />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         )}
