@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import api from "./services/api";
 import {
   BrowserRouter as Router,
   Routes,
@@ -27,6 +28,7 @@ import PlatformBilling from "./admin/pages/Billing";
 import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
 import LandingHome from "./landing/pages/Home";
 import OnboardingWizard from "./onboarding/OnboardingWizard";
+import WhiteLabelSettings from "./pages/WhiteLabelSettings";
 import PortalProtectedRoute from "./portal/components/PortalProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
@@ -68,6 +70,39 @@ function App() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
   };
+
+  // Apply tenant's white-label favicon + tab title when an authed
+  // staff session loads. Falls back silently when the endpoint isn't
+  // available (basic tier / favicon unset). No-op for guests.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api
+      .get("/white-label/settings")
+      .then((r) => {
+        if (cancelled) return;
+        const d = r.data?.data;
+        if (!d) return;
+        if (d.business_name) document.title = d.business_name;
+        if (d.favicon_url) {
+          let link =
+            document.querySelector("link[rel='icon']") ||
+            document.querySelector("link[rel='shortcut icon']");
+          if (!link) {
+            link = document.createElement("link");
+            link.rel = "icon";
+            document.head.appendChild(link);
+          }
+          link.href = d.favicon_url;
+        }
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, setUser, logout }}>
@@ -120,6 +155,7 @@ function App() {
               <Route path="/sms" element={<SMS />} />
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/white-label" element={<WhiteLabelSettings />} />
               <Route path="/audit" element={<AuditLog />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/backup" element={<Backup />} />

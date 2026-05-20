@@ -155,6 +155,55 @@ function TenantDetail() {
           </div>
         </div>
 
+        <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
+          <h3 className="font-bold mb-1">💎 White-Label Tier</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Current:{" "}
+            <strong className="capitalize">
+              {tenant.white_label_tier || "basic"}
+            </strong>
+          </p>
+          <div className="flex gap-2">
+            {["basic", "pro", "enterprise"].map((t) => {
+              const current = (tenant.white_label_tier || "basic") === t;
+              return (
+                <button
+                  key={t}
+                  onClick={async () => {
+                    if (current) return;
+                    if (!window.confirm(`Change tier to ${t}?`)) return;
+                    try {
+                      await platformApi.put(
+                        `/white-label/admin/${tenant.id}/tier`,
+                        { tier: t },
+                      );
+                      alert("✅ Tier updated");
+                      // refresh
+                      const r = await platformApi.get(
+                        `/platform/admin/tenants/${tenant.id}`,
+                      );
+                      setData(r.data.data);
+                    } catch (err) {
+                      alert(
+                        err.response?.data?.error ||
+                          "Failed to update tier",
+                      );
+                    }
+                  }}
+                  disabled={current}
+                  className={`flex-1 py-2 rounded-lg font-semibold text-sm capitalize ${
+                    current
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200"
+                  }`}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="bg-white rounded-xl shadow p-4 lg:p-6">
           <h2 className="font-bold mb-3">👥 Staff Users ({users.length})</h2>
           <div className="overflow-x-auto">

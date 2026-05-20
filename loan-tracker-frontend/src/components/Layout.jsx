@@ -77,6 +77,7 @@ function Layout({ children }) {
     { path: "/users", label: "Users", icon: "👤", roles: ["admin"] },
     { path: "/backup", label: "Backup", icon: "💾", roles: ["admin"] },
     { path: "/settings", label: "Settings", icon: "⚙️", roles: ["admin"] },
+    { path: "/white-label", label: "White Label", icon: "🎨", roles: ["admin"] },
   ];
 
   // Hide nav entries the current role can't use. Backend authorize()
