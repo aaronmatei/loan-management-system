@@ -125,8 +125,8 @@ function CustomerCalculator() {
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+      <div className="p-4 lg:p-8 max-w-4xl mx-auto" style={{ "--brand": brand }}>
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
           🧮 Loan Calculator
         </h1>
         <p className="text-gray-600 mt-1 mb-6">
@@ -148,7 +148,7 @@ function CustomerCalculator() {
                   }}
                   className={`p-3 rounded-lg border-2 text-left transition ${
                     selected.tenant_id === t.tenant_id
-                      ? "border-indigo-600 bg-indigo-50"
+                      ? "border-[var(--brand)] bg-[var(--brand)]/10"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
@@ -215,7 +215,7 @@ function CustomerCalculator() {
                 min={min}
                 max={max}
                 step="1000"
-                className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none text-3xl font-bold text-gray-800"
+                className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none text-3xl font-bold text-navy-900"
                 style={{ borderColor: amount ? brand : "#e5e7eb" }}
               />
               <input
@@ -279,7 +279,7 @@ function CustomerCalculator() {
                     backgroundColor: `${brand}10`,
                   }}
                 >
-                  <h3 className="font-bold text-gray-800 mb-3 text-center text-lg">
+                  <h3 className="font-bold text-navy-900 mb-3 text-center text-lg">
                     Your Loan Summary
                   </h3>
                   <div className="grid grid-cols-2 gap-3 mb-4">
@@ -330,7 +330,7 @@ function CustomerCalculator() {
                 </div>
 
                 <div className="bg-white rounded-xl shadow p-4">
-                  <h3 className="font-bold text-gray-800 mb-3">
+                  <h3 className="font-bold text-navy-900 mb-3">
                     📅 Payment Schedule
                   </h3>
                   <div className="overflow-x-auto">
@@ -373,7 +373,7 @@ function CustomerCalculator() {
 
                 {tenants.length > 1 && (
                   <div className="bg-white rounded-xl shadow p-4">
-                    <h3 className="font-bold text-gray-800 mb-1">
+                    <h3 className="font-bold text-navy-900 mb-1">
                       📊 Compare Lenders
                     </h3>
                     <p className="text-xs text-gray-500 mb-3">
@@ -393,7 +393,7 @@ function CustomerCalculator() {
                             key={t.tenant_id}
                             className={`flex items-center justify-between p-2 rounded-lg ${
                               isSel
-                                ? "bg-indigo-50 border border-indigo-200"
+                                ? "bg-[var(--brand)]/10 border border-[var(--brand)]/30"
                                 : "bg-gray-50"
                             }`}
                           >

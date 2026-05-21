@@ -12,22 +12,10 @@ import {
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import BrandTile from "../components/BrandTile";
+import { getPortalBrand } from "../brand";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
-
-// Current lender's brand color (white-label) — the portal is tenant-facing,
-// so this page uses the SAME design language as the tenant admin dashboard
-// but themed in each lender's brand_color, never LoanFix ocean.
-const readBrand = () => {
-  try {
-    const t = JSON.parse(localStorage.getItem("portal_current_tenant") || "{}");
-    return /^#[0-9a-fA-F]{6}$/.test(t?.brand_color || "")
-      ? t.brand_color
-      : "#0086cc";
-  } catch {
-    return "#0086cc";
-  }
-};
 
 function CustomerDashboard() {
   const navigate = useNavigate();
@@ -38,29 +26,9 @@ function CustomerDashboard() {
   const [calcAmount, setCalcAmount] = useState(50000);
   const [calcDuration, setCalcDuration] = useState(6);
 
-  const brand = readBrand();
-  // Shade helpers derived from the brand color (same approach as the
-  // receipt theme): a 135° gradient for tiles/CTAs + low-alpha tints.
-  const shift = (amt) => {
-    const n = parseInt(brand.slice(1), 16);
-    const c = (v) => Math.max(0, Math.min(255, v));
-    return `rgb(${c(((n >> 16) & 255) + amt)}, ${c(((n >> 8) & 255) + amt)}, ${c((n & 255) + amt)})`;
-  };
-  const rgba = (a) => {
-    const n = parseInt(brand.slice(1), 16);
-    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
-  };
-  const brandGradient = `linear-gradient(135deg, ${shift(25)} 0%, ${shift(-40)} 100%)`;
-
-  // Gradient icon tile (brand-themed) — mirrors the tenant dashboard's IconTile.
-  const Tile = ({ icon: Icon, size = 40 }) => (
-    <div
-      className="flex items-center justify-center rounded-xl shadow-sm shrink-0"
-      style={{ width: size, height: size, background: brandGradient }}
-    >
-      <Icon size={size * 0.5} color="#fff" strokeWidth={2.2} />
-    </div>
-  );
+  // White-label theme: every accent derives from the current lender's color.
+  const { brand, gradient: brandGradient, rgba } = getPortalBrand();
+  const Tile = ({ icon, size = 40 }) => <BrandTile icon={icon} size={size} />;
 
   useEffect(() => {
     portalApi

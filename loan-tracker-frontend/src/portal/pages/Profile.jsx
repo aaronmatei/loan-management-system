@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
+import { getPortalBrand } from "../brand";
 
 const field =
-  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none";
 
 // Mirrors the backend validatePassword (>=12, upper, digit, symbol).
 const PASSWORD_RULE = "Min 12 chars, 1 uppercase, 1 number, 1 symbol";
@@ -134,6 +135,7 @@ function Profile() {
   if (!data) return <PortalLayout><div /></PortalLayout>;
 
   const { customer, client } = data;
+  const { brand } = getPortalBrand();
   const Row = ({ label, children }) => (
     <div>
       <p className="text-xs text-gray-500 uppercase">{label}</p>
@@ -143,15 +145,15 @@ function Profile() {
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-4">
+      <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-4" style={{ "--brand": brand }}>
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
             👤 My Profile
           </h1>
           {!editing && (
             <button
               onClick={() => setEditing(true)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold"
+              className="px-4 py-2 bg-[var(--brand)] text-white rounded-lg font-semibold"
             >
               ✏️ Edit
             </button>
@@ -178,7 +180,7 @@ function Profile() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="font-bold text-gray-800">Personal details</h2>
+          <h2 className="font-bold text-navy-900">Personal details</h2>
           <div>
             <label className="block text-sm font-semibold mb-1">Email</label>
             {editing ? (
@@ -245,7 +247,7 @@ function Profile() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="font-bold text-gray-800">
+          <h2 className="font-bold text-navy-900">
             🏢 {client?.tenant_name || "Lender"} account
           </h2>
           {[
@@ -289,7 +291,7 @@ function Profile() {
               <button
                 onClick={save}
                 disabled={saving}
-                className="flex-1 py-2 bg-indigo-600 text-white rounded-lg font-semibold disabled:opacity-50"
+                className="flex-1 py-2 bg-[var(--brand)] text-white rounded-lg font-semibold disabled:opacity-50"
               >
                 {saving ? "Saving…" : "💾 Save Changes"}
               </button>
@@ -298,7 +300,7 @@ function Profile() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="font-bold text-gray-800 mb-2">📄 Statements</h2>
+          <h2 className="font-bold text-navy-900 mb-2">📄 Statements</h2>
           <p className="text-sm text-gray-600 mb-4">
             Download your full account statement at{" "}
             {client?.tenant_name || "this lender"}.
@@ -306,14 +308,14 @@ function Profile() {
           <button
             onClick={downloadStatement}
             disabled={dl}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:opacity-50"
+            className="px-4 py-2 bg-[var(--brand)] hover:brightness-95 text-white rounded-lg font-semibold disabled:opacity-50"
           >
             {dl ? "Preparing…" : "⬇ Download Account Statement"}
           </button>
         </div>
 
         <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="font-bold text-gray-800 mb-4">🔒 Security</h2>
+          <h2 className="font-bold text-navy-900 mb-4">🔒 Security</h2>
           {!showPwd ? (
             <button
               onClick={() => setShowPwd(true)}

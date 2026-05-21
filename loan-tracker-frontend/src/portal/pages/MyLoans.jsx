@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import { getPortalBrand } from "../brand";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -10,7 +11,7 @@ const STATUS_BADGE = {
   completed: "bg-blue-100 text-blue-700",
   defaulted: "bg-red-100 text-red-700",
   pending: "bg-yellow-100 text-yellow-700",
-  under_review: "bg-indigo-100 text-indigo-700",
+  under_review: "bg-sky-100 text-sky-700",
   approved: "bg-emerald-100 text-emerald-700",
   rejected: "bg-gray-200 text-gray-600",
 };
@@ -29,6 +30,7 @@ function MyLoans() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all");
+  const { brand, gradient } = getPortalBrand();
 
   useEffect(() => {
     setLoading(true);
@@ -52,10 +54,10 @@ function MyLoans() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-1">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1">
           💰 My Loans
         </h1>
-        <p className="text-gray-600 mb-5">
+        <p className="text-slate-500 mb-5">
           View all your loans and their status
         </p>
 
@@ -66,9 +68,10 @@ function MyLoans() {
               onClick={() => setFilter(t.value)}
               className={`px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition ${
                 filter === t.value
-                  ? "bg-indigo-600 text-white"
+                  ? "text-white"
                   : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
+              style={filter === t.value ? { backgroundColor: brand } : undefined}
             >
               {t.emoji} {t.label}
             </button>
@@ -102,11 +105,11 @@ function MyLoans() {
               <button
                 key={loan.id}
                 onClick={() => navigate(`/portal/loans/${loan.id}`)}
-                className="w-full text-left bg-white rounded-xl shadow p-4 lg:p-6 hover:shadow-lg transition"
+                className="w-full text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-4 lg:p-6 hover:shadow-md transition"
               >
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="font-mono font-bold text-indigo-600">
+                    <p className="font-mono font-bold" style={{ color: brand }}>
                       {loan.loan_code || `#${loan.id}`}
                     </p>
                     <p className="text-sm text-gray-500">
@@ -144,8 +147,8 @@ function MyLoans() {
                   <>
                     <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full"
-                        style={{ width: `${progress}%` }}
+                        className="h-full"
+                        style={{ width: `${progress}%`, background: gradient }}
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
@@ -160,7 +163,7 @@ function MyLoans() {
                       ? new Date(loan.created_at).toLocaleDateString()
                       : "—"}
                   </span>
-                  <span className="text-indigo-600 font-semibold">
+                  <span className="font-semibold" style={{ color: brand }}>
                     View Details →
                   </span>
                 </div>

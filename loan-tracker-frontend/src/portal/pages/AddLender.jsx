@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
+import { getPortalBrand } from "../brand";
 
 function AddLender() {
   const navigate = useNavigate();
+  const { brand } = getPortalBrand();
   const [available, setAvailable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -81,8 +83,8 @@ function AddLender() {
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+      <div className="p-4 lg:p-8 max-w-4xl mx-auto" style={{ "--brand": brand }}>
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
           ➕ Add Another Lender
         </h1>
         <p className="text-gray-600 mt-1 mb-6">
@@ -138,7 +140,7 @@ function AddLender() {
           </p>
         </div>
 
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
+        <h2 className="text-xl font-bold text-navy-900 mb-4">
           🏦 Available Lenders ({available.length})
         </h2>
 
@@ -176,7 +178,7 @@ function AddLender() {
                     {t.business_name?.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-800">
+                    <h3 className="font-bold text-navy-900">
                       {t.business_name}
                     </h3>
                     <p className="text-xs text-gray-500 capitalize">
@@ -252,7 +254,7 @@ function AddLender() {
                 required
                 autoFocus
                 placeholder="Enter your password"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none mb-4"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none mb-4"
               />
               <div className="flex gap-2">
                 <button

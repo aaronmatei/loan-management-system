@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import { getPortalBrand } from "../brand";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -10,13 +11,14 @@ const STATUS_BADGE = {
   completed: "bg-blue-100 text-blue-700",
   defaulted: "bg-red-100 text-red-700",
   pending: "bg-yellow-100 text-yellow-700",
-  under_review: "bg-indigo-100 text-indigo-700",
+  under_review: "bg-[var(--brand)]/15 text-[var(--brand)]",
   approved: "bg-emerald-100 text-emerald-700",
   rejected: "bg-gray-200 text-gray-600",
 };
 
 function AllLoans() {
   const navigate = useNavigate();
+  const { brand } = getPortalBrand();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tenantFilter, setTenantFilter] = useState("all");
@@ -72,16 +74,16 @@ function AllLoans() {
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto" style={{ "--brand": brand }}>
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
           📊 All My Loans
         </h1>
         <p className="text-gray-600 mt-1 mb-6">
           Every loan across all your lenders, in one place.
         </p>
 
-        <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
-          <p className="text-indigo-100 text-sm">
+        <div className="bg-gradient-to-br from-[var(--brand)] via-[var(--brand)] to-pink-600 text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
+          <p className="text-white/85 text-sm">
             Total Active Balance Across All Lenders
           </p>
           <p className="text-4xl lg:text-5xl font-bold mt-2">
@@ -113,7 +115,7 @@ function AllLoans() {
 
         {summary?.by_tenant?.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-3">
+            <h2 className="text-lg font-bold text-navy-900 mb-3">
               📈 By Lender
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -141,7 +143,7 @@ function AllLoans() {
                         {t.business_name?.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-800 truncate">
+                        <p className="font-bold text-navy-900 truncate">
                           {t.business_name}
                         </p>
                         <p className="text-xs text-gray-500">
@@ -189,7 +191,7 @@ function AllLoans() {
               <select
                 value={tenantFilter}
                 onChange={(e) => setTenantFilter(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] bg-white"
               >
                 <option value="all">All Lenders</option>
                 {summary?.by_tenant?.map((t) => (
@@ -206,7 +208,7 @@ function AllLoans() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] bg-white"
               >
                 <option value="all">All Statuses</option>
                 <option value="active">🟢 Active</option>
@@ -222,7 +224,7 @@ function AllLoans() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] bg-white"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -239,7 +241,7 @@ function AllLoans() {
               }}
               className={`px-3 py-1 rounded-full text-xs font-semibold ${
                 tenantFilter === "all" && statusFilter === "all"
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-[var(--brand)] text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
@@ -335,7 +337,7 @@ function AllLoans() {
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <p className="font-mono font-bold text-indigo-600 text-sm">
+                        <p className="font-mono font-bold text-[var(--brand)] text-sm">
                           {loan.loan_code}
                         </p>
                         <p className="text-sm text-gray-700 mt-1">

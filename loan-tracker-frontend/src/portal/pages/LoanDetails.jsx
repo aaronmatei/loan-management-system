@@ -28,6 +28,7 @@ function LoanDetails() {
       return null;
     }
   })();
+  const brand = portalTenant?.brand_color || "#0086cc";
 
   const downloadStatement = async () => {
     setDownloading(true);
@@ -125,11 +126,11 @@ function LoanDetails() {
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-5xl mx-auto" style={{ "--brand": brand }}>
         <div className="flex justify-between items-center mb-4">
           <button
             onClick={() => navigate("/portal/loans")}
-            className="text-indigo-600 font-semibold"
+            className="text-[var(--brand)] font-semibold"
           >
             ← Back to Loans
           </button>
@@ -147,21 +148,21 @@ function LoanDetails() {
             <button
               onClick={downloadStatement}
               disabled={downloading}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+              className="px-4 py-2 bg-[var(--brand)] hover:brightness-95 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
             >
               {downloading ? "Preparing…" : "⬇ Download Statement"}
             </button>
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
+        <div className="bg-[var(--brand)] text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <p className="text-indigo-200 text-sm">Loan Code</p>
+              <p className="text-white/75 text-sm">Loan Code</p>
               <h1 className="text-2xl lg:text-3xl font-bold font-mono">
                 {loan.loan_code || `#${loan.id}`}
               </h1>
-              <p className="text-indigo-100 mt-1">{loan.purpose || "Loan"}</p>
+              <p className="text-white/85 mt-1">{loan.purpose || "Loan"}</p>
             </div>
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/20 capitalize">
               {String(loan.status || "").replace("_", " ")}
@@ -169,21 +170,21 @@ function LoanDetails() {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
-              <p className="text-indigo-200 text-xs">Principal</p>
+              <p className="text-white/75 text-xs">Principal</p>
               <p className="text-lg font-bold">
                 {KES(loan.principal_amount)}
               </p>
             </div>
             <div>
-              <p className="text-indigo-200 text-xs">Total Due</p>
+              <p className="text-white/75 text-xs">Total Due</p>
               <p className="text-lg font-bold">{KES(due)}</p>
             </div>
             <div>
-              <p className="text-indigo-200 text-xs">Paid So Far</p>
+              <p className="text-white/75 text-xs">Paid So Far</p>
               <p className="text-lg font-bold">{KES(paid)}</p>
             </div>
             <div>
-              <p className="text-indigo-200 text-xs">Balance</p>
+              <p className="text-white/75 text-xs">Balance</p>
               <p className="text-lg font-bold">{KES(balance)}</p>
             </div>
           </div>
@@ -195,7 +196,7 @@ function LoanDetails() {
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-indigo-100 mt-2">
+              <p className="text-xs text-white/85 mt-2">
                 {progress.toFixed(1)}% repaid
               </p>
             </div>
@@ -204,7 +205,7 @@ function LoanDetails() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-gray-800 mb-3">
+            <h3 className="font-bold text-navy-900 mb-3">
               📋 Loan Information
             </h3>
             <div className="space-y-2 text-sm">
@@ -229,7 +230,7 @@ function LoanDetails() {
             </div>
           </div>
           <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-gray-800 mb-3">
+            <h3 className="font-bold text-navy-900 mb-3">
               💰 Financial Summary
             </h3>
             <div className="space-y-2 text-sm">
@@ -265,7 +266,7 @@ function LoanDetails() {
               onClick={() => setTab("schedule")}
               className={`flex-1 py-3 px-4 font-semibold ${
                 tab === "schedule"
-                  ? "bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600"
+                  ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
                   : "text-gray-600"
               }`}
             >
@@ -275,7 +276,7 @@ function LoanDetails() {
               onClick={() => setTab("history")}
               className={`flex-1 py-3 px-4 font-semibold ${
                 tab === "history"
-                  ? "bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600"
+                  ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
                   : "text-gray-600"
               }`}
             >
@@ -343,7 +344,7 @@ function LoanDetails() {
                   {transactions.map((t) => (
                     <div
                       key={t.id}
-                      className="border-2 border-gray-100 rounded-xl p-3 hover:border-indigo-200 transition"
+                      className="border-2 border-gray-100 rounded-xl p-3 hover:border-[var(--brand)]/30 transition"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -363,7 +364,7 @@ function LoanDetails() {
                           </p>
                           <button
                             onClick={() => setReceiptTxn(t)}
-                            className="mt-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                            className="mt-1 text-xs font-semibold text-[var(--brand)] hover:opacity-80"
                           >
                             View receipt →
                           </button>
@@ -411,7 +412,7 @@ function LoanDetails() {
                   ))}
 
                   {receiptSummary && (
-                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 mt-4">
+                    <div className="bg-[var(--brand)]/10 border-2 border-[var(--brand)]/30 rounded-xl p-4 mt-4">
                       <h3 className="font-bold mb-3 text-gray-800">
                         📊 Current Status
                       </h3>
@@ -431,7 +432,7 @@ function LoanDetails() {
                       </div>
                       {receiptSummary.next_payment_date &&
                         !receiptSummary.is_fully_paid && (
-                          <div className="mt-3 pt-3 border-t border-indigo-200 text-center">
+                          <div className="mt-3 pt-3 border-t border-[var(--brand)]/30 text-center">
                             <p className="text-xs text-gray-500">
                               📅 Next Payment
                             </p>

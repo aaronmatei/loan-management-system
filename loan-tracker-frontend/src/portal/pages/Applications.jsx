@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import { getPortalBrand } from "../brand";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -32,6 +33,7 @@ function CustomerApplications() {
   const navigate = useNavigate();
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { brand, gradient } = getPortalBrand();
 
   const load = () => {
     setLoading(true);
@@ -71,33 +73,35 @@ function CustomerApplications() {
       <div className="p-4 lg:p-8 max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
               📋 My Applications
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-slate-500 mt-1">
               Track your loan application status
             </p>
           </div>
           <button
             onClick={() => navigate("/portal/apply")}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold"
+            className="px-4 py-2 text-white rounded-lg font-semibold"
+            style={{ background: gradient }}
           >
             + New
           </button>
         </div>
 
         {apps.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
             <p className="text-5xl mb-3">📝</p>
-            <p className="text-gray-700 font-semibold mb-1">
+            <p className="text-navy-900 font-semibold mb-1">
               No applications yet
             </p>
-            <p className="text-gray-500 text-sm mb-4">
+            <p className="text-slate-500 text-sm mb-4">
               Start your loan application journey.
             </p>
             <button
               onClick={() => navigate("/portal/apply")}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg"
+              className="px-6 py-3 text-white font-bold rounded-lg"
+              style={{ background: gradient }}
             >
               Apply for a Loan →
             </button>
@@ -107,10 +111,10 @@ function CustomerApplications() {
             {apps.map((a) => {
               const s = STATUS[a.status] || STATUS.pending;
               return (
-                <div key={a.id} className="bg-white rounded-xl shadow p-4 lg:p-6">
+                <div key={a.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 lg:p-6">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <p className="font-mono font-bold text-indigo-600">
+                      <p className="font-mono font-bold" style={{ color: brand }}>
                         {a.loan_code}
                       </p>
                       <p className="text-sm text-gray-600 mt-1">

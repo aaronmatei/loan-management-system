@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import { getPortalBrand } from "../brand";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
 function ApplyLoan() {
   const navigate = useNavigate();
+  const { brand } = getPortalBrand();
   const [searchParams] = useSearchParams();
   // Widget hand-off: ?amount=&duration=&source=widget pre-fills the
   // form so the customer just confirms purpose and submits.
@@ -109,18 +111,18 @@ function ApplyLoan() {
   if (!policy) return <PortalLayout><div /></PortalLayout>;
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none";
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-3xl mx-auto" style={{ "--brand": brand }}>
         <button
           onClick={() => navigate("/portal/dashboard")}
-          className="text-indigo-600 mb-2 font-semibold text-sm"
+          className="text-[var(--brand)] mb-2 font-semibold text-sm"
         >
           ← Back to Dashboard
         </button>
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
           📝 Apply for New Loan
         </h1>
         <p className="text-gray-600 mt-1 mb-6">
@@ -137,7 +139,7 @@ function ApplyLoan() {
               {i > 0 && (
                 <div
                   className={`flex-1 h-1 ${
-                    step >= s.n ? "bg-indigo-600" : "bg-gray-200"
+                    step >= s.n ? "bg-[var(--brand)]" : "bg-gray-200"
                   }`}
                 />
               )}
@@ -145,7 +147,7 @@ function ApplyLoan() {
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
                     step >= s.n
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-[var(--brand)] text-white"
                       : "bg-gray-200 text-gray-500"
                   }`}
                 >
@@ -197,7 +199,7 @@ function ApplyLoan() {
                     }
                     className={`py-3 rounded-lg font-semibold text-sm ${
                       form.loan_duration_months === String(m)
-                        ? "bg-indigo-600 text-white"
+                        ? "bg-[var(--brand)] text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
@@ -207,8 +209,8 @@ function ApplyLoan() {
               </div>
             </div>
             {calc && (
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 text-sm space-y-2">
-                <h3 className="font-bold text-indigo-900">📊 Loan Summary</h3>
+              <div className="bg-[var(--brand)]/10 border-2 border-[var(--brand)]/30 rounded-xl p-4 text-sm space-y-2">
+                <h3 className="font-bold text-navy-900">📊 Loan Summary</h3>
                 <div className="flex justify-between">
                   <span>Principal</span>
                   <span className="font-bold">{KES(calc.principal)}</span>
@@ -223,9 +225,9 @@ function ApplyLoan() {
                     {KES(calc.totalInterest)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-2 border-t border-indigo-200">
+                <div className="flex justify-between pt-2 border-t border-[var(--brand)]/30">
                   <span className="font-semibold">Total to Repay</span>
-                  <span className="font-bold text-indigo-700">
+                  <span className="font-bold text-[var(--brand)]">
                     {KES(calc.totalDue)}
                   </span>
                 </div>
@@ -240,7 +242,7 @@ function ApplyLoan() {
             <button
               type="submit"
               disabled={!calc}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+              className="w-full py-3 bg-[var(--brand)] text-white font-bold rounded-lg disabled:opacity-50"
             >
               Continue →
             </button>
@@ -301,7 +303,7 @@ function ApplyLoan() {
               />
             </div>
             <div className="border-t pt-4">
-              <h3 className="font-bold text-gray-800 mb-3">
+              <h3 className="font-bold text-navy-900 mb-3">
                 👥 Guarantor (optional)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -333,7 +335,7 @@ function ApplyLoan() {
               />
             </div>
             <div className="border-t pt-4">
-              <h3 className="font-bold text-gray-800 mb-3">
+              <h3 className="font-bold text-navy-900 mb-3">
                 🏠 Collateral (optional)
               </h3>
               <textarea
@@ -359,7 +361,7 @@ function ApplyLoan() {
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg"
+                className="flex-1 py-3 bg-[var(--brand)] text-white font-bold rounded-lg"
               >
                 Continue →
               </button>
@@ -370,7 +372,7 @@ function ApplyLoan() {
         {step === 3 && calc && (
           <div className="bg-white rounded-2xl shadow p-6 lg:p-8 space-y-4">
             <h2 className="text-xl font-bold">✅ Review & Submit</h2>
-            <div className="bg-indigo-50 rounded-xl p-4 text-sm space-y-2">
+            <div className="bg-[var(--brand)]/10 rounded-xl p-4 text-sm space-y-2">
               <div className="flex justify-between">
                 <span>Lender</span>
                 <span className="font-bold">{tenant.business_name}</span>
@@ -391,7 +393,7 @@ function ApplyLoan() {
               </div>
               <div className="flex justify-between border-t pt-2">
                 <span>Total to Repay</span>
-                <span className="font-bold text-indigo-700">
+                <span className="font-bold text-[var(--brand)]">
                   {KES(calc.totalDue)}
                 </span>
               </div>
@@ -403,18 +405,18 @@ function ApplyLoan() {
               </div>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
-              <h3 className="font-bold text-gray-800 mb-1">Purpose</h3>
+              <h3 className="font-bold text-navy-900 mb-1">Purpose</h3>
               <p className="text-sm">{form.purpose}</p>
             </div>
             {form.review_notes && (
               <div className="bg-gray-50 rounded-xl p-4">
-                <h3 className="font-bold text-gray-800 mb-1">Notes</h3>
+                <h3 className="font-bold text-navy-900 mb-1">Notes</h3>
                 <p className="text-sm">{form.review_notes}</p>
               </div>
             )}
             {form.guarantor_name && (
               <div className="bg-gray-50 rounded-xl p-4">
-                <h3 className="font-bold text-gray-800 mb-1">Guarantor</h3>
+                <h3 className="font-bold text-navy-900 mb-1">Guarantor</h3>
                 <p className="text-sm">
                   {form.guarantor_name} — {form.guarantor_phone}
                 </p>
@@ -422,7 +424,7 @@ function ApplyLoan() {
             )}
             {form.collateral_description && (
               <div className="bg-gray-50 rounded-xl p-4">
-                <h3 className="font-bold text-gray-800 mb-1">Collateral</h3>
+                <h3 className="font-bold text-navy-900 mb-1">Collateral</h3>
                 <p className="text-sm">{form.collateral_description}</p>
               </div>
             )}
