@@ -6,6 +6,7 @@ import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
 import SortHeader from "../components/SortHeader";
 import Pager from "../components/Pager";
+import { lenderColor } from "../lenderColor";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 20;
@@ -254,7 +255,7 @@ function Lenders() {
                 </thead>
                 <tbody>
                   {paged.map((l) => {
-                    const bc = l.brand_color || "#0086cc";
+                    const bc = lenderColor(l.brand_color, l.tenant_id);
                     return (
                       <tr
                         key={l.tenant_id}

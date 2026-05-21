@@ -5,6 +5,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import SortHeader from "../components/SortHeader";
 import Pager from "../components/Pager";
+import { lenderColor } from "../lenderColor";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 15;
@@ -147,7 +148,12 @@ function MyLoans() {
           <div className="mb-4">
             <span
               className="inline-flex items-center gap-2 rounded-full pl-3 pr-1.5 py-1 text-sm font-semibold text-white"
-              style={{ backgroundColor: activeLender.brand_color || "#0086cc" }}
+              style={{
+                backgroundColor: lenderColor(
+                  activeLender.brand_color,
+                  activeLender.tenant_id,
+                ),
+              }}
             >
               {activeLender.business_name}
               <button
@@ -240,7 +246,10 @@ function MyLoans() {
                 </thead>
                 <tbody>
                   {paged.map((loan) => {
-                    const bc = loan.tenant_brand_color || "#0086cc";
+                    const bc = lenderColor(
+                      loan.tenant_brand_color,
+                      loan.tenant_id,
+                    );
                     const balance = Math.max(0, balOf(loan));
                     return (
                       <tr
