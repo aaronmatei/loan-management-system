@@ -337,33 +337,16 @@ router.post("/login", tenantContext, async (req, res) => {
         action: "add_lender",
       });
     }
-    if (tenants.length === 1) {
-      const t = tenants[0];
-      return res.json({
-        success: true,
-        token: sign({
-          current_tenant_id: t.tenant_id,
-          current_client_id: t.client_id,
-        }),
-        customer: baseCustomer,
-        tenants,
-        current_tenant: t,
-        action: "dashboard",
-      });
-    }
+    // One global account spanning all linked lenders. No "current lender"
+    // is chosen at login — the customer lands on the aggregate dashboard
+    // (which lists every lender) and drills into one from there; that
+    // drill-in mints a tenant-scoped token via /select-tenant.
     return res.json({
       success: true,
-      token: sign(
-        {
-          current_tenant_id: null,
-          current_client_id: null,
-          needs_tenant_selection: true,
-        },
-        "15m",
-      ),
+      token: sign({ current_tenant_id: null, current_client_id: null }),
       customer: baseCustomer,
       tenants,
-      action: "select_tenant",
+      action: "dashboard",
     });
   } catch (error) {
     logger.error("Customer login error:", error);

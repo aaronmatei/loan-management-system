@@ -1,18 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Layers,
+  Wallet,
+  Calculator,
+  FilePlus2,
+  ClipboardList,
+  PlusCircle,
+  User,
+  LogOut,
+} from "lucide-react";
+import IconTile from "../../components/IconTile";
 
-// Shared mobile-first shell for the authenticated portal pages
-// (Dashboard / My Loans / Profile). Reads the same localStorage keys
-// the rest of the portal uses; never refetches what pages already own.
+// Shared shell for the authenticated portal pages. The portal is a single
+// global customer account that aggregates lenders, so the chrome here is
+// LoanFix's own ocean/navy product theme (matching the staff dashboard) —
+// NOT a tenant brand. Per-lender brand colors live inside the page content
+// (lender cards, loan rows, receipts), never in this shell.
 const MENU = [
-  { path: "/loanfix/portal/dashboard", label: "Dashboard", icon: "🏠" },
-  { path: "/loanfix/portal/all-loans", label: "All Lenders", icon: "📊" },
-  { path: "/loanfix/portal/loans", label: "Current Lender", icon: "💰" },
-  { path: "/loanfix/portal/calculator", label: "Calculator", icon: "🧮" },
-  { path: "/loanfix/portal/apply", label: "Apply for Loan", icon: "📝" },
-  { path: "/loanfix/portal/applications", label: "My Applications", icon: "📋" },
-  { path: "/loanfix/portal/add-lender", label: "Add Lender", icon: "➕" },
-  { path: "/loanfix/portal/profile", label: "Profile", icon: "👤" },
+  { path: "/loanfix/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
+  { path: "/loanfix/portal/all-loans", label: "All Lenders", icon: Layers, variant: "indigo" },
+  { path: "/loanfix/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
+  { path: "/loanfix/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
+  { path: "/loanfix/portal/apply", label: "Apply for Loan", icon: FilePlus2, variant: "rose" },
+  { path: "/loanfix/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
+  { path: "/loanfix/portal/add-lender", label: "Add Lender", icon: PlusCircle, variant: "ocean" },
+  { path: "/loanfix/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
 
 function PortalLayout({ children }) {
@@ -20,18 +34,21 @@ function PortalLayout({ children }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [customer, setCustomer] = useState({});
-  const [tenant, setTenant] = useState({});
+  const [tenant, setTenant] = useState(null);
 
   useEffect(() => {
     try {
       setCustomer(JSON.parse(localStorage.getItem("portal_customer") || "{}"));
       setTenant(
-        JSON.parse(localStorage.getItem("portal_current_tenant") || "{}"),
+        JSON.parse(localStorage.getItem("portal_current_tenant") || "null"),
       );
     } catch {
       /* ignore malformed storage */
     }
-  }, []);
+  }, [location.pathname]);
+
+  // Close the mobile drawer on navigation.
+  useEffect(() => setSidebarOpen(false), [location.pathname]);
 
   const logout = () => {
     [
@@ -43,103 +60,139 @@ function PortalLayout({ children }) {
     navigate("/loanfix/portal/login");
   };
 
-  const brand = tenant?.brand_color || "#4F46E5";
+  const isActive = (item) =>
+    item.exact
+      ? location.pathname === item.path
+      : location.pathname.startsWith(item.path);
+
+  // The lender the customer has drilled into (if any), shown as context.
+  const lenderName = tenant?.business_name;
+
+  const linkClass = (active) =>
+    `flex items-center gap-3 px-3 py-2 rounded-xl transition ${
+      active
+        ? "bg-ocean-gradient text-white font-semibold shadow-tile"
+        : "text-ocean-100/80 hover:bg-white/5 hover:text-white"
+    }`;
 
   return (
-    <>
-      <div className="min-h-screen bg-gray-50">
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+    <div className="flex h-screen bg-app-bg">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-navy-gradient text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } flex flex-col`}
+      >
+        <div className="p-6 pb-4 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <IconTile icon={Wallet} variant="ocean" size={38} />
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">LoanFix</h2>
+              <p className="text-ocean-200/60 text-xs">Customer Portal</p>
+            </div>
+          </div>
+          <button
             onClick={() => setSidebarOpen(false)}
-          />
+            className="lg:hidden text-ocean-200/70 hover:text-white text-2xl"
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        {lenderName && (
+          <div className="px-4 pt-3">
+            <div className="rounded-lg bg-white/5 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wider text-ocean-300/70">
+                Viewing lender
+              </p>
+              <p className="text-sm font-semibold truncate">{lenderName}</p>
+            </div>
+          </div>
         )}
 
-        <div className="flex h-screen">
-          <aside
-            className={`fixed lg:static inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 flex flex-col text-white ${
-              sidebarOpen
-                ? "translate-x-0"
-                : "-translate-x-full lg:translate-x-0"
-            }`}
-            style={{
-              background: `linear-gradient(135deg, ${brand}, #7C3AED)`,
-            }}
-          >
-            <div className="p-6 border-b border-white/20">
-              <h2 className="text-xl font-bold truncate">
-                {tenant?.business_name || "Portal"}
-              </h2>
-              <p className="text-sm opacity-80 mt-1">
-                Hi, {customer.first_name || "there"}!
-              </p>
-            </div>
+        <nav className="flex-1 overflow-y-auto p-4">
+          <ul className="space-y-1">
+            {MENU.map((item) => {
+              const active = isActive(item);
+              const Icon = item.icon;
+              return (
+                <li key={item.path}>
+                  <Link to={item.path} className={linkClass(active)}>
+                    {active ? (
+                      <span
+                        className="flex items-center justify-center rounded-xl bg-white/20 shrink-0"
+                        style={{ width: 32, height: 32 }}
+                      >
+                        <Icon size={16} color="#fff" strokeWidth={2.2} />
+                      </span>
+                    ) : (
+                      <IconTile icon={Icon} variant={item.variant} size={32} />
+                    )}
+                    <span className="flex-1 text-sm">{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-            <nav className="flex-1 p-4">
-              <ul className="space-y-2">
-                {MENU.map((item) => (
-                  <li key={item.path}>
-                    <Link
-                      to={item.path}
-                      onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                        location.pathname === item.path
-                          ? "bg-white/20 font-semibold"
-                          : "hover:bg-white/10"
-                      }`}
-                    >
-                      <span className="text-xl">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-
-            <div className="p-4 border-t border-white/20">
-              <button
-                onClick={logout}
-                className="w-full py-2 px-4 bg-white/15 hover:bg-white/25 rounded-lg font-semibold"
-              >
-                🚪 Logout
-              </button>
-            </div>
-          </aside>
-
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <header className="bg-white border-b shadow-sm">
-              <div className="flex items-center justify-between px-4 py-3">
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="lg:hidden p-2 -ml-2"
-                  aria-label="Open menu"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  </svg>
-                </button>
-                <h1 className="text-lg font-bold text-gray-800 lg:hidden truncate">
-                  {tenant?.business_name}
-                </h1>
-                <div className="flex-1 hidden lg:block" />
-              </div>
-            </header>
-
-            <main className="flex-1 overflow-auto">{children}</main>
+        <div className="p-4 border-t border-white/10 bg-navy-950/40">
+          <div className="mb-3">
+            <p className="text-sm font-semibold truncate text-white">
+              {customer.first_name} {customer.last_name}
+            </p>
+            <p className="text-xs text-ocean-200/50 truncate">
+              {customer.phone_number}
+            </p>
           </div>
+          <button
+            onClick={logout}
+            className="w-full py-2 px-4 bg-white/10 hover:bg-white/15 text-ocean-100 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2"
+          >
+            <LogOut size={16} /> Logout
+          </button>
         </div>
+      </aside>
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100"
+              aria-label="Open menu"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
+            <h1 className="text-lg font-bold text-navy-900 truncate">
+              {lenderName || "LoanFix"}
+            </h1>
+            <div className="flex-1 hidden lg:block" />
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
-    </>
+    </div>
   );
 }
 

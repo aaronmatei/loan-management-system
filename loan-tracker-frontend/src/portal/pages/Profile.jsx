@@ -55,7 +55,7 @@ function Profile() {
       })
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/loanfix/portal/select-tenant");
+          navigate("/loanfix/portal/dashboard");
         } else {
           alert(err.response?.data?.error || "Failed to load profile");
         }

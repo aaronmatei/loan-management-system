@@ -40,7 +40,7 @@ function CustomerCalculator() {
       })
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/loanfix/portal/select-tenant");
+          navigate("/loanfix/portal/dashboard");
         }
       })
       .finally(() => setLoading(false));

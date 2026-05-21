@@ -58,7 +58,7 @@ function LoanDetails() {
       .then((r) => setData(r.data.data))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/loanfix/portal/select-tenant");
+          navigate("/loanfix/portal/dashboard");
         } else {
           alert(err.response?.data?.error || "Failed to load loan details");
           navigate("/loanfix/portal/loans");
@@ -67,6 +67,11 @@ function LoanDetails() {
       .finally(() => setLoading(false));
 
   useEffect(() => {
+    // Per-lender page — needs a lender selected. Drill in from the dashboard.
+    if (!localStorage.getItem("portal_current_tenant")) {
+      navigate("/loanfix/portal/dashboard");
+      return;
+    }
     fetchLoan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);

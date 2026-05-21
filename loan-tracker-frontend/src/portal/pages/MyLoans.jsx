@@ -33,6 +33,11 @@ function MyLoans() {
   const { brand, gradient } = getPortalBrand();
 
   useEffect(() => {
+    // Per-lender page — needs a lender selected. Drill in from the dashboard.
+    if (!localStorage.getItem("portal_current_tenant")) {
+      navigate("/loanfix/portal/dashboard");
+      return;
+    }
     setLoading(true);
     const url =
       filter === "all"
@@ -43,7 +48,7 @@ function MyLoans() {
       .then((r) => setLoans(r.data.data || []))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/loanfix/portal/select-tenant");
+          navigate("/loanfix/portal/dashboard");
         } else {
           setError(err.response?.data?.error || "Failed to load loans");
         }

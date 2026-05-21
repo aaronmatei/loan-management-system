@@ -38,12 +38,17 @@ function ApplyLoan() {
   })();
 
   useEffect(() => {
+    // Per-lender page — needs a lender selected. Drill in from the dashboard.
+    if (!localStorage.getItem("portal_current_tenant")) {
+      navigate("/loanfix/portal/dashboard");
+      return;
+    }
     portalApi
       .get("/portal/customer/tenant-policy")
       .then((r) => setPolicy(r.data.data.policy))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant")
-          navigate("/loanfix/portal/select-tenant");
+          navigate("/loanfix/portal/dashboard");
       })
       .finally(() => setLoading(false));
   }, [navigate]);

@@ -24,26 +24,11 @@ function CustomerLogin() {
         "portal_tenants",
         JSON.stringify(res.data.tenants || []),
       );
-      switch (res.data.action) {
-        case "dashboard":
-          localStorage.setItem(
-            "portal_current_tenant",
-            JSON.stringify(res.data.current_tenant),
-          );
-          navigate("/loanfix/portal/dashboard");
-          break;
-        case "select_tenant":
-          navigate("/loanfix/portal/select-tenant");
-          break;
-        case "add_lender":
-          // No lender linked yet — land on the dashboard, which shows the
-          // "add your first lender" empty state.
-          localStorage.removeItem("portal_current_tenant");
-          navigate("/loanfix/portal/dashboard");
-          break;
-        default:
-          navigate("/loanfix/portal/dashboard");
-      }
+      // No "current lender" at login — land on the aggregate dashboard,
+      // which lists every linked lender (or shows the "add your first
+      // lender" empty state). The customer drills into a lender from there.
+      localStorage.removeItem("portal_current_tenant");
+      navigate("/loanfix/portal/dashboard");
     } catch (err) {
       alert(err.response?.data?.error || "Login failed");
     } finally {
