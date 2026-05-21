@@ -1,9 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Wallet,
+  CheckCircle2,
+  Coins,
+  CalendarClock,
+  FileText,
+  Layers,
+  Calculator,
+  ArrowRight,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
+
+// Current lender's brand color (white-label) — the portal is tenant-facing,
+// so this page uses the SAME design language as the tenant admin dashboard
+// but themed in each lender's brand_color, never LoanFix ocean.
+const readBrand = () => {
+  try {
+    const t = JSON.parse(localStorage.getItem("portal_current_tenant") || "{}");
+    return /^#[0-9a-fA-F]{6}$/.test(t?.brand_color || "")
+      ? t.brand_color
+      : "#0086cc";
+  } catch {
+    return "#0086cc";
+  }
+};
 
 function CustomerDashboard() {
   const navigate = useNavigate();
@@ -13,6 +37,30 @@ function CustomerDashboard() {
   const [calcPolicy, setCalcPolicy] = useState(null);
   const [calcAmount, setCalcAmount] = useState(50000);
   const [calcDuration, setCalcDuration] = useState(6);
+
+  const brand = readBrand();
+  // Shade helpers derived from the brand color (same approach as the
+  // receipt theme): a 135° gradient for tiles/CTAs + low-alpha tints.
+  const shift = (amt) => {
+    const n = parseInt(brand.slice(1), 16);
+    const c = (v) => Math.max(0, Math.min(255, v));
+    return `rgb(${c(((n >> 16) & 255) + amt)}, ${c(((n >> 8) & 255) + amt)}, ${c((n & 255) + amt)})`;
+  };
+  const rgba = (a) => {
+    const n = parseInt(brand.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+  };
+  const brandGradient = `linear-gradient(135deg, ${shift(25)} 0%, ${shift(-40)} 100%)`;
+
+  // Gradient icon tile (brand-themed) — mirrors the tenant dashboard's IconTile.
+  const Tile = ({ icon: Icon, size = 40 }) => (
+    <div
+      className="flex items-center justify-center rounded-xl shadow-sm shrink-0"
+      style={{ width: size, height: size, background: brandGradient }}
+    >
+      <Icon size={size * 0.5} color="#fff" strokeWidth={2.2} />
+    </div>
+  );
 
   useEffect(() => {
     portalApi
@@ -62,14 +110,14 @@ function CustomerDashboard() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-600">Loading…</div>
+        <div className="p-8 text-center text-slate-500">Loading…</div>
       </PortalLayout>
     );
   }
   if (!data) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-600">No data.</div>
+        <div className="p-8 text-center text-slate-500">No data.</div>
       </PortalLayout>
     );
   }
@@ -77,85 +125,119 @@ function CustomerDashboard() {
   const { client, active_loans, next_payment, stats, pending_applications } =
     data;
 
+  let lenderCount = 0;
+  try {
+    lenderCount = JSON.parse(
+      localStorage.getItem("portal_tenants") || "[]",
+    ).length;
+  } catch {
+    lenderCount = 0;
+  }
+
+  const kpis = [
+    { label: "Active Loans", value: stats?.active_loans || 0, icon: Wallet },
+    {
+      label: "Completed",
+      value: stats?.completed_loans || 0,
+      icon: CheckCircle2,
+    },
+    {
+      label: "Active Due",
+      value: KES(stats?.active_total_due),
+      icon: Coins,
+      small: true,
+    },
+    {
+      label: "Next Payment",
+      value: next_payment
+        ? `${KES(next_payment.amount_due)} · ${new Date(
+            next_payment.due_date,
+          ).toLocaleDateString()}`
+        : "—",
+      icon: CalendarClock,
+      small: true,
+    },
+  ];
+
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
             Hi {client?.first_name} 👋
           </h1>
-          <p className="text-gray-600 mt-1">
-            {client?.client_code}
-          </p>
+          <p className="text-slate-500 mt-1">{client?.client_code}</p>
         </div>
 
-        {(() => {
-          let n = 0;
-          try {
-            n = JSON.parse(
-              localStorage.getItem("portal_tenants") || "[]",
-            ).length;
-          } catch {
-            n = 0;
-          }
-          return n > 1 ? (
+        {/* Primary actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate("/portal/apply")}
+            className="text-white py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition flex items-center justify-between"
+            style={{ background: brandGradient }}
+          >
+            <span className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20">
+                <FileText size={20} color="#fff" />
+              </span>
+              <span className="text-left">
+                <span className="block font-bold text-lg">Apply for New Loan</span>
+                <span className="block text-sm text-white/80">
+                  Quick approval • 24–48 hours
+                </span>
+              </span>
+            </span>
+            <ArrowRight size={22} />
+          </button>
+
+          {lenderCount > 1 && (
             <button
               onClick={() => navigate("/portal/all-loans")}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-700 text-white py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 font-semibold"
+              className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition flex items-center justify-between px-6 py-4"
             >
-              <span>📊</span>
-              <span>View All Loans Across All Lenders</span>
-              <span>→</span>
+              <span className="flex items-center gap-3">
+                <Tile icon={Layers} size={40} />
+                <span className="text-left">
+                  <span className="block font-bold text-navy-900">
+                    All Loans
+                  </span>
+                  <span className="block text-sm text-slate-500">
+                    Across all your lenders
+                  </span>
+                </span>
+              </span>
+              <ArrowRight size={20} style={{ color: brand }} />
             </button>
-          ) : null;
-        })()}
-
-        <button
-          onClick={() => navigate("/portal/apply")}
-          className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition flex items-center justify-between"
-        >
-          <div className="text-left">
-            <p className="font-bold text-lg">📝 Apply for New Loan</p>
-            <p className="text-sm text-green-100">
-              Quick approval • 24–48 hours
-            </p>
-          </div>
-          <span className="text-2xl">→</span>
-        </button>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 uppercase">Active Loans</p>
-            <p className="text-2xl font-bold mt-1">
-              {stats?.active_loans || 0}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 uppercase">Completed</p>
-            <p className="text-2xl font-bold mt-1">
-              {stats?.completed_loans || 0}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 uppercase">Active Due</p>
-            <p className="text-lg font-bold mt-1">
-              {KES(stats?.active_total_due)}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 uppercase">Next Payment</p>
-            <p className="text-sm font-bold mt-1">
-              {next_payment
-                ? `${KES(next_payment.amount_due)} · ${new Date(
-                    next_payment.due_date,
-                  ).toLocaleDateString()}`
-                : "—"}
-            </p>
-          </div>
+          )}
         </div>
 
-        <section className="bg-white rounded-xl shadow">
-          <h2 className="px-4 py-3 font-bold text-gray-800 border-b">
+        {/* KPI cards — white rounded cards with brand gradient tiles */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {kpis.map((k) => (
+            <div
+              key={k.label}
+              className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5"
+            >
+              <div className="flex items-start justify-between">
+                <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+                  {k.label}
+                </p>
+                <Tile icon={k.icon} size={36} />
+              </div>
+              <p
+                className={`font-bold text-navy-900 mt-3 ${
+                  k.small ? "text-base" : "text-2xl lg:text-3xl"
+                }`}
+              >
+                {k.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Active loans */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <h2 className="px-5 py-4 font-bold text-navy-900 border-b border-slate-100">
             Active Loans
           </h2>
           {active_loans?.length ? (
@@ -163,50 +245,51 @@ function CustomerDashboard() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/portal/loans/${l.id}`)}
-                className="w-full text-left px-4 py-3 border-b last:border-0 flex justify-between hover:bg-gray-50"
+                className="w-full text-left px-5 py-4 border-b border-slate-50 last:border-0 flex justify-between hover:bg-slate-50 transition"
               >
                 <div>
-                  <p className="font-mono text-sm text-indigo-600">
+                  <p className="font-mono text-sm font-semibold" style={{ color: brand }}>
                     {l.loan_code}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     Principal {KES(l.principal_amount)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold">
+                  <p className="text-sm font-semibold text-navy-900">
                     Paid {KES(l.total_paid)}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     Due {KES(l.total_amount_due)}
                   </p>
                 </div>
               </button>
             ))
           ) : (
-            <p className="px-4 py-6 text-gray-500 text-sm">
-              No active loans.
-            </p>
+            <p className="px-5 py-6 text-slate-500 text-sm">No active loans.</p>
           )}
         </section>
 
+        {/* Quick calculator */}
         {calcPolicy && (
-          <section className="bg-white rounded-xl shadow overflow-hidden">
-            <div className="px-4 py-3 border-b flex items-center justify-between">
-              <h2 className="font-bold text-gray-800">
-                🧮 Quick Loan Calculator
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-bold text-navy-900 flex items-center gap-2">
+                <Calculator size={18} style={{ color: brand }} /> Quick Loan
+                Calculator
               </h2>
               <button
                 onClick={() => navigate("/portal/calculator")}
-                className="text-xs font-semibold text-indigo-600 hover:underline"
+                className="text-xs font-semibold hover:underline"
+                style={{ color: brand }}
               >
                 Open full calculator →
               </button>
             </div>
-            <div className="p-4 grid md:grid-cols-2 gap-4">
+            <div className="p-5 grid md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
                     Amount (KES)
                   </label>
                   <input
@@ -216,52 +299,61 @@ function CustomerDashboard() {
                     min={calcPolicy.min_amount}
                     max={calcPolicy.max_amount}
                     step="1000"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none font-bold text-lg"
+                    onFocus={(e) => (e.target.style.borderColor = brand)}
+                    onBlur={(e) => (e.target.style.borderColor = "")}
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:outline-none font-bold text-lg"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
                     Duration
                   </label>
                   <div className="grid grid-cols-3 gap-2">
-                    {[1, 3, 6, 12, 18, 24].map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setCalcDuration(m)}
-                        className={`py-2 rounded-lg text-sm font-semibold transition ${
-                          calcDuration === m
-                            ? "bg-indigo-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        {m}mo
-                      </button>
-                    ))}
+                    {[1, 3, 6, 12, 18, 24].map((m) => {
+                      const active = calcDuration === m;
+                      return (
+                        <button
+                          key={m}
+                          onClick={() => setCalcDuration(m)}
+                          className={`py-2 rounded-lg text-sm font-semibold transition ${
+                            active
+                              ? "text-white"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                          style={active ? { backgroundColor: brand } : undefined}
+                        >
+                          {m}mo
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-4 flex flex-col justify-between">
+              <div
+                className="rounded-xl p-4 flex flex-col justify-between"
+                style={{ backgroundColor: rgba(0.07) }}
+              >
                 {calcResult ? (
                   <>
                     <div>
-                      <p className="text-xs text-gray-600">Monthly Payment</p>
-                      <p className="text-2xl font-bold text-indigo-700">
+                      <p className="text-xs text-slate-600">Monthly Payment</p>
+                      <p className="text-2xl font-bold" style={{ color: brand }}>
                         {KES(calcResult.monthly)}
                       </p>
                       <div className="mt-2 space-y-1 text-xs">
-                        <p className="text-gray-600">
+                        <p className="text-slate-600">
                           Total interest:{" "}
                           <span className="font-semibold text-orange-600">
                             {KES(calcResult.interest)}
                           </span>
                         </p>
-                        <p className="text-gray-600">
+                        <p className="text-slate-600">
                           Total to repay:{" "}
-                          <span className="font-semibold">
+                          <span className="font-semibold text-navy-900">
                             {KES(calcResult.total)}
                           </span>
                         </p>
-                        <p className="text-gray-500">
+                        <p className="text-slate-500">
                           @ {calcPolicy.default_interest_rate}% p.a.
                           {calcPolicy.business_name
                             ? ` · ${calcPolicy.business_name}`
@@ -275,13 +367,14 @@ function CustomerDashboard() {
                           `/portal/apply?amount=${calcAmount}&duration=${calcDuration}`,
                         )
                       }
-                      className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm"
+                      className="mt-3 w-full py-2 text-white font-bold rounded-lg text-sm"
+                      style={{ background: brandGradient }}
                     >
                       Apply for This Loan →
                     </button>
                   </>
                 ) : (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-500">
                     Enter amount and duration.
                   </p>
                 )}
@@ -290,21 +383,22 @@ function CustomerDashboard() {
           </section>
         )}
 
+        {/* Applications */}
         {pending_applications?.length > 0 && (
-          <section className="bg-white rounded-xl shadow">
-            <h2 className="px-4 py-3 font-bold text-gray-800 border-b">
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <h2 className="px-5 py-4 font-bold text-navy-900 border-b border-slate-100">
               Applications
             </h2>
             {pending_applications.map((a) => (
               <div
                 key={a.id}
-                className="px-4 py-3 border-b last:border-0 flex justify-between text-sm"
+                className="px-5 py-3 border-b border-slate-50 last:border-0 flex justify-between text-sm"
               >
-                <span className="font-mono text-indigo-600">
+                <span className="font-mono font-semibold" style={{ color: brand }}>
                   {a.loan_code || `#${a.id}`}
                 </span>
-                <span>{KES(a.principal_amount)}</span>
-                <span className="capitalize text-gray-600">
+                <span className="text-navy-900">{KES(a.principal_amount)}</span>
+                <span className="capitalize text-slate-600">
                   {a.status?.replace("_", " ")}
                 </span>
               </div>
