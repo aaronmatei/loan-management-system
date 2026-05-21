@@ -99,6 +99,12 @@ describe("customer portal — full apply flow", () => {
     });
     expect(link.status).toBe(200);
 
+    // 7b. Directory now marks the lender linked, with a link date
+    const dir2 = await api().get("/api/portal/customer/lenders").set(auth);
+    const linkedEntry = dir2.body.data.find((l) => l.tenant_id === tenant.id);
+    expect(linkedEntry.is_linked).toBe(true);
+    expect(linkedEntry.linked_at).toBeTruthy();
+
     // 8. The Apply form sources lenders from calculator-policies
     const pols = await api()
       .get("/api/portal/customer/calculator-policies")

@@ -128,7 +128,13 @@ router.get("/lenders", async (req, res) => {
            WHERE ctl.tenant_id = t.id
              AND ctl.platform_customer_id = $1
              AND ctl.status = 'active'
-         ) AS is_linked
+         ) AS is_linked,
+         (SELECT ctl.linked_at
+            FROM customer_tenant_links ctl
+           WHERE ctl.tenant_id = t.id
+             AND ctl.platform_customer_id = $1
+             AND ctl.status = 'active'
+           LIMIT 1) AS linked_at
        FROM tenants t
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true

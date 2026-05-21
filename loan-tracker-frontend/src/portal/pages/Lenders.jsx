@@ -27,6 +27,14 @@ const CMP = {
     parseFloat(a.default_interest_rate) - parseFloat(b.default_interest_rate),
   term: (a, b) =>
     parseFloat(a.default_duration) - parseFloat(b.default_duration),
+  // Default view: linked lenders first, most-recently-linked on top; the
+  // rest alphabetical.
+  linked: (a, b) => {
+    if (!!a.is_linked !== !!b.is_linked) return a.is_linked ? -1 : 1;
+    if (a.is_linked)
+      return new Date(b.linked_at || 0) - new Date(a.linked_at || 0);
+    return a.business_name.localeCompare(b.business_name);
+  },
 };
 
 // Module-level so it keeps a stable identity across renders (an inline
@@ -67,7 +75,8 @@ function Lenders() {
   const [search, setSearch] = useState("");
   const [amount, setAmount] = useState(""); // amount the customer wants
   const [maxRate, setMaxRate] = useState(""); // max acceptable MONTHLY interest
-  const [sort, setSort] = useState({ key: "rate", dir: "asc" });
+  const [linkFilter, setLinkFilter] = useState("all"); // all | linked | unlinked
+  const [sort, setSort] = useState({ key: "linked", dir: "asc" });
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -84,6 +93,8 @@ function Lenders() {
     const amt = parseFloat(amount);
     const rate = parseFloat(maxRate);
     const list = lenders.filter((l) => {
+      if (linkFilter === "linked" && !l.is_linked) return false;
+      if (linkFilter === "unlinked" && l.is_linked) return false;
       if (
         search &&
         !l.business_name?.toLowerCase().includes(search.toLowerCase())
@@ -98,14 +109,14 @@ function Lenders() {
       }
       return true;
     });
-    const base = CMP[sort.key] || CMP.rate;
+    const base = CMP[sort.key] || CMP.linked;
     return [...list].sort((a, b) =>
       sort.dir === "asc" ? base(a, b) : -base(a, b),
     );
-  }, [lenders, search, amount, maxRate, sort]);
+  }, [lenders, search, amount, maxRate, linkFilter, sort]);
 
   // Reset to page 1 whenever the filter/sort changes.
-  useEffect(() => setPage(1), [search, amount, maxRate, sort]);
+  useEffect(() => setPage(1), [search, amount, maxRate, linkFilter, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pageCount);
@@ -187,18 +198,39 @@ function Lenders() {
               />
             </div>
           </div>
-          {(search || amount || maxRate) && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setAmount("");
-                setMaxRate("");
-              }}
-              className="mt-3 text-xs font-semibold text-ocean-600 hover:text-ocean-700"
-            >
-              Clear filters
-            </button>
-          )}
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-slate-600">Show</span>
+            {[
+              ["all", "All"],
+              ["linked", "Linked"],
+              ["unlinked", "Not linked"],
+            ].map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setLinkFilter(v)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  linkFilter === v
+                    ? "bg-ocean-gradient text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            {(search || amount || maxRate || linkFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setAmount("");
+                  setMaxRate("");
+                  setLinkFilter("all");
+                }}
+                className="ml-auto text-xs font-semibold text-ocean-600 hover:text-ocean-700"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
 
         <p className="text-sm text-slate-500 mb-3">
