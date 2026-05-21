@@ -106,6 +106,42 @@ router.get("/available-tenants", async (req, res) => {
   }
 });
 
+// Public-style directory of EVERY active, portal-enabled lender on the
+// platform, with each lender's borrowing terms so the customer can browse
+// and filter (min/max amount, interest rate). is_linked / can_self_signup
+// drive the contextual action on each card (Apply vs Add). No customer loan
+// data here — that lives in "My Loans".
+router.get("/lenders", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT
+         t.id AS tenant_id,
+         t.business_name, t.subdomain, t.brand_color, t.logo_url,
+         t.business_type, t.city, t.county,
+         COALESCE(t.default_interest_rate, 50.00) AS default_interest_rate,
+         COALESCE(t.min_loan_amount,       1000)  AS min_amount,
+         COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
+         COALESCE(t.default_loan_duration, 6)     AS default_duration,
+         COALESCE(t.allow_self_signup, false)     AS can_self_signup,
+         EXISTS(
+           SELECT 1 FROM customer_tenant_links ctl
+           WHERE ctl.tenant_id = t.id
+             AND ctl.platform_customer_id = $1
+             AND ctl.status = 'active'
+         ) AS is_linked
+       FROM tenants t
+       WHERE t.status = 'active'
+         AND t.customer_portal_enabled = true
+       ORDER BY t.business_name ASC`,
+      [req.platformCustomerId],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Lenders directory error:", error);
+    res.status(500).json({ error: "Failed to fetch lenders" });
+  }
+});
+
 // ALL loans across ALL the customer's linked tenants. Authenticated
 // as the platform customer (verifyCustomer); scoped strictly to the
 // client_ids/tenant_ids the customer is actively linked to.

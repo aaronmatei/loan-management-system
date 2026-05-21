@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
@@ -7,6 +7,7 @@ import { getPortalBrand } from "../brand";
 
 function AddLender() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { brand } = getPortalBrand();
   const [available, setAvailable] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +45,17 @@ function AddLender() {
   };
 
   useEffect(loadAvailable, [navigate]);
+
+  // Deep-link from the lender directory: ?tenant=<id> opens the confirm
+  // modal for that lender as soon as the list has loaded.
+  const preTenant = searchParams.get("tenant");
+  useEffect(() => {
+    if (preTenant && available.length) {
+      const t = available.find((x) => String(x.id) === preTenant);
+      if (t) setSelected(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available.length]);
 
   const confirmAdd = async (e) => {
     e.preventDefault();
