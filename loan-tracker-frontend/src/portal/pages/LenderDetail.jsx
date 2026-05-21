@@ -110,7 +110,7 @@ function LenderDetail() {
     { label: "Max borrow", value: KES(lender.max_amount), icon: Wallet },
     {
       label: "Interest",
-      value: `${parseFloat(lender.default_interest_rate)}% p.a.`,
+      value: `${+(parseFloat(lender.default_interest_rate) / 12).toFixed(2)}% p.m.`,
       icon: Percent,
     },
     {

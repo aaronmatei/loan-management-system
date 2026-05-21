@@ -164,7 +164,8 @@ function CustomerCalculator() {
                         {t.business_name}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {t.default_interest_rate}% p.a.
+                        {+(parseFloat(t.default_interest_rate) / 12).toFixed(2)}%
+                        p.m.
                       </p>
                     </div>
                   </div>
@@ -294,7 +295,7 @@ function CustomerCalculator() {
                     <div className="bg-white rounded-lg p-3">
                       <p className="text-xs text-gray-500">Interest Rate</p>
                       <p className="font-bold text-lg">
-                        {calc.annualRate}% p.a.
+                        {+(calc.annualRate / 12).toFixed(2)}% p.m.
                       </p>
                     </div>
                     <div className="bg-white rounded-lg p-3">
@@ -412,7 +413,7 @@ function CustomerCalculator() {
                                   {t.business_name}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {rate}% p.a.
+                                  {+(rate / 12).toFixed(2)}% p.m.
                                 </p>
                               </div>
                             </div>

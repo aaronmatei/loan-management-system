@@ -295,7 +295,9 @@ function ApplyLoan() {
                     </div>
                     <div className="flex justify-between">
                       <span>Interest Rate</span>
-                      <span className="font-bold">{calc.annualRate}% p.a.</span>
+                      <span className="font-bold">
+                      {+(calc.annualRate / 12).toFixed(2)}% p.m.
+                    </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total Interest</span>
@@ -467,7 +469,9 @@ function ApplyLoan() {
                   </div>
                   <div className="flex justify-between">
                     <span>Interest Rate</span>
-                    <span className="font-bold">{calc.annualRate}% p.a.</span>
+                    <span className="font-bold">
+                      {+(calc.annualRate / 12).toFixed(2)}% p.m.
+                    </span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span>Total to Repay</span>

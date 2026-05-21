@@ -15,14 +15,45 @@ import IconTile from "../../components/IconTile";
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 20;
 
+// Tenants store the interest rate annually; customers think in months, so we
+// always display (and filter) the monthly equivalent.
+const PM = (annual) => +(parseFloat(annual || 0) / 12).toFixed(2);
+
 const CMP = {
   name: (a, b) => a.business_name.localeCompare(b.business_name),
   min: (a, b) => parseFloat(a.min_amount) - parseFloat(b.min_amount),
   max: (a, b) => parseFloat(a.max_amount) - parseFloat(b.max_amount),
   rate: (a, b) =>
     parseFloat(a.default_interest_rate) - parseFloat(b.default_interest_rate),
-  term: (a, b) => parseFloat(a.default_duration) - parseFloat(b.default_duration),
+  term: (a, b) =>
+    parseFloat(a.default_duration) - parseFloat(b.default_duration),
 };
+
+// Module-level so it keeps a stable identity across renders (an inline
+// component would remount each keystroke).
+function SortHeader({ label, sortKey, sort, onToggle, align = "right" }) {
+  const activeCol = sort.key === sortKey;
+  return (
+    <th
+      className={`px-4 py-3 ${align === "right" ? "text-right" : "text-left"}`}
+    >
+      <button
+        onClick={() => onToggle(sortKey)}
+        className={`inline-flex items-center gap-1 font-semibold hover:text-navy-900 ${
+          activeCol ? "text-navy-900" : ""
+        }`}
+      >
+        {label}
+        {activeCol &&
+          (sort.dir === "asc" ? (
+            <ChevronUp size={12} />
+          ) : (
+            <ChevronDown size={12} />
+          ))}
+      </button>
+    </th>
+  );
+}
 
 // Marketplace directory of every active lender on LoanFix (platform owner +
 // demo sandbox excluded server-side). Filter by terms, sort by any column,
@@ -35,7 +66,7 @@ function Lenders() {
 
   const [search, setSearch] = useState("");
   const [amount, setAmount] = useState(""); // amount the customer wants
-  const [maxRate, setMaxRate] = useState(""); // max acceptable interest
+  const [maxRate, setMaxRate] = useState(""); // max acceptable MONTHLY interest
   const [sort, setSort] = useState({ key: "rate", dir: "asc" });
   const [page, setPage] = useState(1);
 
@@ -63,7 +94,7 @@ function Lenders() {
           return false;
       }
       if (!Number.isNaN(rate) && rate > 0) {
-        if (parseFloat(l.default_interest_rate) > rate) return false;
+        if (PM(l.default_interest_rate) > rate) return false;
       }
       return true;
     });
@@ -100,25 +131,6 @@ function Lenders() {
     for (let i = from; i <= to; i++) arr.push(i);
     return arr;
   })();
-
-  const Th = ({ label, k, align = "right" }) => (
-    <th className={`px-4 py-3 ${align === "right" ? "text-right" : "text-left"}`}>
-      <button
-        onClick={() => toggleSort(k)}
-        className={`inline-flex items-center gap-1 font-semibold hover:text-navy-900 ${
-          sort.key === k ? "text-navy-900" : ""
-        }`}
-      >
-        {label}
-        {sort.key === k &&
-          (sort.dir === "asc" ? (
-            <ChevronUp size={12} />
-          ) : (
-            <ChevronDown size={12} />
-          ))}
-      </button>
-    </th>
-  );
 
   return (
     <PortalLayout>
@@ -164,13 +176,13 @@ function Lenders() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Max interest (% p.a.)
+                Max interest (% p.m.)
               </label>
               <input
                 type="number"
                 value={maxRate}
                 onChange={(e) => setMaxRate(e.target.value)}
-                placeholder="e.g. 30"
+                placeholder="e.g. 4"
                 className={fld}
               />
             </div>
@@ -215,11 +227,37 @@ function Lenders() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
-                    <Th label="Lender" k="name" align="left" />
-                    <Th label="Min borrow" k="min" />
-                    <Th label="Max borrow" k="max" />
-                    <Th label="Interest" k="rate" />
-                    <Th label="Term" k="term" />
+                    <SortHeader
+                      label="Lender"
+                      sortKey="name"
+                      sort={sort}
+                      onToggle={toggleSort}
+                      align="left"
+                    />
+                    <SortHeader
+                      label="Min borrow"
+                      sortKey="min"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
+                    <SortHeader
+                      label="Max borrow"
+                      sortKey="max"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
+                    <SortHeader
+                      label="Interest"
+                      sortKey="rate"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
+                    <SortHeader
+                      label="Term"
+                      sortKey="term"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -271,7 +309,7 @@ function Lenders() {
                           className="px-4 py-3 text-right whitespace-nowrap font-semibold"
                           style={{ color: bc }}
                         >
-                          {parseFloat(l.default_interest_rate)}%
+                          {PM(l.default_interest_rate)}% p.m.
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
                           {l.default_duration} mo

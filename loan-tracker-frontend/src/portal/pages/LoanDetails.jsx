@@ -95,8 +95,8 @@ function LoanDetails() {
   const paid = parseFloat(loan.total_paid || 0);
   const balance = Math.max(0, due - paid);
   const progress = due > 0 ? Math.min((paid / due) * 100, 100) : 0;
-  // interest_rate is the MONTHLY rate as a percent → annual = ×12.
-  const annualRate = (parseFloat(loan.interest_rate || 0) * 12).toFixed(2);
+  // interest_rate is stored as the MONTHLY rate (percent) — show it as-is.
+  const monthlyRate = parseFloat(loan.interest_rate || 0).toFixed(2);
   const monthly = loan.loan_duration_months
     ? due / parseInt(loan.loan_duration_months, 10)
     : 0;
@@ -222,7 +222,7 @@ function LoanDetails() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Interest Rate</span>
-                <span className="font-semibold">{annualRate}% p.a.</span>
+                <span className="font-semibold">{monthlyRate}% p.m.</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Start Date</span>

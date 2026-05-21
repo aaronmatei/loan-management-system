@@ -5,9 +5,7 @@ import {
   Layers,
   Wallet,
   Calculator,
-  FilePlus2,
   ClipboardList,
-  PlusCircle,
   User,
   LogOut,
 } from "lucide-react";
@@ -23,9 +21,7 @@ const MENU = [
   { path: "/loanfix/lenders", label: "All Lenders", icon: Layers, variant: "indigo" },
   { path: "/loanfix/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
   { path: "/loanfix/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
-  { path: "/loanfix/portal/apply", label: "Apply for Loan", icon: FilePlus2, variant: "rose" },
   { path: "/loanfix/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
-  { path: "/loanfix/portal/add-lender", label: "Add Lender", icon: PlusCircle, variant: "ocean" },
   { path: "/loanfix/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
 
