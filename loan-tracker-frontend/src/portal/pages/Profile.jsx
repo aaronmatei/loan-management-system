@@ -134,7 +134,7 @@ function Profile() {
   }
   if (!data) return <PortalLayout><div /></PortalLayout>;
 
-  const { customer } = data;
+  const { customer, client } = data;
   const { brand } = getPortalBrand();
   const Row = ({ label, children }) => (
     <div>
