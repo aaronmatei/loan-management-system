@@ -30,6 +30,18 @@ export function calculateCreditScore(metrics) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+// A borrower is only "rated" once there's real repayment behaviour to judge:
+// at least one payment made, or an adverse mark (overdue / default). Until
+// then the score is a neutral "Building credit" baseline rather than a
+// misleading 100 (the algorithm only ever deducts from 100).
+export function isRated(metrics) {
+  return (
+    (metrics.total_payments || 0) > 0 ||
+    (metrics.current_overdue_count || 0) > 0 ||
+    (metrics.defaulted_loans_count || 0) > 0
+  );
+}
+
 export function getRiskLevel(score, hasDefault, hasOverdue) {
   if (hasDefault)
     return { level: "very_high", label: "🔴 Blacklisted", color: "red" };

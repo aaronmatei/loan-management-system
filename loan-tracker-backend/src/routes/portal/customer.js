@@ -13,6 +13,7 @@ import smsService from "../../services/smsService.js";
 import {
   calculateCreditScore,
   getRiskLevel,
+  isRated,
 } from "../../utils/creditScore.js";
 import notificationDispatcher from "../../services/notificationDispatcher.js";
 import { nextLoanCode } from "../../utils/clientCode.js";
@@ -544,19 +545,20 @@ router.get("/analytics", async (req, res) => {
         ? parseFloat(((behavior.on_time / totalPayments) * 100).toFixed(1))
         : 100;
 
-    const creditScore = calculateCreditScore({
+    const metrics = {
       defaulted_loans_count: loanAgg.defaulted_loans,
       current_overdue_count: behavior.missed,
       late_payments: behavior.late,
       total_payments: totalPayments,
       on_time_rate: onTimeRate,
       completed_loans_count: loanAgg.completed_loans,
-    });
-    const risk = getRiskLevel(
-      creditScore,
-      loanAgg.defaulted_loans > 0,
-      behavior.missed > 0,
-    );
+    };
+    // New borrowers stay on a neutral baseline until their first payment.
+    const rated = isRated(metrics);
+    const creditScore = rated ? calculateCreditScore(metrics) : null;
+    const risk = rated
+      ? getRiskLevel(creditScore, loanAgg.defaulted_loans > 0, behavior.missed > 0)
+      : { level: "unrated", label: "🆕 Building credit", color: "slate" };
 
     const statusBreakdown = [
       { status: "active", count: loanAgg.active_loans },
@@ -569,6 +571,7 @@ router.get("/analytics", async (req, res) => {
       success: true,
       data: {
         has_lenders: true,
+        rated,
         credit_score: creditScore,
         risk,
         stats: {

@@ -111,8 +111,9 @@ function CustomerDashboard() {
     );
   }
 
-  const { credit_score, risk, stats, monthly_repayments, status_breakdown } = d;
-  const scoreColor = RISK_HEX[risk?.color] || "#0086cc";
+  const { rated, credit_score, risk, stats, monthly_repayments, status_breakdown } =
+    d;
+  const scoreColor = rated ? RISK_HEX[risk?.color] || "#0086cc" : "#94a3b8";
 
   const kpis = [
     { label: "Total Borrowed", value: KES(stats.total_borrowed), icon: Coins },
@@ -150,7 +151,7 @@ function CustomerDashboard() {
                 <RadialBarChart
                   innerRadius="72%"
                   outerRadius="100%"
-                  data={[{ value: credit_score }]}
+                  data={[{ value: rated ? credit_score : 0 }]}
                   startAngle={220}
                   endAngle={-40}
                 >
@@ -171,12 +172,14 @@ function CustomerDashboard() {
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span
-                  className="text-4xl font-extrabold"
+                  className={`font-extrabold ${rated ? "text-4xl" : "text-2xl"}`}
                   style={{ color: scoreColor }}
                 >
-                  {credit_score}
+                  {rated ? credit_score : "New"}
                 </span>
-                <span className="text-xs text-slate-400">out of 100</span>
+                <span className="text-xs text-slate-400">
+                  {rated ? "out of 100" : "unrated"}
+                </span>
               </div>
             </div>
             <p
@@ -185,20 +188,26 @@ function CustomerDashboard() {
             >
               {risk?.label}
             </p>
-            <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 text-center text-xs">
-              <div>
-                <p className="font-bold text-green-600">{stats.on_time}</p>
-                <p className="text-slate-400">on-time</p>
+            {rated ? (
+              <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 text-center text-xs">
+                <div>
+                  <p className="font-bold text-green-600">{stats.on_time}</p>
+                  <p className="text-slate-400">on-time</p>
+                </div>
+                <div>
+                  <p className="font-bold text-amber-600">{stats.late}</p>
+                  <p className="text-slate-400">late</p>
+                </div>
+                <div>
+                  <p className="font-bold text-red-600">{stats.missed}</p>
+                  <p className="text-slate-400">missed</p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-amber-600">{stats.late}</p>
-                <p className="text-slate-400">late</p>
-              </div>
-              <div>
-                <p className="font-bold text-red-600">{stats.missed}</p>
-                <p className="text-slate-400">missed</p>
-              </div>
-            </div>
+            ) : (
+              <p className="mt-3 pt-3 border-t border-slate-100 text-center text-xs text-slate-400">
+                Make your first payment to start building your score.
+              </p>
+            )}
           </div>
 
           {/* KPI cards */}

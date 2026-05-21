@@ -150,8 +150,9 @@ describe("customer portal — full apply flow", () => {
       .set(auth);
     expect(analytics.status).toBe(200);
     expect(analytics.body.data.has_lenders).toBe(true);
-    expect(analytics.body.data.credit_score).toBeGreaterThanOrEqual(0);
-    expect(analytics.body.data.credit_score).toBeLessThanOrEqual(100);
+    // New borrower, no payments yet → neutral/unrated baseline
+    expect(analytics.body.data.rated).toBe(false);
+    expect(analytics.body.data.credit_score).toBeNull();
     expect(analytics.body.data.monthly_repayments).toHaveLength(6);
 
     // 12. Lender detail now reflects the link + the pending application
