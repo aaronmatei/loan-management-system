@@ -38,10 +38,13 @@ function Profile() {
         setData(d);
         setForm({
           email: d.customer?.email || "",
-          date_of_birth: d.customer?.date_of_birth
-            ? String(d.customer.date_of_birth).split("T")[0]
+          // Fall back to the lender's client record — the customer's own
+          // platform_customers DOB/gender are usually unset; the KYC data
+          // lives on the tenant's clients row.
+          date_of_birth: (d.customer?.date_of_birth || d.client?.date_of_birth)
+            ? String(d.customer?.date_of_birth || d.client?.date_of_birth).split("T")[0]
             : "",
-          gender: d.customer?.gender || "",
+          gender: d.customer?.gender || d.client?.gender || "",
           address: d.client?.address || "",
           city: d.client?.city || "",
           county: d.client?.county || "",
@@ -207,8 +210,10 @@ function Profile() {
                 />
               ) : (
                 <p>
-                  {customer.date_of_birth
-                    ? new Date(customer.date_of_birth).toLocaleDateString()
+                  {customer.date_of_birth || client?.date_of_birth
+                    ? new Date(
+                        customer.date_of_birth || client.date_of_birth,
+                      ).toLocaleDateString()
                     : "—"}
                 </p>
               )}
@@ -231,7 +236,9 @@ function Profile() {
                   <option value="other">Other</option>
                 </select>
               ) : (
-                <p className="capitalize">{customer.gender || "—"}</p>
+                <p className="capitalize">
+                  {customer.gender || client?.gender || "—"}
+                </p>
               )}
             </div>
           </div>
