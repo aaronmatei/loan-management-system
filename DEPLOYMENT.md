@@ -31,6 +31,34 @@ renders at `/` when logged out). So one Vercel project serves both
 
 ---
 
+## Quick path: deploy now on default URLs (no DNS / custom domain)
+
+No DNS access yet? Launch on the free default URLs Vercel and Render hand you,
+then attach `loanfix.co.ke` later. Nothing in the repo changes — you override
+two values in the dashboards:
+
+1. **Neon** — same as Step 1 below; get `DATABASE_URL`.
+2. **Render** — deploy the backend (New → Web Service is simplest here). Set
+   `DATABASE_URL` + `JWT_SECRET`. Note its URL, e.g.
+   `https://loanfix-backend.onrender.com`.
+3. **Vercel** — import repo, root `loan-tracker-frontend`. Add env var
+   `VITE_API_URL = <render-url>/api` (e.g.
+   `https://loanfix-backend.onrender.com/api`). This overrides `.env.production`.
+   Deploy; note the URL, e.g. `https://loanfix-xxxx.vercel.app`.
+4. **Render → Environment** — set `CORS_ORIGINS = <vercel-url>` (your actual
+   `https://loanfix-xxxx.vercel.app`) and redeploy.
+5. Open `https://loanfix-xxxx.vercel.app/signup` and create your first account.
+
+Use the **exact** URLs each dashboard shows (the name can get a random suffix
+if taken). Later, with DNS access, do Steps 2–5 below to attach the real
+domains and point `VITE_API_URL` / `CORS_ORIGINS` back to them.
+
+> If you deployed the backend via the `render.yaml` Blueprint, also update its
+> `CORS_ORIGINS` value (or edit it in the dashboard) so a Blueprint re-sync
+> doesn't reset it. A plain Web Service avoids that entirely.
+
+---
+
 ## Step 1 — Database: Neon
 
 1. neon.tech → create project (pick a region close to Kenya, e.g. AWS
