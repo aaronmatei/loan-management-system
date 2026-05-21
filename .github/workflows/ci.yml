@@ -18,8 +18,10 @@ jobs:
     # actual SQL/constraints. global-setup.js rebuilds the schema from
     # tests/setup/schema.sql against this DB.
     services:
+      # Match the major version that produced tests/setup/schema.sql
+      # (pg_dump 18) so the schema applies without cross-version issues.
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
