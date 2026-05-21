@@ -25,11 +25,13 @@ import backupRoutes from "./routes/backup.js";
 import analyticsRoutes from "./routes/analytics.js";
 import notificationRoutes from "./routes/notifications.js";
 import tenantRoutes from "./routes/tenants.js";
+import referralRoutes from "./routes/referrals.js";
 import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
 import platformAdminRoutes from "./routes/platform/admin.js";
 import platformCronRoutes from "./routes/platform/cron.js";
 import platformAuditRoutes from "./routes/platform/audit.js";
+import demoRoutes from "./routes/demo.js";
 import platformBillingRoutes from "./routes/platform/billing.js";
 import onboardingRoutes from "./routes/onboarding.js";
 import whiteLabelRoutes from "./routes/whiteLabel.js";
@@ -37,6 +39,7 @@ import widgetRoutes from "./routes/widget.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { setupPaymentNotifications } from "./services/paymentReminderJob.js";
 import { setupBillingCron } from "./services/billingCronJob.js";
+import { setupDemoReset } from "./services/demoResetJob.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 const app = express();
@@ -84,6 +87,7 @@ app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
 app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/cron", platformCronRoutes);   // verifyToken + is_platform_admin
 app.use("/api/platform/audit", platformAuditRoutes); // verifyToken + is_platform_admin
+app.use("/api/demo", demoRoutes);                    // PUBLIC — no auth
 app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/white-label", whiteLabelRoutes);
@@ -103,6 +107,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/referrals", referralRoutes); // /me authed; /validate/:code public
 
 // 404 handler
 app.use((req, res) => {
@@ -137,4 +142,5 @@ app.listen(PORT, () => {
   setupScheduledBackups();
   setupPaymentNotifications();
   setupBillingCron();
+  setupDemoReset();
 });

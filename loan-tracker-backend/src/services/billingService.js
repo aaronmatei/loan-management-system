@@ -55,7 +55,36 @@ export async function generateInvoice(tenantId, year, month, userId = null) {
     (calc.interest_earned * (feePercentage / 100)).toFixed(2),
   );
   const baseFee = parseFloat(tenant.billing_base_fee);
-  const totalAmount = parseFloat((interestFee + baseFee).toFixed(2));
+  const grossAmount = parseFloat((interestFee + baseFee).toFixed(2));
+
+  // Referral free-month credit: one credit waives this invoice's
+  // platform fee in full. We deduct the credit BEFORE inserting so a
+  // race that re-runs invoice generation won't double-burn it. The
+  // discount is captured on the invoice itself (existing `discount`
+  // and `notes` columns from migration 009) and the audit lives in
+  // billing_activities below.
+  const credits = parseInt(
+    (await query(`SELECT referral_credits FROM tenants WHERE id = $1`, [tenantId]))
+      .rows[0]?.referral_credits || 0,
+    10,
+  );
+  let referralDiscount = 0;
+  let totalAmount = grossAmount;
+  let invoiceNotes = null;
+  if (credits > 0 && grossAmount > 0) {
+    referralDiscount = grossAmount;
+    totalAmount = 0;
+    invoiceNotes = "Free month from referral reward";
+    await query(
+      `UPDATE tenants
+          SET referral_credits = referral_credits - 1
+        WHERE id = $1 AND referral_credits > 0`,
+      [tenantId],
+    );
+    logger.info(
+      `Applied referral credit for tenant ${tenantId}: KES ${referralDiscount} waived`,
+    );
+  }
 
   const invNumber = `INV-${tenantId}-${year}${String(month).padStart(2, "0")}`;
   const issuedDate = new Date();
@@ -69,9 +98,9 @@ export async function generateInvoice(tenantId, year, month, userId = null) {
        tenant_id, invoice_number, billing_month, billing_year,
        period_start, period_end,
        interest_earned, fee_percentage, amount_due,
-       base_fee, total_amount, status,
-       issued_date, due_date
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13)
+       base_fee, discount, total_amount, status,
+       issued_date, due_date, notes
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending',$13,$14,$15)
      RETURNING *`,
     [
       tenantId,
@@ -84,9 +113,11 @@ export async function generateInvoice(tenantId, year, month, userId = null) {
       feePercentage,
       interestFee,
       baseFee,
+      referralDiscount,
       totalAmount,
       issuedDate.toISOString().split("T")[0],
       dueDate.toISOString().split("T")[0],
+      invoiceNotes,
     ],
   );
 
@@ -99,6 +130,8 @@ export async function generateInvoice(tenantId, year, month, userId = null) {
       result.rows[0].id,
       JSON.stringify({
         invoice_number: invNumber,
+        gross_amount: grossAmount,
+        referral_discount: referralDiscount,
         amount: totalAmount,
         period: `${year}-${String(month).padStart(2, "0")}`,
       }),

@@ -54,6 +54,7 @@ import Backup from "./pages/Backup";
 import Analytics from "./pages/Analytics";
 import Applications from "./pages/Applications";
 import Notifications from "./pages/Notifications";
+import Referrals from "./pages/Referrals";
 import Layout from "./components/Layout";
 
 function App() {
@@ -214,6 +215,7 @@ function App() {
               <Route path="/audit" element={<AuditLog />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/backup" element={<Backup />} />
+              <Route path="/referrals" element={<Referrals />} />
                     <Route path="*" element={<Navigate to="/" />} />
                   </Routes>
                 </Layout>

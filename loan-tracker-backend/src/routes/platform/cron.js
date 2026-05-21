@@ -13,6 +13,8 @@ import billingCron from "../../services/billingCronJob.js";
 import {
   runDailyPaymentNotifications,
 } from "../../services/paymentReminderJob.js";
+import { resetDemoData } from "../../services/demoResetJob.js";
+import referralService from "../../services/referralService.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -47,6 +49,12 @@ router.get("/status", (req, res) => {
         schedule: process.env.BACKUP_SCHEDULE_CRON || "0 2 * * *",
         description: "Scheduled DB backups",
       },
+      demo_reset: {
+        enabled: process.env.DEMO_RESET_CRON_ENABLED === "true",
+        schedule: process.env.DEMO_RESET_CRON_SCHEDULE || "0 3 * * *",
+        description:
+          "Wipe + reseed the public demo tenant so prospects see a clean snapshot",
+      },
     },
   });
 });
@@ -75,6 +83,14 @@ router.post("/trigger", async (req, res) => {
       case "summary":
         result = await billingCron.sendDailySummary({});
         break;
+      case "reset_demo":
+        result = await resetDemoData();
+        break;
+      case "referrals":
+        result = {
+          referrals_qualified: await referralService.processPendingReferrals(),
+        };
+        break;
       case "all": {
         const a = await runDailyPaymentNotifications();
         const b = await billingCron.runBillingDailyTasks();
@@ -84,7 +100,7 @@ router.post("/trigger", async (req, res) => {
       default:
         return res.status(400).json({
           error:
-            "Unknown task. Use one of: reminders, overdue, tenant_invoices, suspend, reactivate, summary, all",
+            "Unknown task. Use one of: reminders, overdue, tenant_invoices, suspend, reactivate, summary, reset_demo, referrals, all",
         });
     }
     res.json({ success: true, task, result });

@@ -71,6 +71,18 @@ function CronManager() {
         "Email every active platform admin a stats snapshot + today's cron activity.",
     },
     {
+      id: "reset_demo",
+      name: "🎮 Reset Demo Tenant",
+      blurb:
+        "Wipe + reseed the public demo (clients / loans / schedules / payments / applications). Same as the nightly 03:00 reset.",
+    },
+    {
+      id: "referrals",
+      name: "🎁 Qualify Pending Referrals",
+      blurb:
+        "Sweep pending referrals and qualify those whose referred tenant has met the configured rule (default: status='active'). Issues free-month credits + sends reward emails.",
+    },
+    {
       id: "all",
       name: "🚀 Run ALL Daily Tasks",
       blurb:
@@ -108,10 +120,11 @@ function CronManager() {
 
         {/* Status cards */}
         {status && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-6">
             {cronCard("Payment reminders", status.payment_reminders)}
             {cronCard("Billing", status.billing)}
             {cronCard("Backups", status.backups)}
+            {cronCard("Demo reset", status.demo_reset)}
           </div>
         )}
 

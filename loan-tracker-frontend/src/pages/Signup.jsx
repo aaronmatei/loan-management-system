@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 
 function Signup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref");
   const [submitting, setSubmitting] = useState(false);
   const [subdomainStatus, setSubdomainStatus] = useState(null);
+  // Populated by /api/referrals/validate/:code — null until we know
+  // the code is real. Render-gates the "Referred by X" banner.
+  const [referralInfo, setReferralInfo] = useState(null);
 
   const [formData, setFormData] = useState({
     business_name: "",
@@ -20,7 +25,20 @@ function Signup() {
     city: "",
     county: "",
     agree_terms: false,
+    referral_code: refCode || "",
   });
+
+  // Resolve ?ref= against the public validator. Silently no-ops on
+  // miss — invalid codes just don't surface a banner.
+  useEffect(() => {
+    if (!refCode) return;
+    api
+      .get(`/referrals/validate/${refCode}`)
+      .then((r) => {
+        if (r.data?.valid) setReferralInfo(r.data);
+      })
+      .catch(() => {});
+  }, [refCode]);
 
   useEffect(() => {
     if (formData.subdomain.length < 3) {
@@ -90,6 +108,19 @@ function Signup() {
             Loan Management System for Kenyan Lenders
           </p>
         </div>
+
+        {referralInfo && (
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-3 rounded-lg text-center text-sm mb-4 shadow-lg">
+            🎁 Referred by <strong>{referralInfo.referrer_name}</strong>!
+            {referralInfo.bonus ? (
+              <>
+                {" "}You'll get <strong>{referralInfo.bonus}</strong>.
+              </>
+            ) : (
+              <> Welcome to LoanFix.</>
+            )}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8">
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">

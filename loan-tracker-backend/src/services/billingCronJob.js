@@ -25,6 +25,7 @@ import cron from "node-cron";
 import { query } from "../config/database.js";
 import { sendEmail } from "./emailService.js";
 import { logSystemAction } from "./auditService.js";
+import referralService from "./referralService.js";
 import logger from "../config/logger.js";
 
 const FOUNDING_TENANT_ID = 1; // never auto-suspended
@@ -106,6 +107,7 @@ export async function autoSuspendTenants() {
       WHERE t.billing_enabled = true
         AND t.status = 'active'
         AND t.id <> $1
+        AND COALESCE(t.is_demo, false) = false
         AND i.status = 'overdue'
         AND i.due_date < CURRENT_DATE - (COALESCE(t.billing_suspend_after_days, 30) || ' days')::interval`,
     [FOUNDING_TENANT_ID],
@@ -310,6 +312,7 @@ export async function runBillingDailyTasks() {
     tenant_invoices_overdue: 0,
     tenants_suspended: 0,
     tenants_reactivated: 0,
+    referrals_qualified: 0,
     admins_notified: 0,
     errors: [],
   };
@@ -319,6 +322,11 @@ export async function runBillingDailyTasks() {
   catch (e) { results.errors.push("autoSuspendTenants: " + e.message); }
   try { results.tenants_reactivated    = await autoReactivateTenants(); }
   catch (e) { results.errors.push("autoReactivateTenants: " + e.message); }
+  // Promote pending referrals whose referred tenant now meets the
+  // configured qualification rule (default: status='active'). Runs
+  // here so reactivations earlier in the same tick are picked up.
+  try { results.referrals_qualified    = await referralService.processPendingReferrals(); }
+  catch (e) { results.errors.push("processPendingReferrals: " + e.message); }
   try {
     const s = await sendDailySummary(results);
     results.admins_notified = s.admins_notified;
@@ -326,7 +334,7 @@ export async function runBillingDailyTasks() {
   } catch (e) { results.errors.push("sendDailySummary: " + e.message); }
 
   logger.info(
-    `💼 Billing daily: ${results.tenant_invoices_overdue} overdue, ${results.tenants_suspended} suspended, ${results.tenants_reactivated} reactivated, ${results.admins_notified} admin emails in ${Date.now() - started}ms`,
+    `💼 Billing daily: ${results.tenant_invoices_overdue} overdue, ${results.tenants_suspended} suspended, ${results.tenants_reactivated} reactivated, ${results.referrals_qualified} referrals qualified, ${results.admins_notified} admin emails in ${Date.now() - started}ms`,
   );
   return results;
 }

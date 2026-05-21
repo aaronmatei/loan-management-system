@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import pool, { query } from "../config/database.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
 import logger from "../config/logger.js";
+import referralService from "../services/referralService.js";
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.post("/signup", async (req, res) => {
     physical_address,
     city,
     county,
+    referral_code, // optional — set when the user arrived via /signup?ref=
   } = req.body;
 
   if (
@@ -171,7 +173,26 @@ router.post("/signup", async (req, res) => {
       ],
     );
 
+    // Stamp this tenant's own referral code so they can refer others
+    // from day one. Done inside the signup transaction so we never
+    // leave a tenant without one. The deterministic format matches
+    // referralService.generateCode + the backfill in migration 016.
+    const newCode = referralService.generateCode(tenant.subdomain, tenant.id);
+    const codeRow = await client.query(
+      `UPDATE tenants SET referral_code = $1 WHERE id = $2
+       RETURNING referral_code`,
+      [newCode, tenant.id],
+    );
+    tenant.referral_code = codeRow.rows[0]?.referral_code || newCode;
+
     await client.query("COMMIT");
+
+    // Inbound referral: recorded AFTER commit so a referral hiccup
+    // can never roll back a successful signup. recordReferral never
+    // throws — it returns null on misses.
+    if (referral_code) {
+      await referralService.recordReferral(referral_code, tenant);
+    }
 
     const token = jwt.sign(
       {
@@ -197,6 +218,7 @@ router.post("/signup", async (req, res) => {
         subdomain: tenant.subdomain,
         plan: tenant.plan,
         trial_ends_at: tenant.trial_ends_at,
+        referral_code: tenant.referral_code,
       },
       user,
     });
