@@ -136,7 +136,7 @@ function Lenders() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
         <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1">
-          🏦 All Lenders
+          🏦 Lenders
         </h1>
         <p className="text-slate-500 mb-5">
           Browse every lender on LoanFix and compare their terms.

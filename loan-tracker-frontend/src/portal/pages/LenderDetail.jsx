@@ -135,7 +135,7 @@ function LenderDetail() {
           onClick={() => navigate("/loanfix/lenders")}
           className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-navy-900 mb-4"
         >
-          <ArrowLeft size={16} /> All Lenders
+          <ArrowLeft size={16} /> Lenders
         </button>
 
         {/* Header */}

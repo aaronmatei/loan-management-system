@@ -18,7 +18,7 @@ import IconTile from "../../components/IconTile";
 // (lender cards, loan rows, receipts), never in this shell.
 const MENU = [
   { path: "/loanfix/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
-  { path: "/loanfix/lenders", label: "All Lenders", icon: Layers, variant: "indigo" },
+  { path: "/loanfix/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
   { path: "/loanfix/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
   { path: "/loanfix/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
   { path: "/loanfix/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
