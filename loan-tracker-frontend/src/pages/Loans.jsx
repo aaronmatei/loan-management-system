@@ -508,14 +508,18 @@ function Loans() {
                       Credit Score:
                       <span
                         className={`ml-2 ${
-                          clientCreditProfile.credit_score >= 80
-                            ? "text-green-600"
-                            : clientCreditProfile.credit_score >= 60
-                              ? "text-yellow-600"
-                              : "text-red-600"
+                          clientCreditProfile.credit_score == null
+                            ? "text-slate-500"
+                            : clientCreditProfile.credit_score >= 80
+                              ? "text-green-600"
+                              : clientCreditProfile.credit_score >= 60
+                                ? "text-yellow-600"
+                                : "text-red-600"
                         }`}
                       >
-                        {clientCreditProfile.credit_score}/100
+                        {clientCreditProfile.credit_score == null
+                          ? "New — building credit"
+                          : `${clientCreditProfile.credit_score}/100`}
                       </span>
                     </p>
                     <p className="text-sm text-gray-600 mt-1">

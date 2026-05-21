@@ -121,6 +121,7 @@ function ClientProfile() {
   const {
     client,
     summary,
+    rated,
     credit_score: creditScore,
     risk_color: riskColor,
     risk_label: riskLabel,
@@ -162,8 +163,12 @@ function ClientProfile() {
             {/* Credit Score Badge */}
             <div className="text-center bg-white/10 rounded-xl p-6">
               <p className="text-xs text-ocean-100 uppercase">Credit Score</p>
-              <p className="text-5xl font-bold mt-2">{creditScore}</p>
-              <p className="text-sm text-ocean-100">out of 100</p>
+              <p className="text-5xl font-bold mt-2">
+                {rated ? creditScore : "New"}
+              </p>
+              <p className="text-sm text-ocean-100">
+                {rated ? "out of 100" : "unrated"}
+              </p>
               <div
                 className={`mt-2 px-3 py-1 rounded-full text-sm font-bold ${
                   riskBadge[riskColor] || "bg-gray-200 text-gray-800"

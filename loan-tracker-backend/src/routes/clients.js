@@ -10,6 +10,7 @@ import {
   calculateCreditScore,
   getRiskLevel,
   checkEligibility,
+  isRated,
 } from "../utils/creditScore.js";
 
 const router = express.Router();
@@ -261,19 +262,26 @@ router.get("/:id/credit-profile", async (req, res) => {
       latest_loan_date: loanDates[loanDates.length - 1] || null,
     };
 
-    const creditScore = calculateCreditScore(summary);
-    const risk = getRiskLevel(
-      creditScore,
-      summary.defaulted_loans_count > 0,
-      summary.current_overdue_count > 0,
-    );
-    const eligibility = checkEligibility(summary, creditScore);
+    // New clients stay on a neutral baseline until there's real repayment
+    // behaviour to judge (first payment, or an adverse mark).
+    const rated = isRated(summary);
+    const creditScore = rated ? calculateCreditScore(summary) : null;
+    const risk = rated
+      ? getRiskLevel(
+          creditScore,
+          summary.defaulted_loans_count > 0,
+          summary.current_overdue_count > 0,
+        )
+      : { level: "unrated", label: "🆕 Building credit", color: "slate" };
+    const eligibility = checkEligibility(summary, creditScore ?? 0);
+    if (!rated) eligibility.reason = "New borrower — no credit history yet";
 
     res.json({
       success: true,
       data: {
         client,
         summary,
+        rated,
         credit_score: creditScore,
         risk_level: risk.level,
         risk_label: risk.label,
