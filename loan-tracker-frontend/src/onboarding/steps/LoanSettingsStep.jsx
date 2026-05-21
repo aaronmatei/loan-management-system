@@ -20,7 +20,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
     (principal + totalInterest) / form.default_duration_months;
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
@@ -132,7 +132,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
             />
           </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
+          <div className="bg-gradient-to-br from-blue-50 to-ocean-50 border-2 border-blue-200 rounded-xl p-4">
             <h3 className="font-bold text-blue-900 mb-2">
               📊 Example Calculation
             </h3>
@@ -172,7 +172,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg"
+              className="flex-1 py-3 bg-ocean-gradient text-white font-bold rounded-lg"
             >
               Continue →
             </button>

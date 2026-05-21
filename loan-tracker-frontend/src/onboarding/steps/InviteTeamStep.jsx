@@ -47,7 +47,7 @@ function InviteTeamStep({ onNext, onBack }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
@@ -124,7 +124,7 @@ function InviteTeamStep({ onNext, onBack }) {
                 },
               ])
             }
-            className="w-full py-2 bg-indigo-50 text-indigo-700 rounded-lg font-semibold text-sm hover:bg-indigo-100"
+            className="w-full py-2 bg-ocean-50 text-ocean-700 rounded-lg font-semibold text-sm hover:bg-ocean-100"
           >
             + Add Another Team Member
           </button>
@@ -151,7 +151,7 @@ function InviteTeamStep({ onNext, onBack }) {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+              className="flex-1 py-3 bg-ocean-gradient text-white font-bold rounded-lg disabled:opacity-50"
             >
               {saving ? "Inviting…" : "Send Invites →"}
             </button>

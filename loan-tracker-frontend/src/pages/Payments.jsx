@@ -488,7 +488,7 @@ function Payments() {
                   <p className="font-semibold text-gray-800 truncate">
                     {payment.first_name} {payment.last_name}
                   </p>
-                  <p className="text-xs text-indigo-600 font-mono">
+                  <p className="text-xs text-ocean-600 font-mono">
                     {payment.loan_code}
                   </p>
                 </div>
@@ -573,7 +573,7 @@ function Payments() {
                   <td className="px-6 py-4 font-mono text-sm font-semibold text-green-600">
                     {payment.transaction_code}
                   </td>
-                  <td className="px-6 py-4 font-mono text-sm text-indigo-600">
+                  <td className="px-6 py-4 font-mono text-sm text-ocean-600">
                     {payment.loan_code}
                   </td>
                   <td className="px-6 py-4">

@@ -6,13 +6,13 @@ function WelcomeStep({ onNext, onSkip }) {
       <div className="bg-white rounded-3xl shadow-2xl p-8 lg:p-12 text-center">
         <div className="text-7xl mb-4">🎉</div>
         <h1 className="text-3xl lg:text-5xl font-bold text-gray-900 mb-4">
-          Welcome to LendFlow!
+          Welcome to LoanFix!
         </h1>
         <p className="text-xl text-gray-600 mb-8">
           Let's get you set up in just 5 minutes
         </p>
 
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 mb-8 text-left">
+        <div className="bg-ocean-gradient-soft rounded-2xl p-6 mb-8 text-left">
           <h3 className="font-bold text-gray-800 mb-4">Here's what we'll do:</h3>
           {[
             "Set up your business profile",
@@ -22,7 +22,7 @@ function WelcomeStep({ onNext, onSkip }) {
             "Invite team members (optional)",
           ].map((label, i) => (
             <div className="flex items-center gap-3 mb-3" key={i}>
-              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+              <div className="w-8 h-8 rounded-full bg-ocean-600 text-white flex items-center justify-center font-bold text-sm">
                 {i + 1}
               </div>
               <span className="text-gray-700">{label}</span>
@@ -32,7 +32,7 @@ function WelcomeStep({ onNext, onSkip }) {
 
         <button
           onClick={() => onNext()}
-          className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-1"
+          className="w-full py-4 bg-ocean-gradient text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-1"
         >
           Let's Get Started →
         </button>

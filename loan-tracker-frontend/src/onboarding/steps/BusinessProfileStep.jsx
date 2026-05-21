@@ -27,7 +27,7 @@ function BusinessProfileStep({ data, onNext, onBack }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
@@ -133,7 +133,7 @@ function BusinessProfileStep({ data, onNext, onBack }) {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+              className="flex-1 py-3 bg-ocean-gradient text-white font-bold rounded-lg disabled:opacity-50"
             >
               {saving ? "Saving…" : "Continue →"}
             </button>

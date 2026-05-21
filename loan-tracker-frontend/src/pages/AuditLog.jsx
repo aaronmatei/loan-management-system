@@ -110,12 +110,12 @@ function AuditLog() {
       created: "bg-green-100 text-green-700",
       updated: "bg-blue-100 text-blue-700",
       deleted: "bg-red-100 text-red-700",
-      status_changed: "bg-purple-100 text-purple-700",
-      login: "bg-indigo-100 text-indigo-700",
+      status_changed: "bg-ocean-100 text-ocean-700",
+      login: "bg-ocean-100 text-ocean-700",
       login_failed: "bg-red-100 text-red-700",
       logout: "bg-gray-100 text-gray-700",
       payment_recorded: "bg-emerald-100 text-emerald-700",
-      refund_processed: "bg-purple-100 text-purple-700",
+      refund_processed: "bg-ocean-100 text-ocean-700",
       sms_sent: "bg-blue-100 text-blue-700",
       email_sent: "bg-cyan-100 text-cyan-700",
       capital_adjusted: "bg-yellow-100 text-yellow-700",
@@ -168,7 +168,7 @@ function AuditLog() {
         </div>
         <button
           onClick={handleExport}
-          className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
         >
           ⬇️ Export Excel
         </button>
@@ -176,8 +176,8 @@ function AuditLog() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-indigo-100 text-sm uppercase">Total Logs</p>
+        <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-6">
+          <p className="text-ocean-100 text-sm uppercase">Total Logs</p>
           <p className="text-3xl font-bold mt-2">
             {stats?.totals?.total_logs || 0}
           </p>
@@ -194,8 +194,8 @@ function AuditLog() {
             {stats?.totals?.week_count || 0}
           </p>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-purple-100 text-sm uppercase">Active Users</p>
+        <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-6">
+          <p className="text-ocean-100 text-sm uppercase">Active Users</p>
           <p className="text-3xl font-bold mt-2">
             {stats?.totals?.unique_users || 0}
           </p>
@@ -214,7 +214,7 @@ function AuditLog() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="🔍 Search descriptions, codes, users..."
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <div>
@@ -226,7 +226,7 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, action: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All Actions</option>
               <option value="created">Created</option>
@@ -249,7 +249,7 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, entity_type: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All Entities</option>
               <option value="client">Client</option>
@@ -269,7 +269,7 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, date_from: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <div>
@@ -282,7 +282,7 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, date_to: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
         </div>
@@ -350,7 +350,7 @@ function AuditLog() {
                         {log.entity_type}
                       </p>
                       {log.entity_code && (
-                        <p className="text-xs text-indigo-600 font-mono">
+                        <p className="text-xs text-ocean-600 font-mono">
                           {log.entity_code}
                         </p>
                       )}
@@ -362,7 +362,7 @@ function AuditLog() {
                       {(log.old_values || log.new_values || log.metadata) && (
                         <button
                           onClick={() => setSelectedLog(log)}
-                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                          className="text-ocean-600 hover:text-ocean-800 text-sm"
                         >
                           View Changes →
                         </button>
@@ -394,7 +394,7 @@ function AuditLog() {
               >
                 ← Previous
               </button>
-              <span className="px-3 py-1 bg-indigo-600 text-white rounded font-semibold">
+              <span className="px-3 py-1 bg-ocean-600 text-white rounded font-semibold">
                 {currentPage} of {totalPages}
               </span>
               <button

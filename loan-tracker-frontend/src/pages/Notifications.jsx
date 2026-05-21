@@ -82,7 +82,7 @@ function Notifications() {
         <div className="flex gap-2">
           <button
             onClick={handleMarkAllRead}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold"
+            className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg text-sm font-semibold"
           >
             ✓ Mark All Read
           </button>
@@ -100,7 +100,7 @@ function Notifications() {
           onClick={() => setFilter("all")}
           className={`px-4 py-2 rounded-lg text-sm font-semibold ${
             filter === "all"
-              ? "bg-indigo-600 text-white"
+              ? "bg-ocean-600 text-white"
               : "bg-white text-gray-700"
           }`}
         >
@@ -110,7 +110,7 @@ function Notifications() {
           onClick={() => setFilter("unread")}
           className={`px-4 py-2 rounded-lg text-sm font-semibold ${
             filter === "unread"
-              ? "bg-indigo-600 text-white"
+              ? "bg-ocean-600 text-white"
               : "bg-white text-gray-700"
           }`}
         >
@@ -132,7 +132,7 @@ function Notifications() {
               key={notif.id}
               onClick={() => handleClick(notif)}
               className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
-                !notif.is_read ? "border-l-4 border-indigo-600" : ""
+                !notif.is_read ? "border-l-4 border-ocean-600" : ""
               }`}
             >
               <div className="flex items-start gap-3">

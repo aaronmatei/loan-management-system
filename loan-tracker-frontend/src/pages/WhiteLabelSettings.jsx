@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 const fld =
-  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
 function WhiteLabelSettings() {
   const navigate = useNavigate();
@@ -68,9 +68,9 @@ function WhiteLabelSettings() {
       <div
         className={`rounded-2xl shadow-md p-6 mb-6 ${
           tier === "enterprise"
-            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+            ? "bg-gradient-to-r from-ocean-600 to-pink-600 text-white"
             : tier === "pro"
-              ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
+              ? "bg-ocean-gradient text-white"
               : "bg-gradient-to-r from-gray-100 to-gray-200"
         }`}
       >
@@ -116,7 +116,7 @@ function WhiteLabelSettings() {
               disabled={isLocked}
               className={`px-3 py-2 text-sm font-semibold rounded-lg transition ${
                 tab === t.id
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-ocean-600 text-white"
                   : isLocked
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-white text-gray-700 hover:bg-gray-100"
@@ -485,7 +485,7 @@ function SaveRow({ onSave, saving }) {
       <button
         onClick={onSave}
         disabled={saving}
-        className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg font-bold disabled:opacity-50"
+        className="px-6 py-3 bg-ocean-gradient text-white rounded-lg font-bold disabled:opacity-50"
       >
         {saving ? "Saving…" : "💾 Save Changes"}
       </button>

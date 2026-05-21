@@ -139,14 +139,14 @@ function CronManager() {
             {TASKS.map((t) => (
               <div
                 key={t.id}
-                className="border-2 border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition"
+                className="border-2 border-gray-200 rounded-lg p-4 hover:border-ocean-300 transition"
               >
                 <h3 className="font-bold text-sm mb-1">{t.name}</h3>
                 <p className="text-xs text-gray-600 mb-3">{t.blurb}</p>
                 <button
                   onClick={() => trigger(t.id, t.name)}
                   disabled={running !== null}
-                  className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
+                  className="w-full py-2 bg-ocean-gradient text-white rounded-lg font-semibold text-sm disabled:opacity-50"
                 >
                   {running === t.id ? "🔄 Running…" : "▶️ Run now"}
                 </button>

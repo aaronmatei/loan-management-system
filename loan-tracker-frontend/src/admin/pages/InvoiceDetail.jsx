@@ -68,19 +68,19 @@ function InvoiceDetail() {
       <div className="p-4 lg:p-8 max-w-4xl mx-auto">
         <button
           onClick={() => navigate("/admin/billing")}
-          className="text-indigo-600 mb-4 font-semibold text-sm"
+          className="text-ocean-600 mb-4 font-semibold text-sm"
         >
           ← Back to Billing
         </button>
 
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
+        <div className="bg-ocean-gradient text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
           <div className="flex justify-between items-start flex-wrap gap-3">
             <div>
-              <p className="text-indigo-200 text-sm">Invoice</p>
+              <p className="text-ocean-200 text-sm">Invoice</p>
               <h1 className="text-3xl font-bold font-mono">
                 {invoice.invoice_number}
               </h1>
-              <p className="text-indigo-100 mt-2">
+              <p className="text-ocean-100 mt-2">
                 Period{" "}
                 {String(invoice.billing_month).padStart(2, "0")}/
                 {invoice.billing_year} · Due{" "}
@@ -103,21 +103,21 @@ function InvoiceDetail() {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
             <div>
-              <p className="text-indigo-200 text-xs">Tenant</p>
+              <p className="text-ocean-200 text-xs">Tenant</p>
               <p className="text-lg font-bold">{invoice.tenant_name}</p>
             </div>
             <div>
-              <p className="text-indigo-200 text-xs">Interest Earned</p>
+              <p className="text-ocean-200 text-xs">Interest Earned</p>
               <p className="text-lg font-bold">
                 {KES(invoice.interest_earned)}
               </p>
             </div>
             <div>
-              <p className="text-indigo-200 text-xs">Fee Rate</p>
+              <p className="text-ocean-200 text-xs">Fee Rate</p>
               <p className="text-lg font-bold">{invoice.fee_percentage}%</p>
             </div>
             <div>
-              <p className="text-indigo-200 text-xs">Total Amount</p>
+              <p className="text-ocean-200 text-xs">Total Amount</p>
               <p className="text-2xl font-bold">
                 {KES(invoice.total_amount)}
               </p>
@@ -136,7 +136,7 @@ function InvoiceDetail() {
             </div>
             <div className="flex justify-between py-2 border-b">
               <span>Platform fee ({invoice.fee_percentage}%)</span>
-              <span className="font-bold text-indigo-600">
+              <span className="font-bold text-ocean-600">
                 {KES(invoice.amount_due)}
               </span>
             </div>
@@ -148,7 +148,7 @@ function InvoiceDetail() {
             )}
             <div className="flex justify-between py-3 text-lg">
               <span className="font-bold">Total</span>
-              <span className="font-bold text-indigo-700">
+              <span className="font-bold text-ocean-700">
                 {KES(invoice.total_amount)}
               </span>
             </div>
@@ -228,7 +228,7 @@ function InvoiceDetail() {
                       setPay({ ...pay, amount: e.target.value })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -240,7 +240,7 @@ function InvoiceDetail() {
                     onChange={(e) =>
                       setPay({ ...pay, payment_method: e.target.value })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg bg-white focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg bg-white focus:border-ocean-500 focus:outline-none"
                   >
                     <option value="mpesa">M-Pesa</option>
                     <option value="bank_transfer">Bank Transfer</option>
@@ -259,7 +259,7 @@ function InvoiceDetail() {
                       setPay({ ...pay, payment_reference: e.target.value })
                     }
                     placeholder="Transaction ID / receipt number"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -273,7 +273,7 @@ function InvoiceDetail() {
                       setPay({ ...pay, payment_date: e.target.value })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">

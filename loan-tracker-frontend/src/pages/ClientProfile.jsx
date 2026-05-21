@@ -16,11 +16,11 @@ const riskBadge = {
 function Card({ title, value, icon, color }) {
   const accent =
     {
-      indigo: "border-indigo-500",
+      indigo: "border-ocean-500",
       green: "border-green-500",
       blue: "border-blue-500",
       red: "border-red-500",
-      purple: "border-purple-500",
+      purple: "border-ocean-500",
     }[color] || "border-gray-300";
 
   return (
@@ -110,7 +110,7 @@ function ClientProfile() {
         </div>
         <button
           onClick={() => navigate("/clients")}
-          className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition"
+          className="px-6 py-2 bg-ocean-600 text-white font-semibold rounded-lg hover:bg-ocean-700 transition"
         >
           ← Back to Clients
         </button>
@@ -132,7 +132,7 @@ function ClientProfile() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-xl shadow-lg p-8 text-white mb-6">
+      <div className="bg-ocean-gradient rounded-xl shadow-lg p-8 text-white mb-6">
         <button
           onClick={() => navigate("/clients")}
           className="text-white/80 hover:text-white mb-4"
@@ -142,16 +142,16 @@ function ClientProfile() {
 
         <div className="flex flex-wrap justify-between items-start gap-6">
           <div>
-            <p className="text-indigo-100 text-sm">Client Code</p>
+            <p className="text-ocean-100 text-sm">Client Code</p>
             <h1 className="text-3xl font-bold">{client.client_code}</h1>
             <p className="text-xl mt-2">
               {client.first_name} {client.last_name}
             </p>
-            <p className="text-indigo-100 mt-1">
+            <p className="text-ocean-100 mt-1">
               📱 {client.phone_number}{" "}
               {client.email && `• ✉️ ${client.email}`}
             </p>
-            <p className="text-indigo-100 text-sm mt-1">
+            <p className="text-ocean-100 text-sm mt-1">
               {client.business_name && `🏢 ${client.business_name} • `}
               Member since{" "}
               {new Date(client.created_at).toLocaleDateString()}
@@ -161,9 +161,9 @@ function ClientProfile() {
           <div className="flex flex-col items-end gap-3">
             {/* Credit Score Badge */}
             <div className="text-center bg-white/10 rounded-xl p-6">
-              <p className="text-xs text-indigo-100 uppercase">Credit Score</p>
+              <p className="text-xs text-ocean-100 uppercase">Credit Score</p>
               <p className="text-5xl font-bold mt-2">{creditScore}</p>
-              <p className="text-sm text-indigo-100">out of 100</p>
+              <p className="text-sm text-ocean-100">out of 100</p>
               <div
                 className={`mt-2 px-3 py-1 rounded-full text-sm font-bold ${
                   riskBadge[riskColor] || "bg-gray-200 text-gray-800"
@@ -218,7 +218,7 @@ function ClientProfile() {
                   state: { preSelectClient: client.id },
                 })
               }
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-semibold"
+              className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition font-semibold"
             >
               📱 Send SMS
             </button>
@@ -296,7 +296,7 @@ function ClientProfile() {
 
       {/* Financial Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
+        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
           <p className="text-sm text-gray-500 uppercase">Lifetime Borrowed</p>
           <p className="text-2xl font-bold text-gray-800 mt-1">
             {KES(summary.total_borrowed)}
@@ -451,15 +451,15 @@ function ClientProfile() {
                   <tr
                     key={loan.id}
                     onClick={() => navigate(`/loans/${loan.id}`)}
-                    className="border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer"
+                    className="border-b border-gray-100 hover:bg-ocean-50 transition cursor-pointer"
                   >
-                    <td className="px-4 py-3 font-mono text-sm font-semibold text-indigo-600">
+                    <td className="px-4 py-3 font-mono text-sm font-semibold text-ocean-600">
                       {loan.loan_code}
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-gray-800">
                       {KES(loan.principal_amount)}
                     </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-indigo-600">
+                    <td className="px-4 py-3 text-right text-sm font-semibold text-ocean-600">
                       {KES(loan.total_amount_due)}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-semibold text-green-600">
@@ -481,7 +481,7 @@ function ClientProfile() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="text-indigo-600 font-bold">→</span>
+                      <span className="text-ocean-600 font-bold">→</span>
                     </td>
                   </tr>
                 ))}
@@ -538,7 +538,7 @@ function ClientProfile() {
                     <td className="px-6 py-3 font-mono text-sm font-semibold text-green-600">
                       {p.transaction_code}
                     </td>
-                    <td className="px-6 py-3 font-mono text-sm text-indigo-600">
+                    <td className="px-6 py-3 font-mono text-sm text-ocean-600">
                       {p.loan_code}
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-green-600">
@@ -602,7 +602,7 @@ function ClientProfile() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -619,7 +619,7 @@ function ClientProfile() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -639,7 +639,7 @@ function ClientProfile() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -655,7 +655,7 @@ function ClientProfile() {
                         email: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -674,7 +674,7 @@ function ClientProfile() {
                         id_number: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -689,7 +689,7 @@ function ClientProfile() {
                         status: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -712,7 +712,7 @@ function ClientProfile() {
                         business_name: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -728,7 +728,7 @@ function ClientProfile() {
                         business_type: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -747,7 +747,7 @@ function ClientProfile() {
                         city: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -762,7 +762,7 @@ function ClientProfile() {
                         county: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                   >
                     <option value="">-- Select County --</option>
                     {KENYA_COUNTIES.map((county) => (
@@ -787,7 +787,7 @@ function ClientProfile() {
                       address: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
 
@@ -803,7 +803,7 @@ function ClientProfile() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
                 >
                   {submitting ? "Saving..." : "✓ Save Changes"}
                 </button>

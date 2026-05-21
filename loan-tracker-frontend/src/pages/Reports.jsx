@@ -131,10 +131,10 @@ function Reports() {
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-indigo-100 text-xs uppercase">Total Disbursed</p>
+          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
+            <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
             <p className="text-2xl font-bold mt-1">{fmtK(kpis.total_disbursed)}</p>
-            <p className="text-xs text-indigo-100">{kpis.total_loans} loans</p>
+            <p className="text-xs text-ocean-100">{kpis.total_loans} loans</p>
           </div>
           <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
             <p className="text-green-100 text-xs uppercase">Collected</p>
@@ -143,10 +143,10 @@ function Reports() {
               {kpis.payment_count} payments
             </p>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-purple-100 text-xs uppercase">Interest Earned</p>
+          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
+            <p className="text-ocean-100 text-xs uppercase">Interest Earned</p>
             <p className="text-2xl font-bold mt-1">{fmtK(kpis.interest_earned)}</p>
-            <p className="text-xs text-purple-100">profit</p>
+            <p className="text-xs text-ocean-100">profit</p>
           </div>
           {/* PAR card colour swaps on risk level — same thresholds the
               industry uses to flag deteriorating portfolios. */}

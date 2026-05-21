@@ -35,7 +35,7 @@ function SortableHeader({
         <span>{label}</span>
         <span
           className={`text-xs ${
-            isActive ? "text-indigo-600 font-bold" : "text-gray-400"
+            isActive ? "text-ocean-600 font-bold" : "text-gray-400"
           }`}
         >
           {indicator}

@@ -172,7 +172,7 @@ function Clients() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
         >
           {showForm ? "✖ Cancel" : "+ Add Client"}
         </button>
@@ -191,7 +191,7 @@ function Clients() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by name, phone, email, ID, or code..."
-                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
           </div>
@@ -262,7 +262,7 @@ function Clients() {
                   onChange={handleInputChange}
                   required
                   placeholder="John"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -275,7 +275,7 @@ function Clients() {
                   onChange={handleInputChange}
                   required
                   placeholder="Mwangi"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -291,7 +291,7 @@ function Clients() {
                   onChange={handleInputChange}
                   required
                   placeholder="0712345678"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -304,7 +304,7 @@ function Clients() {
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="john@example.com"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -319,7 +319,7 @@ function Clients() {
                   value={formData.id_number}
                   onChange={handleInputChange}
                   placeholder="12345678"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -331,7 +331,7 @@ function Clients() {
                   value={formData.business_name}
                   onChange={handleInputChange}
                   placeholder="John's Shop"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -346,7 +346,7 @@ function Clients() {
                   value={formData.city}
                   onChange={handleInputChange}
                   placeholder="Nairobi"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
 
@@ -358,7 +358,7 @@ function Clients() {
                   name="county"
                   value={formData.county}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
                   <option value="">-- Select County --</option>
                   {KENYA_COUNTIES.map((county) => (
@@ -379,7 +379,7 @@ function Clients() {
                 value={formData.address}
                 onChange={handleInputChange}
                 placeholder="P.O Box 123-00100"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
 
@@ -395,7 +395,7 @@ function Clients() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
               >
                 {submitting ? "Saving..." : "✓ Save Client"}
               </button>
@@ -412,7 +412,7 @@ function Clients() {
               key={client.id}
               onClick={() => navigate(`/clients/${client.id}/profile`)}
               className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
-                bulk.isSelected(client.id) ? "ring-2 ring-indigo-400" : ""
+                bulk.isSelected(client.id) ? "ring-2 ring-ocean-400" : ""
               }`}
             >
               <div className="flex justify-between items-start mb-2">
@@ -428,7 +428,7 @@ function Clients() {
                     <h3 className="font-bold text-gray-800 truncate">
                       {client.first_name} {client.last_name}
                     </h3>
-                    <p className="text-xs text-indigo-600 font-mono">
+                    <p className="text-xs text-ocean-600 font-mono">
                       {client.client_code}
                     </p>
                   </div>
@@ -493,7 +493,7 @@ function Clients() {
           </p>
           <button
             onClick={() => setSearchTerm("")}
-            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
           >
             ✖ Clear Search
           </button>
@@ -537,8 +537,8 @@ function Clients() {
                   <tr
                     key={client.id}
                     onClick={() => navigate(`/clients/${client.id}/profile`)}
-                    className={`border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer ${
-                      bulk.isSelected(client.id) ? "bg-indigo-50" : ""
+                    className={`border-b border-gray-100 hover:bg-ocean-50 transition cursor-pointer ${
+                      bulk.isSelected(client.id) ? "bg-ocean-50" : ""
                     }`}
                   >
                     <td
@@ -552,7 +552,7 @@ function Clients() {
                         className="w-4 h-4 cursor-pointer"
                       />
                     </td>
-                    <td className="px-6 py-4 font-mono text-sm font-semibold text-indigo-600">
+                    <td className="px-6 py-4 font-mono text-sm font-semibold text-ocean-600">
                       {client.client_code}
                     </td>
                     <td className="px-6 py-4 font-semibold text-gray-800">
@@ -630,7 +630,7 @@ function Clients() {
                             onClick={() => setCurrentPage(page)}
                             className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                               currentPage === page
-                                ? "bg-indigo-600 text-white"
+                                ? "bg-ocean-600 text-white"
                                 : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
                             }`}
                           >

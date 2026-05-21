@@ -6,6 +6,35 @@ import { Link } from "react-router-dom";
 // replace with real copy/links before going to production.
 function LandingHome() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  // "Try Live Demo" — POST /api/demo/start, persist the returned
+  // token + flag the session, then hard-nav to the staff dashboard.
+  // window.location.href instead of navigate() so AuthContext re-
+  // initializes from the just-set localStorage (same pattern as the
+  // customer portal register flow).
+  const startDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+      const res = await fetch(`${apiUrl}/demo/start`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error || "Demo unavailable right now. Please try again.");
+        setDemoLoading(false);
+        return;
+      }
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("is_demo_session", "true");
+      localStorage.setItem("demo_session_token", data.session_token);
+      window.location.href = "/";
+    } catch (err) {
+      alert("Could not start demo. Please try again.");
+      setDemoLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -15,20 +44,20 @@ function LandingHome() {
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center gap-2">
               <span className="text-3xl">🏦</span>
-              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-700 bg-clip-text text-transparent">
-                LendFlow
+              <span className="text-xl font-bold bg-ocean-gradient bg-clip-text text-transparent">
+                LoanFix
               </span>
             </Link>
 
             <div className="hidden lg:flex items-center gap-8">
-              <a href="#features" className="text-gray-700 hover:text-indigo-600 font-semibold">Features</a>
-              <a href="#how-it-works" className="text-gray-700 hover:text-indigo-600 font-semibold">How It Works</a>
-              <a href="#pricing" className="text-gray-700 hover:text-indigo-600 font-semibold">Pricing</a>
-              <a href="#faq" className="text-gray-700 hover:text-indigo-600 font-semibold">FAQ</a>
-              <Link to="/login" className="text-gray-700 hover:text-indigo-600 font-semibold">Login</Link>
+              <a href="#features" className="text-gray-700 hover:text-ocean-600 font-semibold">Features</a>
+              <a href="#how-it-works" className="text-gray-700 hover:text-ocean-600 font-semibold">How It Works</a>
+              <a href="#pricing" className="text-gray-700 hover:text-ocean-600 font-semibold">Pricing</a>
+              <a href="#faq" className="text-gray-700 hover:text-ocean-600 font-semibold">FAQ</a>
+              <Link to="/login" className="text-gray-700 hover:text-ocean-600 font-semibold">Login</Link>
               <Link
                 to="/signup"
-                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition"
+                className="px-4 py-2 bg-ocean-gradient text-white rounded-lg font-bold shadow-md hover:shadow-lg transition"
               >
                 Start Free Trial
               </Link>
@@ -54,7 +83,7 @@ function LandingHome() {
               <Link to="/login" className="block px-3 py-2 hover:bg-gray-100 rounded">Login</Link>
               <Link
                 to="/signup"
-                className="block px-3 py-2 bg-indigo-600 text-white rounded-lg font-bold text-center"
+                className="block px-3 py-2 bg-ocean-600 text-white rounded-lg font-bold text-center"
               >
                 Start Free Trial →
               </Link>
@@ -64,18 +93,18 @@ function LandingHome() {
       </nav>
 
       {/* ============= HERO ============= */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-16 lg:py-24">
+      <section className="relative overflow-hidden bg-gradient-to-br from-ocean-50 via-white to-ocean-100 py-16 lg:py-24">
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
 
         <div className="max-w-7xl mx-auto px-4 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-block px-4 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold mb-4">
+              <div className="inline-block px-4 py-1 bg-ocean-100 text-ocean-700 rounded-full text-sm font-semibold mb-4">
                 🚀 Built for Kenyan Lenders
               </div>
               <h1 className="text-4xl lg:text-6xl font-bold leading-tight text-gray-900 mb-6">
                 Run Your{" "}
-                <span className="bg-gradient-to-r from-indigo-600 to-purple-700 bg-clip-text text-transparent">
+                <span className="bg-ocean-gradient bg-clip-text text-transparent">
                   Lending Business
                 </span>{" "}
                 Without the Spreadsheets
@@ -88,13 +117,20 @@ function LandingHome() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
                   to="/signup"
-                  className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 text-center"
+                  className="px-8 py-4 bg-ocean-gradient text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 text-center"
                 >
                   Start Free Trial →
                 </Link>
+                <button
+                  onClick={startDemo}
+                  disabled={demoLoading}
+                  className="px-8 py-4 bg-ocean-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 disabled:opacity-60"
+                >
+                  {demoLoading ? "Loading demo…" : "🎮 Try Live Demo"}
+                </button>
                 <a
                   href="#features"
-                  className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold text-lg hover:border-indigo-600 hover:text-indigo-600 transition text-center"
+                  className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold text-lg hover:border-ocean-600 hover:text-ocean-600 transition text-center"
                 >
                   See How It Works
                 </a>
@@ -118,11 +154,11 @@ function LandingHome() {
                   <div className="w-3 h-3 bg-red-400 rounded-full"></div>
                   <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
                   <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  <div className="ml-2 text-xs text-gray-500 font-mono">yourbusiness.lendflow.co.ke</div>
+                  <div className="ml-2 text-xs text-gray-500 font-mono">yourbusiness.loanfix.co.ke</div>
                 </div>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-lg p-3">
+                    <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-lg p-3">
                       <p className="text-xs opacity-80">Active Loans</p>
                       <p className="text-2xl font-bold">127</p>
                     </div>
@@ -158,24 +194,24 @@ function LandingHome() {
       </section>
 
       {/* ============= STATS BAR (placeholder numbers — tune before launch) ============= */}
-      <section className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white py-8">
+      <section className="bg-ocean-gradient text-white py-8">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             <div>
               <p className="text-3xl lg:text-4xl font-bold">4+</p>
-              <p className="text-indigo-100 text-sm">Active Lenders</p>
+              <p className="text-ocean-100 text-sm">Active Lenders</p>
             </div>
             <div>
               <p className="text-3xl lg:text-4xl font-bold">1.2K+</p>
-              <p className="text-indigo-100 text-sm">Borrowers Served</p>
+              <p className="text-ocean-100 text-sm">Borrowers Served</p>
             </div>
             <div>
               <p className="text-3xl lg:text-4xl font-bold">5M+</p>
-              <p className="text-indigo-100 text-sm">KES Disbursed</p>
+              <p className="text-ocean-100 text-sm">KES Disbursed</p>
             </div>
             <div>
               <p className="text-3xl lg:text-4xl font-bold">99.9%</p>
-              <p className="text-indigo-100 text-sm">Uptime</p>
+              <p className="text-ocean-100 text-sm">Uptime</p>
             </div>
           </div>
         </div>
@@ -187,7 +223,7 @@ function LandingHome() {
           <div className="text-center mb-12">
             <h2 className="text-3xl lg:text-5xl font-bold mb-4">
               Everything You Need to{" "}
-              <span className="text-indigo-600">Manage Loans</span>
+              <span className="text-ocean-600">Manage Loans</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Built specifically for African lenders. No more spreadsheets, lost
@@ -199,10 +235,10 @@ function LandingHome() {
             {[
               { icon: "👥", title: "Client Management", description: "Store complete client profiles with KYC documents, business info, and loan history.", color: "from-blue-500 to-cyan-600" },
               { icon: "💰", title: "Loan Tracking", description: "Manage active loans, payment schedules, and automatic interest calculations.", color: "from-green-500 to-emerald-600" },
-              { icon: "📱", title: "Customer Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-purple-500 to-pink-600" },
+              { icon: "📱", title: "Customer Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-ocean-400 to-pink-600" },
               { icon: "📊", title: "Reports & Analytics", description: "Real-time insights into your portfolio. Export to Excel or PDF anytime.", color: "from-orange-500 to-red-600" },
               { icon: "💳", title: "M-Pesa Ready", description: "Built for the Kenyan market. Record M-Pesa payments instantly.", color: "from-yellow-500 to-orange-600" },
-              { icon: "🔔", title: "SMS Notifications", description: "Automatic SMS for payment reminders, loan approvals, and overdue alerts.", color: "from-indigo-500 to-purple-600" },
+              { icon: "🔔", title: "SMS Notifications", description: "Automatic SMS for payment reminders, loan approvals, and overdue alerts.", color: "from-ocean-500 to-ocean-600" },
               { icon: "👨‍💼", title: "Multi-User Roles", description: "Add staff with different permission levels. Track who did what.", color: "from-teal-500 to-cyan-600" },
               { icon: "🔐", title: "Secure & Encrypted", description: "Bank-grade security. Your data is encrypted and backed up daily.", color: "from-rose-500 to-red-600" },
               { icon: "📈", title: "Loan Applications", description: "Customers apply online. Review, approve, and disburse — all digital.", color: "from-pink-500 to-rose-600" },
@@ -227,7 +263,7 @@ function LandingHome() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl lg:text-5xl font-bold mb-4">
-              Get Started in <span className="text-indigo-600">3 Easy Steps</span>
+              Get Started in <span className="text-ocean-600">3 Easy Steps</span>
             </h2>
             <p className="text-xl text-gray-600">
               From signup to your first loan in less than 10 minutes
@@ -242,7 +278,7 @@ function LandingHome() {
             ].map((step, idx, arr) => (
               <div key={idx} className="relative">
                 <div className="text-center">
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-full flex items-center justify-center text-3xl font-bold shadow-lg mb-4">
+                  <div className="w-16 h-16 mx-auto bg-ocean-gradient text-white rounded-full flex items-center justify-center text-3xl font-bold shadow-lg mb-4">
                     {step.number}
                   </div>
                   <div className="text-5xl mb-3">{step.emoji}</div>
@@ -261,7 +297,7 @@ function LandingHome() {
           <div className="text-center mt-12">
             <Link
               to="/signup"
-              className="inline-block px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition"
+              className="inline-block px-8 py-4 bg-ocean-gradient text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition"
             >
               Start Your Free Trial →
             </Link>
@@ -270,11 +306,11 @@ function LandingHome() {
       </section>
 
       {/* ============= PRICING ============= */}
-      <section id="pricing" className="py-16 lg:py-24 bg-gradient-to-br from-indigo-50 to-purple-50">
+      <section id="pricing" className="py-16 lg:py-24 bg-gradient-to-br from-ocean-50 to-ocean-100">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl lg:text-5xl font-bold mb-4">
-              Simple, <span className="text-indigo-600">Performance-Based</span>{" "}
+              Simple, <span className="text-ocean-600">Performance-Based</span>{" "}
               Pricing
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -299,20 +335,20 @@ function LandingHome() {
               </ul>
               <Link
                 to="/signup"
-                className="block w-full py-3 text-center border-2 border-indigo-600 text-indigo-600 rounded-lg font-bold hover:bg-indigo-50"
+                className="block w-full py-3 text-center border-2 border-ocean-600 text-ocean-600 rounded-lg font-bold hover:bg-ocean-50"
               >
                 Start Free Trial
               </Link>
             </div>
 
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-2xl shadow-2xl p-8 transform lg:scale-105 relative">
+            <div className="bg-ocean-gradient text-white rounded-2xl shadow-2xl p-8 transform lg:scale-105 relative">
               <div className="absolute top-0 right-4 -translate-y-1/2 bg-yellow-400 text-gray-900 px-4 py-1 rounded-full text-xs font-bold">
                 MOST POPULAR
               </div>
               <h3 className="text-2xl font-bold mb-2">Pay-As-You-Grow</h3>
-              <p className="text-indigo-100 mb-4">Everyone uses this</p>
+              <p className="text-ocean-100 mb-4">Everyone uses this</p>
               <p className="text-5xl font-bold mb-2">5%</p>
-              <p className="text-indigo-100 text-sm mb-6">of interest earned monthly</p>
+              <p className="text-ocean-100 text-sm mb-6">of interest earned monthly</p>
               <ul className="space-y-2 mb-6 text-sm">
                 <li className="flex items-center gap-2">✓ Everything in Free Trial</li>
                 <li className="flex items-center gap-2">✓ Unlimited clients</li>
@@ -323,11 +359,11 @@ function LandingHome() {
               </ul>
               <Link
                 to="/signup"
-                className="block w-full py-3 text-center bg-white text-indigo-600 rounded-lg font-bold hover:shadow-lg"
+                className="block w-full py-3 text-center bg-white text-ocean-600 rounded-lg font-bold hover:shadow-lg"
               >
                 Start Free Trial
               </Link>
-              <p className="text-xs text-indigo-200 text-center mt-3">
+              <p className="text-xs text-ocean-200 text-center mt-3">
                 Example: Earn KES 100K interest → Pay KES 5K
               </p>
             </div>
@@ -348,8 +384,8 @@ function LandingHome() {
                 <li className="flex items-center gap-2"><span className="text-green-500">✓</span> White-label option</li>
               </ul>
               <a
-                href="mailto:sales@lendflow.co.ke"
-                className="block w-full py-3 text-center border-2 border-indigo-600 text-indigo-600 rounded-lg font-bold hover:bg-indigo-50"
+                href="mailto:sales@loanfix.co.ke"
+                className="block w-full py-3 text-center border-2 border-ocean-600 text-ocean-600 rounded-lg font-bold hover:bg-ocean-50"
               >
                 Contact Sales
               </a>
@@ -374,15 +410,15 @@ function LandingHome() {
               Loved by Kenyan Lenders
             </h2>
             <p className="text-xl text-gray-600">
-              Real stories from real lenders using LendFlow
+              Real stories from real lenders using LoanFix
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {[
-              { quote: "Before LendFlow, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance, Nairobi", rating: 5 },
+              { quote: "Before LoanFix, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance, Nairobi", rating: 5 },
               { quote: "The SMS notifications alone are worth it. Customers don't forget to pay anymore. My collection rate is up 30%.", author: "John K.", business: "Quick Loans Co, Mombasa", rating: 5 },
-              { quote: "I run a chama with 50 members. LendFlow keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Chama, Kisumu", rating: 5 },
+              { quote: "I run a chama with 50 members. LoanFix keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Chama, Kisumu", rating: 5 },
             ].map((t, idx) => (
               <div key={idx} className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-md p-6">
                 <div className="flex gap-1 mb-3">
@@ -406,7 +442,7 @@ function LandingHome() {
         <div className="max-w-3xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl lg:text-5xl font-bold mb-4">
-              Frequently Asked <span className="text-indigo-600">Questions</span>
+              Frequently Asked <span className="text-ocean-600">Questions</span>
             </h2>
           </div>
 
@@ -415,7 +451,7 @@ function LandingHome() {
               { q: "Is my data safe?", a: "Yes! We use bank-grade encryption. Your data is backed up daily and stored in secure data centers. Only authorized staff at YOUR business can access YOUR data." },
               { q: "How does the 5% pricing work?", a: "At the end of each month, we calculate the interest you earned from loan repayments. You pay 5% of that interest as a platform fee. If you had a quiet month with no payments, you don't pay anything." },
               { q: "Can my customers really apply for loans online?", a: "Yes! Each tenant gets their own customer portal where borrowers can register, apply for new loans, track applications, and view their existing loans 24/7. It's a separate experience from your admin dashboard." },
-              { q: "Do I need technical skills?", a: "Not at all. If you can use WhatsApp, you can use LendFlow. We provide free onboarding and training. Most lenders are up and running in less than an hour." },
+              { q: "Do I need technical skills?", a: "Not at all. If you can use WhatsApp, you can use LoanFix. We provide free onboarding and training. Most lenders are up and running in less than an hour." },
               { q: "What if I want to leave?", a: "You can export all your data anytime in Excel or CSV format. No vendor lock-in. We're confident you'll love it, but your data is always yours." },
               { q: "Do you integrate with M-Pesa?", a: "Yes, you can record M-Pesa payments manually now. Direct M-Pesa STK Push integration is coming soon for tenants with a business paybill account." },
               { q: "Is there a setup fee?", a: "No. Sign up is free, the 14-day trial is free, and there are no setup fees. You only pay 5% of interest earned after your trial ends." },
@@ -427,22 +463,22 @@ function LandingHome() {
       </section>
 
       {/* ============= FINAL CTA ============= */}
-      <section className="py-16 lg:py-24 bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-600 text-white relative overflow-hidden">
+      <section className="py-16 lg:py-24 bg-gradient-to-br from-ocean-500 via-ocean-600 to-pink-600 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
         <div className="max-w-4xl mx-auto px-4 text-center relative">
           <h2 className="text-4xl lg:text-6xl font-bold mb-4">
             Ready to Transform Your Lending Business?
           </h2>
-          <p className="text-xl lg:text-2xl text-indigo-100 mb-8">
-            Join Kenyan lenders already growing with LendFlow
+          <p className="text-xl lg:text-2xl text-ocean-100 mb-8">
+            Join Kenyan lenders already growing with LoanFix
           </p>
           <Link
             to="/signup"
-            className="inline-block px-10 py-5 bg-white text-indigo-700 rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl transition transform hover:-translate-y-1"
+            className="inline-block px-10 py-5 bg-white text-ocean-700 rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl transition transform hover:-translate-y-1"
           >
             Start Your Free Trial Today →
           </Link>
-          <p className="mt-6 text-indigo-100 text-sm">
+          <p className="mt-6 text-ocean-100 text-sm">
             ✓ 14 days free • ✓ No credit card • ✓ Setup in 5 minutes
           </p>
         </div>
@@ -455,7 +491,7 @@ function LandingHome() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-3xl">🏦</span>
-                <span className="text-xl font-bold text-white">LendFlow</span>
+                <span className="text-xl font-bold text-white">LoanFix</span>
               </div>
               <p className="text-sm">
                 Cloud-based loan management for African lenders. Built in Kenya,
@@ -474,7 +510,7 @@ function LandingHome() {
               <h4 className="font-bold text-white mb-3">Support</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#faq" className="hover:text-white">FAQ</a></li>
-                <li><a href="mailto:support@lendflow.co.ke" className="hover:text-white">Contact Support</a></li>
+                <li><a href="mailto:support@loanfix.co.ke" className="hover:text-white">Contact Support</a></li>
                 <li><a href="tel:+254700000000" className="hover:text-white">+254 700 000 000</a></li>
               </ul>
             </div>
@@ -487,7 +523,7 @@ function LandingHome() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col lg:flex-row justify-between items-center text-sm">
-            <p>© {new Date().getFullYear()} LendFlow. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} LoanFix. All rights reserved.</p>
             <p>🇰🇪 Proudly built in Kenya</p>
           </div>
         </div>

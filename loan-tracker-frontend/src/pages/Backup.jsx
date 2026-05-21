@@ -170,7 +170,7 @@ function Backup() {
           <button
             onClick={handleCreateBackup}
             disabled={creating}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg disabled:opacity-50"
+            className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg disabled:opacity-50"
           >
             {creating ? "Creating..." : "+ Create Backup"}
           </button>
@@ -178,8 +178,8 @@ function Backup() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-purple-100 text-sm uppercase">Total Backups</p>
+        <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-6">
+          <p className="text-ocean-100 text-sm uppercase">Total Backups</p>
           <p className="text-3xl font-bold mt-2">
             {stats?.total_backups || 0}
           </p>
@@ -278,7 +278,7 @@ function Backup() {
                           backup.backup_type === "manual"
                             ? "bg-blue-100 text-blue-700"
                             : backup.backup_type === "scheduled"
-                              ? "bg-purple-100 text-purple-700"
+                              ? "bg-ocean-100 text-ocean-700"
                               : backup.backup_type === "pre_restore"
                                 ? "bg-yellow-100 text-yellow-700"
                                 : "bg-orange-100 text-orange-700"

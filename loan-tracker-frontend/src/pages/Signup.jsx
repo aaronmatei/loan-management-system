@@ -100,17 +100,17 @@ function Signup() {
     });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 py-8 px-4">
+    <div className="min-h-screen bg-ocean-gradient py-8 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white">LMS Platform</h1>
-          <p className="text-indigo-100 mt-2">
+          <p className="text-ocean-100 mt-2">
             Loan Management System for Kenyan Lenders
           </p>
         </div>
 
         {referralInfo && (
-          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-3 rounded-lg text-center text-sm mb-4 shadow-lg">
+          <div className="bg-ocean-gradient text-white p-3 rounded-lg text-center text-sm mb-4 shadow-lg">
             🎁 Referred by <strong>{referralInfo.referrer_name}</strong>!
             {referralInfo.bonus ? (
               <>
@@ -146,7 +146,7 @@ function Signup() {
                     onChange={set("business_name")}
                     required
                     placeholder="e.g., ABC Lenders Ltd"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -157,7 +157,7 @@ function Signup() {
                     <select
                       value={formData.business_type}
                       onChange={set("business_type")}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                     >
                       <option value="microfinance">Microfinance</option>
                       <option value="sacco">SACCO</option>
@@ -184,7 +184,7 @@ function Signup() {
                         }
                         required
                         placeholder="abclenders"
-                        className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-l-lg focus:border-indigo-500 focus:outline-none"
+                        className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-l-lg focus:border-ocean-500 focus:outline-none"
                       />
                       <span className="px-3 py-2 bg-gray-100 border-2 border-l-0 border-gray-200 rounded-r-lg text-sm text-gray-600">
                         .lms.co.ke
@@ -225,7 +225,7 @@ function Signup() {
                     onChange={set("contact_name")}
                     required
                     placeholder="John Doe"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -239,7 +239,7 @@ function Signup() {
                       onChange={set("contact_email")}
                       required
                       placeholder="john@yourbusiness.com"
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -252,7 +252,7 @@ function Signup() {
                       onChange={set("contact_phone")}
                       required
                       placeholder="+254712345678"
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -268,7 +268,7 @@ function Signup() {
                       required
                       minLength="12"
                       placeholder="Min 12 chars, 1 upper, 1 number, 1 symbol"
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -280,7 +280,7 @@ function Signup() {
                       value={formData.confirm_password}
                       onChange={set("confirm_password")}
                       required
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -297,11 +297,11 @@ function Signup() {
                 />
                 <span className="text-sm text-gray-700">
                   I agree to the{" "}
-                  <a href="#" className="text-indigo-600 underline">
+                  <a href="#" className="text-ocean-600 underline">
                     Terms of Service
                   </a>{" "}
                   and{" "}
-                  <a href="#" className="text-indigo-600 underline">
+                  <a href="#" className="text-ocean-600 underline">
                     Privacy Policy
                   </a>
                   . After my 14-day trial, I'll be charged 5% of monthly
@@ -313,7 +313,7 @@ function Signup() {
             <button
               type="submit"
               disabled={submitting || subdomainStatus !== "available"}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 text-lg"
+              className="w-full py-3 bg-ocean-gradient text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 text-lg"
             >
               {submitting
                 ? "Creating your account..."
@@ -322,7 +322,7 @@ function Signup() {
 
             <p className="text-center text-gray-600 text-sm">
               Already have an account?{" "}
-              <Link to="/login" className="text-indigo-600 font-semibold">
+              <Link to="/login" className="text-ocean-600 font-semibold">
                 Sign In
               </Link>
             </p>

@@ -203,7 +203,7 @@ function SMS() {
           </button>
           <button
             onClick={() => setShowCustomModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
           >
             ✉️ Send Custom SMS
           </button>
@@ -212,7 +212,7 @@ function SMS() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg p-6">
+        <div className="bg-gradient-to-br from-blue-500 to-ocean-600 text-white rounded-xl shadow-lg p-6">
           <p className="text-blue-100 text-sm uppercase">Total Sent</p>
           <p className="text-3xl font-bold mt-2">{stats?.total_sent || 0}</p>
         </div>
@@ -224,8 +224,8 @@ function SMS() {
           <p className="text-orange-100 text-sm uppercase">Last 30 Days</p>
           <p className="text-3xl font-bold mt-2">{stats?.last_30_days || 0}</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-purple-100 text-sm uppercase">Unique Clients</p>
+        <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-6">
+          <p className="text-ocean-100 text-sm uppercase">Unique Clients</p>
           <p className="text-3xl font-bold mt-2">
             {stats?.unique_clients || 0}
           </p>
@@ -251,7 +251,7 @@ function SMS() {
           </button>
           <button
             onClick={() => setShowCustomModal(true)}
-            className="p-6 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg transition text-left"
+            className="p-6 bg-ocean-gradient text-white rounded-xl shadow-md hover:shadow-lg transition text-left"
           >
             <div className="text-3xl mb-2">✉️</div>
             <h3 className="text-lg font-bold mb-1">Send Custom Message</h3>
@@ -275,7 +275,7 @@ function SMS() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="🔍 Search by name, phone, or message..."
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
 
@@ -287,7 +287,7 @@ function SMS() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({typeCounts.all})</option>
               <option value="overdue_reminder">
@@ -310,7 +310,7 @@ function SMS() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({statusCounts.all})</option>
               <option value="sent">✓ Sent ({statusCounts.sent})</option>
@@ -352,7 +352,7 @@ function SMS() {
                 </span>
               )}
               {typeFilter !== "all" && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                   {typeFilter}
                   <button
                     onClick={() => setTypeFilter("all")}
@@ -522,7 +522,7 @@ function SMS() {
                           onClick={() => setCurrentPage(page)}
                           className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                             currentPage === page
-                              ? "bg-indigo-600 text-white"
+                              ? "bg-ocean-600 text-white"
                               : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
                           }`}
                         >
@@ -562,12 +562,12 @@ function SMS() {
                   Select Client *
                 </label>
                 {selectedClient ? (
-                  <div className="flex items-center justify-between p-3 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-ocean-50 border-2 border-ocean-300 rounded-lg">
                     <div>
-                      <p className="font-semibold text-indigo-900">
+                      <p className="font-semibold text-ocean-900">
                         {selectedClient.first_name} {selectedClient.last_name}
                       </p>
-                      <p className="text-sm text-indigo-700">
+                      <p className="text-sm text-ocean-700">
                         {selectedClient.phone_number}
                       </p>
                     </div>
@@ -593,7 +593,7 @@ function SMS() {
                       }}
                       onFocus={() => setShowClientDropdown(true)}
                       placeholder="🔍 Search by name or phone..."
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                     {showClientDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -606,7 +606,7 @@ function SMS() {
                               setClientSearch("");
                               setShowClientDropdown(false);
                             }}
-                            className="w-full text-left p-3 hover:bg-indigo-50 border-b border-gray-100"
+                            className="w-full text-left p-3 hover:bg-ocean-50 border-b border-gray-100"
                           >
                             <p className="font-semibold">
                               {client.first_name} {client.last_name}
@@ -636,7 +636,7 @@ function SMS() {
                   rows="5"
                   maxLength="160"
                   placeholder="Type your message..."
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -656,7 +656,7 @@ function SMS() {
                 <button
                   type="submit"
                   disabled={sending || !selectedClient || !customMessage.trim()}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg disabled:opacity-50"
                 >
                   {sending ? "Sending..." : "✉️ Send SMS"}
                 </button>

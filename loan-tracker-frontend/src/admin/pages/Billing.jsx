@@ -142,14 +142,14 @@ function BillingDashboard() {
                 unpaid
               </p>
             </div>
-            <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white rounded-xl shadow-lg p-4">
-              <p className="text-purple-100 text-xs uppercase">
+            <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
+              <p className="text-ocean-100 text-xs uppercase">
                 All-Time Revenue
               </p>
               <p className="text-2xl font-bold mt-1">
                 {K(summary.all_time.total_collected)}
               </p>
-              <p className="text-xs text-purple-100 mt-1">
+              <p className="text-xs text-ocean-100 mt-1">
                 {summary.all_time.total_invoices} total invoices
               </p>
             </div>
@@ -169,7 +169,7 @@ function BillingDashboard() {
               onClick={() => setFilter(t.v)}
               className={`px-3 py-2 text-sm font-semibold rounded-lg transition ${
                 filter === t.v
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-ocean-600 text-white"
                   : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
             >
@@ -287,7 +287,7 @@ function BillingDashboard() {
                       <td className="text-right p-3">
                         <button
                           onClick={() => navigate(`/admin/billing/${i.id}`)}
-                          className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded text-xs font-semibold hover:bg-indigo-100"
+                          className="px-3 py-1 bg-ocean-50 text-ocean-600 rounded text-xs font-semibold hover:bg-ocean-100"
                         >
                           View
                         </button>

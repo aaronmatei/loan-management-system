@@ -3,7 +3,7 @@ import React from "react";
 function CompletionStep({ onComplete }) {
   return (
     <div className="max-w-2xl mx-auto px-4">
-      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white rounded-3xl shadow-2xl p-8 lg:p-12 text-center">
+      <div className="bg-gradient-to-br from-ocean-600 via-ocean-600 to-pink-600 text-white rounded-3xl shadow-2xl p-8 lg:p-12 text-center">
         <div className="text-8xl mb-6 animate-bounce">🎉</div>
         <h1 className="text-3xl lg:text-5xl font-bold mb-4">You're All Set!</h1>
         <p className="text-xl text-white/90 mb-8">
@@ -25,7 +25,7 @@ function CompletionStep({ onComplete }) {
         </div>
         <button
           onClick={onComplete}
-          className="w-full py-4 bg-white text-indigo-600 font-bold text-lg rounded-xl shadow-xl hover:shadow-2xl transition transform hover:-translate-y-1"
+          className="w-full py-4 bg-white text-ocean-600 font-bold text-lg rounded-xl shadow-xl hover:shadow-2xl transition transform hover:-translate-y-1"
         >
           🚀 Take Me to My Dashboard
         </button>

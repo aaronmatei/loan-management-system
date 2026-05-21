@@ -1,5 +1,54 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Ocean-blue design tokens (LoanFix platform/product chrome).
+   Tailwind v4 reads the theme from this @theme block (the JS
+   tailwind.config.js is NOT auto-loaded in v4). This is the single
+   source of truth for the ocean/navy palette — every component pulls
+   `bg-ocean-600`, `text-ocean-100`, `border-navy-900`, etc. from here.
+
+   NOTE: this themes LoanFix's OWN surfaces (tenant-admin app shell,
+   platform admin, public landing). Tenant-facing surfaces (customer
+   portal, receipts, embed widget) stay driven by each tenant's
+   brand_color and must NOT use these tokens.
+   ============================================================ */
+@theme {
+  --color-ocean-50: #eff9ff;
+  --color-ocean-100: #def2ff;
+  --color-ocean-200: #b6e7ff;
+  --color-ocean-300: #75d4ff;
+  --color-ocean-400: #2cbeff;
+  --color-ocean-500: #06a6f0; /* primary cyan-blue */
+  --color-ocean-600: #0086cc; /* primary blue */
+  --color-ocean-700: #006ba6;
+  --color-ocean-800: #075a88;
+  --color-ocean-900: #0c4b70;
+  --color-ocean-950: #082f49;
+
+  --color-navy-800: #0f1b2d;
+  --color-navy-900: #0a1422; /* sidebar background */
+  --color-navy-950: #060d18; /* sidebar deepest */
+}
+
+/* Named gradients + the signature tile shadow. Defined as plain
+   utility classes so they work regardless of v4 theme-namespace
+   quirks for background-image. */
+.bg-ocean-gradient {
+  background-image: linear-gradient(135deg, #2cbeff 0%, #0086cc 100%);
+}
+.bg-ocean-gradient-soft {
+  background-image: linear-gradient(135deg, #eff9ff 0%, #def2ff 100%);
+}
+.bg-app-bg {
+  background-image: linear-gradient(180deg, #f3f8fb 0%, #eaf2f7 100%);
+}
+.bg-navy-gradient {
+  background-image: linear-gradient(180deg, #060d18 0%, #0a1422 100%);
+}
+.shadow-tile {
+  box-shadow: 0 8px 20px -6px rgba(6, 134, 240, 0.35);
+}
+
 * {
   box-sizing: border-box;
 }

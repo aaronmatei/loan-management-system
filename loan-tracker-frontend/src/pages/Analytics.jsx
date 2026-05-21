@@ -133,7 +133,7 @@ function Analytics() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg p-4 lg:p-6">
+        <div className="bg-gradient-to-br from-blue-500 to-ocean-600 text-white rounded-xl shadow-lg p-4 lg:p-6">
           <p className="text-blue-100 text-xs uppercase">Active Portfolio</p>
           <p className="text-xl lg:text-2xl font-bold mt-2">
             {formatKES(data.kpis?.active_portfolio)}
@@ -149,12 +149,12 @@ function Analytics() {
           </p>
           <p className="text-xs text-green-200 mt-1">last 30 days</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white rounded-xl shadow-lg p-4 lg:p-6">
-          <p className="text-purple-100 text-xs uppercase">New Loans (30d)</p>
+        <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4 lg:p-6">
+          <p className="text-ocean-100 text-xs uppercase">New Loans (30d)</p>
           <p className="text-xl lg:text-2xl font-bold mt-2">
             {data.kpis?.new_loans_30d || 0}
           </p>
-          <p className="text-xs text-purple-200 mt-1">
+          <p className="text-xs text-ocean-200 mt-1">
             {formatKES(data.kpis?.disbursements_30d)} disbursed
           </p>
         </div>
@@ -419,7 +419,7 @@ function Analytics() {
                             ? "bg-gray-400"
                             : idx === 2
                               ? "bg-orange-600"
-                              : "bg-indigo-500"
+                              : "bg-ocean-500"
                       }`}
                     >
                       {idx + 1}
@@ -436,7 +436,7 @@ function Analytics() {
                   <td className="px-4 py-3 text-sm">
                     {client.loan_count}
                   </td>
-                  <td className="px-4 py-3 font-bold text-indigo-600">
+                  <td className="px-4 py-3 font-bold text-ocean-600">
                     {formatKES(client.total_borrowed)}
                   </td>
                   <td className="px-4 py-3 font-bold text-green-600">
@@ -496,28 +496,28 @@ function Analytics() {
       </div>
 
       {/* Insights */}
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
-        <h3 className="font-bold text-indigo-900 mb-3 text-lg">
+      <div className="bg-ocean-gradient-soft border border-ocean-200 rounded-xl p-6">
+        <h3 className="font-bold text-ocean-900 mb-3 text-lg">
           💡 Quick Insights
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-indigo-800">
+            <p className="text-ocean-800">
               <strong>Average loan size:</strong>{" "}
               {formatKES(data.kpis?.avg_loan_size)}
             </p>
-            <p className="text-indigo-800 mt-1">
+            <p className="text-ocean-800 mt-1">
               <strong>Average interest rate:</strong>{" "}
               {parseFloat(data.kpis?.avg_interest_rate || 0).toFixed(2)}% per
               annum
             </p>
           </div>
           <div>
-            <p className="text-indigo-800">
+            <p className="text-ocean-800">
               <strong>New clients (30d):</strong>{" "}
               {data.kpis?.new_clients_30d}
             </p>
-            <p className="text-indigo-800 mt-1">
+            <p className="text-ocean-800 mt-1">
               <strong>Most popular method:</strong>{" "}
               {data.paymentMethods[0]?.payment_method || "N/A"}
             </p>

@@ -94,7 +94,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                 rows="5"
                 maxLength="160"
                 placeholder="Type your message... Use {first_name} for personalization"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -118,7 +118,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-gradient text-white rounded-lg disabled:opacity-50"
                 >
                   {submitting ? "Sending..." : "📱 Send to All"}
                 </button>
@@ -147,7 +147,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                     setEmailData({ ...emailData, subject: e.target.value })
                   }
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -162,7 +162,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                   rows="8"
                   placeholder="Type your message... Use {first_name} for personalization"
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {"{first_name}"} / {"{last_name}"} are personalized
@@ -179,7 +179,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-ocean-700 text-white rounded-lg disabled:opacity-50"
                 >
                   {submitting ? "Sending..." : "✉️ Send to All"}
                 </button>

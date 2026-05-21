@@ -37,7 +37,7 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-indigo-700 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-ocean-gradient p-4">
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
@@ -65,7 +65,7 @@ function Login() {
               required
               autoFocus
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none disabled:bg-gray-100 transition"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none disabled:bg-gray-100 transition"
             />
           </div>
 
@@ -80,21 +80,21 @@ function Login() {
               placeholder="Enter password"
               required
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none disabled:bg-gray-100 transition"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none disabled:bg-gray-100 transition"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
         <p className="text-center mt-4 text-sm text-gray-600">
           Don't have an account?{' '}
-          <Link to="/signup" className="text-indigo-600 font-semibold">
+          <Link to="/signup" className="text-ocean-600 font-semibold">
             Sign up free
           </Link>
         </p>

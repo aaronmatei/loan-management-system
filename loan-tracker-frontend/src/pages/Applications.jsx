@@ -144,7 +144,7 @@ function Applications() {
         <PermissionGate permission="loans:create">
           <button
             onClick={() => navigate("/loans?newApplication=true")}
-            className="px-4 py-2 lg:px-6 lg:py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold rounded-lg w-full sm:w-auto"
+            className="px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg w-full sm:w-auto"
           >
             + New Application
           </button>
@@ -169,7 +169,7 @@ function Applications() {
           onClick={() => setStatusFilter("under_review")}
           className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
             statusFilter === "under_review" ? "ring-4 ring-blue-300" : ""
-          } bg-gradient-to-br from-blue-500 to-indigo-600 text-white`}
+          } bg-gradient-to-br from-blue-500 to-ocean-600 text-white`}
         >
           <p className="text-blue-100 text-xs uppercase">Under Review</p>
           <p className="text-2xl lg:text-3xl font-bold mt-2">
@@ -217,7 +217,7 @@ function Applications() {
             onClick={() => setStatusFilter(tab.value)}
             className={`px-3 py-2 text-sm font-semibold rounded-t-lg transition ${
               statusFilter === tab.value
-                ? "bg-indigo-600 text-white"
+                ? "bg-ocean-600 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -250,7 +250,7 @@ function Applications() {
                         {app.status.replace("_", " ").toUpperCase()}
                       </span>
                       <div className="flex-1">
-                        <p className="font-mono text-indigo-600 text-sm font-bold">
+                        <p className="font-mono text-ocean-600 text-sm font-bold">
                           {app.loan_code}
                         </p>
                         <h3 className="text-lg font-bold text-gray-800">
@@ -375,7 +375,7 @@ function Applications() {
                             setSelectedLoan(app);
                             setShowDisburseModal(true);
                           }}
-                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
                         >
                           💰 Disburse
                         </button>
@@ -476,7 +476,7 @@ function Applications() {
                     })
                   }
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
                   <option value="mpesa">📱 M-Pesa</option>
                   <option value="bank_transfer">🏦 Bank Transfer</option>
@@ -498,7 +498,7 @@ function Applications() {
                     })
                   }
                   placeholder="e.g., QGH5XXX or Cheque #001"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -516,7 +516,7 @@ function Applications() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -533,7 +533,7 @@ function Applications() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -555,7 +555,7 @@ function Applications() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg disabled:opacity-50"
                 >
                   {submitting ? "Disbursing..." : "💰 Disburse Now"}
                 </button>

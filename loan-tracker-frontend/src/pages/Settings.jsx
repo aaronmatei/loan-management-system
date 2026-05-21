@@ -86,7 +86,7 @@ function Settings() {
                   setSettings({ ...settings, company_name: e.target.value })
                 }
                 required
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
             <div>
@@ -99,7 +99,7 @@ function Settings() {
                   setSettings({ ...settings, company_address: e.target.value })
                 }
                 rows="2"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,7 +113,7 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, company_phone: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -126,7 +126,7 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, company_email: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -144,7 +144,7 @@ function Settings() {
                       business_registration_number: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -157,7 +157,7 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, tax_pin: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -185,7 +185,7 @@ function Settings() {
                     setSettings({ ...settings, mpesa_paybill: e.target.value })
                   }
                   placeholder="123456"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -202,7 +202,7 @@ function Settings() {
                     })
                   }
                   placeholder="654321"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -217,7 +217,7 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, bank_name: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -233,7 +233,7 @@ function Settings() {
                       bank_account_number: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -246,7 +246,7 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, bank_branch: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -256,7 +256,7 @@ function Settings() {
         <button
           type="submit"
           disabled={saving}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
         >
           {saving ? "Saving..." : "✓ Save Settings"}
         </button>

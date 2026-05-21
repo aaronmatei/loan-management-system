@@ -121,7 +121,7 @@ function PlatformAuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, search: e.target.value })
               }
-              className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500"
+              className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500"
             />
             <select
               value={filters.tenant_id}
@@ -201,7 +201,7 @@ function PlatformAuditLog() {
                         <span>👤 {log.user_name || "System"}</span>
                         {log.user_role && <span>• {log.user_role}</span>}
                         {log.is_platform_admin && (
-                          <span className="text-purple-600 font-semibold">
+                          <span className="text-ocean-600 font-semibold">
                             • 🛡️ platform
                           </span>
                         )}
@@ -215,7 +215,7 @@ function PlatformAuditLog() {
                       </div>
                       {(log.old_values || log.new_values || log.metadata) && (
                         <details className="mt-2">
-                          <summary className="text-xs text-indigo-600 cursor-pointer">
+                          <summary className="text-xs text-ocean-600 cursor-pointer">
                             details
                           </summary>
                           <pre className="text-xs bg-gray-50 p-2 rounded mt-1 overflow-x-auto">
@@ -274,7 +274,7 @@ function PlatformAuditLog() {
 
 function Card({ label, value, color = "gray" }) {
   const text = {
-    indigo: "text-indigo-600",
+    indigo: "text-ocean-600",
     red: "text-red-600",
     yellow: "text-yellow-600",
     gray: "text-gray-800",

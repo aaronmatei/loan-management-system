@@ -40,10 +40,10 @@ function PlatformDashboard() {
         <p className="text-gray-600 mt-1 mb-6">Your SaaS at a glance</p>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-indigo-100 text-xs uppercase">Total Tenants</p>
+          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
+            <p className="text-ocean-100 text-xs uppercase">Total Tenants</p>
             <p className="text-3xl font-bold mt-1">{to.total_tenants}</p>
-            <p className="text-xs text-indigo-100 mt-1">
+            <p className="text-xs text-ocean-100 mt-1">
               {to.active_tenants} active
             </p>
           </div>
@@ -113,7 +113,7 @@ function PlatformDashboard() {
               </div>
               <div className="flex justify-between py-2">
                 <span>New Tenants (30 days)</span>
-                <span className="font-bold text-indigo-600">
+                <span className="font-bold text-ocean-600">
                   +{to.new_this_month}
                 </span>
               </div>
@@ -126,7 +126,7 @@ function PlatformDashboard() {
             <h2 className="text-xl font-bold text-gray-800">🏆 Top Tenants</h2>
             <button
               onClick={() => navigate("/admin/tenants")}
-              className="text-sm text-indigo-600 font-semibold"
+              className="text-sm text-ocean-600 font-semibold"
             >
               View All →
             </button>

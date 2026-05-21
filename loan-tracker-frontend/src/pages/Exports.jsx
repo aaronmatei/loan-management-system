@@ -40,7 +40,7 @@ function Exports() {
       description:
         "Complete client database with contact details and statistics",
       icon: "👥",
-      color: "from-blue-500 to-indigo-600",
+      color: "from-blue-500 to-ocean-600",
       url: "/reports/export/clients",
       filename: `clients_${new Date().toISOString().split("T")[0]}.xlsx`,
     },
@@ -48,7 +48,7 @@ function Exports() {
       title: "All Loans",
       description: "Comprehensive loans report with status and balances",
       icon: "💰",
-      color: "from-purple-500 to-indigo-600",
+      color: "from-ocean-500 to-ocean-600",
       url: "/reports/export/loans",
       filename: `loans_${new Date().toISOString().split("T")[0]}.xlsx`,
     },
@@ -161,7 +161,7 @@ function Exports() {
                 onChange={(e) =>
                   setDateRange({ ...dateRange, from: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
             <div>
@@ -174,7 +174,7 @@ function Exports() {
                 onChange={(e) =>
                   setDateRange({ ...dateRange, to: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
             <button

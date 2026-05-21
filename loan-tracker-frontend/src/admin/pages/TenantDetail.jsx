@@ -36,7 +36,7 @@ function TenantDetail() {
       <div className="p-4 lg:p-8">
         <button
           onClick={() => navigate("/admin/tenants")}
-          className="text-indigo-600 mb-4 font-semibold text-sm"
+          className="text-ocean-600 mb-4 font-semibold text-sm"
         >
           ← Back to Tenants
         </button>
@@ -87,7 +87,7 @@ function TenantDetail() {
           </div>
           <div className="bg-white rounded-xl shadow p-4">
             <p className="text-xs text-gray-500">Interest Earned</p>
-            <p className="text-2xl font-bold text-indigo-600">
+            <p className="text-2xl font-bold text-ocean-600">
               {K(financials.total_interest_earned)}
             </p>
           </div>
@@ -193,7 +193,7 @@ function TenantDetail() {
                   disabled={current}
                   className={`flex-1 py-2 rounded-lg font-semibold text-sm capitalize ${
                     current
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-ocean-600 text-white"
                       : "bg-gray-100 hover:bg-gray-200"
                   }`}
                 >

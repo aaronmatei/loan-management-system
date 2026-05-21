@@ -360,7 +360,7 @@ function Loans() {
         <button
           onClick={() => setShowForm(!showForm)}
           disabled={clients.length === 0}
-          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {showForm ? "✖ Cancel" : "+ New Application"}
         </button>
@@ -419,12 +419,12 @@ function Loans() {
               </label>
 
               {selectedClient ? (
-                <div className="flex items-center gap-2 p-3 border-2 border-indigo-300 bg-indigo-50 rounded-lg">
+                <div className="flex items-center gap-2 p-3 border-2 border-ocean-300 bg-ocean-50 rounded-lg">
                   <div className="flex-1">
-                    <p className="font-semibold text-indigo-900">
+                    <p className="font-semibold text-ocean-900">
                       {selectedClient.first_name} {selectedClient.last_name}
                     </p>
-                    <p className="text-sm text-indigo-700">
+                    <p className="text-sm text-ocean-700">
                       {selectedClient.client_code} •{" "}
                       {selectedClient.phone_number}
                       {selectedClient.email && ` • ${selectedClient.email}`}
@@ -449,7 +449,7 @@ function Loans() {
                     }}
                     onFocus={() => setShowDropdown(true)}
                     placeholder="🔍 Type to search clients..."
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
 
                   {showDropdown && (
@@ -464,7 +464,7 @@ function Loans() {
                             key={client.id}
                             type="button"
                             onClick={() => handleSelectClient(client)}
-                            className="w-full text-left p-3 hover:bg-indigo-50 border-b border-gray-100 last:border-b-0 transition"
+                            className="w-full text-left p-3 hover:bg-ocean-50 border-b border-gray-100 last:border-b-0 transition"
                           >
                             <div className="flex justify-between items-start">
                               <div>
@@ -481,7 +481,7 @@ function Loans() {
                                   </p>
                                 )}
                               </div>
-                              <span className="text-xs font-mono text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                              <span className="text-xs font-mono text-ocean-600 bg-ocean-100 px-2 py-1 rounded">
                                 {client.client_code}
                               </span>
                             </div>
@@ -569,7 +569,7 @@ function Loans() {
                   min="1000"
                   step="100"
                   placeholder="50000"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -585,7 +585,7 @@ function Loans() {
                   min="0"
                   max="100"
                   step="0.1"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Monthly rate: {calc.monthlyRate}% (auto-calculated)
@@ -603,7 +603,7 @@ function Loans() {
                   required
                   min="1"
                   max="60"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -619,7 +619,7 @@ function Loans() {
                   value={formData.start_date}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -631,7 +631,7 @@ function Loans() {
                   value={formData.purpose}
                   onChange={handleInputChange}
                   placeholder="Business expansion, school fees, etc."
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -653,7 +653,7 @@ function Loans() {
                     value={formData.guarantor_name || ""}
                     onChange={handleInputChange}
                     placeholder="Guarantor Name"
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                   <input
                     type="text"
@@ -661,7 +661,7 @@ function Loans() {
                     value={formData.guarantor_phone || ""}
                     onChange={handleInputChange}
                     placeholder="Phone Number"
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                   <input
                     type="text"
@@ -669,7 +669,7 @@ function Loans() {
                     value={formData.guarantor_id_number || ""}
                     onChange={handleInputChange}
                     placeholder="ID Number"
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -684,7 +684,7 @@ function Loans() {
                   onChange={handleInputChange}
                   rows="2"
                   placeholder="Describe any collateral or security (e.g., Vehicle KCA 123A, Title Deed, etc.)"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
 
@@ -699,7 +699,7 @@ function Loans() {
                     value={formData.late_payment_fee ?? 500}
                     onChange={handleInputChange}
                     placeholder="500"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -713,7 +713,7 @@ function Loans() {
                     value={formData.penalty_rate ?? 5}
                     onChange={handleInputChange}
                     placeholder="5.0"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -721,8 +721,8 @@ function Loans() {
 
             {/* Live Calculation Preview */}
             {formData.principal_amount && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                <h3 className="font-semibold text-indigo-900 mb-3">
+              <div className="bg-ocean-50 border border-ocean-200 rounded-lg p-4">
+                <h3 className="font-semibold text-ocean-900 mb-3">
                   📊 Loan Summary
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
@@ -760,10 +760,10 @@ function Loans() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-indigo-200">
+                <div className="mt-3 pt-3 border-t border-ocean-200">
                   <p className="text-sm text-gray-600">
                     Total Repayable:{" "}
-                    <span className="font-bold text-indigo-600 text-lg">
+                    <span className="font-bold text-ocean-600 text-lg">
                       KES {parseFloat(calc.totalAmount).toLocaleString()}
                     </span>
                   </p>
@@ -802,7 +802,7 @@ function Loans() {
                     parseFloat(formData.principal_amount) >
                       poolStatus.available_pool)
                 }
-                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? "Submitting..." : "📋 Submit Application"}
               </button>
@@ -829,7 +829,7 @@ function Loans() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Loan code, client name, or phone..."
-                  className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -844,7 +844,7 @@ function Loans() {
                 onChange={(e) =>
                   setFilters({ ...filters, status: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
               >
                 <option value="all">All Statuses ({statusCounts.all})</option>
                 <option value="active">
@@ -869,7 +869,7 @@ function Loans() {
                 onChange={(e) =>
                   setFilters({ ...filters, refundStatus: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
               >
                 <option value="all">All Refunds ({refundCounts.all})</option>
                 <option value="pending">
@@ -935,7 +935,7 @@ function Loans() {
               )}
 
               {filters.refundStatus !== "all" && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                   Refund:{" "}
                   {filters.refundStatus === "none"
                     ? "No Refund"
@@ -944,7 +944,7 @@ function Loans() {
                     onClick={() =>
                       setFilters({ ...filters, refundStatus: "all" })
                     }
-                    className="hover:text-purple-900"
+                    className="hover:text-ocean-900"
                     aria-label="Remove refund filter"
                   >
                     ✖
@@ -966,7 +966,7 @@ function Loans() {
                 key={loan.id}
                 onClick={() => navigate(`/loans/${loan.id}`)}
                 className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
-                  bulk.isSelected(loan.id) ? "ring-2 ring-indigo-400" : ""
+                  bulk.isSelected(loan.id) ? "ring-2 ring-ocean-400" : ""
                 }`}
               >
                 <div className="flex justify-between items-start mb-3">
@@ -979,7 +979,7 @@ function Loans() {
                       className="w-5 h-5 mt-1 cursor-pointer flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="font-mono text-sm font-bold text-indigo-600">
+                      <p className="font-mono text-sm font-bold text-ocean-600">
                         {loan.loan_code}
                       </p>
                       <p className="font-semibold text-gray-800 truncate">
@@ -1068,7 +1068,7 @@ function Loans() {
           </p>
           <button
             onClick={clearFilters}
-            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
           >
             ✖ Clear Filters
           </button>
@@ -1123,8 +1123,8 @@ function Loans() {
                     <tr
                       key={loan.id}
                       onClick={() => navigate(`/loans/${loan.id}`)}
-                      className={`border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer ${
-                        bulk.isSelected(loan.id) ? "bg-indigo-50" : ""
+                      className={`border-b border-gray-100 hover:bg-ocean-50 transition cursor-pointer ${
+                        bulk.isSelected(loan.id) ? "bg-ocean-50" : ""
                       }`}
                     >
                       <td
@@ -1138,7 +1138,7 @@ function Loans() {
                           className="w-4 h-4 cursor-pointer"
                         />
                       </td>
-                      <td className="px-4 py-4 font-mono text-sm font-semibold text-indigo-600">
+                      <td className="px-4 py-4 font-mono text-sm font-semibold text-ocean-600">
                         {loan.loan_code}
                       </td>
                       <td className="px-4 py-4">
@@ -1158,7 +1158,7 @@ function Loans() {
                         </p>
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <p className="font-bold text-indigo-600 text-sm">
+                        <p className="font-bold text-ocean-600 text-sm">
                           KES {totalDue.toLocaleString()}
                         </p>
                       </td>
@@ -1177,7 +1177,7 @@ function Loans() {
                       <td className="px-4 py-4 text-right">
                         {overpayment > 0 ? (
                           <div>
-                            <p className="font-bold text-purple-600 text-sm">
+                            <p className="font-bold text-ocean-600 text-sm">
                               KES {overpayment.toLocaleString()}
                             </p>
                             <span
@@ -1212,7 +1212,7 @@ function Loans() {
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className="text-indigo-600 font-bold">→</span>
+                        <span className="text-ocean-600 font-bold">→</span>
                       </td>
                     </tr>
                   );
@@ -1220,7 +1220,7 @@ function Loans() {
               </tbody>
 
               {/* ✅ TOTALS ROW */}
-              <tfoot className="bg-gradient-to-r from-indigo-50 to-purple-50 border-t-2 border-indigo-200">
+              <tfoot className="bg-ocean-gradient-soft border-t-2 border-ocean-200">
                 <tr>
                   <td
                     colSpan="3"
@@ -1240,7 +1240,7 @@ function Loans() {
                     </p>
                   </td>
                   <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-indigo-700 text-sm">
+                    <p className="font-bold text-ocean-700 text-sm">
                       KES{" "}
                       {filteredLoans
                         .reduce(
@@ -1274,7 +1274,7 @@ function Loans() {
                   </td>
                   <td className="px-4 py-4 text-right">
                     <div>
-                      <p className="font-bold text-purple-700 text-sm">
+                      <p className="font-bold text-ocean-700 text-sm">
                         KES{" "}
                         {filteredLoans
                           .reduce(
@@ -1284,7 +1284,7 @@ function Loans() {
                           )
                           .toLocaleString()}
                       </p>
-                      <p className="text-xs text-purple-600 mt-1">
+                      <p className="text-xs text-ocean-600 mt-1">
                         Pending: KES{" "}
                         {filteredLoans
                           .filter((l) => l.refund_status === "pending")
@@ -1357,7 +1357,7 @@ function Loans() {
                             onClick={() => setCurrentPage(page)}
                             className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                               currentPage === page
-                                ? "bg-indigo-600 text-white"
+                                ? "bg-ocean-600 text-white"
                                 : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
                             }`}
                           >

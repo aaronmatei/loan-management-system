@@ -141,19 +141,19 @@ function NotificationBell() {
 
       {showDropdown && (
         <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white p-4">
+          <div className="bg-ocean-gradient text-white p-4">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-lg">🔔 Notifications</h3>
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-xs text-indigo-100 hover:text-white underline"
+                  className="text-xs text-ocean-100 hover:text-white underline"
                 >
                   Mark all read
                 </button>
               )}
             </div>
-            <p className="text-xs text-indigo-100 mt-1">
+            <p className="text-xs text-ocean-100 mt-1">
               {unreadCount > 0
                 ? `${unreadCount} unread`
                 : "All caught up! ✨"}
@@ -174,7 +174,7 @@ function NotificationBell() {
                   key={notif.id}
                   onClick={() => handleNotificationClick(notif)}
                   className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition group ${
-                    !notif.is_read ? "bg-indigo-50/50" : ""
+                    !notif.is_read ? "bg-ocean-50/50" : ""
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -191,7 +191,7 @@ function NotificationBell() {
                           {notif.title}
                         </p>
                         {!notif.is_read && (
-                          <span className="w-2 h-2 bg-indigo-600 rounded-full flex-shrink-0 mt-1.5" />
+                          <span className="w-2 h-2 bg-ocean-600 rounded-full flex-shrink-0 mt-1.5" />
                         )}
                       </div>
                       <p className="text-sm text-gray-600 mt-1 line-clamp-2">
@@ -222,7 +222,7 @@ function NotificationBell() {
                   navigate("/notifications");
                   setShowDropdown(false);
                 }}
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold"
+                className="text-sm text-ocean-600 hover:text-ocean-800 font-semibold"
               >
                 View all notifications →
               </button>

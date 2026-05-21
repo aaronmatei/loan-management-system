@@ -127,7 +127,7 @@ function UserManagement() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
         >
           + Add User
         </button>
@@ -239,7 +239,7 @@ function UserManagement() {
                           setNewPassword("");
                           setShowPasswordModal(true);
                         }}
-                        className="text-purple-600 hover:text-purple-800 text-sm"
+                        className="text-ocean-600 hover:text-ocean-800 text-sm"
                       >
                         🔑 Reset Password
                       </button>
@@ -280,7 +280,7 @@ function UserManagement() {
                       setFormData({ ...formData, first_name: e.target.value })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -294,7 +294,7 @@ function UserManagement() {
                       setFormData({ ...formData, last_name: e.target.value })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -309,7 +309,7 @@ function UserManagement() {
                     setFormData({ ...formData, email: e.target.value })
                   }
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -322,7 +322,7 @@ function UserManagement() {
                   onChange={(e) =>
                     setFormData({ ...formData, phone_number: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -337,7 +337,7 @@ function UserManagement() {
                   }
                   required
                   minLength="12"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -350,7 +350,7 @@ function UserManagement() {
                     setFormData({ ...formData, role: e.target.value })
                   }
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
                   <option value="loan_officer">💼 Loan Officer</option>
                   <option value="manager">📊 Manager</option>
@@ -380,7 +380,7 @@ function UserManagement() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-gradient text-white rounded-lg disabled:opacity-50"
                 >
                   {submitting ? "Creating..." : "✓ Create User"}
                 </button>
@@ -409,7 +409,7 @@ function UserManagement() {
                     onChange={(e) =>
                       setEditData({ ...editData, first_name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -422,7 +422,7 @@ function UserManagement() {
                     onChange={(e) =>
                       setEditData({ ...editData, last_name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -436,7 +436,7 @@ function UserManagement() {
                   onChange={(e) =>
                     setEditData({ ...editData, phone_number: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -446,7 +446,7 @@ function UserManagement() {
                   onChange={(e) =>
                     setEditData({ ...editData, role: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
                   <option value="loan_officer">💼 Loan Officer</option>
                   <option value="manager">📊 Manager</option>
@@ -494,7 +494,7 @@ function UserManagement() {
                   required
                   minLength="12"
                   placeholder="Min 12 chars, 1 uppercase, 1 number, 1 symbol"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Share this password with the user securely
@@ -511,7 +511,7 @@ function UserManagement() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-600 text-white rounded-lg disabled:opacity-50"
                 >
                   {submitting ? "Resetting..." : "🔑 Reset Password"}
                 </button>

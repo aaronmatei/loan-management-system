@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Wallet, CheckCircle2, Coins, Percent } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import IconTile from "../components/IconTile";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -104,7 +106,7 @@ function Dashboard() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
           Dashboard
         </h1>
         <p className="text-gray-600 mt-2">
@@ -135,7 +137,7 @@ function Dashboard() {
       {user?.is_platform_admin && (
         <button
           onClick={() => navigate("/admin/dashboard")}
-          className="w-full bg-gradient-to-r from-purple-600 to-indigo-700 text-white py-3 px-4 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 hover:shadow-lg transition"
+          className="w-full bg-ocean-gradient text-white py-3 px-4 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 hover:shadow-lg transition"
         >
           <span>👑</span>
           <span className="font-semibold">Go to Platform Admin</span>
@@ -145,7 +147,7 @@ function Dashboard() {
 
       {/* Capital Pool */}
       {poolStatus && (
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+        <div className="bg-gradient-to-r from-blue-600 via-ocean-600 to-ocean-600 rounded-xl shadow-lg p-6 mb-6 text-white">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="text-xl font-bold">💰 Capital Pool</h2>
@@ -262,18 +264,18 @@ function Dashboard() {
           {metrics.pending_refunds > 0 && (
             <div
               onClick={() => navigate("/loans")}
-              className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-lg cursor-pointer hover:bg-purple-100 transition"
+              className="bg-ocean-50 border-l-4 border-ocean-500 p-4 rounded-lg cursor-pointer hover:bg-ocean-100 transition"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-purple-700">
+                  <p className="text-sm font-semibold text-ocean-700">
                     💰 Pending Refunds
                   </p>
-                  <p className="text-2xl font-bold text-purple-800 mt-1">
+                  <p className="text-2xl font-bold text-ocean-800 mt-1">
                     {metrics.pending_refunds}{" "}
                     {metrics.pending_refunds === 1 ? "refund" : "refunds"}
                   </p>
-                  <p className="text-sm text-purple-600 mt-1">
+                  <p className="text-sm text-ocean-600 mt-1">
                     KES {metrics.total_overpayment.toLocaleString()} to refund
                   </p>
                 </div>
@@ -284,54 +286,68 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Main Metrics */}
+      {/* Main Metrics — white cards with gradient icon tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
         {/* Total Portfolio */}
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-indigo-100 text-sm uppercase font-semibold">
-            Total Portfolio
-          </p>
-          <p className="text-3xl font-bold mt-2">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Total Portfolio
+            </p>
+            <IconTile icon={Wallet} variant="ocean" size={40} />
+          </div>
+          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
             KES {metrics.total_amount_due.toLocaleString()}
           </p>
-          <p className="text-indigo-100 text-sm mt-2">
+          <p className="text-slate-500 text-sm mt-1">
             {metrics.total_loans} loans • {metrics.active_loans} active
           </p>
         </div>
 
         {/* Collected */}
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-green-100 text-sm uppercase font-semibold">
-            Collected
-          </p>
-          <p className="text-3xl font-bold mt-2">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Collected
+            </p>
+            <IconTile icon={CheckCircle2} variant="emerald" size={40} />
+          </div>
+          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
             KES {metrics.total_collected.toLocaleString()}
           </p>
-          <p className="text-green-100 text-sm mt-2">
+          <p className="text-slate-500 text-sm mt-1">
             {metrics.total_transactions} payments
           </p>
         </div>
 
         {/* Outstanding */}
-        <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-orange-100 text-sm uppercase font-semibold">
-            Outstanding
-          </p>
-          <p className="text-3xl font-bold mt-2">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Outstanding
+            </p>
+            <IconTile icon={Coins} variant="amber" size={40} />
+          </div>
+          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
             KES {metrics.outstanding_balance.toLocaleString()}
           </p>
-          <p className="text-orange-100 text-sm mt-2">To be collected</p>
+          <p className="text-slate-500 text-sm mt-1">To be collected</p>
         </div>
 
         {/* Collection Rate */}
-        <div className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-blue-100 text-sm uppercase font-semibold">
-            Collection Rate
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Collection Rate
+            </p>
+            <IconTile icon={Percent} variant="teal" size={40} />
+          </div>
+          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
+            {metrics.collection_rate}%
           </p>
-          <p className="text-3xl font-bold mt-2">{metrics.collection_rate}%</p>
-          <div className="w-full bg-white/20 rounded-full h-2 mt-3">
+          <div className="w-full bg-slate-100 rounded-full h-2 mt-3">
             <div
-              className="bg-white h-2 rounded-full"
+              className="bg-ocean-gradient h-2 rounded-full"
               style={{ width: `${Math.min(metrics.collection_rate, 100)}%` }}
             ></div>
           </div>
@@ -340,7 +356,7 @@ function Dashboard() {
 
       {/* Secondary Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-indigo-500">
+        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-ocean-500">
           <p className="text-xs text-gray-500 uppercase font-semibold">
             Total Clients
           </p>
@@ -371,11 +387,11 @@ function Dashboard() {
             KES {metrics.upcoming_amount.toLocaleString()}
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-purple-500">
+        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-ocean-500">
           <p className="text-xs text-gray-500 uppercase font-semibold">
             Total Interest
           </p>
-          <p className="text-xl font-bold text-purple-600 mt-1">
+          <p className="text-xl font-bold text-ocean-600 mt-1">
             KES {metrics.total_interest.toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">Earned</p>
@@ -442,13 +458,13 @@ function Dashboard() {
                       <span className="text-sm font-semibold text-gray-700">
                         {item.month_label}
                       </span>
-                      <span className="text-sm font-bold text-indigo-600">
+                      <span className="text-sm font-bold text-ocean-600">
                         KES {amount.toLocaleString()}
                       </span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-3">
                       <div
-                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all"
+                        className="bg-ocean-gradient h-3 rounded-full transition-all"
                         style={{ width: `${percentage}%` }}
                       ></div>
                     </div>
@@ -471,7 +487,7 @@ function Dashboard() {
             <h3 className="text-lg font-bold text-gray-800">📋 Recent Loans</h3>
             <button
               onClick={() => navigate("/loans")}
-              className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold"
+              className="text-ocean-600 hover:text-ocean-700 text-sm font-semibold"
             >
               View all →
             </button>
@@ -502,10 +518,10 @@ function Dashboard() {
                       <span
                         className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
                           loan.status === "active"
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-emerald-50 text-emerald-600"
                             : loan.status === "completed"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-700"
+                              ? "bg-ocean-50 text-ocean-600"
+                              : "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {loan.status}

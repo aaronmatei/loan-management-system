@@ -213,7 +213,7 @@ function Email() {
           </button>
           <button
             onClick={() => setShowCustomModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-ocean-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
           >
             ✉️ Compose Email
           </button>
@@ -222,7 +222,7 @@ function Email() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg p-6">
+        <div className="bg-gradient-to-br from-blue-500 to-ocean-600 text-white rounded-xl shadow-lg p-6">
           <p className="text-blue-100 text-sm uppercase">Total Sent</p>
           <p className="text-3xl font-bold mt-2">{stats?.total_sent || 0}</p>
         </div>
@@ -230,8 +230,8 @@ function Email() {
           <p className="text-green-100 text-sm uppercase">Delivered</p>
           <p className="text-3xl font-bold mt-2">{stats?.successful || 0}</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-purple-100 text-sm uppercase">With Attachments</p>
+        <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-6">
+          <p className="text-ocean-100 text-sm uppercase">With Attachments</p>
           <p className="text-3xl font-bold mt-2">
             {stats?.with_attachments || 0}
           </p>
@@ -261,7 +261,7 @@ function Email() {
           </button>
           <button
             onClick={() => setShowCustomModal(true)}
-            className="p-6 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg transition text-left"
+            className="p-6 bg-ocean-gradient text-white rounded-xl shadow-md hover:shadow-lg transition text-left"
           >
             <div className="text-3xl mb-2">✉️</div>
             <h3 className="text-lg font-bold mb-1">Compose Email</h3>
@@ -285,7 +285,7 @@ function Email() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="🔍 Search by name, email, or subject..."
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
 
@@ -297,7 +297,7 @@ function Email() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({typeCounts.all})</option>
               <option value="payment_received">
@@ -326,7 +326,7 @@ function Email() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({statusCounts.all})</option>
               <option value="sent">✓ Sent ({statusCounts.sent})</option>
@@ -368,7 +368,7 @@ function Email() {
                 </span>
               )}
               {typeFilter !== "all" && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                   {typeFilter}
                   <button
                     onClick={() => setTypeFilter("all")}
@@ -547,7 +547,7 @@ function Email() {
                           onClick={() => setCurrentPage(page)}
                           className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                             currentPage === page
-                              ? "bg-indigo-600 text-white"
+                              ? "bg-ocean-600 text-white"
                               : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
                           }`}
                         >
@@ -587,12 +587,12 @@ function Email() {
                   Recipient *
                 </label>
                 {selectedClient ? (
-                  <div className="flex items-center justify-between p-3 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-ocean-50 border-2 border-ocean-300 rounded-lg">
                     <div>
-                      <p className="font-semibold text-indigo-900">
+                      <p className="font-semibold text-ocean-900">
                         {selectedClient.first_name} {selectedClient.last_name}
                       </p>
-                      <p className="text-sm text-indigo-700">
+                      <p className="text-sm text-ocean-700">
                         {selectedClient.email}
                       </p>
                     </div>
@@ -618,7 +618,7 @@ function Email() {
                       }}
                       onFocus={() => setShowClientDropdown(true)}
                       placeholder="🔍 Search by name or email..."
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                     {showClientDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -636,7 +636,7 @@ function Email() {
                                 setClientSearch("");
                                 setShowClientDropdown(false);
                               }}
-                              className="w-full text-left p-3 hover:bg-indigo-50 border-b border-gray-100"
+                              className="w-full text-left p-3 hover:bg-ocean-50 border-b border-gray-100"
                             >
                               <p className="font-semibold">
                                 {client.first_name} {client.last_name}
@@ -666,7 +666,7 @@ function Email() {
                   }
                   placeholder="Email subject..."
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
 
@@ -683,7 +683,7 @@ function Email() {
                   rows="8"
                   placeholder="Type your message..."
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
 
@@ -715,7 +715,7 @@ function Email() {
                     !emailForm.subject.trim() ||
                     !emailForm.message.trim()
                   }
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-ocean-700 text-white font-semibold rounded-lg disabled:opacity-50"
                 >
                   {sending ? "Sending..." : "✉️ Send Email"}
                 </button>

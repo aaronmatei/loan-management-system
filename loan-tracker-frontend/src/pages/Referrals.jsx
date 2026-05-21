@@ -65,19 +65,19 @@ function Referrals() {
         </div>
 
         {/* Hero card with link + share */}
-        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
+        <div className="bg-ocean-gradient text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
           <div className="text-center">
             <div className="text-5xl mb-3">🎁</div>
             <h2 className="text-2xl font-bold mb-2">
               Earn Rewards for Every Referral!
             </h2>
-            <p className="text-purple-100 mb-6">
+            <p className="text-ocean-100 mb-6">
               When a lender you refer becomes active, you earn a reward.
               Share your link and start earning.
             </p>
 
             <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-              <p className="text-xs text-purple-200 uppercase mb-2">
+              <p className="text-xs text-ocean-200 uppercase mb-2">
                 Your Referral Link
               </p>
               <div className="bg-white rounded-lg p-3 flex items-center gap-2">
@@ -86,7 +86,7 @@ function Referrals() {
                 </span>
                 <button
                   onClick={copyLink}
-                  className="px-3 py-1 bg-purple-600 text-white rounded text-sm font-semibold whitespace-nowrap"
+                  className="px-3 py-1 bg-ocean-600 text-white rounded text-sm font-semibold whitespace-nowrap"
                 >
                   {copied ? "✅ Copied" : "📋 Copy"}
                 </button>
@@ -101,7 +101,7 @@ function Referrals() {
               </div>
             </div>
 
-            <p className="text-xs text-purple-200 mt-4">
+            <p className="text-xs text-ocean-200 mt-4">
               Your code:{" "}
               <strong className="font-mono text-lg">
                 {data.referral_code || "—"}
@@ -113,7 +113,7 @@ function Referrals() {
         {/* Stat tiles */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white rounded-xl shadow-md p-4 text-center">
-            <p className="text-3xl font-bold text-purple-600">
+            <p className="text-3xl font-bold text-ocean-600">
               {data.stats?.total_referrals ?? 0}
             </p>
             <p className="text-xs text-gray-500 uppercase">Total Referrals</p>
@@ -149,7 +149,7 @@ function Referrals() {
           <h3 className="font-bold text-lg mb-4">How It Works</h3>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="w-12 h-12 mx-auto bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
+              <div className="w-12 h-12 mx-auto bg-ocean-100 text-ocean-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
                 1
               </div>
               <p className="font-semibold text-sm">Share Your Link</p>
@@ -158,7 +158,7 @@ function Referrals() {
               </p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 mx-auto bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
+              <div className="w-12 h-12 mx-auto bg-ocean-100 text-ocean-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
                 2
               </div>
               <p className="font-semibold text-sm">They Sign Up</p>
@@ -167,7 +167,7 @@ function Referrals() {
               </p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 mx-auto bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
+              <div className="w-12 h-12 mx-auto bg-ocean-100 text-ocean-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
                 3
               </div>
               <p className="font-semibold text-sm">You Earn</p>

@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Building2,
+  Wallet,
+  TrendingUp,
+  Clock,
+  ScrollText,
+  Crown,
+  LogOut,
+} from "lucide-react";
+import IconTile from "../../components/IconTile";
 
 const MENU = [
-  { path: "/admin/dashboard", label: "Overview", icon: "📊" },
-  { path: "/admin/tenants", label: "Tenants", icon: "🏢" },
-  { path: "/admin/billing", label: "Billing", icon: "💰" },
-  { path: "/admin/reports", label: "Analytics", icon: "📈" },
-  { path: "/admin/cron", label: "Cron Jobs", icon: "⏰" },
-  { path: "/admin/audit", label: "Audit Log", icon: "🔍" },
+  { path: "/admin/dashboard", label: "Overview", icon: LayoutDashboard, variant: "ocean" },
+  { path: "/admin/tenants", label: "Tenants", icon: Building2, variant: "indigo" },
+  { path: "/admin/billing", label: "Billing", icon: Wallet, variant: "emerald" },
+  { path: "/admin/reports", label: "Analytics", icon: TrendingUp, variant: "teal" },
+  { path: "/admin/cron", label: "Cron Jobs", icon: Clock, variant: "amber" },
+  { path: "/admin/audit", label: "Audit Log", icon: ScrollText, variant: "rose" },
 ];
 
 function PlatformLayout({ children }) {
@@ -41,7 +52,7 @@ function PlatformLayout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-app-bg">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
@@ -52,56 +63,69 @@ function PlatformLayout({ children }) {
         <aside
           className={`fixed lg:static inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          } bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col`}
+          } bg-navy-gradient text-white flex flex-col`}
         >
           <div className="p-6 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">👑</span>
+            <div className="flex items-center gap-2.5">
+              <IconTile icon={Crown} variant="ocean" size={38} />
               <div>
-                <h2 className="text-lg font-bold">Platform Admin</h2>
-                <p className="text-xs text-slate-300">SaaS Control Center</p>
+                <h2 className="text-lg font-bold tracking-tight">LoanFix</h2>
+                <p className="text-xs text-ocean-200/60">Platform Admin</p>
               </div>
             </div>
           </div>
           <div className="p-4 border-b border-white/10">
-            <p className="text-xs text-slate-400">Logged in as</p>
-            <p className="font-semibold text-sm">
+            <p className="text-xs text-ocean-200/50">Logged in as</p>
+            <p className="font-semibold text-sm text-white">
               {user.first_name} {user.last_name}
             </p>
-            <p className="text-xs text-slate-400">{user.email}</p>
+            <p className="text-xs text-ocean-200/50">{user.email}</p>
           </div>
           <nav className="flex-1 p-4">
             <ul className="space-y-1">
-              {MENU.map((item) => (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                      location.pathname === item.path
-                        ? "bg-indigo-600 font-semibold"
-                        : "hover:bg-white/10"
-                    }`}
-                  >
-                    <span className="text-xl">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
-              ))}
+              {MENU.map((item) => {
+                const active = location.pathname === item.path;
+                const Icon = item.icon;
+                return (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl transition ${
+                        active
+                          ? "bg-ocean-gradient font-semibold shadow-tile text-white"
+                          : "text-ocean-100/80 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      {active ? (
+                        <span
+                          className="flex items-center justify-center rounded-xl bg-white/20 shrink-0"
+                          style={{ width: 32, height: 32 }}
+                        >
+                          <Icon size={16} color="#fff" strokeWidth={2.2} />
+                        </span>
+                      ) : (
+                        <IconTile icon={Icon} variant={item.variant} size={32} />
+                      )}
+                      <span className="text-sm">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
-          <div className="p-4 border-t border-white/10 space-y-2">
+          <div className="p-4 border-t border-white/10 space-y-2 bg-navy-950/40">
             <Link
               to="/"
-              className="block w-full py-2 px-4 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-center"
+              className="block w-full py-2 px-4 bg-white/10 hover:bg-white/15 text-ocean-100 rounded-lg text-sm text-center"
             >
               ← Back to Tenant View
             </Link>
             <button
               onClick={logout}
-              className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm"
+              className="w-full py-2 px-4 bg-white/10 hover:bg-white/15 text-ocean-100 rounded-lg font-semibold text-sm flex items-center justify-center gap-2"
             >
-              Logout
+              <LogOut size={16} /> Logout
             </button>
           </div>
         </aside>

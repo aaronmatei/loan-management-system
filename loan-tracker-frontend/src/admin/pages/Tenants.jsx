@@ -81,12 +81,12 @@ function PlatformTenants() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="🔍 Search name, subdomain, or code…"
-            className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+            className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 bg-white focus:outline-none"
+            className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 bg-white focus:outline-none"
           >
             <option value="all">All Statuses</option>
             <option value="active">🟢 Active</option>
@@ -214,7 +214,7 @@ function PlatformTenants() {
                           onClick={() =>
                             navigate(`/admin/tenants/${t.id}`)
                           }
-                          className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded text-xs font-semibold hover:bg-indigo-100"
+                          className="px-3 py-1 bg-ocean-50 text-ocean-600 rounded text-xs font-semibold hover:bg-ocean-100"
                         >
                           View
                         </button>

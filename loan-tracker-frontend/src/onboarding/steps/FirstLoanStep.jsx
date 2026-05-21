@@ -46,7 +46,7 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
   const total = form.principal_amount + interest;
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
@@ -125,7 +125,7 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
             />
           </div>
 
-          <div className="bg-indigo-50 rounded-xl p-3 text-sm">
+          <div className="bg-ocean-50 rounded-xl p-3 text-sm">
             <div className="flex justify-between">
               <span>Total Interest</span>
               <span className="font-bold">
@@ -135,7 +135,7 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
             </div>
             <div className="flex justify-between mt-1">
               <span>Total Repayable</span>
-              <span className="font-bold text-indigo-700">
+              <span className="font-bold text-ocean-700">
                 KES{" "}
                 {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
@@ -153,7 +153,7 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+              className="flex-1 py-3 bg-ocean-gradient text-white font-bold rounded-lg disabled:opacity-50"
             >
               {saving ? "Submitting…" : "Submit Application →"}
             </button>

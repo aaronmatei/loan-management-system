@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import PaymentReceipt from "../components/PaymentReceipt";
 
 function LoanDetails() {
   const { id } = useParams();
@@ -23,6 +24,8 @@ function LoanDetails() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
+  // Which past payment's receipt modal is open (the transaction row).
+  const [receiptTxn, setReceiptTxn] = useState(null);
 
   useEffect(() => {
     fetchLoanDetails();
@@ -96,7 +99,7 @@ function LoanDetails() {
         </div>
         <button
           onClick={() => navigate("/loans")}
-          className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition"
+          className="px-6 py-2 bg-ocean-600 text-white font-semibold rounded-lg hover:bg-ocean-700 transition"
         >
           ← Back to Loans
         </button>
@@ -112,6 +115,41 @@ function LoanDetails() {
     receipt_summary: receiptSummary,
   } = loanData;
   const today = new Date();
+
+  // Tenant branding for the receipt (brand_color, business_name) from
+  // the signed-in staff user (set at login).
+  const adminTenant = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null")?.tenant || null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // Map a history transaction into the shared PaymentReceipt shape.
+  // Balance is AS OF that payment (backend running fold); next-payment is
+  // loan-level, suppressed when this payment already cleared the loan.
+  const buildReceipt = (txn) => {
+    const remainingAfter = parseFloat(
+      txn.receipt?.remaining_balance_after_this ?? summary?.balance ?? 0,
+    );
+    const fullyPaid = remainingAfter <= 0;
+    return {
+      client_name: `${loan.first_name || ""} ${loan.last_name || ""}`.trim(),
+      client_phone: loan.phone_number,
+      client_code: loan.client_code,
+      loan_code: loan.loan_code,
+      principal: loan.principal_amount,
+      total_amount_due: loan.total_amount_due,
+      total_paid: txn.receipt?.total_paid_after_this,
+      remaining_balance: remainingAfter,
+      completion_percentage: txn.receipt?.completion_percentage_after_this,
+      is_fully_paid: fullyPaid,
+      next_payment_amount: fullyPaid ? null : receiptSummary?.next_payment_amount,
+      next_payment_date: fullyPaid ? null : receiptSummary?.next_payment_date,
+      next_payment_number: fullyPaid ? null : receiptSummary?.next_payment_number,
+    };
+  };
 
   // Calculate days until/since due
   const getDaysStatus = (dueDate, status) => {
@@ -140,7 +178,7 @@ function LoanDetails() {
       {/* Back Button */}
       <button
         onClick={() => navigate("/loans")}
-        className="mb-4 text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-2"
+        className="mb-4 text-ocean-600 hover:text-ocean-800 font-semibold flex items-center gap-2"
       >
         ← Back to Loans
       </button>
@@ -154,7 +192,7 @@ function LoanDetails() {
               `loan_${loan.loan_code}.pdf`,
             )
           }
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-semibold"
+          className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition font-semibold"
         >
           📄 Download Statement
         </button>
@@ -214,12 +252,12 @@ function LoanDetails() {
       </div>
 
       {/* Header Card */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-xl shadow-lg p-8 text-white mb-6">
+      <div className="bg-ocean-gradient rounded-xl shadow-lg p-8 text-white mb-6">
         <div className="flex justify-between items-start">
           <div>
-            <p className="text-purple-200 text-sm mb-1">Loan Code</p>
+            <p className="text-ocean-200 text-sm mb-1">Loan Code</p>
             <h1 className="text-3xl font-bold mb-4">{loan.loan_code}</h1>
-            <p className="text-purple-100">
+            <p className="text-ocean-100">
               <strong className="text-white">
                 {loan.first_name} {loan.last_name}
               </strong>
@@ -247,7 +285,7 @@ function LoanDetails() {
             >
               {loan.status.toUpperCase()}
             </span>
-            <p className="text-purple-200 text-xs mt-2">
+            <p className="text-ocean-200 text-xs mt-2">
               Client: {loan.client_code}
             </p>
           </div>
@@ -266,7 +304,7 @@ function LoanDetails() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-indigo-500">
+        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
           <p className="text-sm text-gray-500 uppercase font-semibold mb-2">
             Principal
           </p>
@@ -274,7 +312,7 @@ function LoanDetails() {
             KES {parseFloat(loan.principal_amount).toLocaleString()}
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
+        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
           <p className="text-sm text-gray-500 uppercase font-semibold mb-2">
             Total Due
           </p>
@@ -306,7 +344,7 @@ function LoanDetails() {
           <h3 className="text-lg font-semibold text-gray-800">
             Repayment Progress
           </h3>
-          <span className="text-2xl font-bold text-indigo-600">
+          <span className="text-2xl font-bold text-ocean-600">
             {summary.progress_percentage}%
           </span>
         </div>
@@ -328,7 +366,7 @@ function LoanDetails() {
           className={`rounded-xl shadow-md p-6 mb-6 ${
             summary.refund_status === "refunded"
               ? "bg-green-50 border-2 border-green-200"
-              : "bg-purple-50 border-2 border-purple-300"
+              : "bg-ocean-50 border-2 border-ocean-300"
           }`}
         >
           <div className="flex justify-between items-start">
@@ -337,7 +375,7 @@ function LoanDetails() {
                 className={`text-lg font-bold mb-2 ${
                   summary.refund_status === "refunded"
                     ? "text-green-800"
-                    : "text-purple-800"
+                    : "text-ocean-800"
                 }`}
               >
                 {summary.refund_status === "refunded"
@@ -349,7 +387,7 @@ function LoanDetails() {
                   ? "Refund has been processed for this loan."
                   : "The client paid more than the loan amount. A refund is due."}
               </p>
-              <p className="text-3xl font-bold text-purple-700">
+              <p className="text-3xl font-bold text-ocean-700">
                 KES {parseFloat(summary.overpayment).toLocaleString()}
               </p>
               {loan.refunded_date && (
@@ -364,7 +402,7 @@ function LoanDetails() {
             {summary.refund_status === "pending" && (
               <button
                 onClick={() => setShowRefundModal(true)}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition"
+                className="px-6 py-3 bg-ocean-600 hover:bg-ocean-700 text-white font-semibold rounded-lg transition"
               >
                 Mark as Refunded
               </button>
@@ -596,7 +634,14 @@ function LoanDetails() {
                         "-"
                       )}
                     </td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-6 py-3 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => setReceiptTxn(txn)}
+                        className="text-ocean-600 hover:text-ocean-800 text-lg mr-2"
+                        title="View Receipt"
+                      >
+                        🧾
+                      </button>
                       <button
                         onClick={() =>
                           downloadPdf(
@@ -619,7 +664,7 @@ function LoanDetails() {
 
         {/* Loan-level receipt summary (current status + next payment). */}
         {receiptSummary && transactions.length > 0 && (
-          <div className="p-4 lg:p-6 border-t bg-gradient-to-br from-indigo-50 to-purple-50">
+          <div className="p-4 lg:p-6 border-t bg-ocean-gradient-soft">
             <h3 className="font-bold mb-3 text-gray-800">📊 Current Status</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center">
               <div>
@@ -647,14 +692,14 @@ function LoanDetails() {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Progress</p>
-                <p className="font-bold text-indigo-600">
+                <p className="font-bold text-ocean-600">
                   {receiptSummary.completion_percentage}%
                 </p>
               </div>
             </div>
             {receiptSummary.next_payment_date &&
               !receiptSummary.is_fully_paid && (
-                <div className="mt-3 pt-3 border-t border-indigo-200 text-center">
+                <div className="mt-3 pt-3 border-t border-ocean-200 text-center">
                   <p className="text-xs text-gray-500">📅 Next Payment Due</p>
                   <p className="font-bold text-xl text-blue-600">
                     KES{" "}
@@ -722,7 +767,7 @@ function LoanDetails() {
                   }
                   rows="3"
                   placeholder="Add a note explaining this action..."
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
 
@@ -763,7 +808,7 @@ function LoanDetails() {
             </h3>
             <p className="text-gray-600 mb-4">
               Refund Amount:{" "}
-              <strong className="text-purple-600 text-xl">
+              <strong className="text-ocean-600 text-xl">
                 KES {parseFloat(summary.overpayment).toLocaleString()}
               </strong>
             </p>
@@ -798,7 +843,7 @@ function LoanDetails() {
                         refund_method: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                     required
                   >
                     <option value="M-Pesa">M-Pesa</option>
@@ -821,7 +866,7 @@ function LoanDetails() {
                       })
                     }
                     placeholder="M-Pesa code, cheque #, etc."
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -838,7 +883,7 @@ function LoanDetails() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -855,7 +900,7 @@ function LoanDetails() {
                 <button
                   type="submit"
                   disabled={processingRefund}
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition"
+                  className="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 text-white font-semibold rounded-lg transition"
                 >
                   {processingRefund ? "Processing..." : "✓ Confirm Refund"}
                 </button>
@@ -863,6 +908,15 @@ function LoanDetails() {
             </form>
           </div>
         </div>
+      )}
+
+      {receiptTxn && (
+        <PaymentReceipt
+          payment={receiptTxn}
+          receipt={buildReceipt(receiptTxn)}
+          tenant={adminTenant}
+          onClose={() => setReceiptTxn(null)}
+        />
       )}
     </div>
   );

@@ -394,7 +394,7 @@ function Overdue() {
                           </p>
                           <button
                             onClick={() => navigate(`/loans/${p.loan_id}`)}
-                            className="font-mono text-xs font-semibold text-indigo-600 hover:underline"
+                            className="font-mono text-xs font-semibold text-ocean-600 hover:underline"
                           >
                             {p.loan_code}
                           </button>
@@ -518,7 +518,7 @@ function Overdue() {
                           <td className="px-4 py-4">
                             <button
                               onClick={() => navigate(`/loans/${p.loan_id}`)}
-                              className="font-mono text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                              className="font-mono text-sm font-semibold text-ocean-600 hover:text-ocean-800 hover:underline"
                             >
                               {p.loan_code}
                             </button>
@@ -549,7 +549,7 @@ function Overdue() {
                           <td className="px-4 py-4 text-center">
                             <button
                               onClick={() => navigate(`/loans/${p.loan_id}`)}
-                              className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-700 text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
+                              className="px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
                             >
                               View Loan
                             </button>

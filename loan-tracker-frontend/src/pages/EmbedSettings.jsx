@@ -58,7 +58,7 @@ function EmbedSettings() {
       </pre>
       <button
         onClick={() => copy(code, type)}
-        className="mt-2 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm"
+        className="mt-2 w-full py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm"
       >
         {copied === type ? "✅ Copied!" : "📋 Copy"}
       </button>
@@ -76,9 +76,9 @@ function EmbedSettings() {
         </p>
       </div>
 
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-4 mb-6 border border-indigo-200">
-        <h2 className="font-bold text-indigo-900 mb-2">💡 Why use this?</h2>
-        <ul className="space-y-1 text-sm text-indigo-800">
+      <div className="bg-ocean-gradient-soft rounded-2xl p-4 mb-6 border border-ocean-200">
+        <h2 className="font-bold text-ocean-900 mb-2">💡 Why use this?</h2>
+        <ul className="space-y-1 text-sm text-ocean-800">
           <li>✓ Capture leads directly from YOUR website</li>
           <li>✓ Help visitors estimate loans before applying</li>
           <li>✓ Branded with your business name and color</li>
@@ -118,7 +118,7 @@ function EmbedSettings() {
             <div className="flex gap-2 mt-2">
               <button
                 onClick={() => copy(widgetUrl, "url")}
-                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm"
+                className="flex-1 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm"
               >
                 {copied === "url" ? "✅ Copied!" : "📋 Copy URL"}
               </button>
@@ -126,7 +126,7 @@ function EmbedSettings() {
                 href={widgetUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 py-2 bg-white border-2 border-indigo-200 text-indigo-700 rounded-lg font-semibold text-sm text-center hover:bg-indigo-50"
+                className="flex-1 py-2 bg-white border-2 border-ocean-200 text-ocean-700 rounded-lg font-semibold text-sm text-center hover:bg-ocean-50"
               >
                 Open ↗
               </a>
@@ -143,7 +143,7 @@ function EmbedSettings() {
                   onClick={() => setPreviewSize("mobile")}
                   className={`px-2 py-1 text-xs rounded ${
                     previewSize === "mobile"
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-ocean-600 text-white"
                       : "bg-gray-100"
                   }`}
                 >
@@ -153,7 +153,7 @@ function EmbedSettings() {
                   onClick={() => setPreviewSize("desktop")}
                   className={`px-2 py-1 text-xs rounded ${
                     previewSize === "desktop"
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-ocean-600 text-white"
                       : "bg-gray-100"
                   }`}
                 >
@@ -189,7 +189,7 @@ function EmbedSettings() {
             ["2. Paste on your site", "Add the snippet to your site's HTML where you want the calculator."],
             ["3. Get leads", "Visitors calculate → click Apply → become your customers."],
           ].map(([t, d]) => (
-            <div key={t} className="border-l-4 border-indigo-600 pl-3">
+            <div key={t} className="border-l-4 border-ocean-600 pl-3">
               <p className="font-bold text-sm mb-1">{t}</p>
               <p className="text-xs text-gray-600">{d}</p>
             </div>
