@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -41,23 +42,26 @@ const CMP = {
 // component would remount each keystroke).
 function SortHeader({ label, sortKey, sort, onToggle, align = "right" }) {
   const activeCol = sort.key === sortKey;
+  // Every sortable header shows an icon so it reads as clickable: a faded
+  // up/down when inactive, the actual direction when it's the active sort.
+  const Icon = !activeCol
+    ? ChevronsUpDown
+    : sort.dir === "asc"
+      ? ChevronUp
+      : ChevronDown;
   return (
     <th
       className={`px-4 py-3 ${align === "right" ? "text-right" : "text-left"}`}
     >
       <button
+        type="button"
         onClick={() => onToggle(sortKey)}
-        className={`inline-flex items-center gap-1 font-semibold hover:text-navy-900 ${
-          activeCol ? "text-navy-900" : ""
+        className={`inline-flex items-center gap-1 font-semibold cursor-pointer select-none hover:text-navy-900 ${
+          activeCol ? "text-navy-900" : "text-slate-500"
         }`}
       >
         {label}
-        {activeCol &&
-          (sort.dir === "asc" ? (
-            <ChevronUp size={12} />
-          ) : (
-            <ChevronDown size={12} />
-          ))}
+        <Icon size={13} className={activeCol ? "" : "opacity-40"} />
       </button>
     </th>
   );
