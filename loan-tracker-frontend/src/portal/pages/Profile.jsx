@@ -134,7 +134,7 @@ function Profile() {
   }
   if (!data) return <PortalLayout><div /></PortalLayout>;
 
-  const { customer, client } = data;
+  const { customer } = data;
   const { brand } = getPortalBrand();
   const Row = ({ label, children }) => (
     <div>
@@ -171,8 +171,8 @@ function Profile() {
             )}
           </Row>
           <Row label="ID Number">{customer.id_number}</Row>
-          <Row label={`Client Code · ${client?.tenant_name || ""}`}>
-            <span className="font-mono">{client?.client_code || "—"}</span>
+          <Row label="LoanFix ID">
+            <span className="font-mono">{customer.customer_code || "—"}</span>
           </Row>
           <Row label="Member Since">
             {new Date(customer.created_at).toLocaleDateString()}

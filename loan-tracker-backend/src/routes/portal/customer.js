@@ -946,6 +946,9 @@ router.get("/profile", async (req, res) => {
     const c = req.customer;
     const customer = {
       id: c.id,
+      // Platform-level identifier — the customer belongs to LoanFix; their
+      // per-lender client_code differs at each lender.
+      customer_code: `LFX-${String(c.id).padStart(6, "0")}`,
       phone_number: c.phone_number,
       email: c.email,
       id_number: c.id_number,
