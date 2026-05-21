@@ -34,18 +34,14 @@ function PortalLayout({ children }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [customer, setCustomer] = useState({});
-  const [tenant, setTenant] = useState(null);
 
   useEffect(() => {
     try {
       setCustomer(JSON.parse(localStorage.getItem("portal_customer") || "{}"));
-      setTenant(
-        JSON.parse(localStorage.getItem("portal_current_tenant") || "null"),
-      );
     } catch {
       /* ignore malformed storage */
     }
-  }, [location.pathname]);
+  }, []);
 
   // Close the mobile drawer on navigation.
   useEffect(() => setSidebarOpen(false), [location.pathname]);
@@ -64,9 +60,6 @@ function PortalLayout({ children }) {
     item.exact
       ? location.pathname === item.path
       : location.pathname.startsWith(item.path);
-
-  // The lender the customer has drilled into (if any), shown as context.
-  const lenderName = tenant?.business_name;
 
   const linkClass = (active) =>
     `flex items-center gap-3 px-3 py-2 rounded-xl transition ${
@@ -105,17 +98,6 @@ function PortalLayout({ children }) {
             ✕
           </button>
         </div>
-
-        {lenderName && (
-          <div className="px-4 pt-3">
-            <div className="rounded-lg bg-white/5 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wider text-ocean-300/70">
-                Viewing lender
-              </p>
-              <p className="text-sm font-semibold truncate">{lenderName}</p>
-            </div>
-          </div>
-        )}
 
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-1">
@@ -184,7 +166,7 @@ function PortalLayout({ children }) {
               </svg>
             </button>
             <h1 className="text-lg font-bold text-navy-900 truncate">
-              {lenderName || "LoanFix"}
+              LoanFix
             </h1>
             <div className="flex-1 hidden lg:block" />
           </div>

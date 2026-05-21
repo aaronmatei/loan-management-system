@@ -22,7 +22,6 @@ function CustomerDashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [opening, setOpening] = useState(null);
 
   const customerName = (() => {
     try {
@@ -42,26 +41,6 @@ function CustomerDashboard() {
       )
       .finally(() => setLoading(false));
   }, []);
-
-  // Open a specific lender: swap to a tenant-scoped session, then go to
-  // that lender's loans. Keep brand_color so the per-lender pages theme.
-  const openLender = async (t) => {
-    setOpening(t.tenant_id);
-    try {
-      const r = await portalApi.post("/portal/auth/select-tenant", {
-        tenant_id: t.tenant_id,
-      });
-      localStorage.setItem("portal_token", r.data.token);
-      localStorage.setItem(
-        "portal_current_tenant",
-        JSON.stringify({ ...r.data.current_tenant, brand_color: t.brand_color }),
-      );
-      navigate("/loanfix/portal/loans");
-    } catch {
-      alert("Failed to open lender");
-      setOpening(null);
-    }
-  };
 
   if (loading) {
     return (
@@ -162,9 +141,10 @@ function CustomerDashboard() {
               return (
                 <button
                   key={t.tenant_id}
-                  onClick={() => openLender(t)}
-                  disabled={opening === t.tenant_id}
-                  className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition overflow-hidden disabled:opacity-50"
+                  onClick={() =>
+                    navigate(`/loanfix/portal/loans?tenant_id=${t.tenant_id}`)
+                  }
+                  className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition overflow-hidden"
                 >
                   <div className="h-1.5" style={{ backgroundColor: bc }} />
                   <div className="p-5">
@@ -200,7 +180,7 @@ function CustomerDashboard() {
                       </div>
                     </div>
                     <div className="mt-4 flex items-center justify-end text-sm font-semibold" style={{ color: bc }}>
-                      {opening === t.tenant_id ? "Opening…" : "View loans"}
+                      View loans
                       <ArrowRight size={16} className="ml-1" />
                     </div>
                   </div>

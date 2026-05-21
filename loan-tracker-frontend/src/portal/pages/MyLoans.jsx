@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
-import { getPortalBrand } from "../brand";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -24,37 +23,61 @@ const TABS = [
   { value: "pending", label: "Pending", emoji: "⏳" },
 ];
 
+// My Loans is the cross-lender loan list: every loan the customer holds at
+// any linked lender, in one place. Each row is colored by its own lender's
+// brand_color. Opening a loan scopes the session to that lender, then goes
+// to the loan detail page.
 function MyLoans() {
   const navigate = useNavigate();
-  const [loans, setLoans] = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const { brand, gradient } = getPortalBrand();
+  const [status, setStatus] = useState("all");
+  const tenantFilter = searchParams.get("tenant_id") || "all";
 
   useEffect(() => {
-    // Per-lender page — needs a lender selected. Drill in from the dashboard.
-    if (!localStorage.getItem("portal_current_tenant")) {
-      navigate("/loanfix/portal/dashboard");
-      return;
-    }
     setLoading(true);
-    const url =
-      filter === "all"
-        ? "/portal/customer/loans"
-        : `/portal/customer/loans?status=${filter}`;
+    const p = new URLSearchParams();
+    if (tenantFilter !== "all") p.append("tenant_id", tenantFilter);
+    if (status !== "all") p.append("status", status);
     portalApi
-      .get(url)
-      .then((r) => setLoans(r.data.data || []))
-      .catch((err) => {
-        if (err.response?.data?.action === "select_tenant") {
-          navigate("/loanfix/portal/dashboard");
-        } else {
-          setError(err.response?.data?.error || "Failed to load loans");
-        }
-      })
+      .get(`/portal/customer/all-loans?${p}`)
+      .then((r) => setData(r.data.data))
+      .catch((err) =>
+        alert(err.response?.data?.error || "Failed to load loans"),
+      )
       .finally(() => setLoading(false));
-  }, [filter, navigate]);
+  }, [status, tenantFilter]);
+
+  // Scope the session to the loan's lender, then open its detail page.
+  const openLoan = async (loan) => {
+    try {
+      const r = await portalApi.post("/portal/auth/select-tenant", {
+        tenant_id: loan.tenant_id,
+      });
+      localStorage.setItem("portal_token", r.data.token);
+      localStorage.setItem(
+        "portal_current_tenant",
+        JSON.stringify({
+          ...r.data.current_tenant,
+          brand_color: loan.tenant_brand_color,
+        }),
+      );
+      navigate(`/loanfix/portal/loans/${loan.id}`);
+    } catch {
+      alert("Failed to open loan");
+    }
+  };
+
+  const setTenantFilter = (val) => {
+    const next = new URLSearchParams(searchParams);
+    if (val === "all") next.delete("tenant_id");
+    else next.set("tenant_id", String(val));
+    setSearchParams(next);
+  };
+
+  const loans = data?.loans || [];
+  const lenders = data?.summary?.by_tenant || [];
 
   return (
     <PortalLayout>
@@ -63,119 +86,172 @@ function MyLoans() {
           💰 My Loans
         </h1>
         <p className="text-slate-500 mb-5">
-          View all your loans and their status
+          Every loan across all your lenders, in one place
         </p>
 
-        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto">
+        {/* Status tabs */}
+        <div className="flex flex-wrap gap-2 mb-3 overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.value}
-              onClick={() => setFilter(t.value)}
+              onClick={() => setStatus(t.value)}
               className={`px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition ${
-                filter === t.value
-                  ? "text-white"
+                status === t.value
+                  ? "bg-ocean-gradient text-white"
                   : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
-              style={filter === t.value ? { backgroundColor: brand } : undefined}
             >
               {t.emoji} {t.label}
             </button>
           ))}
         </div>
 
-        {loading && (
+        {/* Lender filter — only when the customer has more than one lender */}
+        {lenders.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-5">
+            <button
+              onClick={() => setTenantFilter("all")}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                tenantFilter === "all"
+                  ? "bg-navy-900 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              All Lenders
+            </button>
+            {lenders.map((t) => (
+              <button
+                key={t.tenant_id}
+                onClick={() => setTenantFilter(t.tenant_id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                  tenantFilter === String(t.tenant_id)
+                    ? "text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+                style={
+                  tenantFilter === String(t.tenant_id)
+                    ? { backgroundColor: t.brand_color || "#0086cc" }
+                    : undefined
+                }
+              >
+                🏦 {t.business_name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">
             Loading…
           </div>
-        )}
-        {error && (
-          <div className="bg-white rounded-xl p-12 text-center text-red-600">
-            {error}
-          </div>
-        )}
-        {!loading && !error && loans.length === 0 && (
+        ) : loans.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">
             <p className="text-5xl mb-3">📭</p>
             <p>No loans found.</p>
           </div>
-        )}
-
-        <div className="space-y-3">
-          {loans.map((loan) => {
-            const due = parseFloat(loan.total_amount_due || 0);
-            const paid = parseFloat(loan.total_paid || 0);
-            const balance = Math.max(0, due - paid);
-            const progress = due > 0 ? Math.min((paid / due) * 100, 100) : 0;
-            return (
-              <button
-                key={loan.id}
-                onClick={() => navigate(`/loanfix/portal/loans/${loan.id}`)}
-                className="w-full text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-4 lg:p-6 hover:shadow-md transition"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-mono font-bold" style={{ color: brand }}>
-                      {loan.loan_code || `#${loan.id}`}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {loan.purpose || "Loan"}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                      STATUS_BADGE[loan.status] ||
-                      "bg-gray-100 text-gray-600"
-                    }`}
+        ) : (
+          <div className="space-y-3">
+            {loans.map((loan) => {
+              const due = parseFloat(loan.total_amount_due || 0);
+              const paid = parseFloat(loan.total_paid || 0);
+              const balance = Math.max(0, due - paid);
+              const progress = due > 0 ? Math.min((paid / due) * 100, 100) : 0;
+              const bc = loan.tenant_brand_color || "#0086cc";
+              return (
+                <button
+                  key={loan.id}
+                  onClick={() => openLoan(loan)}
+                  className="w-full text-left bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition overflow-hidden"
+                >
+                  {/* Lender banner */}
+                  <div
+                    className="px-4 py-2 flex justify-between items-center"
+                    style={{
+                      backgroundColor: `${bc}15`,
+                      borderLeft: `4px solid ${bc}`,
+                    }}
                   >
-                    {String(loan.status || "").replace("_", " ")}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3 text-sm">
-                  <div>
-                    <p className="text-xs text-gray-500">Principal</p>
-                    <p className="font-bold">{KES(loan.principal_amount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Total Due</p>
-                    <p className="font-bold">{KES(due)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Paid</p>
-                    <p className="font-bold text-green-600">{KES(paid)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Balance</p>
-                    <p className="font-bold text-red-600">{KES(balance)}</p>
-                  </div>
-                </div>
-                {["active", "completed"].includes(loan.status) && (
-                  <>
-                    <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div className="flex items-center gap-2">
                       <div
-                        className="h-full"
-                        style={{ width: `${progress}%`, background: gradient }}
-                      />
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ backgroundColor: bc }}
+                      >
+                        {loan.tenant_name?.charAt(0)}
+                      </div>
+                      <span
+                        className="font-semibold text-sm"
+                        style={{ color: bc }}
+                      >
+                        {loan.tenant_name}
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {progress.toFixed(1)}% repaid
-                    </p>
-                  </>
-                )}
-                <div className="mt-3 pt-3 border-t flex justify-between items-center text-xs text-gray-500">
-                  <span>
-                    📅{" "}
-                    {loan.created_at
-                      ? new Date(loan.created_at).toLocaleDateString()
-                      : "—"}
-                  </span>
-                  <span className="font-semibold" style={{ color: brand }}>
-                    View Details →
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${
+                        STATUS_BADGE[loan.status] || "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {String(loan.status || "").replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="font-mono font-bold" style={{ color: bc }}>
+                          {loan.loan_code || `#${loan.id}`}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {loan.purpose || "Loan"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3 text-sm">
+                      <div>
+                        <p className="text-xs text-gray-500">Principal</p>
+                        <p className="font-bold">{KES(loan.principal_amount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Total Due</p>
+                        <p className="font-bold">{KES(due)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Paid</p>
+                        <p className="font-bold text-green-600">{KES(paid)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Balance</p>
+                        <p className="font-bold text-red-600">{KES(balance)}</p>
+                      </div>
+                    </div>
+                    {["active", "completed"].includes(loan.status) && (
+                      <>
+                        <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="h-full"
+                            style={{ width: `${progress}%`, backgroundColor: bc }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {progress.toFixed(1)}% repaid
+                        </p>
+                      </>
+                    )}
+                    <div className="mt-3 pt-3 border-t flex justify-between items-center text-xs text-gray-500">
+                      <span>
+                        📅{" "}
+                        {loan.created_at
+                          ? new Date(loan.created_at).toLocaleDateString()
+                          : "—"}
+                      </span>
+                      <span className="font-semibold" style={{ color: bc }}>
+                        View Details →
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </PortalLayout>
   );

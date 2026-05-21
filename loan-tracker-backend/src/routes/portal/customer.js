@@ -851,6 +851,44 @@ router.get("/applications", async (req, res) => {
   }
 });
 
+// Applications across ALL the customer's lenders (tenant-less). Mirrors
+// /all-loans' link gathering so "My Applications" works without a lender
+// being selected. Each row carries its lender (tenant_*) for display.
+router.get("/all-applications", async (req, res) => {
+  try {
+    const links = await query(
+      `SELECT client_id, tenant_id FROM customer_tenant_links
+       WHERE platform_customer_id = $1 AND status = 'active'`,
+      [req.platformCustomerId],
+    );
+    if (links.rows.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    const clientIds = links.rows.map((r) => r.client_id);
+    const tenantIds = [...new Set(links.rows.map((r) => r.tenant_id))];
+    const r = await query(
+      `SELECT l.*,
+              t.business_name AS tenant_name,
+              t.subdomain     AS tenant_subdomain,
+              t.brand_color   AS tenant_brand_color,
+              ur.first_name   AS reviewer_name,
+              ua.first_name   AS approver_name
+       FROM loans l
+       JOIN tenants t ON l.tenant_id = t.id
+       LEFT JOIN users ur ON l.reviewed_by = ur.id
+       LEFT JOIN users ua ON l.approved_by = ua.id
+       WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+         AND l.status IN ('pending','under_review','approved','rejected')
+       ORDER BY l.application_date DESC NULLS LAST, l.created_at DESC`,
+      [clientIds, tenantIds],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Get all applications error:", error);
+    res.status(500).json({ error: "Failed to fetch applications" });
+  }
+});
+
 router.delete("/applications/:id", async (req, res) => {
   try {
     const lr = await query(
