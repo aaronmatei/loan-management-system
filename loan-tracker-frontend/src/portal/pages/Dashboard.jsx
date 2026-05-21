@@ -7,6 +7,7 @@ import {
   Percent,
   Building2,
   ArrowRight,
+  PlusCircle,
 } from "lucide-react";
 import {
   RadialBarChart,
@@ -154,14 +155,22 @@ function CustomerDashboard() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-            Hi {customerName || "there"} 👋
-          </h1>
-          <p className="text-slate-500 mt-1">
-            Your credit & borrowing overview across {stats.lenders} lender
-            {stats.lenders !== 1 ? "s" : ""}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
+              Hi {customerName || "there"} 👋
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Your credit & borrowing overview across {stats.lenders} lender
+              {stats.lenders !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/loanfix/lenders")}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-bold rounded-xl shadow-tile hover:shadow-lg transition"
+          >
+            <PlusCircle size={18} /> Apply for a loan
+          </button>
         </div>
 
         {/* Credit score + KPIs */}
