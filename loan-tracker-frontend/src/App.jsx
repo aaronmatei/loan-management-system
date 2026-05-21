@@ -37,6 +37,7 @@ import PlatformAdminRoute from "./admin/components/PlatformAdminRoute";
 import AdminLogin from "./admin/pages/AdminLogin";
 import CronManager from "./admin/pages/CronManager";
 import PlatformAuditLog from "./admin/pages/PlatformAuditLog";
+import PlatformReports from "./admin/pages/PlatformReports";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -45,6 +46,7 @@ import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
 import ClientProfile from "./pages/ClientProfile";
 import Reports from "./pages/Reports";
+import Exports from "./pages/Exports";
 import SMS from "./pages/SMS";
 import Email from "./pages/Email";
 import Settings from "./pages/Settings";
@@ -178,6 +180,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/reports"
+              element={
+                <PlatformAdminRoute>
+                  <PlatformReports />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
               path="/onboarding"
               element={<OnboardingWizard />}
             />
@@ -207,6 +217,7 @@ function App() {
               <Route path="/payments" element={<Payments />} />
               <Route path="/overdue" element={<Overdue />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/exports" element={<Exports />} />
               <Route path="/sms" element={<SMS />} />
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />

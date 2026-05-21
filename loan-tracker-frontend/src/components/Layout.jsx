@@ -63,7 +63,13 @@ function Layout({ children }) {
     {
       path: "/reports",
       label: "Reports",
-      icon: "📈",
+      icon: "📊",
+      permission: "reports:view",
+    },
+    {
+      path: "/exports",
+      label: "Exports",
+      icon: "⬇️",
       permission: "reports:view",
     },
     { path: "/sms", label: "SMS", icon: "📱", permission: "sms:send" },

@@ -1,7 +1,10 @@
 import express from "express";
+import PDFDocument from "pdfkit";
+import ExcelJS from "exceljs";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
-import { tenantClause } from "../utils/tenantScope.js";
+import { tenantClause, tenantId } from "../utils/tenantScope.js";
+import analyticsService from "../services/analyticsService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -347,6 +350,328 @@ router.get("/kpis", async (req, res) => {
   } catch (error) {
     logger.error("KPIs error:", error);
     res.status(500).json({ error: "Failed to fetch KPIs" });
+  }
+});
+
+// ============================================================
+// Bundled analytics for the new Reports & Analytics dashboards.
+// Distinct from the per-chart endpoints above (which still drive
+// pages/Analytics.jsx). These ones do one round-trip and return
+// everything the new dashboard renders.
+// ============================================================
+
+// TENANT: full report data for /pages/Reports.jsx
+router.get("/tenant", async (req, res) => {
+  try {
+    const tid = req.user?.tenant_id;
+    if (!tid) {
+      return res.status(400).json({ error: "Tenant context required" });
+    }
+    const { from, to } = req.query;
+    const months = Math.min(
+      Math.max(parseInt(req.query.months, 10) || 6, 1),
+      24,
+    );
+
+    const [
+      kpis,
+      par,
+      collectionTrend,
+      disbursementTrend,
+      aging,
+      officers,
+      statusDist,
+    ] = await Promise.all([
+      analyticsService.getTenantPortfolioKPIs(tid, from, to),
+      analyticsService.getPortfolioAtRisk(tid),
+      analyticsService.getCollectionTrend(tid, months),
+      analyticsService.getDisbursementTrend(tid, months),
+      analyticsService.getAgingAnalysis(tid),
+      analyticsService.getLoanOfficerPerformance(tid),
+      analyticsService.getLoanStatusDistribution(tid),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        kpis,
+        par,
+        collectionTrend,
+        disbursementTrend,
+        aging,
+        officers,
+        statusDist,
+      },
+    });
+  } catch (error) {
+    logger.error("Tenant analytics error:", error);
+    res.status(500).json({ error: "Failed to fetch analytics" });
+  }
+});
+
+// PLATFORM: full report data for /admin/pages/PlatformReports.jsx
+router.get("/platform", async (req, res) => {
+  try {
+    if (!req.user?.is_platform_admin) {
+      return res.status(403).json({ error: "Platform admin only" });
+    }
+    const { from, to } = req.query;
+    const months = Math.min(
+      Math.max(parseInt(req.query.months, 10) || 6, 1),
+      24,
+    );
+
+    const [kpis, revenueTrend, leaderboard] = await Promise.all([
+      analyticsService.getPlatformKPIs(from, to),
+      analyticsService.getPlatformRevenueTrend(months),
+      analyticsService.getTenantLeaderboard(),
+    ]);
+
+    res.json({
+      success: true,
+      data: { kpis, revenueTrend, leaderboard },
+    });
+  } catch (error) {
+    logger.error("Platform analytics error:", error);
+    res.status(500).json({ error: "Failed to fetch analytics" });
+  }
+});
+
+// PDF portfolio report — KPI overview + PAR + aging. Streamed
+// straight to the response. Mirrors the existing servePdf pattern in
+// routes/reports.js but uses a bespoke builder (the shared builders
+// in utils/pdfDocuments.js are loan/client/receipt-specific).
+router.get("/export/pdf", async (req, res) => {
+  try {
+    const tid = req.user?.tenant_id;
+    if (!tid) {
+      return res.status(400).json({ error: "Tenant context required" });
+    }
+
+    const [kpis, par, aging] = await Promise.all([
+      analyticsService.getTenantPortfolioKPIs(tid),
+      analyticsService.getPortfolioAtRisk(tid),
+      analyticsService.getAgingAnalysis(tid),
+    ]);
+
+    const tr = await query(
+      "SELECT business_name FROM tenants WHERE id = $1",
+      [tid],
+    );
+    const businessName = tr.rows[0]?.business_name || "Portfolio Report";
+
+    const filename = `portfolio-report-${new Date()
+      .toISOString()
+      .split("T")[0]}.pdf`;
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}"`,
+    );
+    doc.pipe(res);
+
+    const fmtKES = (n) =>
+      "KES " +
+      parseFloat(n || 0).toLocaleString("en-KE", {
+        maximumFractionDigits: 0,
+      });
+
+    // ── Header ──
+    doc.fontSize(20).fillColor("#4F46E5").text(businessName, {
+      align: "center",
+    });
+    doc.fontSize(14).fillColor("#666").text("Portfolio Report", {
+      align: "center",
+    });
+    doc.fontSize(10).fillColor("#999").text(
+      `Generated: ${new Date().toLocaleString("en-KE")}`,
+      { align: "center" },
+    );
+    doc.moveDown(2);
+
+    // ── KPIs ──
+    doc.fontSize(14).fillColor("#000").text("Portfolio Overview", {
+      underline: true,
+    });
+    doc.moveDown(0.5);
+    doc.fontSize(11).fillColor("#333");
+    doc.text(`Total Loans: ${kpis.total_loans}`);
+    doc.text(`Active Loans: ${kpis.active_loans}`);
+    doc.text(`Completed Loans: ${kpis.completed_loans}`);
+    doc.text(`Unique Borrowers: ${kpis.unique_borrowers}`);
+    doc.text(`Total Disbursed: ${fmtKES(kpis.total_disbursed)}`);
+    doc.text(`Total Collected: ${fmtKES(kpis.total_collected)}`);
+    doc.text(`Interest Earned: ${fmtKES(kpis.interest_earned)}`);
+    doc.text(`Average Loan Size: ${fmtKES(kpis.avg_loan_size)}`);
+    doc.moveDown(1.5);
+
+    // ── PAR ──
+    doc.fontSize(14).fillColor("#000").text("Portfolio at Risk (PAR)", {
+      underline: true,
+    });
+    doc.moveDown(0.5);
+    doc.fontSize(11).fillColor("#333");
+    doc.text(`Total Outstanding: ${fmtKES(par.total_outstanding)}`);
+    doc.text(`At-Risk Amount: ${fmtKES(par.par_amount)}`);
+    doc.text(`PAR Percentage: ${par.par_percentage}%`);
+    doc.text(
+      `At-Risk Loans: ${par.at_risk_count} of ${par.total_active} active`,
+    );
+    doc.moveDown(1.5);
+
+    // ── Aging ──
+    doc.fontSize(14).fillColor("#000").text("Aging Analysis", {
+      underline: true,
+    });
+    doc.moveDown(0.5);
+    doc.fontSize(11).fillColor("#333");
+    if (aging.length === 0) {
+      doc.fillColor("#999").text("No outstanding payments.");
+    } else {
+      aging.forEach((a) => {
+        doc.fillColor("#333").text(
+          `${a.bucket}: ${a.count} payments — ${fmtKES(a.amount)}`,
+        );
+      });
+    }
+
+    doc.end();
+  } catch (error) {
+    logger.error("PDF export error:", error);
+    // Don't double-send if the stream already started — pdfkit will
+    // have written headers by then.
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to generate PDF" });
+    } else {
+      res.end();
+    }
+  }
+});
+
+// Excel portfolio report — Summary + Loans detail. Mirrors the header
+// styling used by routes/reports.js exports (white-on-indigo header
+// row) so all platform Excel outputs feel consistent.
+router.get("/export/excel", async (req, res) => {
+  try {
+    const tid = req.user?.tenant_id;
+    if (!tid) {
+      return res.status(400).json({ error: "Tenant context required" });
+    }
+
+    const [kpis, par, aging] = await Promise.all([
+      analyticsService.getTenantPortfolioKPIs(tid),
+      analyticsService.getPortfolioAtRisk(tid),
+      analyticsService.getAgingAnalysis(tid),
+    ]);
+
+    const loans = await query(
+      `SELECT
+         l.loan_code,
+         c.first_name || ' ' || c.last_name      AS client,
+         l.principal_amount, l.total_amount_due, l.status, l.start_date,
+         COALESCE(p.paid, 0)                     AS paid
+       FROM loans l
+       JOIN clients c ON l.client_id = c.id
+       LEFT JOIN (
+         SELECT loan_id, SUM(amount_paid) AS paid
+         FROM transactions WHERE payment_status='completed'
+         GROUP BY loan_id
+       ) p ON p.loan_id = l.id
+       WHERE l.tenant_id = $1
+       ORDER BY l.start_date DESC NULLS LAST`,
+      [tid],
+    );
+
+    const workbook = new ExcelJS.Workbook();
+
+    // ── Summary sheet ──
+    const summary = workbook.addWorksheet("Summary");
+    summary.columns = [{ width: 32 }, { width: 22 }];
+    summary.addRow(["Portfolio Report", ""]);
+    summary.addRow(["Generated", new Date().toLocaleString("en-KE")]);
+    summary.addRow([]);
+    summary.addRow(["KPI", "Value"]);
+    summary.addRow(["Total Loans", kpis.total_loans]);
+    summary.addRow(["Active Loans", kpis.active_loans]);
+    summary.addRow(["Completed Loans", kpis.completed_loans]);
+    summary.addRow(["Unique Borrowers", kpis.unique_borrowers]);
+    summary.addRow(["Total Disbursed (KES)", kpis.total_disbursed]);
+    summary.addRow(["Total Collected (KES)", kpis.total_collected]);
+    summary.addRow(["Interest Earned (KES)", kpis.interest_earned]);
+    summary.addRow(["Average Loan Size (KES)", kpis.avg_loan_size]);
+    summary.addRow([]);
+    summary.addRow(["Portfolio at Risk", ""]);
+    summary.addRow(["Total Outstanding (KES)", par.total_outstanding]);
+    summary.addRow(["At-Risk Amount (KES)", par.par_amount]);
+    summary.addRow(["PAR %", `${par.par_percentage}%`]);
+    summary.addRow([
+      "At-Risk / Active Loans",
+      `${par.at_risk_count} / ${par.total_active}`,
+    ]);
+    summary.addRow([]);
+    summary.addRow(["Aging Bucket", "Amount Outstanding (KES)"]);
+    aging.forEach((a) => summary.addRow([a.bucket, a.amount]));
+    summary.getRow(1).font = { bold: true, size: 14 };
+    summary.getRow(4).font = { bold: true };
+    summary.getRow(12).font = { bold: true };
+
+    // ── Loans detail ──
+    const loansSheet = workbook.addWorksheet("Loans");
+    loansSheet.columns = [
+      { header: "Loan Code", key: "loan_code", width: 16 },
+      { header: "Client", key: "client", width: 26 },
+      { header: "Principal", key: "principal_amount", width: 15 },
+      { header: "Total Due", key: "total_amount_due", width: 15 },
+      { header: "Paid", key: "paid", width: 15 },
+      { header: "Balance", key: "balance", width: 15 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Start Date", key: "start_date", width: 14 },
+    ];
+    loansSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    loansSheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF4F46E5" },
+    };
+    loans.rows.forEach((l) => {
+      const principal = parseFloat(l.principal_amount);
+      const totalDue = parseFloat(l.total_amount_due);
+      const paid = parseFloat(l.paid);
+      loansSheet.addRow({
+        loan_code: l.loan_code,
+        client: l.client,
+        principal_amount: principal.toFixed(2),
+        total_amount_due: totalDue.toFixed(2),
+        paid: paid.toFixed(2),
+        balance: (totalDue - paid).toFixed(2),
+        status: l.status,
+        start_date: l.start_date
+          ? new Date(l.start_date).toLocaleDateString("en-KE")
+          : "",
+      });
+    });
+
+    const filename = `portfolio-report-${new Date()
+      .toISOString()
+      .split("T")[0]}.xlsx`;
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}"`,
+    );
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    logger.error("Excel export error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to generate Excel" });
+    } else {
+      res.end();
+    }
   }
 });
 

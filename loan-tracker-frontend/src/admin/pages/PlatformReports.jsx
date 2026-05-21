@@ -1,0 +1,210 @@
+// Platform-admin analytics dashboard. Backed by /api/analytics/platform,
+// which guards on req.user.is_platform_admin and aggregates KPIs +
+// revenue trend + leaderboard in one round-trip. Demo and founding
+// (LoanFix, id=1) tenants are excluded server-side so this view is
+// always "real paying customers".
+
+import React, { useState, useEffect } from "react";
+import PlatformLayout from "../components/PlatformLayout";
+import platformApi from "../services/platformApi";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+const fmt = (n) =>
+  `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+const fmtK = (n) => `${(parseFloat(n || 0) / 1000).toFixed(1)}K`;
+
+function PlatformReports() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [months, setMonths] = useState(6);
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [months]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await platformApi.get(`/analytics/platform?months=${months}`);
+      setData(res.data.data);
+    } catch (err) {
+      console.error("Failed to load platform analytics:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <PlatformLayout>
+        <div className="p-8 text-center text-gray-500">Loading…</div>
+      </PlatformLayout>
+    );
+  }
+  if (!data) return null;
+
+  const { kpis, revenueTrend, leaderboard } = data;
+
+  return (
+    <PlatformLayout>
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+              📊 Platform Analytics
+            </h1>
+            <p className="text-gray-600 mt-1">
+              LoanFix performance across all tenants
+            </p>
+          </div>
+          <select
+            value={months}
+            onChange={(e) => setMonths(parseInt(e.target.value, 10))}
+            className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
+          >
+            <option value={3}>Last 3 months</option>
+            <option value={6}>Last 6 months</option>
+            <option value={12}>Last 12 months</option>
+          </select>
+        </div>
+
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl shadow-lg p-4">
+            <p className="text-indigo-100 text-xs uppercase">Total Revenue</p>
+            <p className="text-2xl font-bold mt-1">
+              {fmtK(kpis.revenue.total_revenue)}
+            </p>
+            <p className="text-xs text-indigo-100">all-time invoice receipts</p>
+          </div>
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
+            <p className="text-green-100 text-xs uppercase">Active Tenants</p>
+            <p className="text-2xl font-bold mt-1">
+              {kpis.tenants.active_tenants}
+            </p>
+            <p className="text-xs text-green-100">
+              +{kpis.tenants.new_this_month} this month
+            </p>
+          </div>
+          <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl shadow-lg p-4">
+            <p className="text-orange-100 text-xs uppercase">Outstanding</p>
+            <p className="text-2xl font-bold mt-1">
+              {fmtK(kpis.revenue.outstanding)}
+            </p>
+            <p className="text-xs text-orange-100">unpaid invoices</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white rounded-xl shadow-lg p-4">
+            <p className="text-purple-100 text-xs uppercase">Platform Loans</p>
+            <p className="text-2xl font-bold mt-1">
+              {kpis.platform_loans.total_loans}
+            </p>
+            <p className="text-xs text-purple-100">
+              {fmtK(kpis.platform_loans.total_disbursed)} disbursed
+            </p>
+          </div>
+        </div>
+
+        {/* Revenue trend */}
+        <div className="bg-white rounded-xl shadow-md p-4 mb-4">
+          <h3 className="font-bold mb-3">💵 Revenue Trend (Platform Fees)</h3>
+          {revenueTrend.length === 0 ? (
+            <div className="h-[300px] flex items-center justify-center text-sm text-gray-400">
+              No invoice payments in this window
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={revenueTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={fmtK} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v) => fmt(v)} />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#4F46E5"
+                  strokeWidth={3}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Leaderboard */}
+        <div className="bg-white rounded-xl shadow-md p-4">
+          <h3 className="font-bold mb-3">🏆 Tenant Leaderboard</h3>
+          {leaderboard.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              No paying tenants yet
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left p-2">#</th>
+                    <th className="text-left p-2">Tenant</th>
+                    <th className="text-right p-2">Loans</th>
+                    <th className="text-right p-2">Disbursed</th>
+                    <th className="text-right p-2">Fees Paid</th>
+                    <th className="text-center p-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaderboard.map((t, i) => (
+                    <tr key={t.id} className="border-b hover:bg-gray-50">
+                      <td className="p-2 font-bold text-gray-400">{i + 1}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                            style={{
+                              backgroundColor: t.brand_color || "#4F46E5",
+                            }}
+                          >
+                            {t.business_name.charAt(0)}
+                          </div>
+                          <span className="font-semibold">
+                            {t.business_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="text-right p-2">{t.loans}</td>
+                      <td className="text-right p-2">{fmt(t.disbursed)}</td>
+                      <td className="text-right p-2 font-bold text-green-600">
+                        {fmt(t.fees_paid)}
+                      </td>
+                      <td className="text-center p-2">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            t.status === "active"
+                              ? "bg-green-100 text-green-700"
+                              : t.status === "suspended"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </PlatformLayout>
+  );
+}
+
+export default PlatformReports;
