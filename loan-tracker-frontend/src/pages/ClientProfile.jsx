@@ -474,7 +474,9 @@ function ClientProfile() {
                       {KES(loan.balance_due)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      {new Date(loan.start_date).toLocaleDateString()}
+                      {loan.start_date
+                        ? new Date(loan.start_date).toLocaleDateString()
+                        : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <span

@@ -438,7 +438,9 @@ function LoanDetails() {
           <div>
             <p className="text-gray-500">Start Date</p>
             <p className="font-semibold text-gray-800">
-              {new Date(loan.start_date).toLocaleDateString()}
+              {loan.start_date
+                ? new Date(loan.start_date).toLocaleDateString()
+                : "— (on disbursement)"}
             </p>
           </div>
           <div>
