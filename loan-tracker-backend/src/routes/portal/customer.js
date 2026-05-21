@@ -539,6 +539,27 @@ router.get("/analytics", async (req, res) => {
       )
     ).rows;
 
+    const activityTrend = (
+      await query(
+        `SELECT to_char(m, 'Mon') AS label,
+           (SELECT COUNT(*) FROM loans la
+              WHERE la.client_id = ANY($1::int[]) AND la.tenant_id = ANY($2::int[])
+                AND date_trunc('month', la.application_date) = m)::int AS applications,
+           (SELECT COUNT(*) FROM transactions t
+              JOIN loans l ON t.loan_id = l.id
+              WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+                AND t.payment_status='completed'
+                AND date_trunc('month', t.payment_date) = m)::int AS payments
+         FROM generate_series(
+           date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
+           date_trunc('month', CURRENT_DATE),
+           INTERVAL '1 month'
+         ) m
+         ORDER BY m`,
+        ids,
+      )
+    ).rows;
+
     const totalPayments = behavior.on_time + behavior.late;
     const onTimeRate =
       totalPayments > 0
@@ -595,12 +616,113 @@ router.get("/analytics", async (req, res) => {
           label: r.label,
           amount: parseFloat(r.amount),
         })),
+        activity_trend: activityTrend,
         status_breakdown: statusBreakdown,
       },
     });
   } catch (error) {
     logger.error("Customer analytics error:", error);
     res.status(500).json({ error: "Failed to load analytics" });
+  }
+});
+
+// Every completed payment the customer has made, across all their lenders.
+router.get("/payments", async (req, res) => {
+  try {
+    const links = await query(
+      `SELECT client_id, tenant_id FROM customer_tenant_links
+       WHERE platform_customer_id = $1 AND status = 'active'`,
+      [req.platformCustomerId],
+    );
+    if (links.rows.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    const clientIds = [...new Set(links.rows.map((r) => r.client_id))];
+    const tenantIds = [...new Set(links.rows.map((r) => r.tenant_id))];
+    const r = await query(
+      `SELECT
+         t.id, t.transaction_code, t.amount_paid, t.payment_date,
+         t.payment_method, t.payment_reference,
+         l.id AS loan_id, l.loan_code,
+         tn.id AS tenant_id, tn.business_name AS tenant_name,
+         tn.brand_color AS tenant_brand_color
+       FROM transactions t
+       JOIN loans l ON t.loan_id = l.id
+       JOIN tenants tn ON t.tenant_id = tn.id
+       WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+         AND t.payment_status = 'completed'
+       ORDER BY t.payment_date DESC, t.id DESC`,
+      [clientIds, tenantIds],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Customer payments error:", error);
+    res.status(500).json({ error: "Failed to fetch payments" });
+  }
+});
+
+// Derived notification feed for the customer: recent payments, application
+// decisions, disbursals and overdue alerts across all lenders. Read-only;
+// the client tracks "seen" locally for the unread badge.
+router.get("/notifications", async (req, res) => {
+  try {
+    const links = await query(
+      `SELECT client_id, tenant_id FROM customer_tenant_links
+       WHERE platform_customer_id = $1 AND status = 'active'`,
+      [req.platformCustomerId],
+    );
+    if (links.rows.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    const clientIds = [...new Set(links.rows.map((r) => r.client_id))];
+    const tenantIds = [...new Set(links.rows.map((r) => r.tenant_id))];
+    const r = await query(
+      `SELECT * FROM (
+         SELECT 'payment' AS type, l.loan_code, t.amount_paid AS amount,
+                tn.business_name AS lender, tn.brand_color AS brand_color,
+                l.id AS loan_id, t.payment_date::timestamp AS at
+         FROM transactions t
+         JOIN loans l ON t.loan_id = l.id
+         JOIN tenants tn ON t.tenant_id = tn.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND t.payment_status = 'completed'
+         UNION ALL
+         SELECT 'approved', l.loan_code, l.principal_amount,
+                tn.business_name, tn.brand_color, l.id, l.approved_at
+         FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND l.status = 'approved' AND l.approved_at IS NOT NULL
+         UNION ALL
+         SELECT 'disbursed', l.loan_code, l.principal_amount,
+                tn.business_name, tn.brand_color, l.id, l.disbursed_at
+         FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND l.disbursed_at IS NOT NULL
+         UNION ALL
+         SELECT 'rejected', l.loan_code, NULL,
+                tn.business_name, tn.brand_color, l.id, l.rejected_at
+         FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND l.status = 'rejected' AND l.rejected_at IS NOT NULL
+         UNION ALL
+         SELECT 'overdue', l.loan_code,
+                (ps.amount_due - COALESCE(ps.amount_paid,0)) AS amount,
+                tn.business_name, tn.brand_color, l.id, ps.due_date::timestamp
+         FROM payment_schedules ps
+         JOIN loans l ON ps.loan_id = l.id
+         JOIN tenants tn ON l.tenant_id = tn.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND ps.status = 'overdue'
+       ) ev
+       WHERE ev.at IS NOT NULL
+       ORDER BY ev.at DESC
+       LIMIT 25`,
+      [clientIds, tenantIds],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Customer notifications error:", error);
+    res.status(500).json({ error: "Failed to fetch notifications" });
   }
 });
 

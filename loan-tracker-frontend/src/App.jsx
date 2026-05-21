@@ -14,6 +14,7 @@ import CustomerRegister from "./portal/pages/Register";
 import TenantPicker from "./portal/pages/TenantPicker";
 import CustomerDashboard from "./portal/pages/Dashboard";
 import CustomerMyLoans from "./portal/pages/MyLoans";
+import CustomerPayments from "./portal/pages/Payments";
 import CustomerLoanDetails from "./portal/pages/LoanDetails";
 import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
@@ -307,6 +308,14 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerMyLoans />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/loanfix/portal/payments"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerPayments />
                 </PortalProtectedRoute>
               }
             />

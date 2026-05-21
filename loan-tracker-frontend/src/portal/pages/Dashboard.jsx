@@ -22,6 +22,8 @@ import {
   Pie,
   Cell,
   Legend,
+  BarChart,
+  Bar,
 } from "recharts";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -111,8 +113,15 @@ function CustomerDashboard() {
     );
   }
 
-  const { rated, credit_score, risk, stats, monthly_repayments, status_breakdown } =
-    d;
+  const {
+    rated,
+    credit_score,
+    risk,
+    stats,
+    monthly_repayments,
+    activity_trend,
+    status_breakdown,
+  } = d;
   const scoreColor = rated ? RISK_HEX[risk?.color] || "#0086cc" : "#94a3b8";
 
   const kpis = [
@@ -367,6 +376,61 @@ function CustomerDashboard() {
               </p>
             </div>
           ))}
+        </div>
+
+        {/* Recent activity trend */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <h2 className="font-bold text-navy-900 mb-4">
+            Activity — last 6 months
+          </h2>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={activity_trend}
+                margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+                barGap={4}
+              >
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12, fill: "#94a3b8" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 12, fill: "#94a3b8" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 13,
+                  }}
+                  formatter={(v, n) => [v, cap(n)]}
+                />
+                <Legend
+                  formatter={(val) => (
+                    <span className="text-xs text-slate-600">{cap(val)}</span>
+                  )}
+                />
+                <Bar
+                  dataKey="applications"
+                  fill="#7c3aed"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Bar
+                  dataKey="payments"
+                  fill="#0086cc"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </PortalLayout>

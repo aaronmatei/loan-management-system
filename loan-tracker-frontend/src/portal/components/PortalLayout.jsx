@@ -5,11 +5,13 @@ import {
   Layers,
   Wallet,
   Calculator,
+  CreditCard,
   ClipboardList,
   User,
   LogOut,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
+import PortalNotificationBell from "./PortalNotificationBell";
 
 // Shared shell for the authenticated portal pages. The portal is a single
 // global customer account that aggregates lenders, so the chrome here is
@@ -20,6 +22,7 @@ const MENU = [
   { path: "/loanfix/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
   { path: "/loanfix/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
   { path: "/loanfix/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
+  { path: "/loanfix/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
   { path: "/loanfix/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
   { path: "/loanfix/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
   { path: "/loanfix/portal/profile", label: "Profile", icon: User, variant: "indigo" },
@@ -142,29 +145,31 @@ function PortalLayout({ children }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100"
-              aria-label="Open menu"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100"
+                aria-label="Open menu"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-            <h1 className="text-lg font-bold text-navy-900 truncate">
-              LoanFix
-            </h1>
-            <div className="flex-1 hidden lg:block" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+              <h1 className="text-lg font-bold text-navy-900 truncate">
+                LoanFix
+              </h1>
+            </div>
+            <PortalNotificationBell />
           </div>
         </header>
 

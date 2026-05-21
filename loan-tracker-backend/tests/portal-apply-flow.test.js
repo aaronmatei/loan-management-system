@@ -154,6 +154,20 @@ describe("customer portal — full apply flow", () => {
     expect(analytics.body.data.rated).toBe(false);
     expect(analytics.body.data.credit_score).toBeNull();
     expect(analytics.body.data.monthly_repayments).toHaveLength(6);
+    expect(analytics.body.data.activity_trend).toHaveLength(6);
+
+    // 11c. Payments + notifications endpoints respond (empty for a fresh
+    // borrower with only a pending application)
+    const payments = await api()
+      .get("/api/portal/customer/payments")
+      .set(auth);
+    expect(payments.status).toBe(200);
+    expect(Array.isArray(payments.body.data)).toBe(true);
+    const notifs = await api()
+      .get("/api/portal/customer/notifications")
+      .set(auth);
+    expect(notifs.status).toBe(200);
+    expect(Array.isArray(notifs.body.data)).toBe(true);
 
     // 12. Lender detail now reflects the link + the pending application
     const detail2 = await api()
