@@ -190,12 +190,15 @@ router.get("/lenders/:id", async (req, res) => {
       client_code: null,
       linked_at: null,
       active_loans: 0,
+      pending_applications: 0,
       total_loans: 0,
     };
     if (link.rows.length > 0) {
       const counts = await query(
         `SELECT
            COUNT(*) FILTER (WHERE status = 'active')::int AS active_loans,
+           COUNT(*) FILTER (WHERE status IN ('pending','under_review','approved'))::int
+             AS pending_applications,
            COUNT(*)::int AS total_loans
          FROM loans WHERE client_id = $1 AND tenant_id = $2`,
         [link.rows[0].client_id, tenantId],
@@ -205,6 +208,7 @@ router.get("/lenders/:id", async (req, res) => {
         client_code: link.rows[0].client_code,
         linked_at: link.rows[0].linked_at,
         active_loans: counts.rows[0].active_loans,
+        pending_applications: counts.rows[0].pending_applications,
         total_loans: counts.rows[0].total_loans,
       };
     }
@@ -232,14 +236,27 @@ router.delete("/lenders/:id/link", async (req, res) => {
         .json({ error: "You are not linked to this lender" });
     }
     const clientId = link.rows[0].client_id;
-    const active = await query(
-      `SELECT COUNT(*)::int AS n FROM loans
-        WHERE client_id = $1 AND tenant_id = $2 AND status = 'active'`,
+    const counts = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+         COUNT(*) FILTER (WHERE status IN ('pending','under_review','approved'))::int
+           AS pending
+       FROM loans WHERE client_id = $1 AND tenant_id = $2`,
       [clientId, tenantId],
     );
-    if (active.rows[0].n > 0) {
+    const { active, pending } = counts.rows[0];
+    if (active > 0 || pending > 0) {
+      const parts = [];
+      if (active > 0)
+        parts.push(`${active} active loan${active !== 1 ? "s" : ""}`);
+      if (pending > 0)
+        parts.push(
+          `${pending} pending application${pending !== 1 ? "s" : ""}`,
+        );
       return res.status(400).json({
-        error: `You still have ${active.rows[0].n} active loan(s) with this lender. Settle them before unlinking.`,
+        error: `You still have ${parts.join(
+          " and ",
+        )} with this lender. Resolve them before unlinking.`,
       });
     }
     await query(

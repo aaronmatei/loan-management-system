@@ -90,6 +90,21 @@ function LenderDetail() {
   if (!lender) return <PortalLayout><div /></PortalLayout>;
 
   const bc = lender.brand_color || "#0086cc";
+
+  // Unlinking is blocked while any obligation is still in flight — active
+  // loans OR a pending/under-review/approved application.
+  const pendingApps = lender.pending_applications || 0;
+  const canUnlink = lender.active_loans === 0 && pendingApps === 0;
+  const blockers = [];
+  if (lender.active_loans > 0)
+    blockers.push(
+      `${lender.active_loans} active loan${lender.active_loans !== 1 ? "s" : ""}`,
+    );
+  if (pendingApps > 0)
+    blockers.push(
+      `${pendingApps} pending application${pendingApps !== 1 ? "s" : ""}`,
+    );
+
   const terms = [
     { label: "Min borrow", value: KES(lender.min_amount), icon: Coins },
     { label: "Max borrow", value: KES(lender.max_amount), icon: Wallet },
@@ -236,7 +251,7 @@ function LenderDetail() {
                   View my loans
                 </button>
               </div>
-              {lender.active_loans === 0 ? (
+              {canUnlink ? (
                 <button
                   onClick={unlink}
                   disabled={unlinking}
@@ -246,9 +261,8 @@ function LenderDetail() {
                 </button>
               ) : (
                 <p className="text-center text-xs text-slate-500">
-                  You have {lender.active_loans} active loan
-                  {lender.active_loans !== 1 ? "s" : ""} here — settle them
-                  before you can unlink.
+                  You have {blockers.join(" and ")} here — resolve them before
+                  you can unlink.
                 </p>
               )}
             </div>
