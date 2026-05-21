@@ -5,8 +5,12 @@ import { query } from "../config/database.js";
 import logger from "../config/logger.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
 import { logAudit } from "../services/auditService.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// Mirrors the role set enforced in users.js.
+const VALID_ROLES = ["admin", "manager", "loan_officer", "viewer"];
 
 // Login
 router.post("/login", async (req, res) => {
@@ -165,8 +169,10 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Register (admin only)
-router.post("/register", async (req, res) => {
+// Register a staff user (admin only). Creates the user inside the calling
+// admin's tenant. POST /api/users is the primary user-management endpoint;
+// this is the explicit-username registration variant and shares its rules.
+router.post("/register", verifyToken, authorize("admin"), async (req, res) => {
   try {
     const { username, email, password, first_name, last_name, role } = req.body;
 
@@ -186,10 +192,28 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    const userRole = role || "loan_officer";
+    if (!VALID_ROLES.includes(userRole)) {
+      return res.status(400).json({
+        error: `Invalid role. Must be one of: ${VALID_ROLES.join(", ")}`,
+      });
+    }
+
+    // users.tenant_id is NOT NULL — take it from the admin's token so the
+    // new user lands in the admin's own tenant.
+    const tenantId = req.user?.tenant_id;
+    if (!tenantId) {
+      return res
+        .status(400)
+        .json({ error: "No tenant context for this account" });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
     // Check if user exists
     const existing = await query(
       "SELECT id FROM users WHERE email = $1 OR username = $2",
-      [email, username],
+      [normalizedEmail, username],
     );
 
     if (existing.rows.length > 0) {
@@ -201,14 +225,19 @@ router.post("/register", async (req, res) => {
 
     // Create user
     const result = await query(
-      "INSERT INTO users (username, email, password_hash, first_name, last_name, role, is_active) VALUES ($1, $2, $3, $4, $5, $6,true) RETURNING id, email, full_name, role",
+      `INSERT INTO users
+         (tenant_id, username, email, password_hash, first_name, last_name, role, is_active, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8)
+       RETURNING id, email, first_name, last_name, role, tenant_id`,
       [
+        tenantId,
         username,
-        email,
+        normalizedEmail,
         hashedPassword,
         first_name,
         last_name,
-        role || "loan_officer",
+        userRole,
+        req.user.id,
       ],
     );
 
@@ -217,13 +246,13 @@ router.post("/register", async (req, res) => {
       action: "created",
       entityType: "user",
       entityId: result.rows[0].id,
-      entityCode: email,
-      description: `Registered user ${email} (role: ${role || "loan_officer"})`,
-      newValues: { username, email, role: role || "loan_officer" },
+      entityCode: normalizedEmail,
+      description: `Registered user ${normalizedEmail} (role: ${userRole})`,
+      newValues: { username, email: normalizedEmail, role: userRole },
       req,
     });
 
-    logger.info(`New user registered: ${email}`);
+    logger.info(`New user registered: ${normalizedEmail}`);
 
     res.status(201).json({
       success: true,

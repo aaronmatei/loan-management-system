@@ -76,3 +76,27 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  frontend-tests:
+    name: Frontend tests (vitest)
+    runs-on: ubuntu-latest
+
+    # Pure jsdom unit/component tests — no database needed.
+    defaults:
+      run:
+        working-directory: loan-tracker-frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: loan-tracker-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test

@@ -3,9 +3,25 @@
 // route handlers use. Safe because tests/setup/env.js guarantees we're
 // pointed at loan_tracker_test.
 import bcryptjs from "bcryptjs";
+import jwt from "jsonwebtoken";
 import pool, { query } from "../../src/config/database.js";
 
 export { pool, query };
+
+// Sign a staff JWT matching the shape verifyToken expects (id/email/role/
+// tenant_id). Use with `.set("Authorization", "Bearer " + tokenFor(user))`.
+export function tokenFor(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tenant_id: user.tenant_id,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" },
+  );
+}
 
 // Wipe the tables tests write to. RESTART IDENTITY resets serial PKs so
 // IDs are predictable run-to-run; CASCADE clears FK-referencing rows.
