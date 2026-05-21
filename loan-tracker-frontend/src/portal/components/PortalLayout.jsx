@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import DevTenantSwitcher from "./DevTenantSwitcher";
 
 // Shared mobile-first shell for the authenticated portal pages
 // (Dashboard / My Loans / Profile). Reads the same localStorage keys
@@ -48,7 +47,6 @@ function PortalLayout({ children }) {
 
   return (
     <>
-      <DevTenantSwitcher />
       <div className="min-h-screen bg-gray-50">
         {sidebarOpen && (
           <div

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
-import DevTenantSwitcher from "../components/DevTenantSwitcher";
 import PasswordInput from "../components/PasswordInput";
 
 // Two-step: details → OTP + password. Portal registration is scoped
@@ -120,7 +119,6 @@ function CustomerRegister() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
-      <DevTenantSwitcher />
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
         {fromWidget && widgetAmount && (
           <div className="mb-4 bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg py-2 px-3">

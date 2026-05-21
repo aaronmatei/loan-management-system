@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import portalApi from "../services/portalApi";
-import DevTenantSwitcher from "../components/DevTenantSwitcher";
 
 function CustomerLogin() {
   const navigate = useNavigate();
@@ -54,7 +53,6 @@ function CustomerLogin() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
-      <DevTenantSwitcher />
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">
           Welcome Back
