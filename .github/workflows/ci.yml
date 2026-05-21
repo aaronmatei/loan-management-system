@@ -1,0 +1,76 @@
+name: CI
+
+# Pre-deploy gate: the backend test suite must pass before merging to main
+# (and on every push to a feature branch). Make this a required status
+# check in branch protection, and have any future deploy job depend on it
+# with `needs: [backend-tests]`.
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+
+jobs:
+  backend-tests:
+    name: Backend tests (vitest)
+    runs-on: ubuntu-latest
+
+    # Real, disposable Postgres — the suite is integration-level and hits
+    # actual SQL/constraints. global-setup.js rebuilds the schema from
+    # tests/setup/schema.sql against this DB.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: loan_tracker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Tests read DB_* + JWT_SECRET from the environment. .env.test is
+    # gitignored (absent in CI) — dotenv.config() no-ops on the missing
+    # file and these values are used instead. The `test`-DB guard passes
+    # because DB_NAME contains "test".
+    env:
+      NODE_ENV: test
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: loan_tracker_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ci_test_secret_only_minimum_32_characters_long
+      JWT_EXPIRE: 7d
+      SMS_ENABLED: "false"
+      SMS_AUTO_CONFIRMATIONS: "false"
+      EMAIL_ENABLED: "false"
+      EMAIL_AUTO_CONFIRMATIONS: "false"
+      MPESA_ENV: sandbox
+      MPESA_SHORTCODE: "174379"
+      MPESA_PASSKEY: test_passkey
+      MPESA_CONSUMER_KEY: test_key
+      MPESA_CONSUMER_SECRET: test_secret
+      MPESA_CALLBACK_URL: https://example.ngrok-free.app/api/mpesa/callback
+
+    defaults:
+      run:
+        working-directory: loan-tracker-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: loan-tracker-backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
