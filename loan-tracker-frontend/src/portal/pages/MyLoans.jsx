@@ -113,20 +113,12 @@ function MyLoans() {
 
   useEffect(() => setPage(1), [status, tenantFilter, sort]);
 
+  // by_tenant lists every linked lender (used to label the active filter).
   const lenders = data?.summary?.by_tenant || [];
-  // client_code per lender isn't in the loans summary — pull it from the
-  // lender list cached at login so each "Your Lenders" card can show it.
-  const linkInfo = (() => {
-    try {
-      const map = {};
-      JSON.parse(localStorage.getItem("portal_tenants") || "[]").forEach(
-        (t) => (map[t.tenant_id] = t),
-      );
-      return map;
-    } catch {
-      return {};
-    }
-  })();
+  const activeLender =
+    tenantFilter !== "all"
+      ? lenders.find((t) => String(t.tenant_id) === tenantFilter)
+      : null;
 
   const sorted = useMemo(() => {
     const base = CMP[sort.key] || CMP.date;
@@ -150,66 +142,22 @@ function MyLoans() {
           Every loan across all your lenders, in one place
         </p>
 
-        {/* Your Lenders — your account at each lender (tap to filter) */}
-        {lenders.length > 0 && (
-          <div className="mb-5">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-bold text-navy-900 uppercase tracking-wide">
-                Your Lenders
-              </h2>
-              {tenantFilter !== "all" && (
-                <button
-                  onClick={() => setTenantFilter("all")}
-                  className="text-xs font-semibold text-ocean-600 hover:text-ocean-700"
-                >
-                  Show all
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-              {lenders.map((t) => {
-                const bc = t.brand_color || "#0086cc";
-                const bal =
-                  parseFloat(t.total_due || 0) - parseFloat(t.total_paid || 0);
-                const info = linkInfo[t.tenant_id] || {};
-                const active = tenantFilter === String(t.tenant_id);
-                return (
-                  <button
-                    key={t.tenant_id}
-                    onClick={() => setTenantFilter(active ? "all" : t.tenant_id)}
-                    className={`text-left bg-white rounded-xl p-3 border-2 transition ${
-                      active ? "" : "border-transparent shadow-sm hover:shadow"
-                    }`}
-                    style={active ? { borderColor: bc } : undefined}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ backgroundColor: bc }}
-                      >
-                        {t.business_name?.charAt(0)}
-                      </div>
-                      <p className="font-semibold text-navy-900 text-sm truncate">
-                        {t.business_name}
-                      </p>
-                    </div>
-                    {info.client_code && (
-                      <p className="text-[11px] text-slate-500 font-mono">
-                        {info.client_code}
-                      </p>
-                    )}
-                    <div className="flex justify-between mt-1 text-xs">
-                      <span className="text-slate-500">
-                        {t.active_loans} active
-                      </span>
-                      <span className="font-semibold text-red-600">
-                        {KES(Math.max(0, bal))}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+        {/* Active lender filter (set from a lender's "View my loans") */}
+        {activeLender && (
+          <div className="mb-4">
+            <span
+              className="inline-flex items-center gap-2 rounded-full pl-3 pr-1.5 py-1 text-sm font-semibold text-white"
+              style={{ backgroundColor: activeLender.brand_color || "#0086cc" }}
+            >
+              {activeLender.business_name}
+              <button
+                onClick={() => setTenantFilter("all")}
+                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/25"
+                aria-label="Clear lender filter"
+              >
+                ✕
+              </button>
+            </span>
           </div>
         )}
 
