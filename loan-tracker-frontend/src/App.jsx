@@ -19,6 +19,7 @@ import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
 import CustomerLenders from "./portal/pages/Lenders";
+import CustomerLenderDetail from "./portal/pages/LenderDetail";
 import CustomerApplyLoan from "./portal/pages/ApplyLoan";
 import CustomerApplications from "./portal/pages/Applications";
 import CustomerCalculator from "./portal/pages/Calculator";
@@ -274,6 +275,14 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerLenders />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/loanfix/lenders/:id"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerLenderDetail />
                 </PortalProtectedRoute>
               }
             />

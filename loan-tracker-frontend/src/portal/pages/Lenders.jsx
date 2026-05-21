@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Building2,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
@@ -8,10 +15,19 @@ import IconTile from "../../components/IconTile";
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 20;
 
-// Marketplace directory of every active lender on LoanFix (excludes the
-// platform owner + demo sandbox, server-side). Customers browse and filter
-// by borrowing terms; rendered as a paginated table so hundreds of lenders
-// stay manageable. No customer loan data here — that lives in "My Loans".
+const CMP = {
+  name: (a, b) => a.business_name.localeCompare(b.business_name),
+  min: (a, b) => parseFloat(a.min_amount) - parseFloat(b.min_amount),
+  max: (a, b) => parseFloat(a.max_amount) - parseFloat(b.max_amount),
+  rate: (a, b) =>
+    parseFloat(a.default_interest_rate) - parseFloat(b.default_interest_rate),
+  term: (a, b) => parseFloat(a.default_duration) - parseFloat(b.default_duration),
+};
+
+// Marketplace directory of every active lender on LoanFix (platform owner +
+// demo sandbox excluded server-side). Filter by terms, sort by any column,
+// paginate. Each row's arrow opens the lender's detail page where the
+// link/apply/unlink actions live.
 function Lenders() {
   const navigate = useNavigate();
   const [lenders, setLenders] = useState([]);
@@ -20,7 +36,7 @@ function Lenders() {
   const [search, setSearch] = useState("");
   const [amount, setAmount] = useState(""); // amount the customer wants
   const [maxRate, setMaxRate] = useState(""); // max acceptable interest
-  const [sort, setSort] = useState("rate"); // rate | max | name
+  const [sort, setSort] = useState({ key: "rate", dir: "asc" });
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -51,14 +67,10 @@ function Lenders() {
       }
       return true;
     });
-    const by = {
-      rate: (a, b) =>
-        parseFloat(a.default_interest_rate) -
-        parseFloat(b.default_interest_rate),
-      max: (a, b) => parseFloat(b.max_amount) - parseFloat(a.max_amount),
-      name: (a, b) => a.business_name.localeCompare(b.business_name),
-    };
-    return [...list].sort(by[sort] || by.rate);
+    const base = CMP[sort.key] || CMP.rate;
+    return [...list].sort((a, b) =>
+      sort.dir === "asc" ? base(a, b) : -base(a, b),
+    );
   }, [lenders, search, amount, maxRate, sort]);
 
   // Reset to page 1 whenever the filter/sort changes.
@@ -69,19 +81,12 @@ function Lenders() {
   const start = (current - 1) * PAGE_SIZE;
   const paged = filtered.slice(start, start + PAGE_SIZE);
 
-  // Apply at a lender the customer already has: prime the apply page's
-  // lender pre-selection, then go there.
-  const apply = (l) => {
-    localStorage.setItem(
-      "portal_current_tenant",
-      JSON.stringify({
-        tenant_id: l.tenant_id,
-        business_name: l.business_name,
-        brand_color: l.brand_color,
-      }),
+  const toggleSort = (key) =>
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" },
     );
-    navigate("/loanfix/portal/apply");
-  };
 
   const fld =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-600 focus:outline-none bg-white";
@@ -96,6 +101,25 @@ function Lenders() {
     return arr;
   })();
 
+  const Th = ({ label, k, align = "right" }) => (
+    <th className={`px-4 py-3 ${align === "right" ? "text-right" : "text-left"}`}>
+      <button
+        onClick={() => toggleSort(k)}
+        className={`inline-flex items-center gap-1 font-semibold hover:text-navy-900 ${
+          sort.key === k ? "text-navy-900" : ""
+        }`}
+      >
+        {label}
+        {sort.key === k &&
+          (sort.dir === "asc" ? (
+            <ChevronUp size={12} />
+          ) : (
+            <ChevronDown size={12} />
+          ))}
+      </button>
+    </th>
+  );
+
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -108,7 +132,7 @@ function Lenders() {
 
         {/* Filters */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-5">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Search
@@ -150,20 +174,6 @@ function Lenders() {
                 className={fld}
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Sort by
-              </label>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                className={fld}
-              >
-                <option value="rate">Lowest interest</option>
-                <option value="max">Highest max amount</option>
-                <option value="name">Name (A–Z)</option>
-              </select>
-            </div>
           </div>
           {(search || amount || maxRate) && (
             <button
@@ -204,21 +214,13 @@ function Lenders() {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
-                    <th className="px-4 py-3 font-semibold">Lender</th>
-                    <th className="px-4 py-3 font-semibold text-right">
-                      Min borrow
-                    </th>
-                    <th className="px-4 py-3 font-semibold text-right">
-                      Max borrow
-                    </th>
-                    <th className="px-4 py-3 font-semibold text-right">
-                      Interest
-                    </th>
-                    <th className="px-4 py-3 font-semibold text-right">Term</th>
-                    <th className="px-4 py-3 font-semibold text-right">
-                      Action
-                    </th>
+                  <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                    <Th label="Lender" k="name" align="left" />
+                    <Th label="Min borrow" k="min" />
+                    <Th label="Max borrow" k="max" />
+                    <Th label="Interest" k="rate" />
+                    <Th label="Term" k="term" />
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
@@ -227,7 +229,10 @@ function Lenders() {
                     return (
                       <tr
                         key={l.tenant_id}
-                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60"
+                        onClick={() =>
+                          navigate(`/loanfix/lenders/${l.tenant_id}`)
+                        }
+                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 cursor-pointer"
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -271,44 +276,14 @@ function Lenders() {
                         <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
                           {l.default_duration} mo
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
-                            {l.is_linked ? (
-                              <>
-                                <button
-                                  onClick={() => apply(l)}
-                                  className="px-3 py-1.5 rounded-lg font-semibold text-white text-xs"
-                                  style={{ backgroundColor: bc }}
-                                >
-                                  Apply
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    navigate(
-                                      `/loanfix/portal/loans?tenant_id=${l.tenant_id}`,
-                                    )
-                                  }
-                                  className="px-3 py-1.5 rounded-lg font-semibold text-xs border border-slate-200 text-slate-600 hover:bg-slate-100 whitespace-nowrap"
-                                >
-                                  Loans
-                                </button>
-                              </>
-                            ) : l.can_self_signup ? (
-                              <button
-                                onClick={() =>
-                                  navigate(
-                                    `/loanfix/portal/add-lender?tenant=${l.tenant_id}`,
-                                  )
-                                }
-                                className="px-3 py-1.5 rounded-lg font-semibold text-white text-xs whitespace-nowrap"
-                                style={{ backgroundColor: bc }}
-                              >
-                                + Add
-                              </button>
-                            ) : (
-                              <span className="text-xs text-slate-400">—</span>
-                            )}
-                          </div>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-white"
+                            style={{ backgroundColor: bc }}
+                            aria-label={`View ${l.business_name}`}
+                          >
+                            <ChevronRight size={18} />
+                          </span>
                         </td>
                       </tr>
                     );

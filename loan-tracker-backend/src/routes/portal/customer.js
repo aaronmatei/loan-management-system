@@ -147,6 +147,119 @@ router.get("/lenders", async (req, res) => {
   }
 });
 
+// One lender's full profile + terms, plus this customer's link state and
+// (when linked) their loan counts — the latter gates whether unlinking is
+// allowed. Same platform/demo exclusions as the directory.
+router.get("/lenders/:id", async (req, res) => {
+  try {
+    const tenantId = parseInt(req.params.id, 10);
+    const r = await query(
+      `SELECT
+         t.id AS tenant_id,
+         t.business_name, t.subdomain, t.brand_color, t.logo_url,
+         t.business_type, t.physical_address, t.city, t.county,
+         t.contact_email, t.contact_phone,
+         COALESCE(t.default_interest_rate, 50.00) AS default_interest_rate,
+         COALESCE(t.min_loan_amount,       1000)  AS min_amount,
+         COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
+         COALESCE(t.default_loan_duration, 6)     AS default_duration,
+         COALESCE(t.allow_self_signup, false)     AS can_self_signup
+       FROM tenants t
+       WHERE t.id = $1 AND t.status = 'active'
+         AND t.customer_portal_enabled = true
+         AND COALESCE(t.is_demo, false) = false
+         AND COALESCE(t.plan, '') <> 'platform'
+         AND t.subdomain NOT IN ('platform', 'demo')`,
+      [tenantId],
+    );
+    if (r.rows.length === 0) {
+      return res.status(404).json({ error: "Lender not found" });
+    }
+    const lender = r.rows[0];
+
+    const link = await query(
+      `SELECT ctl.client_id, c.client_code, ctl.linked_at
+         FROM customer_tenant_links ctl
+         JOIN clients c ON ctl.client_id = c.id
+        WHERE ctl.platform_customer_id = $1 AND ctl.tenant_id = $2
+          AND ctl.status = 'active'`,
+      [req.platformCustomerId, tenantId],
+    );
+    let extra = {
+      is_linked: false,
+      client_code: null,
+      linked_at: null,
+      active_loans: 0,
+      total_loans: 0,
+    };
+    if (link.rows.length > 0) {
+      const counts = await query(
+        `SELECT
+           COUNT(*) FILTER (WHERE status = 'active')::int AS active_loans,
+           COUNT(*)::int AS total_loans
+         FROM loans WHERE client_id = $1 AND tenant_id = $2`,
+        [link.rows[0].client_id, tenantId],
+      );
+      extra = {
+        is_linked: true,
+        client_code: link.rows[0].client_code,
+        linked_at: link.rows[0].linked_at,
+        active_loans: counts.rows[0].active_loans,
+        total_loans: counts.rows[0].total_loans,
+      };
+    }
+    res.json({ success: true, data: { ...lender, ...extra } });
+  } catch (error) {
+    logger.error("Lender detail error:", error);
+    res.status(500).json({ error: "Failed to fetch lender" });
+  }
+});
+
+// Unlink the customer from a lender. Allowed only when they have NO active
+// loans there. The link row is deleted (not deactivated) so the customer can
+// re-link later via /auth/add-tenant, which rejects any existing link row.
+router.delete("/lenders/:id/link", async (req, res) => {
+  try {
+    const tenantId = parseInt(req.params.id, 10);
+    const link = await query(
+      `SELECT client_id FROM customer_tenant_links
+        WHERE platform_customer_id = $1 AND tenant_id = $2 AND status = 'active'`,
+      [req.platformCustomerId, tenantId],
+    );
+    if (link.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "You are not linked to this lender" });
+    }
+    const clientId = link.rows[0].client_id;
+    const active = await query(
+      `SELECT COUNT(*)::int AS n FROM loans
+        WHERE client_id = $1 AND tenant_id = $2 AND status = 'active'`,
+      [clientId, tenantId],
+    );
+    if (active.rows[0].n > 0) {
+      return res.status(400).json({
+        error: `You still have ${active.rows[0].n} active loan(s) with this lender. Settle them before unlinking.`,
+      });
+    }
+    await query(
+      `INSERT INTO customer_activities
+         (platform_customer_id, tenant_id, client_id, activity_type)
+       VALUES ($1,$2,$3,'unlinked_tenant')`,
+      [req.platformCustomerId, tenantId, clientId],
+    );
+    await query(
+      `DELETE FROM customer_tenant_links
+        WHERE platform_customer_id = $1 AND tenant_id = $2`,
+      [req.platformCustomerId, tenantId],
+    );
+    res.json({ success: true, message: "Lender unlinked" });
+  } catch (error) {
+    logger.error("Unlink lender error:", error);
+    res.status(500).json({ error: "Failed to unlink lender" });
+  }
+});
+
 // ALL loans across ALL the customer's linked tenants. Authenticated
 // as the platform customer (verifyCustomer); scoped strictly to the
 // client_ids/tenant_ids the customer is actively linked to.
