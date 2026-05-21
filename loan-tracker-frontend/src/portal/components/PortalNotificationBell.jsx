@@ -3,15 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Bell, X } from "lucide-react";
 import portalApi from "../services/portalApi";
 
-const SEEN_KEY = "portal_notifs_seen";
-const DISMISSED_KEY = "portal_notifs_dismissed";
-
 const META = {
   payment: { icon: "💵", label: "Payment received" },
   approved: { icon: "✅", label: "Application approved" },
   disbursed: { icon: "💰", label: "Loan disbursed" },
   rejected: { icon: "❌", label: "Application declined" },
   overdue: { icon: "⚠️", label: "Payment overdue" },
+  due_soon: { icon: "⏰", label: "Payment due soon" },
 };
 
 const ago = (d) => {
@@ -24,33 +22,24 @@ const ago = (d) => {
 };
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
-const keyOf = (n) => `${n.type}:${n.loan_id}:${n.at}`;
-const readDismissed = () => {
-  try {
-    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
 
-// Customer notification bell. Notifications are derived server-side (payments,
-// application decisions, disbursals, overdue alerts). "Seen" (unread badge)
-// and "dismissed" (deleted items) are tracked locally since there is no
-// notifications table to write to.
+// Customer notification bell backed by the server. Notifications, read state
+// and dismissals all live in customer_notifications, so they persist across
+// devices. Opening the dropdown marks everything read.
 function PortalNotificationBell() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
+  const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
-  const [seen, setSeen] = useState(
-    () => localStorage.getItem(SEEN_KEY) || "1970-01-01",
-  );
-  const [dismissed, setDismissed] = useState(readDismissed);
   const ref = useRef(null);
 
   const load = () => {
     portalApi
       .get("/portal/customer/notifications")
-      .then((r) => setItems(r.data.data || []))
+      .then((r) => {
+        setItems(r.data.data || []);
+        setUnread(r.data.unread || 0);
+      })
       .catch(() => {});
   };
 
@@ -68,29 +57,28 @@ function PortalNotificationBell() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const visible = items.filter((n) => !dismissed.includes(keyOf(n)));
-  const unread = visible.filter((n) => new Date(n.at) > new Date(seen)).length;
-
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next && visible.length) {
-      const now = new Date().toISOString();
-      localStorage.setItem(SEEN_KEY, now);
-      setSeen(now);
+    if (next && unread > 0) {
+      setUnread(0);
+      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      portalApi.post("/portal/customer/notifications/read-all").catch(() => {});
     }
   };
 
-  const persistDismissed = (list) => {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(list));
-    setDismissed(list);
+  const dismiss = (id) => {
+    setItems((prev) => prev.filter((n) => n.id !== id));
+    portalApi
+      .post(`/portal/customer/notifications/${id}/dismiss`)
+      .catch(() => {});
   };
 
-  const dismiss = (n) => persistDismissed([...dismissed, keyOf(n)]);
-  const clearAll = () =>
-    persistDismissed([...dismissed, ...visible.map(keyOf)]);
+  const clearAll = () => {
+    setItems([]);
+    portalApi.post("/portal/customer/notifications/dismiss-all").catch(() => {});
+  };
 
-  // Open the loan a notification refers to (scope the session to its lender).
   const openNotif = async (n) => {
     setOpen(false);
     if (!n.loan_id || !n.tenant_id) return;
@@ -128,7 +116,7 @@ function PortalNotificationBell() {
         <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <p className="font-bold text-navy-900">Notifications</p>
-            {visible.length > 0 && (
+            {items.length > 0 && (
               <button
                 onClick={clearAll}
                 className="text-xs font-semibold text-ocean-600 hover:text-ocean-700"
@@ -138,20 +126,19 @@ function PortalNotificationBell() {
             )}
           </div>
           <div className="max-h-96 overflow-auto">
-            {visible.length === 0 ? (
+            {items.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-slate-400">
                 Nothing yet — your payments and application updates will show
                 here.
               </p>
             ) : (
-              visible.map((n) => {
+              items.map((n) => {
                 const m = META[n.type] || { icon: "🔔", label: n.type };
-                const isUnread = new Date(n.at) > new Date(seen);
                 return (
                   <div
-                    key={keyOf(n)}
+                    key={n.id}
                     className={`flex gap-3 px-4 py-3 border-b border-slate-50 last:border-0 ${
-                      isUnread ? "bg-sky-50" : ""
+                      !n.is_read ? "bg-sky-50" : ""
                     }`}
                   >
                     <button
@@ -178,7 +165,7 @@ function PortalNotificationBell() {
                       </div>
                     </button>
                     <button
-                      onClick={() => dismiss(n)}
+                      onClick={() => dismiss(n.id)}
                       className="self-start p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
                       aria-label="Dismiss"
                     >

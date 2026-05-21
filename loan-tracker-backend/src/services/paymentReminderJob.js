@@ -16,6 +16,7 @@
 import cron from "node-cron";
 import { query } from "../config/database.js";
 import notificationDispatcher from "./notificationDispatcher.js";
+import { syncAllCustomers } from "./customerNotificationService.js";
 import logger from "../config/logger.js";
 
 /** Daily scan + dispatch. Exported for manual/test invocation. */
@@ -40,6 +41,10 @@ export async function runDailyPaymentNotifications() {
       logger.error(`paymentNotifications tenant=${t.id} error:`, err);
     }
   }
+
+  // Generate in-app customer notifications (payments, decisions, overdue and
+  // due-soon reminders) for every customer.
+  await syncAllCustomers();
 
   logger.info(
     `📨 Daily payment notifications: ${summary.reminders} reminders, ${summary.overdues} overdues, ${summary.errors} errors in ${Date.now() - started}ms`,

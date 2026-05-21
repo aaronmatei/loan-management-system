@@ -15,6 +15,7 @@ import {
   getRiskLevel,
   isRated,
 } from "../../utils/creditScore.js";
+import { syncForCustomer } from "../../services/customerNotificationService.js";
 import notificationDispatcher from "../../services/notificationDispatcher.js";
 import { nextLoanCode } from "../../utils/clientCode.js";
 
@@ -668,68 +669,74 @@ router.get("/payments", async (req, res) => {
   }
 });
 
-// Derived notification feed for the customer: recent payments, application
-// decisions, disbursals and overdue alerts across all lenders. Read-only;
-// the client tracks "seen" locally for the unread badge.
+// Server-side notification feed. Generates any missing notifications for this
+// customer (idempotent), then returns the active (non-dismissed) ones plus the
+// unread count. Read/dismiss state persists in customer_notifications.
 router.get("/notifications", async (req, res) => {
   try {
-    const links = await query(
-      `SELECT client_id, tenant_id FROM customer_tenant_links
-       WHERE platform_customer_id = $1 AND status = 'active'`,
+    await syncForCustomer(req.platformCustomerId);
+    const r = await query(
+      `SELECT cn.id, cn.type, cn.amount, cn.is_read, cn.created_at AS at,
+              cn.loan_id, l.loan_code,
+              tn.id AS tenant_id, tn.business_name AS lender, tn.brand_color
+       FROM customer_notifications cn
+       LEFT JOIN loans l ON cn.loan_id = l.id
+       LEFT JOIN tenants tn ON cn.tenant_id = tn.id
+       WHERE cn.platform_customer_id = $1 AND cn.is_dismissed = false
+       ORDER BY cn.created_at DESC
+       LIMIT 50`,
       [req.platformCustomerId],
     );
-    if (links.rows.length === 0) {
-      return res.json({ success: true, data: [] });
-    }
-    const clientIds = [...new Set(links.rows.map((r) => r.client_id))];
-    const tenantIds = [...new Set(links.rows.map((r) => r.tenant_id))];
-    const r = await query(
-      `SELECT * FROM (
-         SELECT 'payment' AS type, l.loan_code, t.amount_paid AS amount,
-                tn.business_name AS lender, tn.brand_color AS brand_color,
-                tn.id AS tenant_id, l.id AS loan_id, t.payment_date::timestamp AS at
-         FROM transactions t
-         JOIN loans l ON t.loan_id = l.id
-         JOIN tenants tn ON t.tenant_id = tn.id
-         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-           AND t.payment_status = 'completed'
-         UNION ALL
-         SELECT 'approved', l.loan_code, l.principal_amount,
-                tn.business_name, tn.brand_color, tn.id, l.id, l.approved_at
-         FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
-         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-           AND l.status = 'approved' AND l.approved_at IS NOT NULL
-         UNION ALL
-         SELECT 'disbursed', l.loan_code, l.principal_amount,
-                tn.business_name, tn.brand_color, tn.id, l.id, l.disbursed_at
-         FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
-         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-           AND l.disbursed_at IS NOT NULL
-         UNION ALL
-         SELECT 'rejected', l.loan_code, NULL,
-                tn.business_name, tn.brand_color, tn.id, l.id, l.rejected_at
-         FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
-         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-           AND l.status = 'rejected' AND l.rejected_at IS NOT NULL
-         UNION ALL
-         SELECT 'overdue', l.loan_code,
-                (ps.amount_due - COALESCE(ps.amount_paid,0)) AS amount,
-                tn.business_name, tn.brand_color, tn.id, l.id, ps.due_date::timestamp
-         FROM payment_schedules ps
-         JOIN loans l ON ps.loan_id = l.id
-         JOIN tenants tn ON l.tenant_id = tn.id
-         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-           AND ps.status = 'overdue'
-       ) ev
-       WHERE ev.at IS NOT NULL
-       ORDER BY ev.at DESC
-       LIMIT 25`,
-      [clientIds, tenantIds],
-    );
-    res.json({ success: true, data: r.rows });
+    const unread = r.rows.filter((n) => !n.is_read).length;
+    res.json({ success: true, data: r.rows, unread });
   } catch (error) {
     logger.error("Customer notifications error:", error);
     res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+// Mark all the customer's notifications read (called when the bell opens).
+router.post("/notifications/read-all", async (req, res) => {
+  try {
+    await query(
+      `UPDATE customer_notifications SET is_read = true
+       WHERE platform_customer_id = $1 AND is_read = false`,
+      [req.platformCustomerId],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logger.error("Mark notifications read error:", error);
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+// Dismiss all the customer's notifications.
+router.post("/notifications/dismiss-all", async (req, res) => {
+  try {
+    await query(
+      `UPDATE customer_notifications SET is_dismissed = true
+       WHERE platform_customer_id = $1 AND is_dismissed = false`,
+      [req.platformCustomerId],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logger.error("Dismiss all notifications error:", error);
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+// Dismiss one notification (persists server-side, across devices).
+router.post("/notifications/:id/dismiss", async (req, res) => {
+  try {
+    await query(
+      `UPDATE customer_notifications SET is_dismissed = true
+       WHERE id = $1 AND platform_customer_id = $2`,
+      [req.params.id, req.platformCustomerId],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logger.error("Dismiss notification error:", error);
+    res.status(500).json({ error: "Failed" });
   }
 });
 

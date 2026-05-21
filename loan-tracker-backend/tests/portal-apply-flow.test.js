@@ -168,6 +168,7 @@ describe("customer portal — full apply flow", () => {
       .set(auth);
     expect(notifs.status).toBe(200);
     expect(Array.isArray(notifs.body.data)).toBe(true);
+    expect(notifs.body.unread).toBe(0);
 
     // 12. Lender detail now reflects the link + the pending application
     const detail2 = await api()
@@ -182,6 +183,36 @@ describe("customer portal — full apply flow", () => {
       .set(auth);
     expect(unlink.status).toBe(400);
     expect(unlink.body.error).toMatch(/pending application/i);
+
+    // 14. Record a payment → a notification is generated, then read + dismiss
+    await query(
+      `INSERT INTO transactions
+         (transaction_code, loan_id, client_id, amount_paid, payment_date,
+          payment_method, payment_status, tenant_id)
+       VALUES ('TX-NOTIF-1', $1, $2, 5000, CURRENT_DATE, 'mpesa', 'completed', $3)`,
+      [found.id, found.client_id, tenant.id],
+    );
+    let n1 = await api().get("/api/portal/customer/notifications").set(auth);
+    const payNotif = n1.body.data.find((x) => x.type === "payment");
+    expect(payNotif).toBeTruthy();
+    expect(n1.body.unread).toBeGreaterThanOrEqual(1);
+
+    // Idempotent: a second fetch doesn't duplicate it
+    const countBefore = n1.body.data.length;
+    n1 = await api().get("/api/portal/customer/notifications").set(auth);
+    expect(n1.body.data.length).toBe(countBefore);
+
+    // Mark all read → unread clears
+    await api().post("/api/portal/customer/notifications/read-all").set(auth);
+    n1 = await api().get("/api/portal/customer/notifications").set(auth);
+    expect(n1.body.unread).toBe(0);
+
+    // Dismiss → it stays gone (server-side)
+    await api()
+      .post(`/api/portal/customer/notifications/${payNotif.id}/dismiss`)
+      .set(auth);
+    n1 = await api().get("/api/portal/customer/notifications").set(auth);
+    expect(n1.body.data.find((x) => x.id === payNotif.id)).toBeFalsy();
   });
 
   it("rejects an application amount above the lender's max", async () => {

@@ -2806,3 +2806,22 @@ ALTER TABLE ONLY public.users
 
 \unrestrict 1abQRES8fLd9wgdDFWf3SkmnTgF6om34mRVLNtaA6FyHgbRiBIP5KxYHU4AccMx
 
+--
+-- customer_notifications (migration 016) — kept in sync with the migration
+--
+CREATE TABLE IF NOT EXISTS public.customer_notifications (
+    id SERIAL PRIMARY KEY,
+    platform_customer_id integer NOT NULL,
+    tenant_id integer,
+    loan_id integer,
+    type character varying(30) NOT NULL,
+    amount numeric(12,2),
+    dedupe_key character varying(120) NOT NULL,
+    is_read boolean DEFAULT false,
+    is_dismissed boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now(),
+    UNIQUE (platform_customer_id, dedupe_key)
+);
+CREATE INDEX IF NOT EXISTS idx_cust_notif_customer
+    ON public.customer_notifications (platform_customer_id, created_at DESC);
+
