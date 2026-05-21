@@ -11,6 +11,7 @@ import {
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
+import { lenderColor } from "../lenderColor";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -135,7 +136,7 @@ function CustomerDashboard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {lenders.map((t) => {
-              const bc = t.brand_color || "#0086cc";
+              const bc = lenderColor(t.brand_color, t.tenant_id);
               const balance =
                 parseFloat(t.total_due || 0) - parseFloat(t.total_paid || 0);
               return (

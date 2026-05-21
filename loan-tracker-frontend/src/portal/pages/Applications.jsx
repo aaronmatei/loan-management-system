@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import { lenderColor } from "../lenderColor";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -120,7 +121,7 @@ function CustomerApplications() {
           <div className="space-y-4">
             {apps.map((a) => {
               const s = STATUS[a.status] || STATUS.pending;
-              const bc = a.tenant_brand_color || "#0086cc";
+              const bc = lenderColor(a.tenant_brand_color, a.tenant_id);
               return (
                 <div
                   key={a.id}
