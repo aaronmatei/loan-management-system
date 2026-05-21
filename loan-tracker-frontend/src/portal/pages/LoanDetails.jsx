@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import MpesaPayButton from "../../components/MpesaPayButton";
+import PaymentReceipt from "../../components/PaymentReceipt";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const day = (d) => (d ? new Date(d).toLocaleDateString() : "N/A");
@@ -14,6 +15,19 @@ function LoanDetails() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("schedule");
   const [downloading, setDownloading] = useState(false);
+  // Which past payment's receipt modal is open (the transaction row).
+  const [receiptTxn, setReceiptTxn] = useState(null);
+
+  // Tenant branding for the receipt (brand_color, business_name) — the
+  // portal keeps the current tenant in localStorage (same source the
+  // PortalLayout / banners use).
+  const portalTenant = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("portal_current_tenant") || "null");
+    } catch {
+      return null;
+    }
+  })();
 
   const downloadStatement = async () => {
     setDownloading(true);
@@ -85,6 +99,29 @@ function LoanDetails() {
     receiptSummary?.next_payment_amount > 0
       ? receiptSummary.next_payment_amount
       : balance;
+
+  // Map a transaction (+ its running receipt) into the shape the shared
+  // PaymentReceipt expects. Balance figures are AS OF that payment (the
+  // backend's running fold); next-payment is loan-level, only surfaced
+  // when this payment didn't already clear the loan.
+  const buildReceipt = (t) => {
+    const remainingAfter = parseFloat(t.receipt?.remaining_balance_after_this ?? balance);
+    const fullyPaid = remainingAfter <= 0;
+    return {
+      client_name: `${loan.client_first_name || ""} ${loan.client_last_name || ""}`.trim(),
+      client_phone: loan.client_phone,
+      loan_code: loan.loan_code,
+      principal: loan.principal_amount,
+      total_amount_due: loan.total_amount_due,
+      total_paid: t.receipt?.total_paid_after_this,
+      remaining_balance: remainingAfter,
+      completion_percentage: t.receipt?.completion_percentage_after_this,
+      is_fully_paid: fullyPaid,
+      next_payment_amount: fullyPaid ? null : receiptSummary?.next_payment_amount,
+      next_payment_date: fullyPaid ? null : receiptSummary?.next_payment_date,
+      next_payment_number: fullyPaid ? null : receiptSummary?.next_payment_number,
+    };
+  };
 
   return (
     <PortalLayout>
@@ -324,6 +361,12 @@ function LoanDetails() {
                           <p className="text-xs text-green-600 font-semibold capitalize">
                             {t.payment_status}
                           </p>
+                          <button
+                            onClick={() => setReceiptTxn(t)}
+                            className="mt-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                          >
+                            View receipt →
+                          </button>
                         </div>
                       </div>
                       {t.receipt && (
@@ -413,6 +456,15 @@ function LoanDetails() {
           )}
         </div>
       </div>
+
+      {receiptTxn && (
+        <PaymentReceipt
+          payment={receiptTxn}
+          receipt={buildReceipt(receiptTxn)}
+          tenant={portalTenant}
+          onClose={() => setReceiptTxn(null)}
+        />
+      )}
     </PortalLayout>
   );
 }
