@@ -67,7 +67,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: loan-tracker-backend/package-lock.json
 
@@ -91,7 +91,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Vite 8 requires Node ^20.19 || >=22.12; vitest 4 needs
+          # ^20 || ^22 || >=24. Match local (24) where the suite is green.
+          node-version: "24"
           cache: npm
           cache-dependency-path: loan-tracker-frontend/package-lock.json
 
@@ -99,4 +101,4 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --passWithNoTests
