@@ -454,6 +454,49 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   }
   doc.moveDown();
 
+  // Balance + next payment, computed AS OF this payment: cumulative
+  // amount paid through this transaction (id <= current) so a receipt
+  // re-printed later still reflects the state at the time it was paid.
+  const paidThroughRes = await query(
+    `SELECT COALESCE(SUM(amount_paid), 0) AS paid
+       FROM transactions
+      WHERE loan_id = $1 AND payment_status = 'completed' AND id <= $2`,
+    [txn.loan_id, txn.id],
+  );
+  const paidThrough = parseFloat(paidThroughRes.rows[0].paid);
+  const remaining = Math.max(
+    0,
+    parseFloat(txn.total_amount_due) - paidThrough,
+  );
+
+  // Next unpaid installment after this payment (schedules are already
+  // allocated by the time the receipt is generated).
+  const nextRes = await query(
+    `SELECT payment_number, due_date, amount_due,
+            COALESCE(amount_paid, 0) AS amount_paid
+       FROM payment_schedules
+      WHERE loan_id = $1 AND status <> 'paid'
+      ORDER BY due_date ASC, payment_number ASC
+      LIMIT 1`,
+    [txn.loan_id],
+  );
+  const next = nextRes.rows[0] || null;
+  const nextDue = next
+    ? Math.max(0, parseFloat(next.amount_due) - parseFloat(next.amount_paid))
+    : 0;
+
+  doc.fontSize(12).fillColor("#4F46E5").text("BALANCE:", { underline: true });
+  doc.fontSize(11).fillColor("#000");
+  doc.text(`Remaining Balance: ${formatCurrency(remaining)}`);
+  if (remaining <= 0) {
+    doc.fillColor("#059669").text("Loan fully paid. Thank you!");
+    doc.fillColor("#000");
+  } else if (next) {
+    doc.text(`Next Payment: ${formatCurrency(nextDue)}`);
+    doc.text(`Next Payment Due: ${formatDate(next.due_date)}`);
+  }
+  doc.moveDown();
+
   if (txn.notes) {
     doc.fontSize(9).fillColor("#666").text(`Notes: ${txn.notes}`);
   }
