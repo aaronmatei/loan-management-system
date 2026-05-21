@@ -27,10 +27,10 @@ services:
         generateValue: true
       - key: JWT_EXPIRE
         value: 7d
-      # Comma-separated allowed browser origins = your deployed frontend URL(s).
-      # Set AFTER the frontend is deployed (Step 4 in DEPLOYMENT.md).
+      # Comma-separated allowed browser origins. Both the app subdomain and
+      # the apex (the landing page lives in the same SPA) call this API.
       - key: CORS_ORIGINS
-        sync: false
+        value: https://app.loanfix.co.ke,https://loanfix.co.ke
       # External integrations OFF by default; flip the flag + add the secrets
       # in the dashboard when ready.
       - key: SMS_ENABLED
@@ -55,9 +55,7 @@ services:
         sync: false
       - key: MPESA_PASSKEY
         sync: false
-      # Must be the PUBLIC backend URL once deployed:
-      # https://loanfix-backend.onrender.com/api/mpesa/callback
       - key: MPESA_CALLBACK_URL
-        sync: false
+        value: https://api.loanfix.co.ke/api/mpesa/callback
       - key: BACKUP_SCHEDULE_ENABLED
         value: "false"
