@@ -132,6 +132,11 @@ router.get("/lenders", async (req, res) => {
        FROM tenants t
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true
+         -- Exclude the LoanFix platform owner and the demo sandbox — they
+         -- are not real lenders a customer can borrow from.
+         AND COALESCE(t.is_demo, false) = false
+         AND COALESCE(t.plan, '') <> 'platform'
+         AND t.subdomain NOT IN ('platform', 'demo')
        ORDER BY t.business_name ASC`,
       [req.platformCustomerId],
     );
