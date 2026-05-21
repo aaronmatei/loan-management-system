@@ -103,7 +103,7 @@ function Signup() {
     <div className="min-h-screen bg-ocean-gradient py-8 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white">LMS Platform</h1>
+          <h1 className="text-4xl font-bold text-white">LoanFix</h1>
           <p className="text-ocean-100 mt-2">
             Loan Management System for Kenyan Lenders
           </p>
