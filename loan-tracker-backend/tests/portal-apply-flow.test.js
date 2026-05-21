@@ -154,7 +154,7 @@ describe("customer portal — full apply flow", () => {
     expect(analytics.body.data.rated).toBe(false);
     expect(analytics.body.data.credit_score).toBeNull();
     expect(analytics.body.data.monthly_repayments).toHaveLength(6);
-    expect(analytics.body.data.activity_trend).toHaveLength(6);
+    expect(Array.isArray(analytics.body.data.loan_progress)).toBe(true);
 
     // 11c. Payments + notifications endpoints respond (empty for a fresh
     // borrower with only a pending application)

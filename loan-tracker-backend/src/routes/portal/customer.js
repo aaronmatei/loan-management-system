@@ -539,26 +539,33 @@ router.get("/analytics", async (req, res) => {
       )
     ).rows;
 
-    const activityTrend = (
+    // Repayment progress for each active loan (largest outstanding first).
+    const loanProgress = (
       await query(
-        `SELECT to_char(m, 'Mon') AS label,
-           (SELECT COUNT(*) FROM loans la
-              WHERE la.client_id = ANY($1::int[]) AND la.tenant_id = ANY($2::int[])
-                AND date_trunc('month', la.application_date) = m)::int AS applications,
-           (SELECT COUNT(*) FROM transactions t
-              JOIN loans l ON t.loan_id = l.id
-              WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-                AND t.payment_status='completed'
-                AND date_trunc('month', t.payment_date) = m)::int AS payments
-         FROM generate_series(
-           date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
-           date_trunc('month', CURRENT_DATE),
-           INTERVAL '1 month'
-         ) m
-         ORDER BY m`,
+        `SELECT l.id, l.loan_code, l.total_amount_due,
+                COALESCE(p.paid,0) AS total_paid,
+                tn.id AS tenant_id, tn.business_name AS lender, tn.brand_color
+         FROM loans l
+         JOIN tenants tn ON l.tenant_id = tn.id
+         LEFT JOIN (
+           SELECT loan_id, SUM(amount_paid) AS paid
+           FROM transactions WHERE payment_status='completed' GROUP BY loan_id
+         ) p ON p.loan_id = l.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND l.status = 'active'
+         ORDER BY (l.total_amount_due - COALESCE(p.paid,0)) DESC
+         LIMIT 6`,
         ids,
       )
-    ).rows;
+    ).rows.map((r) => ({
+      loan_id: r.id,
+      loan_code: r.loan_code,
+      lender: r.lender,
+      brand_color: r.brand_color,
+      tenant_id: r.tenant_id,
+      total_due: parseFloat(r.total_amount_due),
+      paid: parseFloat(r.total_paid),
+    }));
 
     const totalPayments = behavior.on_time + behavior.late;
     const onTimeRate =
@@ -616,7 +623,7 @@ router.get("/analytics", async (req, res) => {
           label: r.label,
           amount: parseFloat(r.amount),
         })),
-        activity_trend: activityTrend,
+        loan_progress: loanProgress,
         status_breakdown: statusBreakdown,
       },
     });
@@ -680,7 +687,7 @@ router.get("/notifications", async (req, res) => {
       `SELECT * FROM (
          SELECT 'payment' AS type, l.loan_code, t.amount_paid AS amount,
                 tn.business_name AS lender, tn.brand_color AS brand_color,
-                l.id AS loan_id, t.payment_date::timestamp AS at
+                tn.id AS tenant_id, l.id AS loan_id, t.payment_date::timestamp AS at
          FROM transactions t
          JOIN loans l ON t.loan_id = l.id
          JOIN tenants tn ON t.tenant_id = tn.id
@@ -688,26 +695,26 @@ router.get("/notifications", async (req, res) => {
            AND t.payment_status = 'completed'
          UNION ALL
          SELECT 'approved', l.loan_code, l.principal_amount,
-                tn.business_name, tn.brand_color, l.id, l.approved_at
+                tn.business_name, tn.brand_color, tn.id, l.id, l.approved_at
          FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
          WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
            AND l.status = 'approved' AND l.approved_at IS NOT NULL
          UNION ALL
          SELECT 'disbursed', l.loan_code, l.principal_amount,
-                tn.business_name, tn.brand_color, l.id, l.disbursed_at
+                tn.business_name, tn.brand_color, tn.id, l.id, l.disbursed_at
          FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
          WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
            AND l.disbursed_at IS NOT NULL
          UNION ALL
          SELECT 'rejected', l.loan_code, NULL,
-                tn.business_name, tn.brand_color, l.id, l.rejected_at
+                tn.business_name, tn.brand_color, tn.id, l.id, l.rejected_at
          FROM loans l JOIN tenants tn ON l.tenant_id = tn.id
          WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
            AND l.status = 'rejected' AND l.rejected_at IS NOT NULL
          UNION ALL
          SELECT 'overdue', l.loan_code,
                 (ps.amount_due - COALESCE(ps.amount_paid,0)) AS amount,
-                tn.business_name, tn.brand_color, l.id, ps.due_date::timestamp
+                tn.business_name, tn.brand_color, tn.id, l.id, ps.due_date::timestamp
          FROM payment_schedules ps
          JOIN loans l ON ps.loan_id = l.id
          JOIN tenants tn ON l.tenant_id = tn.id

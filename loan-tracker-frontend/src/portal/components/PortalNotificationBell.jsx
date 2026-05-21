@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Bell, X } from "lucide-react";
 import portalApi from "../services/portalApi";
 
 const SEEN_KEY = "portal_notifs_seen";
+const DISMISSED_KEY = "portal_notifs_dismissed";
 
 const META = {
   payment: { icon: "💵", label: "Payment received" },
@@ -22,16 +24,27 @@ const ago = (d) => {
 };
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
+const keyOf = (n) => `${n.type}:${n.loan_id}:${n.at}`;
+const readDismissed = () => {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
 
 // Customer notification bell. Notifications are derived server-side (payments,
-// application decisions, disbursals, overdue alerts); "seen" is tracked
-// locally so the unread badge clears when the dropdown is opened.
+// application decisions, disbursals, overdue alerts). "Seen" (unread badge)
+// and "dismissed" (deleted items) are tracked locally since there is no
+// notifications table to write to.
 function PortalNotificationBell() {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(
     () => localStorage.getItem(SEEN_KEY) || "1970-01-01",
   );
+  const [dismissed, setDismissed] = useState(readDismissed);
   const ref = useRef(null);
 
   const load = () => {
@@ -47,7 +60,6 @@ function PortalNotificationBell() {
     return () => clearInterval(t);
   }, []);
 
-  // Close on outside click.
   useEffect(() => {
     const onClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -56,15 +68,44 @@ function PortalNotificationBell() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const unread = items.filter((n) => new Date(n.at) > new Date(seen)).length;
+  const visible = items.filter((n) => !dismissed.includes(keyOf(n)));
+  const unread = visible.filter((n) => new Date(n.at) > new Date(seen)).length;
 
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next && items.length) {
+    if (next && visible.length) {
       const now = new Date().toISOString();
       localStorage.setItem(SEEN_KEY, now);
       setSeen(now);
+    }
+  };
+
+  const persistDismissed = (list) => {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(list));
+    setDismissed(list);
+  };
+
+  const dismiss = (n) => persistDismissed([...dismissed, keyOf(n)]);
+  const clearAll = () =>
+    persistDismissed([...dismissed, ...visible.map(keyOf)]);
+
+  // Open the loan a notification refers to (scope the session to its lender).
+  const openNotif = async (n) => {
+    setOpen(false);
+    if (!n.loan_id || !n.tenant_id) return;
+    try {
+      const r = await portalApi.post("/portal/auth/select-tenant", {
+        tenant_id: n.tenant_id,
+      });
+      localStorage.setItem("portal_token", r.data.token);
+      localStorage.setItem(
+        "portal_current_tenant",
+        JSON.stringify({ ...r.data.current_tenant, brand_color: n.brand_color }),
+      );
+      navigate(`/loanfix/portal/loans/${n.loan_id}`);
+    } catch {
+      /* ignore */
     }
   };
 
@@ -85,42 +126,64 @@ function PortalNotificationBell() {
 
       {open && (
         <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <p className="font-bold text-navy-900">Notifications</p>
+            {visible.length > 0 && (
+              <button
+                onClick={clearAll}
+                className="text-xs font-semibold text-ocean-600 hover:text-ocean-700"
+              >
+                Clear all
+              </button>
+            )}
           </div>
           <div className="max-h-96 overflow-auto">
-            {items.length === 0 ? (
+            {visible.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-slate-400">
                 Nothing yet — your payments and application updates will show
                 here.
               </p>
             ) : (
-              items.map((n, i) => {
+              visible.map((n) => {
                 const m = META[n.type] || { icon: "🔔", label: n.type };
                 const isUnread = new Date(n.at) > new Date(seen);
                 return (
                   <div
-                    key={i}
+                    key={keyOf(n)}
                     className={`flex gap-3 px-4 py-3 border-b border-slate-50 last:border-0 ${
                       isUnread ? "bg-sky-50" : ""
                     }`}
                   >
-                    <span className="text-lg leading-none mt-0.5">
-                      {m.icon}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-navy-900">
-                        {m.label}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {n.loan_code}
-                        {n.amount != null ? ` · ${KES(n.amount)}` : ""}
-                        {n.lender ? ` · ${n.lender}` : ""}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {ago(n.at)}
-                      </p>
-                    </div>
+                    <button
+                      onClick={() => openNotif(n)}
+                      className="flex gap-3 flex-1 min-w-0 text-left"
+                    >
+                      <span className="text-lg leading-none mt-0.5">
+                        {m.icon}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-navy-900">
+                          {m.label}
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          {n.loan_code}
+                          {n.amount != null ? ` · ${KES(n.amount)}` : ""}
+                        </p>
+                        {n.lender && (
+                          <p className="text-xs text-slate-400">{n.lender}</p>
+                        )}
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {ago(n.at)}
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => dismiss(n)}
+                      className="self-start p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                      aria-label="Dismiss"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
                 );
               })

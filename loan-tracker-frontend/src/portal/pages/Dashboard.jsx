@@ -22,12 +22,11 @@ import {
   Pie,
   Cell,
   Legend,
-  BarChart,
-  Bar,
 } from "recharts";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
+import { lenderColor } from "../lenderColor";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const kCompact = (v) =>
@@ -78,6 +77,23 @@ function CustomerDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Open a loan: scope the session to its lender, then go to its detail page.
+  const openLoan = async (l) => {
+    try {
+      const r = await portalApi.post("/portal/auth/select-tenant", {
+        tenant_id: l.tenant_id,
+      });
+      localStorage.setItem("portal_token", r.data.token);
+      localStorage.setItem(
+        "portal_current_tenant",
+        JSON.stringify({ ...r.data.current_tenant, brand_color: l.brand_color }),
+      );
+      navigate(`/loanfix/portal/loans/${l.loan_id}`);
+    } catch {
+      alert("Failed to open loan");
+    }
+  };
+
   if (loading) {
     return (
       <PortalLayout>
@@ -119,7 +135,7 @@ function CustomerDashboard() {
     risk,
     stats,
     monthly_repayments,
-    activity_trend,
+    loan_progress,
     status_breakdown,
   } = d;
   const scoreColor = rated ? RISK_HEX[risk?.color] || "#0086cc" : "#94a3b8";
@@ -378,59 +394,59 @@ function CustomerDashboard() {
           ))}
         </div>
 
-        {/* Recent activity trend */}
+        {/* Loan repayment progress */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <h2 className="font-bold text-navy-900 mb-4">
-            Activity — last 6 months
-          </h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={activity_trend}
-                margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
-                barGap={4}
-              >
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 12, fill: "#94a3b8" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 12, fill: "#94a3b8" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={28}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 13,
-                  }}
-                  formatter={(v, n) => [v, cap(n)]}
-                />
-                <Legend
-                  formatter={(val) => (
-                    <span className="text-xs text-slate-600">{cap(val)}</span>
-                  )}
-                />
-                <Bar
-                  dataKey="applications"
-                  fill="#7c3aed"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={28}
-                />
-                <Bar
-                  dataKey="payments"
-                  fill="#0086cc"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={28}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <h2 className="font-bold text-navy-900 mb-4">Loan repayment progress</h2>
+          {loan_progress.length === 0 ? (
+            <p className="text-sm text-slate-400 py-6 text-center">
+              No active loans to track.
+            </p>
+          ) : (
+            <div className="space-y-5">
+              {loan_progress.map((l) => {
+                const bc = lenderColor(l.brand_color, l.tenant_id);
+                const pct =
+                  l.total_due > 0
+                    ? Math.min(100, (l.paid / l.total_due) * 100)
+                    : 0;
+                return (
+                  <div
+                    key={l.loan_id}
+                    onClick={() => openLoan(l)}
+                    className="cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: bc }}
+                        />
+                        <span className="font-mono text-sm font-semibold text-navy-900 truncate group-hover:underline">
+                          {l.loan_code}
+                        </span>
+                        <span className="text-xs text-slate-400 truncate hidden sm:inline">
+                          · {l.lender}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold" style={{ color: bc }}>
+                        {pct.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: bc }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-1 text-[11px] text-slate-400">
+                      <span>{KES(l.paid)} repaid</span>
+                      <span>{KES(l.total_due)} total</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </PortalLayout>
