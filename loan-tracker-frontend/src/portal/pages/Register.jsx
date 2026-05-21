@@ -85,7 +85,9 @@ function CustomerRegister() {
           JSON.stringify(res.data.current_tenant),
         );
       }
-      alert("Registration successful! 🎉");
+      alert(
+        `Registration successful! 🎉\nYour LoanFix ID: ${res.data.customer?.customer_code || ""}`,
+      );
       if (fromWidget && widgetAmount) {
         const p = new URLSearchParams({
           amount: widgetAmount,

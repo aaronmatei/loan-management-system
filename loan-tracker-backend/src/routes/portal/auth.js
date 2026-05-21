@@ -6,6 +6,7 @@ import { sendOTP, verifyOTP } from "../../services/otpService.js";
 import { tenantContext } from "../../middleware/tenantContext.js";
 import { validatePassword } from "../../utils/validators.js";
 import { nextClientCode } from "../../utils/clientCode.js";
+import { lfxCode } from "../../utils/customerCode.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -233,6 +234,7 @@ router.post("/verify-otp", async (req, res) => {
       token,
       customer: {
         id: customer.id,
+        customer_code: lfxCode(customer.id),
         phone_number: customer.phone_number,
         first_name: customer.first_name,
         last_name: customer.last_name,
@@ -312,6 +314,7 @@ router.post("/login", tenantContext, async (req, res) => {
 
     const baseCustomer = {
       id: customer.id,
+      customer_code: lfxCode(customer.id),
       phone_number: customer.phone_number,
       first_name: customer.first_name,
       last_name: customer.last_name,

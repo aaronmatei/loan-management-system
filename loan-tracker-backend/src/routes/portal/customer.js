@@ -16,6 +16,7 @@ import {
   isRated,
 } from "../../utils/creditScore.js";
 import { syncForCustomer } from "../../services/customerNotificationService.js";
+import { lfxCode } from "../../utils/customerCode.js";
 import notificationDispatcher from "../../services/notificationDispatcher.js";
 import { nextLoanCode } from "../../utils/clientCode.js";
 
@@ -948,7 +949,7 @@ router.get("/profile", async (req, res) => {
       id: c.id,
       // Platform-level identifier — the customer belongs to LoanFix; their
       // per-lender client_code differs at each lender.
-      customer_code: `LFX-${String(c.id).padStart(6, "0")}`,
+      customer_code: lfxCode(c.id),
       phone_number: c.phone_number,
       email: c.email,
       id_number: c.id_number,
