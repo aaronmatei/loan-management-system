@@ -258,11 +258,13 @@ function MyLoans() {
                         className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 cursor-pointer"
                       >
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
                               style={{ backgroundColor: bc }}
-                            />
+                            >
+                              {loan.tenant_name?.charAt(0)}
+                            </div>
                             <span className="font-medium text-navy-900 truncate">
                               {loan.tenant_name}
                             </span>
