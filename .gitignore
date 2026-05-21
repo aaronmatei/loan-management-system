@@ -18,6 +18,12 @@ npm-debug.log*
 **/dist/
 **/build/
 
+# Playwright (E2E) artifacts
+**/test-results/
+**/playwright-report/
+**/.playwright/
+**/blob-report/
+
 # OS
 .DS_Store
 Thumbs.db

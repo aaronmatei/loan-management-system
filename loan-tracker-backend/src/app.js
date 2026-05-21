@@ -41,10 +41,19 @@ import widgetRoutes from "./routes/widget.js";
 
 const app = express();
 
-// CORS - allow both 5173 and 5174
+// CORS - local dev origins plus any extra origins from CORS_ORIGINS
+// (comma-separated): used for E2E on an alt port and for the deployed
+// frontend origin in production.
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  ...(process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+    : []),
+];
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
+    origin: allowedOrigins,
     credentials: true,
     allowedHeaders: [
       "Content-Type",

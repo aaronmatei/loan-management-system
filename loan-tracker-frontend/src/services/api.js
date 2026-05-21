@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api";
+// Configurable so the frontend can target a different backend (E2E on an
+// alternate port, or a deployed API in production). Falls back to the local
+// dev backend when VITE_API_URL is unset.
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const api = axios.create({
   baseURL: API_URL,
