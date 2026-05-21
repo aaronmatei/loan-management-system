@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import SortHeader from "../components/SortHeader";
+import Pager from "../components/Pager";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
+const PAGE_SIZE = 15;
 
 const STATUS_BADGE = {
   active: "bg-green-100 text-green-700",
@@ -23,16 +27,40 @@ const TABS = [
   { value: "pending", label: "Pending", emoji: "⏳" },
 ];
 
-// My Loans is the cross-lender loan list: every loan the customer holds at
-// any linked lender, in one place. Each row is colored by its own lender's
-// brand_color. Opening a loan scopes the session to that lender, then goes
-// to the loan detail page.
+// Status ordering for the sortable Status column (active first → rejected).
+const STATUS_RANK = {
+  active: 0,
+  pending: 1,
+  under_review: 2,
+  approved: 3,
+  completed: 4,
+  defaulted: 5,
+  rejected: 6,
+};
+const balOf = (l) =>
+  parseFloat(l.total_amount_due || 0) - parseFloat(l.total_paid || 0);
+const CMP = {
+  lender: (a, b) => (a.tenant_name || "").localeCompare(b.tenant_name || ""),
+  loan: (a, b) => (a.loan_code || "").localeCompare(b.loan_code || ""),
+  principal: (a, b) =>
+    parseFloat(a.principal_amount || 0) - parseFloat(b.principal_amount || 0),
+  balance: (a, b) => balOf(a) - balOf(b),
+  status: (a, b) => (STATUS_RANK[a.status] ?? 99) - (STATUS_RANK[b.status] ?? 99),
+  date: (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0),
+};
+
+// My Loans: every loan across all linked lenders, as a sortable + paginated
+// table. Status tabs and the "Your Lenders" cards filter (server-side); the
+// columns sort (client-side). Opening a row scopes the session to that loan's
+// lender and goes to the loan detail page.
 function MyLoans() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState({ key: "date", dir: "desc" });
+  const [page, setPage] = useState(1);
   const tenantFilter = searchParams.get("tenant_id") || "all";
 
   useEffect(() => {
@@ -76,9 +104,16 @@ function MyLoans() {
     setSearchParams(next);
   };
 
-  const loans = data?.loans || [];
-  const lenders = data?.summary?.by_tenant || [];
+  const toggleSort = (key) =>
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" },
+    );
 
+  useEffect(() => setPage(1), [status, tenantFilter, sort]);
+
+  const lenders = data?.summary?.by_tenant || [];
   // client_code per lender isn't in the loans summary — pull it from the
   // lender list cached at login so each "Your Lenders" card can show it.
   const linkInfo = (() => {
@@ -93,6 +128,18 @@ function MyLoans() {
     }
   })();
 
+  const sorted = useMemo(() => {
+    const base = CMP[sort.key] || CMP.date;
+    return [...(data?.loans || [])].sort((a, b) =>
+      sort.dir === "asc" ? base(a, b) : -base(a, b),
+    );
+  }, [data, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount);
+  const start = (current - 1) * PAGE_SIZE;
+  const paged = sorted.slice(start, start + PAGE_SIZE);
+
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -102,23 +149,6 @@ function MyLoans() {
         <p className="text-slate-500 mb-5">
           Every loan across all your lenders, in one place
         </p>
-
-        {/* Status tabs */}
-        <div className="flex flex-wrap gap-2 mb-3 overflow-x-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.value}
-              onClick={() => setStatus(t.value)}
-              className={`px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition ${
-                status === t.value
-                  ? "bg-ocean-gradient text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {t.emoji} {t.label}
-            </button>
-          ))}
-        </div>
 
         {/* Your Lenders — your account at each lender (tap to filter) */}
         {lenders.length > 0 && (
@@ -146,13 +176,9 @@ function MyLoans() {
                 return (
                   <button
                     key={t.tenant_id}
-                    onClick={() =>
-                      setTenantFilter(active ? "all" : t.tenant_id)
-                    }
+                    onClick={() => setTenantFilter(active ? "all" : t.tenant_id)}
                     className={`text-left bg-white rounded-xl p-3 border-2 transition ${
-                      active
-                        ? ""
-                        : "border-transparent shadow-sm hover:shadow"
+                      active ? "" : "border-transparent shadow-sm hover:shadow"
                     }`}
                     style={active ? { borderColor: bc } : undefined}
                   >
@@ -187,117 +213,153 @@ function MyLoans() {
           </div>
         )}
 
+        {/* Status filter tabs */}
+        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setStatus(t.value)}
+              className={`px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition ${
+                status === t.value
+                  ? "bg-ocean-gradient text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              {t.emoji} {t.label}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">
             Loading…
           </div>
-        ) : loans.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">
             <p className="text-5xl mb-3">📭</p>
             <p>No loans found.</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {loans.map((loan) => {
-              const due = parseFloat(loan.total_amount_due || 0);
-              const paid = parseFloat(loan.total_paid || 0);
-              const balance = Math.max(0, due - paid);
-              const progress = due > 0 ? Math.min((paid / due) * 100, 100) : 0;
-              const bc = loan.tenant_brand_color || "#0086cc";
-              return (
-                <button
-                  key={loan.id}
-                  onClick={() => openLoan(loan)}
-                  className="w-full text-left bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition overflow-hidden"
-                >
-                  {/* Lender banner */}
-                  <div
-                    className="px-4 py-2 flex justify-between items-center"
-                    style={{
-                      backgroundColor: `${bc}15`,
-                      borderLeft: `4px solid ${bc}`,
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                        style={{ backgroundColor: bc }}
+          <>
+            <p className="text-sm text-slate-500 mb-3">
+              {sorted.length} loan{sorted.length !== 1 ? "s" : ""} · showing{" "}
+              {start + 1}–{start + paged.length}
+            </p>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                    <SortHeader
+                      label="Lender"
+                      sortKey="lender"
+                      sort={sort}
+                      onToggle={toggleSort}
+                      align="left"
+                    />
+                    <SortHeader
+                      label="Loan"
+                      sortKey="loan"
+                      sort={sort}
+                      onToggle={toggleSort}
+                      align="left"
+                    />
+                    <SortHeader
+                      label="Principal"
+                      sortKey="principal"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
+                    <SortHeader
+                      label="Balance"
+                      sortKey="balance"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
+                    <SortHeader
+                      label="Status"
+                      sortKey="status"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
+                    <SortHeader
+                      label="Date"
+                      sortKey="date"
+                      sort={sort}
+                      onToggle={toggleSort}
+                    />
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map((loan) => {
+                    const bc = loan.tenant_brand_color || "#0086cc";
+                    const balance = Math.max(0, balOf(loan));
+                    return (
+                      <tr
+                        key={loan.id}
+                        onClick={() => openLoan(loan)}
+                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 cursor-pointer"
                       >
-                        {loan.tenant_name?.charAt(0)}
-                      </div>
-                      <span
-                        className="font-semibold text-sm"
-                        style={{ color: bc }}
-                      >
-                        {loan.tenant_name}
-                      </span>
-                    </div>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${
-                        STATUS_BADGE[loan.status] || "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {String(loan.status || "").replace("_", " ")}
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-mono font-bold" style={{ color: bc }}>
-                          {loan.loan_code || `#${loan.id}`}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {loan.purpose || "Loan"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3 text-sm">
-                      <div>
-                        <p className="text-xs text-gray-500">Principal</p>
-                        <p className="font-bold">{KES(loan.principal_amount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Total Due</p>
-                        <p className="font-bold">{KES(due)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Paid</p>
-                        <p className="font-bold text-green-600">{KES(paid)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Balance</p>
-                        <p className="font-bold text-red-600">{KES(balance)}</p>
-                      </div>
-                    </div>
-                    {["active", "completed"].includes(loan.status) && (
-                      <>
-                        <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="h-full"
-                            style={{ width: `${progress}%`, backgroundColor: bc }}
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {progress.toFixed(1)}% repaid
-                        </p>
-                      </>
-                    )}
-                    <div className="mt-3 pt-3 border-t flex justify-between items-center text-xs text-gray-500">
-                      <span>
-                        📅{" "}
-                        {loan.created_at
-                          ? new Date(loan.created_at).toLocaleDateString()
-                          : "—"}
-                      </span>
-                      <span className="font-semibold" style={{ color: bc }}>
-                        View Details →
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: bc }}
+                            />
+                            <span className="font-medium text-navy-900 truncate">
+                              {loan.tenant_name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-mono font-semibold text-navy-900">
+                            {loan.loan_code || `#${loan.id}`}
+                          </p>
+                          {loan.purpose && (
+                            <p className="text-xs text-slate-500 truncate max-w-[14rem]">
+                              {loan.purpose}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-navy-900">
+                          {KES(loan.principal_amount)}
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-red-600">
+                          {KES(balance)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${
+                              STATUS_BADGE[loan.status] ||
+                              "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {String(loan.status || "").replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-slate-500">
+                          {loan.created_at
+                            ? new Date(loan.created_at).toLocaleDateString()
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-white"
+                            style={{ backgroundColor: bc }}
+                            aria-label={`Open ${loan.loan_code}`}
+                          >
+                            <ChevronRight size={18} />
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <Pager page={current} pageCount={pageCount} onChange={setPage} />
+          </>
         )}
       </div>
     </PortalLayout>

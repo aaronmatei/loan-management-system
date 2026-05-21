@@ -1,17 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Building2,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
-} from "lucide-react";
+import { Building2, Search, ChevronRight } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
+import SortHeader from "../components/SortHeader";
+import Pager from "../components/Pager";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 20;
@@ -37,35 +31,6 @@ const CMP = {
     return a.business_name.localeCompare(b.business_name);
   },
 };
-
-// Module-level so it keeps a stable identity across renders (an inline
-// component would remount each keystroke).
-function SortHeader({ label, sortKey, sort, onToggle, align = "right" }) {
-  const activeCol = sort.key === sortKey;
-  // Every sortable header shows an icon so it reads as clickable: a faded
-  // up/down when inactive, the actual direction when it's the active sort.
-  const Icon = !activeCol
-    ? ChevronsUpDown
-    : sort.dir === "asc"
-      ? ChevronUp
-      : ChevronDown;
-  return (
-    <th
-      className={`px-4 py-3 ${align === "right" ? "text-right" : "text-left"}`}
-    >
-      <button
-        type="button"
-        onClick={() => onToggle(sortKey)}
-        className={`inline-flex items-center gap-1 font-semibold cursor-pointer select-none hover:text-navy-900 ${
-          activeCol ? "text-navy-900" : "text-slate-500"
-        }`}
-      >
-        {label}
-        <Icon size={13} className={activeCol ? "" : "opacity-40"} />
-      </button>
-    </th>
-  );
-}
 
 // Marketplace directory of every active lender on LoanFix (platform owner +
 // demo sandbox excluded server-side). Filter by terms, sort by any column,
@@ -136,16 +101,6 @@ function Lenders() {
 
   const fld =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-600 focus:outline-none bg-white";
-
-  // Windowed page numbers around the current page.
-  const pages = (() => {
-    const span = 2;
-    const from = Math.max(1, current - span);
-    const to = Math.min(pageCount, current + span);
-    const arr = [];
-    for (let i = from; i <= to; i++) arr.push(i);
-    return arr;
-  })();
 
   return (
     <PortalLayout>
@@ -366,66 +321,7 @@ function Lenders() {
               </table>
             </div>
 
-            {/* Pagination */}
-            {pageCount > 1 && (
-              <div className="flex items-center justify-center gap-1 mt-5">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={current === 1}
-                  className="p-2 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50"
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                {pages[0] > 1 && (
-                  <>
-                    <button
-                      onClick={() => setPage(1)}
-                      className="w-9 h-9 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                    >
-                      1
-                    </button>
-                    {pages[0] > 2 && (
-                      <span className="px-1 text-slate-400">…</span>
-                    )}
-                  </>
-                )}
-                {pages.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className={`w-9 h-9 rounded-lg text-sm font-semibold ${
-                      p === current
-                        ? "bg-ocean-gradient text-white"
-                        : "text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-                {pages[pages.length - 1] < pageCount && (
-                  <>
-                    {pages[pages.length - 1] < pageCount - 1 && (
-                      <span className="px-1 text-slate-400">…</span>
-                    )}
-                    <button
-                      onClick={() => setPage(pageCount)}
-                      className="w-9 h-9 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                    >
-                      {pageCount}
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                  disabled={current === pageCount}
-                  className="p-2 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50"
-                  aria-label="Next page"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
+            <Pager page={current} pageCount={pageCount} onChange={setPage} />
           </>
         )}
       </div>
