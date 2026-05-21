@@ -1,0 +1,2808 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict 1abQRES8fLd9wgdDFWf3SkmnTgF6om34mRVLNtaA6FyHgbRiBIP5KxYHU4AccMx
+
+-- Dumped from database version 18.3 (Ubuntu 18.3-1)
+-- Dumped by pg_dump version 18.3 (Ubuntu 18.3-1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: audit_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.audit_logs (
+    id integer NOT NULL,
+    user_id integer,
+    table_name character varying(50),
+    action character varying(50),
+    record_id integer,
+    old_values jsonb,
+    new_values jsonb,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    user_email character varying(255),
+    user_name character varying(255),
+    entity_type character varying(50),
+    entity_id integer,
+    entity_code character varying(100),
+    description text,
+    ip_address character varying(45),
+    user_agent text,
+    metadata jsonb,
+    tenant_id integer,
+    action_category character varying(50),
+    entity_label character varying(255),
+    severity character varying(20) DEFAULT 'info'::character varying,
+    status character varying(20) DEFAULT 'success'::character varying,
+    user_role character varying(50),
+    is_platform_admin boolean DEFAULT false
+);
+
+
+--
+-- Name: audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.audit_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: audit_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.audit_logs_id_seq OWNED BY public.audit_logs.id;
+
+
+--
+-- Name: backups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.backups (
+    id integer NOT NULL,
+    filename character varying(255) NOT NULL,
+    file_path text NOT NULL,
+    file_size bigint,
+    backup_type character varying(20) DEFAULT 'manual'::character varying,
+    status character varying(20) DEFAULT 'success'::character varying,
+    error_message text,
+    created_by integer,
+    created_at timestamp without time zone DEFAULT now(),
+    tenant_id integer
+);
+
+
+--
+-- Name: backups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.backups_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: backups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.backups_id_seq OWNED BY public.backups.id;
+
+
+--
+-- Name: billing_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.billing_activities (
+    id integer NOT NULL,
+    tenant_id integer,
+    invoice_id integer,
+    activity_type character varying(50) NOT NULL,
+    details jsonb,
+    performed_by_user_id integer,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: billing_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.billing_activities_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: billing_activities_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.billing_activities_id_seq OWNED BY public.billing_activities.id;
+
+
+--
+-- Name: capital_pool; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capital_pool (
+    id integer NOT NULL,
+    initial_capital numeric(15,2) NOT NULL,
+    total_disbursed numeric(15,2) DEFAULT 0,
+    total_collected numeric(15,2) DEFAULT 0,
+    total_interest_earned numeric(15,2) DEFAULT 0,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    tenant_id integer NOT NULL
+);
+
+
+--
+-- Name: capital_pool_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.capital_pool_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: capital_pool_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.capital_pool_id_seq OWNED BY public.capital_pool.id;
+
+
+--
+-- Name: capital_transactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.capital_transactions (
+    id integer NOT NULL,
+    transaction_type character varying(20) NOT NULL,
+    amount numeric(15,2) NOT NULL,
+    loan_id integer,
+    transaction_id integer,
+    description text,
+    created_at timestamp without time zone DEFAULT now(),
+    tenant_id integer
+);
+
+
+--
+-- Name: capital_transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.capital_transactions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: capital_transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.capital_transactions_id_seq OWNED BY public.capital_transactions.id;
+
+
+--
+-- Name: clients; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clients (
+    id integer NOT NULL,
+    client_code character varying(20),
+    first_name character varying(50) NOT NULL,
+    last_name character varying(50) NOT NULL,
+    phone_number character varying(15) NOT NULL,
+    email character varying(100),
+    id_number character varying(20),
+    business_name character varying(100),
+    business_type character varying(50),
+    address text,
+    city character varying(50),
+    county character varying(50),
+    status character varying(20) DEFAULT 'active'::character varying,
+    kyc_verified boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    tenant_id integer NOT NULL,
+    gender character varying(10),
+    date_of_birth date
+);
+
+
+--
+-- Name: clients_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clients_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clients_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clients_id_seq OWNED BY public.clients.id;
+
+
+--
+-- Name: company_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.company_settings (
+    id integer NOT NULL,
+    company_name character varying(255) DEFAULT 'Your Company'::character varying NOT NULL,
+    company_address text,
+    company_phone character varying(20),
+    company_email character varying(100),
+    company_website character varying(100),
+    company_logo_url text,
+    business_registration_number character varying(50),
+    tax_pin character varying(20),
+    agreement_terms text,
+    bank_name character varying(100),
+    bank_account_number character varying(50),
+    bank_branch character varying(100),
+    mpesa_paybill character varying(20),
+    mpesa_till_number character varying(20),
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    tenant_id integer
+);
+
+
+--
+-- Name: company_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.company_settings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: company_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.company_settings_id_seq OWNED BY public.company_settings.id;
+
+
+--
+-- Name: customer_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.customer_activities (
+    id integer NOT NULL,
+    platform_customer_id integer,
+    tenant_id integer,
+    client_id integer,
+    activity_type character varying(50) NOT NULL,
+    details jsonb,
+    ip_address character varying(45),
+    user_agent text,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: customer_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.customer_activities_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: customer_activities_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.customer_activities_id_seq OWNED BY public.customer_activities.id;
+
+
+--
+-- Name: customer_invitations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.customer_invitations (
+    id integer NOT NULL,
+    tenant_id integer NOT NULL,
+    client_id integer NOT NULL,
+    invitation_code character varying(50) NOT NULL,
+    phone_number character varying(20),
+    email character varying(255),
+    sent_via character varying(20),
+    status character varying(20) DEFAULT 'pending'::character varying,
+    invited_by integer,
+    expires_at timestamp without time zone NOT NULL,
+    accepted_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: customer_invitations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.customer_invitations_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: customer_invitations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.customer_invitations_id_seq OWNED BY public.customer_invitations.id;
+
+
+--
+-- Name: customer_tenant_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.customer_tenant_links (
+    id integer NOT NULL,
+    platform_customer_id integer NOT NULL,
+    tenant_id integer NOT NULL,
+    client_id integer NOT NULL,
+    status character varying(20) DEFAULT 'active'::character varying,
+    linked_at timestamp without time zone DEFAULT now(),
+    last_activity_at timestamp without time zone
+);
+
+
+--
+-- Name: customer_tenant_links_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.customer_tenant_links_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: customer_tenant_links_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.customer_tenant_links_id_seq OWNED BY public.customer_tenant_links.id;
+
+
+--
+-- Name: dashboard_metrics; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.dashboard_metrics (
+    id integer NOT NULL,
+    metric_date date,
+    total_active_loans integer,
+    total_loans_amount numeric(14,2),
+    total_amount_paid numeric(14,2),
+    outstanding_balance numeric(14,2),
+    total_overdue_accounts integer,
+    collection_rate numeric(5,2),
+    default_rate numeric(5,2),
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: dashboard_metrics_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.dashboard_metrics_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: dashboard_metrics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.dashboard_metrics_id_seq OWNED BY public.dashboard_metrics.id;
+
+
+--
+-- Name: demo_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.demo_sessions (
+    id integer NOT NULL,
+    session_token character varying(100) NOT NULL,
+    ip_address character varying(45),
+    user_agent text,
+    actions_count integer DEFAULT 0,
+    converted_to_signup boolean DEFAULT false,
+    started_at timestamp without time zone DEFAULT now(),
+    last_active_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: demo_sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.demo_sessions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: demo_sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.demo_sessions_id_seq OWNED BY public.demo_sessions.id;
+
+
+--
+-- Name: email_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_logs (
+    id integer NOT NULL,
+    client_id integer,
+    loan_id integer,
+    recipient_email character varying(255) NOT NULL,
+    subject character varying(500) NOT NULL,
+    message_type character varying(50),
+    has_attachment boolean DEFAULT false,
+    attachment_name character varying(255),
+    status character varying(20) DEFAULT 'sent'::character varying,
+    provider_response jsonb,
+    sent_by integer,
+    created_at timestamp without time zone DEFAULT now(),
+    tenant_id integer
+);
+
+
+--
+-- Name: email_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.email_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: email_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.email_logs_id_seq OWNED BY public.email_logs.id;
+
+
+--
+-- Name: invoice_payments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.invoice_payments (
+    id integer NOT NULL,
+    invoice_id integer NOT NULL,
+    amount numeric(15,2) NOT NULL,
+    payment_method character varying(30) NOT NULL,
+    payment_reference character varying(100),
+    payment_date date DEFAULT CURRENT_DATE NOT NULL,
+    recorded_by_user_id integer,
+    notes text,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: invoice_payments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.invoice_payments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: invoice_payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.invoice_payments_id_seq OWNED BY public.invoice_payments.id;
+
+
+--
+-- Name: invoices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.invoices (
+    id integer NOT NULL,
+    tenant_id integer NOT NULL,
+    invoice_number character varying(50) NOT NULL,
+    billing_month integer NOT NULL,
+    billing_year integer NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    interest_earned numeric(15,2) DEFAULT 0 NOT NULL,
+    fee_percentage numeric(5,2) DEFAULT 5.00 NOT NULL,
+    amount_due numeric(15,2) NOT NULL,
+    base_fee numeric(15,2) DEFAULT 0,
+    addon_fees numeric(15,2) DEFAULT 0,
+    discount numeric(15,2) DEFAULT 0,
+    total_amount numeric(15,2) NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    amount_paid numeric(15,2) DEFAULT 0,
+    paid_at timestamp without time zone,
+    payment_method character varying(30),
+    payment_reference character varying(100),
+    paid_by_user_id integer,
+    issued_date date DEFAULT CURRENT_DATE NOT NULL,
+    due_date date NOT NULL,
+    notes text,
+    internal_notes text,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: invoices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.invoices_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: invoices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.invoices_id_seq OWNED BY public.invoices.id;
+
+
+--
+-- Name: loans; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.loans (
+    id integer NOT NULL,
+    loan_code character varying(30),
+    client_id integer NOT NULL,
+    principal_amount numeric(12,2) NOT NULL,
+    interest_rate numeric(5,2) NOT NULL,
+    loan_duration_months integer NOT NULL,
+    start_date date,
+    end_date date,
+    disbursement_date date,
+    total_amount_due numeric(12,2),
+    total_interest numeric(12,2),
+    status character varying(30) DEFAULT 'active'::character varying,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_by integer,
+    overpayment_amount numeric(12,2) DEFAULT 0,
+    refund_status character varying(20) DEFAULT NULL::character varying,
+    refunded_date date,
+    refund_method character varying(30) DEFAULT NULL::character varying,
+    refund_reference character varying(100) DEFAULT NULL::character varying,
+    notes text,
+    purpose text,
+    agreement_signed boolean DEFAULT false,
+    agreement_signed_date date,
+    agreement_witnessed_by character varying(255),
+    guarantor_name character varying(255),
+    guarantor_phone character varying(20),
+    guarantor_id_number character varying(20),
+    collateral_description text,
+    late_payment_fee numeric(10,2) DEFAULT 500,
+    penalty_rate numeric(5,2) DEFAULT 5.00,
+    application_date date,
+    reviewed_by integer,
+    reviewed_at timestamp without time zone,
+    approved_by integer,
+    approved_at timestamp without time zone,
+    disbursed_by integer,
+    disbursed_at timestamp without time zone,
+    disbursement_method character varying(30),
+    disbursement_reference character varying(100),
+    rejection_reason text,
+    rejected_by integer,
+    rejected_at timestamp without time zone,
+    review_notes text,
+    application_source character varying(50) DEFAULT 'walk_in'::character varying,
+    tenant_id integer NOT NULL,
+    submitted_by_customer boolean DEFAULT false,
+    platform_customer_id integer
+);
+
+
+--
+-- Name: loans_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.loans_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: loans_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.loans_id_seq OWNED BY public.loans.id;
+
+
+--
+-- Name: mpesa_transactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.mpesa_transactions (
+    id integer NOT NULL,
+    tenant_id integer,
+    purpose character varying(30) NOT NULL,
+    loan_id integer,
+    invoice_id integer,
+    customer_id integer,
+    initiated_by_user_id integer,
+    phone_number character varying(20) NOT NULL,
+    amount numeric(15,2) NOT NULL,
+    account_reference character varying(64),
+    transaction_desc character varying(128),
+    merchant_request_id character varying(64),
+    checkout_request_id character varying(64),
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    result_code integer,
+    result_desc text,
+    mpesa_receipt_number character varying(32),
+    transaction_date timestamp without time zone,
+    paid_phone_number character varying(20),
+    request_payload jsonb,
+    callback_payload jsonb,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: mpesa_transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.mpesa_transactions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: mpesa_transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.mpesa_transactions_id_seq OWNED BY public.mpesa_transactions.id;
+
+
+--
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id integer NOT NULL,
+    client_id integer,
+    loan_id integer,
+    notification_type character varying(30),
+    channel character varying(20),
+    recipient character varying(100),
+    message text,
+    status character varying(20) DEFAULT 'pending'::character varying,
+    sent_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    user_id integer,
+    type character varying(50),
+    title character varying(255),
+    icon character varying(20),
+    link character varying(255),
+    metadata jsonb,
+    is_read boolean DEFAULT false,
+    read_at timestamp without time zone,
+    tenant_id integer
+);
+
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.notifications_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.notifications_id_seq OWNED BY public.notifications.id;
+
+
+--
+-- Name: payment_schedules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.payment_schedules (
+    id integer NOT NULL,
+    loan_id integer NOT NULL,
+    payment_number integer NOT NULL,
+    due_date date NOT NULL,
+    amount_due numeric(12,2) NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying,
+    amount_paid numeric(12,2) DEFAULT 0,
+    actual_payment_date date,
+    days_late integer DEFAULT 0,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    tenant_id integer NOT NULL
+);
+
+
+--
+-- Name: payment_schedules_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.payment_schedules_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: payment_schedules_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.payment_schedules_id_seq OWNED BY public.payment_schedules.id;
+
+
+--
+-- Name: platform_customers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.platform_customers (
+    id integer NOT NULL,
+    phone_number character varying(20) NOT NULL,
+    email character varying(255),
+    id_number character varying(20) NOT NULL,
+    first_name character varying(100) NOT NULL,
+    last_name character varying(100) NOT NULL,
+    date_of_birth date,
+    gender character varying(10),
+    password_hash character varying(255),
+    phone_verified boolean DEFAULT false,
+    email_verified boolean DEFAULT false,
+    otp_code character varying(6),
+    otp_expires_at timestamp without time zone,
+    otp_attempts integer DEFAULT 0,
+    otp_purpose character varying(30),
+    profile_photo_url text,
+    is_active boolean DEFAULT true,
+    is_blacklisted_platform boolean DEFAULT false,
+    blacklist_reason text,
+    last_login timestamp without time zone,
+    registration_tenant_id integer,
+    registration_ip character varying(45),
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: platform_customers_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.platform_customers_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: platform_customers_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.platform_customers_id_seq OWNED BY public.platform_customers.id;
+
+
+--
+-- Name: referral_config; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.referral_config (
+    id integer NOT NULL,
+    referrer_reward_type character varying(30) DEFAULT 'free_month'::character varying,
+    referrer_reward_value numeric(10,2) DEFAULT 1,
+    referred_reward_type character varying(30) DEFAULT 'none'::character varying,
+    referred_reward_value numeric(10,2) DEFAULT 0,
+    qualification character varying(30) DEFAULT 'active'::character varying,
+    enabled boolean DEFAULT true,
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: referral_config_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.referral_config_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: referral_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.referral_config_id_seq OWNED BY public.referral_config.id;
+
+
+--
+-- Name: referrals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.referrals (
+    id integer NOT NULL,
+    referrer_tenant_id integer NOT NULL,
+    referred_tenant_id integer,
+    referral_code character varying(20) NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying,
+    referrer_reward_type character varying(30),
+    referrer_reward_value numeric(10,2),
+    referrer_rewarded boolean DEFAULT false,
+    referred_reward_type character varying(30),
+    referred_reward_value numeric(10,2),
+    referred_rewarded boolean DEFAULT false,
+    referred_business_name character varying(255),
+    signed_up_at timestamp without time zone DEFAULT now(),
+    qualified_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: referrals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.referrals_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: referrals_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.referrals_id_seq OWNED BY public.referrals.id;
+
+
+--
+-- Name: sms_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sms_logs (
+    id integer NOT NULL,
+    client_id integer,
+    loan_id integer,
+    phone_number character varying(20) NOT NULL,
+    message text NOT NULL,
+    message_type character varying(50),
+    status character varying(20) DEFAULT 'sent'::character varying,
+    cost numeric(10,4),
+    provider_response jsonb,
+    sent_by integer,
+    created_at timestamp without time zone DEFAULT now(),
+    tenant_id integer
+);
+
+
+--
+-- Name: sms_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.sms_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: sms_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.sms_logs_id_seq OWNED BY public.sms_logs.id;
+
+
+--
+-- Name: system_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.system_settings (
+    id integer NOT NULL,
+    setting_key character varying(50) NOT NULL,
+    setting_value text,
+    description text,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: system_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.system_settings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: system_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.system_settings_id_seq OWNED BY public.system_settings.id;
+
+
+--
+-- Name: tenants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tenants (
+    id integer NOT NULL,
+    tenant_code character varying(20) NOT NULL,
+    business_name character varying(255) NOT NULL,
+    business_type character varying(100),
+    subdomain character varying(50) NOT NULL,
+    registration_number character varying(100),
+    tax_pin character varying(20),
+    contact_name character varying(255) NOT NULL,
+    contact_email character varying(255) NOT NULL,
+    contact_phone character varying(20),
+    physical_address text,
+    city character varying(100),
+    county character varying(100),
+    country character varying(50) DEFAULT 'Kenya'::character varying,
+    plan character varying(50) DEFAULT 'trial'::character varying,
+    status character varying(20) DEFAULT 'active'::character varying,
+    trial_ends_at timestamp without time zone,
+    subscription_starts_at timestamp without time zone,
+    platform_fee_percentage numeric(5,2) DEFAULT 5.00,
+    monthly_base_fee numeric(10,2) DEFAULT 0,
+    max_clients integer DEFAULT 100,
+    max_loans integer DEFAULT 100,
+    max_users integer DEFAULT 3,
+    payment_paybill character varying(20),
+    payment_reference character varying(50),
+    total_interest_earned numeric(15,2) DEFAULT 0,
+    total_platform_fees_paid numeric(15,2) DEFAULT 0,
+    total_platform_fees_owed numeric(15,2) DEFAULT 0,
+    last_billing_date date,
+    logo_url text,
+    brand_color character varying(7) DEFAULT '#4F46E5'::character varying,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    customer_portal_enabled boolean DEFAULT true,
+    allow_self_signup boolean DEFAULT true,
+    allow_online_applications boolean DEFAULT true,
+    otp_count_this_month integer DEFAULT 0,
+    otp_quota_per_month integer DEFAULT 100,
+    suspension_reason text,
+    billing_enabled boolean DEFAULT true,
+    billing_fee_percentage numeric(5,2) DEFAULT 5.00,
+    billing_base_fee numeric(15,2) DEFAULT 0,
+    billing_day_of_month integer DEFAULT 1,
+    billing_grace_period_days integer DEFAULT 14,
+    billing_suspend_after_days integer DEFAULT 30,
+    last_invoice_date date,
+    billing_contact_email character varying(255),
+    billing_contact_phone character varying(20),
+    onboarding_completed boolean DEFAULT false,
+    onboarding_step integer DEFAULT 1,
+    onboarding_data jsonb DEFAULT '{}'::jsonb,
+    onboarding_completed_at timestamp without time zone,
+    onboarding_skipped boolean DEFAULT false,
+    business_hours character varying(100),
+    business_description text,
+    white_label_tier character varying(20) DEFAULT 'basic'::character varying,
+    hide_platform_branding boolean DEFAULT false,
+    favicon_url text,
+    email_sender_name character varying(100),
+    sms_sender_id character varying(20),
+    email_signature text,
+    report_header_text text,
+    report_footer_text text,
+    support_email character varying(255),
+    support_phone character varying(20),
+    custom_domain character varying(255),
+    custom_email_domain character varying(100),
+    terms_url text,
+    privacy_url text,
+    custom_portal_title character varying(100),
+    custom_portal_tagline character varying(200),
+    custom_login_image_url text,
+    default_interest_rate numeric(5,2) DEFAULT 50.00,
+    default_loan_duration integer DEFAULT 6,
+    min_loan_amount numeric(15,2) DEFAULT 1000,
+    max_loan_amount numeric(15,2) DEFAULT 1000000,
+    late_payment_fee numeric(15,2) DEFAULT 500,
+    notify_application_submitted_sms boolean DEFAULT true,
+    notify_application_submitted_email boolean DEFAULT true,
+    notify_under_review_sms boolean DEFAULT true,
+    notify_under_review_email boolean DEFAULT true,
+    notify_approved_sms boolean DEFAULT true,
+    notify_approved_email boolean DEFAULT true,
+    notify_rejected_sms boolean DEFAULT true,
+    notify_rejected_email boolean DEFAULT true,
+    notify_disbursed_sms boolean DEFAULT true,
+    notify_disbursed_email boolean DEFAULT true,
+    notify_payment_sms boolean DEFAULT true,
+    notify_payment_email boolean DEFAULT true,
+    notify_reminder_sms boolean DEFAULT true,
+    notify_reminder_email boolean DEFAULT true,
+    notify_overdue_sms boolean DEFAULT true,
+    notify_overdue_email boolean DEFAULT true,
+    notify_completed_sms boolean DEFAULT true,
+    notify_completed_email boolean DEFAULT true,
+    reminder_days_before integer DEFAULT 3,
+    overdue_reminder_frequency_days integer DEFAULT 3,
+    is_demo boolean DEFAULT false,
+    referral_code character varying(20),
+    referred_by_tenant_id integer,
+    referral_credits integer DEFAULT 0,
+    trial_days integer DEFAULT 14,
+    mpesa_enabled boolean DEFAULT true,
+    mpesa_shortcode character varying(20),
+    mpesa_passkey character varying(128),
+    mpesa_consumer_key character varying(128),
+    mpesa_consumer_secret character varying(128),
+    mpesa_use_platform_credentials boolean DEFAULT true
+);
+
+
+--
+-- Name: tenants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.tenants_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: tenants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.tenants_id_seq OWNED BY public.tenants.id;
+
+
+--
+-- Name: transactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.transactions (
+    id integer NOT NULL,
+    transaction_code character varying(30),
+    loan_id integer NOT NULL,
+    client_id integer NOT NULL,
+    amount_paid numeric(12,2) NOT NULL,
+    payment_date date NOT NULL,
+    payment_method character varying(30),
+    payment_reference character varying(100),
+    payment_status character varying(20) DEFAULT 'completed'::character varying,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    notes text,
+    tenant_id integer NOT NULL
+);
+
+
+--
+-- Name: transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.transactions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.transactions_id_seq OWNED BY public.transactions.id;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.users (
+    id integer NOT NULL,
+    username character varying(50) NOT NULL,
+    email character varying(100) NOT NULL,
+    password_hash character varying(255) NOT NULL,
+    first_name character varying(100),
+    last_name character varying(100),
+    role character varying(20) DEFAULT 'loan_officer'::character varying,
+    is_active boolean DEFAULT true,
+    last_login timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    phone_number character varying(20),
+    created_by integer,
+    tenant_id integer NOT NULL,
+    is_platform_admin boolean DEFAULT false
+);
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
+-- Name: audit_logs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_logs ALTER COLUMN id SET DEFAULT nextval('public.audit_logs_id_seq'::regclass);
+
+
+--
+-- Name: backups id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backups ALTER COLUMN id SET DEFAULT nextval('public.backups_id_seq'::regclass);
+
+
+--
+-- Name: billing_activities id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.billing_activities ALTER COLUMN id SET DEFAULT nextval('public.billing_activities_id_seq'::regclass);
+
+
+--
+-- Name: capital_pool id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_pool ALTER COLUMN id SET DEFAULT nextval('public.capital_pool_id_seq'::regclass);
+
+
+--
+-- Name: capital_transactions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_transactions ALTER COLUMN id SET DEFAULT nextval('public.capital_transactions_id_seq'::regclass);
+
+
+--
+-- Name: clients id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clients ALTER COLUMN id SET DEFAULT nextval('public.clients_id_seq'::regclass);
+
+
+--
+-- Name: company_settings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_settings ALTER COLUMN id SET DEFAULT nextval('public.company_settings_id_seq'::regclass);
+
+
+--
+-- Name: customer_activities id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_activities ALTER COLUMN id SET DEFAULT nextval('public.customer_activities_id_seq'::regclass);
+
+
+--
+-- Name: customer_invitations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_invitations ALTER COLUMN id SET DEFAULT nextval('public.customer_invitations_id_seq'::regclass);
+
+
+--
+-- Name: customer_tenant_links id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_tenant_links ALTER COLUMN id SET DEFAULT nextval('public.customer_tenant_links_id_seq'::regclass);
+
+
+--
+-- Name: dashboard_metrics id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dashboard_metrics ALTER COLUMN id SET DEFAULT nextval('public.dashboard_metrics_id_seq'::regclass);
+
+
+--
+-- Name: demo_sessions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.demo_sessions ALTER COLUMN id SET DEFAULT nextval('public.demo_sessions_id_seq'::regclass);
+
+
+--
+-- Name: email_logs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_logs ALTER COLUMN id SET DEFAULT nextval('public.email_logs_id_seq'::regclass);
+
+
+--
+-- Name: invoice_payments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoice_payments ALTER COLUMN id SET DEFAULT nextval('public.invoice_payments_id_seq'::regclass);
+
+
+--
+-- Name: invoices id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoices ALTER COLUMN id SET DEFAULT nextval('public.invoices_id_seq'::regclass);
+
+
+--
+-- Name: loans id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans ALTER COLUMN id SET DEFAULT nextval('public.loans_id_seq'::regclass);
+
+
+--
+-- Name: mpesa_transactions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mpesa_transactions ALTER COLUMN id SET DEFAULT nextval('public.mpesa_transactions_id_seq'::regclass);
+
+
+--
+-- Name: notifications id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications ALTER COLUMN id SET DEFAULT nextval('public.notifications_id_seq'::regclass);
+
+
+--
+-- Name: payment_schedules id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payment_schedules ALTER COLUMN id SET DEFAULT nextval('public.payment_schedules_id_seq'::regclass);
+
+
+--
+-- Name: platform_customers id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_customers ALTER COLUMN id SET DEFAULT nextval('public.platform_customers_id_seq'::regclass);
+
+
+--
+-- Name: referral_config id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.referral_config ALTER COLUMN id SET DEFAULT nextval('public.referral_config_id_seq'::regclass);
+
+
+--
+-- Name: referrals id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.referrals ALTER COLUMN id SET DEFAULT nextval('public.referrals_id_seq'::regclass);
+
+
+--
+-- Name: sms_logs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_logs ALTER COLUMN id SET DEFAULT nextval('public.sms_logs_id_seq'::regclass);
+
+
+--
+-- Name: system_settings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_settings ALTER COLUMN id SET DEFAULT nextval('public.system_settings_id_seq'::regclass);
+
+
+--
+-- Name: tenants id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants ALTER COLUMN id SET DEFAULT nextval('public.tenants_id_seq'::regclass);
+
+
+--
+-- Name: transactions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transactions ALTER COLUMN id SET DEFAULT nextval('public.transactions_id_seq'::regclass);
+
+
+--
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: backups backups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backups
+    ADD CONSTRAINT backups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: billing_activities billing_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.billing_activities
+    ADD CONSTRAINT billing_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capital_pool capital_pool_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_pool
+    ADD CONSTRAINT capital_pool_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: capital_transactions capital_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_transactions
+    ADD CONSTRAINT capital_transactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clients clients_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT clients_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clients clients_tenant_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT clients_tenant_code_unique UNIQUE (tenant_id, client_code);
+
+
+--
+-- Name: clients clients_tenant_phone_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT clients_tenant_phone_unique UNIQUE (tenant_id, phone_number);
+
+
+--
+-- Name: company_settings company_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_settings
+    ADD CONSTRAINT company_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_activities customer_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_activities
+    ADD CONSTRAINT customer_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_invitations customer_invitations_invitation_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_invitations
+    ADD CONSTRAINT customer_invitations_invitation_code_key UNIQUE (invitation_code);
+
+
+--
+-- Name: customer_invitations customer_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_invitations
+    ADD CONSTRAINT customer_invitations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_tenant_links customer_tenant_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_tenant_links
+    ADD CONSTRAINT customer_tenant_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_tenant_links customer_tenant_links_platform_customer_id_client_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_tenant_links
+    ADD CONSTRAINT customer_tenant_links_platform_customer_id_client_id_key UNIQUE (platform_customer_id, client_id);
+
+
+--
+-- Name: customer_tenant_links customer_tenant_links_platform_customer_id_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_tenant_links
+    ADD CONSTRAINT customer_tenant_links_platform_customer_id_tenant_id_key UNIQUE (platform_customer_id, tenant_id);
+
+
+--
+-- Name: dashboard_metrics dashboard_metrics_metric_date_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dashboard_metrics
+    ADD CONSTRAINT dashboard_metrics_metric_date_key UNIQUE (metric_date);
+
+
+--
+-- Name: dashboard_metrics dashboard_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dashboard_metrics
+    ADD CONSTRAINT dashboard_metrics_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: demo_sessions demo_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.demo_sessions
+    ADD CONSTRAINT demo_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: demo_sessions demo_sessions_session_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.demo_sessions
+    ADD CONSTRAINT demo_sessions_session_token_key UNIQUE (session_token);
+
+
+--
+-- Name: email_logs email_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_logs
+    ADD CONSTRAINT email_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: invoice_payments invoice_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoice_payments
+    ADD CONSTRAINT invoice_payments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: invoices invoices_invoice_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoices
+    ADD CONSTRAINT invoices_invoice_number_key UNIQUE (invoice_number);
+
+
+--
+-- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoices
+    ADD CONSTRAINT invoices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: invoices invoices_tenant_id_billing_month_billing_year_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoices
+    ADD CONSTRAINT invoices_tenant_id_billing_month_billing_year_key UNIQUE (tenant_id, billing_month, billing_year);
+
+
+--
+-- Name: loans loans_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: loans loans_tenant_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_tenant_code_unique UNIQUE (tenant_id, loan_code);
+
+
+--
+-- Name: mpesa_transactions mpesa_transactions_checkout_request_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mpesa_transactions
+    ADD CONSTRAINT mpesa_transactions_checkout_request_id_key UNIQUE (checkout_request_id);
+
+
+--
+-- Name: mpesa_transactions mpesa_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mpesa_transactions
+    ADD CONSTRAINT mpesa_transactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payment_schedules payment_schedules_loan_id_payment_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payment_schedules
+    ADD CONSTRAINT payment_schedules_loan_id_payment_number_key UNIQUE (loan_id, payment_number);
+
+
+--
+-- Name: payment_schedules payment_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payment_schedules
+    ADD CONSTRAINT payment_schedules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: platform_customers platform_customers_id_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_customers
+    ADD CONSTRAINT platform_customers_id_number_key UNIQUE (id_number);
+
+
+--
+-- Name: platform_customers platform_customers_phone_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_customers
+    ADD CONSTRAINT platform_customers_phone_number_key UNIQUE (phone_number);
+
+
+--
+-- Name: platform_customers platform_customers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_customers
+    ADD CONSTRAINT platform_customers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: referral_config referral_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.referral_config
+    ADD CONSTRAINT referral_config_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: referrals referrals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.referrals
+    ADD CONSTRAINT referrals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sms_logs sms_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_logs
+    ADD CONSTRAINT sms_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: system_settings system_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_settings
+    ADD CONSTRAINT system_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: system_settings system_settings_setting_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_settings
+    ADD CONSTRAINT system_settings_setting_key_key UNIQUE (setting_key);
+
+
+--
+-- Name: tenants tenants_contact_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT tenants_contact_email_key UNIQUE (contact_email);
+
+
+--
+-- Name: tenants tenants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT tenants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tenants tenants_referral_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT tenants_referral_code_key UNIQUE (referral_code);
+
+
+--
+-- Name: tenants tenants_subdomain_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT tenants_subdomain_key UNIQUE (subdomain);
+
+
+--
+-- Name: tenants tenants_tenant_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT tenants_tenant_code_key UNIQUE (tenant_code);
+
+
+--
+-- Name: transactions transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: transactions transactions_tenant_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_tenant_code_unique UNIQUE (tenant_id, transaction_code);
+
+
+--
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key UNIQUE (username);
+
+
+--
+-- Name: idx_audit_action; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_action ON public.audit_logs USING btree (action);
+
+
+--
+-- Name: idx_audit_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_category ON public.audit_logs USING btree (action_category);
+
+
+--
+-- Name: idx_audit_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_date ON public.audit_logs USING btree (created_at DESC);
+
+
+--
+-- Name: idx_audit_entity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_entity ON public.audit_logs USING btree (entity_type, entity_id);
+
+
+--
+-- Name: idx_audit_logs_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_user ON public.audit_logs USING btree (user_id);
+
+
+--
+-- Name: idx_audit_severity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_severity ON public.audit_logs USING btree (severity);
+
+
+--
+-- Name: idx_audit_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_tenant ON public.audit_logs USING btree (tenant_id);
+
+
+--
+-- Name: idx_audit_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_user ON public.audit_logs USING btree (user_id);
+
+
+--
+-- Name: idx_backups_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_backups_date ON public.backups USING btree (created_at DESC);
+
+
+--
+-- Name: idx_billing_activities_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_billing_activities_date ON public.billing_activities USING btree (created_at DESC);
+
+
+--
+-- Name: idx_billing_activities_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_billing_activities_tenant ON public.billing_activities USING btree (tenant_id);
+
+
+--
+-- Name: idx_capital_txn_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_capital_txn_created_at ON public.capital_transactions USING btree (created_at DESC);
+
+
+--
+-- Name: idx_clients_phone; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_clients_phone ON public.clients USING btree (phone_number);
+
+
+--
+-- Name: idx_clients_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_clients_status ON public.clients USING btree (status);
+
+
+--
+-- Name: idx_clients_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_clients_tenant ON public.clients USING btree (tenant_id);
+
+
+--
+-- Name: idx_customer_activities_customer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_customer_activities_customer ON public.customer_activities USING btree (platform_customer_id);
+
+
+--
+-- Name: idx_customer_activities_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_customer_activities_date ON public.customer_activities USING btree (created_at DESC);
+
+
+--
+-- Name: idx_customer_activities_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_customer_activities_tenant ON public.customer_activities USING btree (tenant_id);
+
+
+--
+-- Name: idx_demo_sessions_started; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demo_sessions_started ON public.demo_sessions USING btree (started_at DESC);
+
+
+--
+-- Name: idx_demo_sessions_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demo_sessions_token ON public.demo_sessions USING btree (session_token);
+
+
+--
+-- Name: idx_email_logs_client; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_logs_client ON public.email_logs USING btree (client_id);
+
+
+--
+-- Name: idx_email_logs_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_logs_date ON public.email_logs USING btree (created_at DESC);
+
+
+--
+-- Name: idx_invitations_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invitations_code ON public.customer_invitations USING btree (invitation_code);
+
+
+--
+-- Name: idx_invitations_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invitations_tenant ON public.customer_invitations USING btree (tenant_id);
+
+
+--
+-- Name: idx_invoice_payments_invoice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invoice_payments_invoice ON public.invoice_payments USING btree (invoice_id);
+
+
+--
+-- Name: idx_invoices_due_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invoices_due_date ON public.invoices USING btree (due_date);
+
+
+--
+-- Name: idx_invoices_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invoices_status ON public.invoices USING btree (status);
+
+
+--
+-- Name: idx_invoices_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invoices_tenant ON public.invoices USING btree (tenant_id);
+
+
+--
+-- Name: idx_links_client; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_links_client ON public.customer_tenant_links USING btree (client_id);
+
+
+--
+-- Name: idx_links_customer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_links_customer ON public.customer_tenant_links USING btree (platform_customer_id);
+
+
+--
+-- Name: idx_links_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_links_tenant ON public.customer_tenant_links USING btree (tenant_id);
+
+
+--
+-- Name: idx_loans_application_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_loans_application_date ON public.loans USING btree (application_date);
+
+
+--
+-- Name: idx_loans_client; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_loans_client ON public.loans USING btree (client_id);
+
+
+--
+-- Name: idx_loans_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_loans_status ON public.loans USING btree (status);
+
+
+--
+-- Name: idx_loans_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_loans_tenant ON public.loans USING btree (tenant_id);
+
+
+--
+-- Name: idx_mpesa_tx_checkout; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mpesa_tx_checkout ON public.mpesa_transactions USING btree (checkout_request_id);
+
+
+--
+-- Name: idx_mpesa_tx_invoice; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mpesa_tx_invoice ON public.mpesa_transactions USING btree (invoice_id);
+
+
+--
+-- Name: idx_mpesa_tx_loan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mpesa_tx_loan ON public.mpesa_transactions USING btree (loan_id);
+
+
+--
+-- Name: idx_mpesa_tx_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mpesa_tx_status ON public.mpesa_transactions USING btree (status);
+
+
+--
+-- Name: idx_mpesa_tx_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mpesa_tx_tenant ON public.mpesa_transactions USING btree (tenant_id);
+
+
+--
+-- Name: idx_notif_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notif_date ON public.notifications USING btree (created_at DESC);
+
+
+--
+-- Name: idx_notif_unread; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notif_unread ON public.notifications USING btree (user_id, is_read) WHERE (is_read = false);
+
+
+--
+-- Name: idx_notif_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notif_user ON public.notifications USING btree (user_id);
+
+
+--
+-- Name: idx_notifications_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_status ON public.notifications USING btree (status);
+
+
+--
+-- Name: idx_payment_schedules_loan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_payment_schedules_loan ON public.payment_schedules USING btree (loan_id);
+
+
+--
+-- Name: idx_payment_schedules_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_payment_schedules_status ON public.payment_schedules USING btree (status);
+
+
+--
+-- Name: idx_platform_customers_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_platform_customers_email ON public.platform_customers USING btree (email);
+
+
+--
+-- Name: idx_platform_customers_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_platform_customers_id ON public.platform_customers USING btree (id_number);
+
+
+--
+-- Name: idx_platform_customers_phone; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_platform_customers_phone ON public.platform_customers USING btree (phone_number);
+
+
+--
+-- Name: idx_referrals_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_referrals_code ON public.referrals USING btree (referral_code);
+
+
+--
+-- Name: idx_referrals_referred; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_referrals_referred ON public.referrals USING btree (referred_tenant_id);
+
+
+--
+-- Name: idx_referrals_referrer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_referrals_referrer ON public.referrals USING btree (referrer_tenant_id);
+
+
+--
+-- Name: idx_referrals_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_referrals_status ON public.referrals USING btree (status);
+
+
+--
+-- Name: idx_sms_logs_client; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sms_logs_client ON public.sms_logs USING btree (client_id);
+
+
+--
+-- Name: idx_sms_logs_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sms_logs_date ON public.sms_logs USING btree (created_at DESC);
+
+
+--
+-- Name: idx_sms_logs_loan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sms_logs_loan ON public.sms_logs USING btree (loan_id);
+
+
+--
+-- Name: idx_tenants_custom_domain; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tenants_custom_domain ON public.tenants USING btree (custom_domain) WHERE (custom_domain IS NOT NULL);
+
+
+--
+-- Name: idx_tenants_plan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tenants_plan ON public.tenants USING btree (plan);
+
+
+--
+-- Name: idx_tenants_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tenants_status ON public.tenants USING btree (status);
+
+
+--
+-- Name: idx_tenants_subdomain; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tenants_subdomain ON public.tenants USING btree (subdomain);
+
+
+--
+-- Name: idx_transactions_client; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_transactions_client ON public.transactions USING btree (client_id);
+
+
+--
+-- Name: idx_transactions_loan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_transactions_loan ON public.transactions USING btree (loan_id);
+
+
+--
+-- Name: idx_transactions_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_transactions_tenant ON public.transactions USING btree (tenant_id);
+
+
+--
+-- Name: idx_users_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_users_active ON public.users USING btree (is_active);
+
+
+--
+-- Name: idx_users_role; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_users_role ON public.users USING btree (role);
+
+
+--
+-- Name: idx_users_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_users_tenant ON public.users USING btree (tenant_id);
+
+
+--
+-- Name: audit_logs audit_logs_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: audit_logs audit_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: backups backups_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backups
+    ADD CONSTRAINT backups_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
+-- Name: backups backups_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backups
+    ADD CONSTRAINT backups_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: billing_activities billing_activities_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.billing_activities
+    ADD CONSTRAINT billing_activities_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id);
+
+
+--
+-- Name: billing_activities billing_activities_performed_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.billing_activities
+    ADD CONSTRAINT billing_activities_performed_by_user_id_fkey FOREIGN KEY (performed_by_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: billing_activities billing_activities_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.billing_activities
+    ADD CONSTRAINT billing_activities_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: capital_pool capital_pool_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_pool
+    ADD CONSTRAINT capital_pool_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: capital_transactions capital_transactions_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_transactions
+    ADD CONSTRAINT capital_transactions_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id);
+
+
+--
+-- Name: capital_transactions capital_transactions_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_transactions
+    ADD CONSTRAINT capital_transactions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: capital_transactions capital_transactions_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.capital_transactions
+    ADD CONSTRAINT capital_transactions_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.transactions(id);
+
+
+--
+-- Name: clients clients_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT clients_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: company_settings company_settings_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_settings
+    ADD CONSTRAINT company_settings_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: customer_activities customer_activities_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_activities
+    ADD CONSTRAINT customer_activities_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id);
+
+
+--
+-- Name: customer_activities customer_activities_platform_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_activities
+    ADD CONSTRAINT customer_activities_platform_customer_id_fkey FOREIGN KEY (platform_customer_id) REFERENCES public.platform_customers(id);
+
+
+--
+-- Name: customer_activities customer_activities_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_activities
+    ADD CONSTRAINT customer_activities_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: customer_invitations customer_invitations_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_invitations
+    ADD CONSTRAINT customer_invitations_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id);
+
+
+--
+-- Name: customer_invitations customer_invitations_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_invitations
+    ADD CONSTRAINT customer_invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id);
+
+
+--
+-- Name: customer_invitations customer_invitations_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_invitations
+    ADD CONSTRAINT customer_invitations_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: customer_tenant_links customer_tenant_links_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_tenant_links
+    ADD CONSTRAINT customer_tenant_links_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id) ON DELETE CASCADE;
+
+
+--
+-- Name: customer_tenant_links customer_tenant_links_platform_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_tenant_links
+    ADD CONSTRAINT customer_tenant_links_platform_customer_id_fkey FOREIGN KEY (platform_customer_id) REFERENCES public.platform_customers(id) ON DELETE CASCADE;
+
+
+--
+-- Name: customer_tenant_links customer_tenant_links_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customer_tenant_links
+    ADD CONSTRAINT customer_tenant_links_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
+
+
+--
+-- Name: email_logs email_logs_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_logs
+    ADD CONSTRAINT email_logs_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id);
+
+
+--
+-- Name: email_logs email_logs_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_logs
+    ADD CONSTRAINT email_logs_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id);
+
+
+--
+-- Name: email_logs email_logs_sent_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_logs
+    ADD CONSTRAINT email_logs_sent_by_fkey FOREIGN KEY (sent_by) REFERENCES public.users(id);
+
+
+--
+-- Name: email_logs email_logs_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_logs
+    ADD CONSTRAINT email_logs_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: invoice_payments invoice_payments_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoice_payments
+    ADD CONSTRAINT invoice_payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id) ON DELETE CASCADE;
+
+
+--
+-- Name: invoice_payments invoice_payments_recorded_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoice_payments
+    ADD CONSTRAINT invoice_payments_recorded_by_user_id_fkey FOREIGN KEY (recorded_by_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: invoices invoices_paid_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoices
+    ADD CONSTRAINT invoices_paid_by_user_id_fkey FOREIGN KEY (paid_by_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: invoices invoices_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invoices
+    ADD CONSTRAINT invoices_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
+
+
+--
+-- Name: loans loans_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id);
+
+
+--
+-- Name: loans loans_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id);
+
+
+--
+-- Name: loans loans_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
+-- Name: loans loans_disbursed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_disbursed_by_fkey FOREIGN KEY (disbursed_by) REFERENCES public.users(id);
+
+
+--
+-- Name: loans loans_platform_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_platform_customer_id_fkey FOREIGN KEY (platform_customer_id) REFERENCES public.platform_customers(id);
+
+
+--
+-- Name: loans loans_rejected_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_rejected_by_fkey FOREIGN KEY (rejected_by) REFERENCES public.users(id);
+
+
+--
+-- Name: loans loans_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id);
+
+
+--
+-- Name: loans loans_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: mpesa_transactions mpesa_transactions_initiated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mpesa_transactions
+    ADD CONSTRAINT mpesa_transactions_initiated_by_user_id_fkey FOREIGN KEY (initiated_by_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: mpesa_transactions mpesa_transactions_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mpesa_transactions
+    ADD CONSTRAINT mpesa_transactions_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id) ON DELETE SET NULL;
+
+
+--
+-- Name: mpesa_transactions mpesa_transactions_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mpesa_transactions
+    ADD CONSTRAINT mpesa_transactions_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id) ON DELETE SET NULL;
+
+
+--
+-- Name: mpesa_transactions mpesa_transactions_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.mpesa_transactions
+    ADD CONSTRAINT mpesa_transactions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE SET NULL;
+
+
+--
+-- Name: notifications notifications_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id);
+
+
+--
+-- Name: notifications notifications_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id);
+
+
+--
+-- Name: notifications notifications_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: notifications notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: payment_schedules payment_schedules_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payment_schedules
+    ADD CONSTRAINT payment_schedules_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id);
+
+
+--
+-- Name: payment_schedules payment_schedules_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payment_schedules
+    ADD CONSTRAINT payment_schedules_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: platform_customers platform_customers_registration_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.platform_customers
+    ADD CONSTRAINT platform_customers_registration_tenant_id_fkey FOREIGN KEY (registration_tenant_id) REFERENCES public.tenants(id) ON DELETE SET NULL;
+
+
+--
+-- Name: referrals referrals_referred_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.referrals
+    ADD CONSTRAINT referrals_referred_tenant_id_fkey FOREIGN KEY (referred_tenant_id) REFERENCES public.tenants(id) ON DELETE SET NULL;
+
+
+--
+-- Name: referrals referrals_referrer_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.referrals
+    ADD CONSTRAINT referrals_referrer_tenant_id_fkey FOREIGN KEY (referrer_tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
+
+
+--
+-- Name: sms_logs sms_logs_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_logs
+    ADD CONSTRAINT sms_logs_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id);
+
+
+--
+-- Name: sms_logs sms_logs_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_logs
+    ADD CONSTRAINT sms_logs_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id);
+
+
+--
+-- Name: sms_logs sms_logs_sent_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_logs
+    ADD CONSTRAINT sms_logs_sent_by_fkey FOREIGN KEY (sent_by) REFERENCES public.users(id);
+
+
+--
+-- Name: sms_logs sms_logs_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_logs
+    ADD CONSTRAINT sms_logs_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: tenants tenants_referred_by_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT tenants_referred_by_tenant_id_fkey FOREIGN KEY (referred_by_tenant_id) REFERENCES public.tenants(id) ON DELETE SET NULL;
+
+
+--
+-- Name: transactions transactions_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id);
+
+
+--
+-- Name: transactions transactions_loan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id);
+
+
+--
+-- Name: transactions transactions_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: users users_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
+-- Name: users users_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict 1abQRES8fLd9wgdDFWf3SkmnTgF6om34mRVLNtaA6FyHgbRiBIP5KxYHU4AccMx
+

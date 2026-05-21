@@ -123,6 +123,75 @@ router.get("/summary", async (req, res) => {
       ts.params,
     );
 
+    // ── Distribution data for the dashboard charts ───────────────
+    // Loan-size histogram. Counts/sums cast to numbers (::int / ::float)
+    // so they arrive as numbers, not strings (avoids the empty-chart bug).
+    // Buckets are labelled here but re-ordered on the client (don't rely
+    // on SQL ordering — the labels would sort alphabetically).
+    const sizeBuckets = await query(
+      `
+      SELECT
+        CASE
+          WHEN principal_amount < 10000  THEN '<10K'
+          WHEN principal_amount < 25000  THEN '10–25K'
+          WHEN principal_amount < 50000  THEN '25–50K'
+          WHEN principal_amount < 100000 THEN '50–100K'
+          WHEN principal_amount < 250000 THEN '100–250K'
+          ELSE '250K+'
+        END AS bucket,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(principal_amount), 0)::float AS total
+      FROM loans
+      WHERE status IN ('active', 'completed', 'defaulted')${ts.clause}
+      GROUP BY bucket
+    `,
+      ts.params,
+    );
+
+    // Payment-method split (completed transactions only) for the donut.
+    const methodSplit = await query(
+      `
+      SELECT
+        COALESCE(NULLIF(TRIM(payment_method), ''), 'Other') AS method,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(amount_paid), 0)::float AS total
+      FROM transactions
+      WHERE payment_status = 'completed'${ts.clause}
+      GROUP BY 1
+      ORDER BY 2 DESC
+    `,
+      ts.params,
+    );
+
+    // Loan distribution by borrower age × status. Age comes from the
+    // client's date_of_birth (migration 018); rows without a DOB are
+    // ignored. Buckets are re-ordered on the client. Counts cast ::int.
+    const ageDistribution = await query(
+      `
+      SELECT
+        CASE
+          WHEN age < 25 THEN '18–24'
+          WHEN age < 35 THEN '25–34'
+          WHEN age < 45 THEN '35–44'
+          WHEN age < 55 THEN '45–54'
+          ELSE '55+'
+        END AS bucket,
+        COUNT(*) FILTER (WHERE status = 'active')::int    AS active,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
+        COUNT(*) FILTER (WHERE status = 'defaulted')::int AS defaulted
+      FROM (
+        SELECT l.status,
+               EXTRACT(YEAR FROM AGE(c.date_of_birth))::int AS age
+        FROM loans l
+        JOIN clients c ON l.client_id = c.id
+        WHERE c.date_of_birth IS NOT NULL
+          AND l.status IN ('active', 'completed', 'defaulted')${tsL.clause}
+      ) sub
+      GROUP BY bucket
+    `,
+      tsL.params,
+    );
+
     const loansData = loansStats.rows[0];
     const paymentsData = paymentsStats.rows[0];
     const clientsData = clientsStats.rows[0];
@@ -169,6 +238,11 @@ router.get("/summary", async (req, res) => {
         upcoming_amount: parseFloat(upcomingData.upcoming_amount),
         pending_refunds: parseInt(loansData.pending_refunds),
         total_overpayment: parseFloat(loansData.total_overpayment),
+
+        // Distribution data for the dashboard charts
+        loan_size_buckets: sizeBuckets.rows,
+        payment_method_split: methodSplit.rows,
+        loan_age_distribution: ageDistribution.rows,
       },
     });
   } catch (error) {

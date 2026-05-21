@@ -1,9 +1,59 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wallet, CheckCircle2, Coins, Percent } from "lucide-react";
+import {
+  Wallet,
+  Coins,
+  TrendingUp,
+  AlertTriangle,
+  RotateCcw,
+  PieChart as PieChartIcon,
+  BarChart3,
+  CreditCard,
+  Users,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  Label,
+} from "recharts";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import IconTile from "../components/IconTile";
+
+// Soft empty state for a chart card (fresh tenant / no data yet).
+function EmptyChart({ label }) {
+  return (
+    <div className="h-[260px] flex flex-col items-center justify-center text-slate-400">
+      <p className="text-4xl mb-2">📊</p>
+      <p className="text-sm">{label}</p>
+    </div>
+  );
+}
+
+// Loan-status → ocean-aware colour. Semantic only where it's genuinely
+// semantic (defaulted = rose, completed = emerald, pending = amber).
+const STATUS_COLORS = {
+  active: "#0086cc",
+  completed: "#10b981",
+  defaulted: "#ef4444",
+  pending: "#f59e0b",
+  approved: "#2cbeff",
+  under_review: "#a78bfa",
+  rejected: "#94a3b8",
+  cancelled: "#64748b",
+};
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -15,6 +65,7 @@ function Dashboard() {
   });
   const [trends, setTrends] = useState({ loans_trend: [], payments_trend: [] });
   const [poolStatus, setPoolStatus] = useState(null);
+  const [portfolioBreakdown, setPortfolioBreakdown] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
@@ -64,6 +115,16 @@ function Dashboard() {
       } catch (poolErr) {
         console.error("Failed to fetch pool status:", poolErr);
       }
+
+      // Loan-status breakdown for the Portfolio Health donut. Reuses the
+      // same endpoint the Analytics page uses. Best-effort — never breaks
+      // the dashboard.
+      try {
+        const pbRes = await api.get("/analytics/portfolio-breakdown");
+        setPortfolioBreakdown(pbRes.data.data || []);
+      } catch (pbErr) {
+        console.error("Failed to fetch portfolio breakdown:", pbErr);
+      }
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load dashboard");
       console.error(err);
@@ -101,6 +162,126 @@ function Dashboard() {
     ...trends.loans_trend.map((t) => parseFloat(t.total_amount)),
     1,
   );
+
+  // ── Derived data for the redesigned insights row ──────────────────
+  const fmtKES = (n) => `KES ${Number(n || 0).toLocaleString()}`;
+  const fmtAxis = (n) => {
+    const v = Number(n) || 0;
+    if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+    if (Math.abs(v) >= 1e3) return `${Math.round(v / 1e3)}K`;
+    return `${v}`;
+  };
+
+  // Chart 1: merge the monthly collected (payments_trend) + disbursed
+  // (loans_trend) series the dashboard already fetches.
+  const trendData = (trends.payments_trend || []).map((p) => {
+    const l = (trends.loans_trend || []).find(
+      (x) => x.month_label === p.month_label,
+    );
+    return {
+      month: p.month_label,
+      collected: parseFloat(p.total_amount || 0),
+      disbursed: parseFloat(l?.total_amount || 0),
+    };
+  });
+  const latestCollected = trendData.length
+    ? trendData[trendData.length - 1].collected
+    : null;
+
+  // Chart 2: donut from the loan-status breakdown.
+  const cap = (s) =>
+    (s || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  const donutData = (portfolioBreakdown || [])
+    .map((s) => ({
+      name: cap(s.status),
+      value: parseInt(s.count, 10) || 0,
+      color: STATUS_COLORS[s.status] || "#94a3b8",
+    }))
+    .filter((d) => d.value > 0);
+  const donutTotal = donutData.reduce((a, b) => a + b.value, 0);
+  const renderDonutCenter = ({ viewBox }) => {
+    const { cx, cy } = viewBox;
+    return (
+      <g>
+        <text
+          x={cx}
+          y={cy - 6}
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{ fontSize: 26, fontWeight: 700, fill: "#0f1b2d" }}
+        >
+          {donutTotal}
+        </text>
+        <text
+          x={cx}
+          y={cy + 16}
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{ fontSize: 10, fill: "#64748b", letterSpacing: 0.5 }}
+        >
+          TOTAL LOANS
+        </text>
+      </g>
+    );
+  };
+
+  // Chart A — Loans by Age: borrower age buckets × loan status, so the
+  // lender sees which age groups are actively borrowing, repaying in full
+  // (completed) and defaulting. Force the bucket order (SQL would
+  // alphabetise) and coerce counts to numbers so a real-data tenant never
+  // falsely shows empty. Loans whose client has no DOB are excluded server-side.
+  const AGE_ORDER = ["18–24", "25–34", "35–44", "45–54", "55+"];
+  const ageData = AGE_ORDER.map((bucket) => {
+    const row = (metrics.loan_age_distribution || []).find(
+      (r) => r.bucket === bucket,
+    );
+    return {
+      bucket,
+      active: Number(row?.active || 0),
+      completed: Number(row?.completed || 0),
+      defaulted: Number(row?.defaulted || 0),
+    };
+  });
+  const ageHasData = ageData.some(
+    (d) => d.active + d.completed + d.defaulted > 0,
+  );
+
+  // Chart B — Loan-size histogram. Force the bucket order (SQL would
+  // alphabetise the labels) and coerce to numbers so a real-data tenant
+  // never falsely shows empty.
+  const BUCKET_ORDER = ["<10K", "10–25K", "25–50K", "50–100K", "100–250K", "250K+"];
+  const sizeData = BUCKET_ORDER.map((bucket) => {
+    const row = (metrics.loan_size_buckets || []).find((r) => r.bucket === bucket);
+    return {
+      bucket,
+      count: Number(row?.count || 0),
+      total: Number(row?.total || 0),
+    };
+  });
+  const sizeHasData = sizeData.some((d) => d.count > 0);
+
+  // Chart C — Payment-method split. Ocean palette (channel mix isn't a
+  // status, so no semantic colours); friendly labels for known methods.
+  const METHOD_LABELS = {
+    mpesa: "M-Pesa",
+    "m-pesa": "M-Pesa",
+    bank: "Bank",
+    bank_transfer: "Bank",
+    cash: "Cash",
+    card: "Card",
+    cheque: "Cheque",
+  };
+  const METHOD_COLORS = ["#0086cc", "#2cbeff", "#4f46e5", "#0d9488", "#94a3b8"];
+  const methodData = (metrics.payment_method_split || [])
+    .map((m, i) => ({
+      name: METHOD_LABELS[(m.method || "").toLowerCase()] || cap(m.method),
+      value: Number(m.count || 0),
+      total: Number(m.total || 0),
+      color: METHOD_COLORS[i % METHOD_COLORS.length],
+    }))
+    .filter((d) => d.value > 0);
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -147,7 +328,7 @@ function Dashboard() {
 
       {/* Capital Pool */}
       {poolStatus && (
-        <div className="bg-gradient-to-r from-blue-600 via-ocean-600 to-ocean-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+        <div className="bg-gradient-to-r from-blue-600 via-ocean-600 to-ocean-600 rounded-2xl shadow-lg p-6 mb-6 text-white">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="text-xl font-bold">💰 Capital Pool</h2>
@@ -165,9 +346,9 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Utilization Bar */}
-          <div className="mb-3">
-            <div className="flex justify-between text-sm mb-1">
+          {/* Utilization Bar — wrapped in its own border */}
+          <div className="rounded-xl border border-white/25 bg-white/10 p-4 mb-4">
+            <div className="flex justify-between text-sm mb-2">
               <span>
                 Utilization: {poolStatus.utilization_rate.toFixed(1)}%
               </span>
@@ -186,108 +367,174 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 pt-4 border-t border-white/20">
-            <div className="flex justify-between items-center sm:block">
+          {/* Stats — each element wrapped in its own border */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
               <p className="text-xs text-blue-100">Total Disbursed</p>
-              <p className="text-base sm:text-lg font-bold whitespace-nowrap">
+              <p className="text-base sm:text-lg font-bold whitespace-nowrap mt-1">
                 KES {poolStatus.total_disbursed.toLocaleString()}
               </p>
             </div>
-            <div className="flex justify-between items-center sm:block">
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
               <p className="text-xs text-blue-100">Total Collected</p>
-              <p className="text-base sm:text-lg font-bold whitespace-nowrap">
+              <p className="text-base sm:text-lg font-bold whitespace-nowrap mt-1">
                 KES {poolStatus.total_collected.toLocaleString()}
               </p>
             </div>
-            <div className="flex justify-between items-center sm:block">
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
               <p className="text-xs text-blue-100">Interest Earned</p>
-              <p className="text-base sm:text-lg font-bold text-green-300 whitespace-nowrap">
+              <p className="text-base sm:text-lg font-bold text-green-300 whitespace-nowrap mt-1">
                 +KES {poolStatus.total_interest_earned.toLocaleString()}
               </p>
+            </div>
+            {/* Collection Rate — moved here from the KPI strip */}
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
+              <p className="text-xs text-blue-100">Collection Rate</p>
+              <p className="text-base sm:text-lg font-bold whitespace-nowrap mt-1">
+                {metrics.collection_rate}%
+              </p>
+              <div className="w-full bg-white/20 rounded-full h-1.5 mt-2">
+                <div
+                  className="bg-white h-1.5 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(metrics.collection_rate, 100)}%`,
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Alert Cards (only show if there are alerts) */}
-      {(metrics.overdue_count > 0 || metrics.pending_refunds > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {metrics.overdue_count > 0 && (
-            <div
-              onClick={() => navigate("/overdue")}
-              className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg cursor-pointer hover:bg-red-100 transition"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-red-700">
-                    ⚠️ Overdue Payments
-                  </p>
-                  <p className="text-2xl font-bold text-red-800 mt-1">
-                    {metrics.overdue_count} payments
-                  </p>
-                  <p className="text-sm text-red-600 mt-1">
-                    KES {metrics.overdue_amount.toLocaleString()} pending
-                    {metrics.overdue_loans > 0 &&
-                      ` • ${metrics.overdue_loans} loans`}
-                  </p>
-                </div>
-                <span className="text-3xl">⚠️</span>
-              </div>
-
-              {(metrics.most_overdue || []).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-red-200 space-y-1">
-                  {(metrics.most_overdue || []).slice(0, 3).map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex justify-between items-center text-xs"
-                    >
-                      <span className="font-medium text-red-800">
-                        {p.first_name} {p.last_name}
-                      </span>
-                      <span className="text-red-600">
-                        {p.days_late} days • KES{" "}
-                        {parseFloat(
-                          p.amount_outstanding || 0,
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                  <p className="text-xs text-red-500 font-semibold pt-1">
-                    View all overdue →
-                  </p>
-                </div>
-              )}
+      {/* ── Insights row: trend chart + portfolio donut ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Chart 1 — Collections vs Disbursements (last 6 months) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <IconTile icon={TrendingUp} variant="ocean" size={36} />
+            <div>
+              <h3 className="font-bold text-navy-900">Collections Trend</h3>
+              <p className="text-xs text-slate-500">
+                {latestCollected != null
+                  ? `Latest month: ${fmtKES(latestCollected)} collected`
+                  : "Last 6 months"}
+              </p>
             </div>
-          )}
-
-          {metrics.pending_refunds > 0 && (
-            <div
-              onClick={() => navigate("/loans")}
-              className="bg-ocean-50 border-l-4 border-ocean-500 p-4 rounded-lg cursor-pointer hover:bg-ocean-100 transition"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-ocean-700">
-                    💰 Pending Refunds
-                  </p>
-                  <p className="text-2xl font-bold text-ocean-800 mt-1">
-                    {metrics.pending_refunds}{" "}
-                    {metrics.pending_refunds === 1 ? "refund" : "refunds"}
-                  </p>
-                  <p className="text-sm text-ocean-600 mt-1">
-                    KES {metrics.total_overpayment.toLocaleString()} to refund
-                  </p>
-                </div>
-                <span className="text-3xl">💰</span>
-              </div>
-            </div>
+          </div>
+          {trendData.length === 0 ? (
+            <EmptyChart label="No collections yet" />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart
+                data={trendData}
+                margin={{ top: 6, right: 8, left: -8, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="collectedFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0086cc" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#0086cc" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#eef2f6"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tickFormatter={fmtAxis}
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={44}
+                />
+                <Tooltip
+                  formatter={(v, n) => [fmtKES(v), n]}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Area
+                  type="monotone"
+                  dataKey="collected"
+                  name="Collected"
+                  stroke="#0086cc"
+                  strokeWidth={2.5}
+                  fill="url(#collectedFill)"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="disbursed"
+                  name="Disbursed"
+                  stroke="#2cbeff"
+                  strokeWidth={2}
+                  strokeDasharray="5 4"
+                  dot={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
           )}
         </div>
-      )}
 
-      {/* Main Metrics — white cards with gradient icon tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        {/* Chart 2 — Portfolio Health donut */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <IconTile icon={PieChartIcon} variant="indigo" size={36} />
+            <div>
+              <h3 className="font-bold text-navy-900">Portfolio Health</h3>
+              <p className="text-xs text-slate-500">Loan status breakdown</p>
+            </div>
+          </div>
+          {donutTotal === 0 ? (
+            <EmptyChart label="No loans yet" />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={donutData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={68}
+                  outerRadius={98}
+                  paddingAngle={2}
+                  stroke="none"
+                >
+                  {donutData.map((d, i) => (
+                    <Cell key={i} fill={d.color} />
+                  ))}
+                  <Label content={renderDonutCenter} />
+                </Pie>
+                <Tooltip
+                  formatter={(v, n) => [`${v} loans`, n]}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 12 }}
+                  formatter={(value, entry) => `${value} (${entry.payload.value})`}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      {/* ── KPI strip: one tidy set of distinct KPIs, no duplicates ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
         {/* Total Portfolio */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-start justify-between">
@@ -296,27 +543,11 @@ function Dashboard() {
             </p>
             <IconTile icon={Wallet} variant="ocean" size={40} />
           </div>
-          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
-            KES {metrics.total_amount_due.toLocaleString()}
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {fmtKES(metrics.total_amount_due)}
           </p>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             {metrics.total_loans} loans • {metrics.active_loans} active
-          </p>
-        </div>
-
-        {/* Collected */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Collected
-            </p>
-            <IconTile icon={CheckCircle2} variant="emerald" size={40} />
-          </div>
-          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
-            KES {metrics.total_collected.toLocaleString()}
-          </p>
-          <p className="text-slate-500 text-sm mt-1">
-            {metrics.total_transactions} payments
           </p>
         </div>
 
@@ -328,34 +559,242 @@ function Dashboard() {
             </p>
             <IconTile icon={Coins} variant="amber" size={40} />
           </div>
-          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
-            KES {metrics.outstanding_balance.toLocaleString()}
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {fmtKES(metrics.outstanding_balance)}
           </p>
-          <p className="text-slate-500 text-sm mt-1">To be collected</p>
+          <p className="text-xs text-slate-500 mt-1">To be collected</p>
         </div>
 
-        {/* Collection Rate */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        {/* Overdue → keeps the navigation to the dedicated overdue page */}
+        <button
+          onClick={() => navigate("/overdue")}
+          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-rose-200 hover:shadow transition"
+        >
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Collection Rate
+              Overdue
             </p>
-            <IconTile icon={Percent} variant="teal" size={40} />
+            <IconTile icon={AlertTriangle} variant="rose" size={40} />
           </div>
-          <p className="text-2xl lg:text-3xl font-bold text-navy-900 mt-3">
-            {metrics.collection_rate}%
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {Number(metrics.overdue_count || 0).toLocaleString()}
           </p>
-          <div className="w-full bg-slate-100 rounded-full h-2 mt-3">
-            <div
-              className="bg-ocean-gradient h-2 rounded-full"
-              style={{ width: `${Math.min(metrics.collection_rate, 100)}%` }}
-            ></div>
+          <p className="text-xs text-slate-500 mt-1">
+            {fmtKES(metrics.overdue_amount)}
+            {metrics.overdue_loans > 0 && ` • ${metrics.overdue_loans} loans`}
+          </p>
+        </button>
+
+        {/* Pending Refunds — hidden entirely when nothing is pending */}
+        {Number(metrics.pending_refunds) > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <div className="flex items-start justify-between">
+              <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+                Pending Refunds
+              </p>
+              <IconTile icon={RotateCcw} variant="ocean" size={40} />
+            </div>
+            <p className="text-2xl font-bold text-navy-900 mt-2">
+              {Number(metrics.pending_refunds).toLocaleString()}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {fmtKES(metrics.total_overpayment)} to refund
+            </p>
           </div>
+        )}
+      </div>
+
+      {/* ── Distribution charts: age, loan size, payment method ─────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        {/* Chart A — Loans by Age: borrower age × loan status */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <IconTile icon={Users} variant="ocean" size={36} />
+            <div>
+              <h3 className="font-bold text-navy-900">Loans by Age</h3>
+              <p className="text-xs text-slate-500">
+                Borrower age × status
+              </p>
+            </div>
+          </div>
+          {!ageHasData ? (
+            <EmptyChart label="No borrower ages yet" />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                data={ageData}
+                margin={{ top: 6, right: 8, left: -8, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#eef2f6"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="bucket"
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={32}
+                />
+                <Tooltip
+                  cursor={{ fill: "#f1f5f9" }}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Bar
+                  dataKey="active"
+                  name="Active"
+                  fill={STATUS_COLORS.active}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={22}
+                />
+                <Bar
+                  dataKey="completed"
+                  name="Completed"
+                  fill={STATUS_COLORS.completed}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={22}
+                />
+                <Bar
+                  dataKey="defaulted"
+                  name="Defaulted"
+                  fill={STATUS_COLORS.defaulted}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={22}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Chart B — Loan-size histogram */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <IconTile icon={BarChart3} variant="indigo" size={36} />
+            <div>
+              <h3 className="font-bold text-navy-900">Loan Sizes</h3>
+              <p className="text-xs text-slate-500">Loans by principal</p>
+            </div>
+          </div>
+          {!sizeHasData ? (
+            <EmptyChart label="No loans yet" />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                data={sizeData}
+                margin={{ top: 6, right: 8, left: -8, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#eef2f6"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="bucket"
+                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={32}
+                />
+                <Tooltip
+                  cursor={{ fill: "#f1f5f9" }}
+                  formatter={(v, n, p) => [
+                    `${v} loans • ${fmtKES(p.payload.total)}`,
+                    "Loans",
+                  ]}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
+                />
+                <Bar
+                  dataKey="count"
+                  name="Loans"
+                  fill="#0086cc"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={48}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Chart C — Payment-method split */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <IconTile icon={CreditCard} variant="teal" size={36} />
+            <div>
+              <h3 className="font-bold text-navy-900">Payment Methods</h3>
+              <p className="text-xs text-slate-500">
+                Share of completed payments
+              </p>
+            </div>
+          </div>
+          {methodData.length === 0 ? (
+            <EmptyChart label="No payments yet" />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={methodData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={62}
+                  outerRadius={92}
+                  paddingAngle={2}
+                  stroke="none"
+                >
+                  {methodData.map((d, i) => (
+                    <Cell key={i} fill={d.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(v, n, p) => [
+                    `${v} payments • ${fmtKES(p.payload.total)}`,
+                    n,
+                  ]}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 12 }}
+                  formatter={(value, entry) => `${value} (${entry.payload.value})`}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
-      {/* Secondary Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      {/* Secondary Metrics — Total Interest dropped; it duplicated the
+          Interest Earned KPI above (identical when there's no Capital Pool) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-ocean-500">
           <p className="text-xs text-gray-500 uppercase font-semibold">
             Total Clients
@@ -386,15 +825,6 @@ function Dashboard() {
           <p className="text-xs text-gray-500 mt-1">
             KES {metrics.upcoming_amount.toLocaleString()}
           </p>
-        </div>
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-ocean-500">
-          <p className="text-xs text-gray-500 uppercase font-semibold">
-            Total Interest
-          </p>
-          <p className="text-xl font-bold text-ocean-600 mt-1">
-            KES {metrics.total_interest.toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">Earned</p>
         </div>
       </div>
 

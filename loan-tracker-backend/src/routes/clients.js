@@ -415,6 +415,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       address,
       city,
       county,
+      date_of_birth,
     } = req.body;
 
     // Validation
@@ -478,8 +479,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     const result = await query(
       `INSERT INTO clients (
         tenant_id, client_code, first_name, last_name, phone_number, email,
-        id_number, business_name, business_type, address, city, county, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')
+        id_number, business_name, business_type, address, city, county,
+        date_of_birth, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active')
       RETURNING *`,
       [
         tid,
@@ -494,6 +496,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         address || null,
         city || null,
         county || null,
+        date_of_birth || null,
       ],
     );
 
@@ -538,6 +541,7 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
       address,
       city,
       county,
+      date_of_birth,
       status,
     } = req.body;
 
@@ -629,9 +633,10 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         address = $8,
         city = $9,
         county = $10,
-        status = COALESCE($11, status),
+        date_of_birth = COALESCE($11, date_of_birth),
+        status = COALESCE($12, status),
         updated_at = NOW()
-      WHERE id = $12 AND tenant_id = $13
+      WHERE id = $13 AND tenant_id = $14
       RETURNING *`,
       [
         first_name,
@@ -644,6 +649,7 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         address || null,
         city || null,
         county || null,
+        date_of_birth || null,
         status || null,
         id,
         ctid,

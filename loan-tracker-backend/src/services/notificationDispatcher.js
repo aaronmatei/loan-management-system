@@ -67,11 +67,14 @@ export async function notify(eventType, ctx) {
       return { error: "unknown event" };
     }
 
-    // Load tenant prefs + branding fields in one query
+    // Load tenant prefs + branding fields in one query (also pulls
+    // is_demo so we can short-circuit demo-tenant traffic before
+    // hitting the SMS/email providers).
     const tRes = await query(
       `SELECT id, business_name, contact_email, contact_phone,
               support_email, support_phone, email_sender_name,
               brand_color, logo_url, hide_platform_branding, subdomain,
+              is_demo,
               ${PREF_COLUMNS[eventType][0]} AS sms_enabled,
               ${PREF_COLUMNS[eventType][1]} AS email_enabled
          FROM tenants WHERE id = $1`,
@@ -81,6 +84,14 @@ export async function notify(eventType, ctx) {
       return { error: "tenant not found" };
     }
     const tenant = tRes.rows[0];
+
+    // Demo tenants never send real SMS or email. Returning early
+    // keeps the call sites' contract (notify never throws), and the
+    // demo session's behaviour stays observable in logs.
+    if (tenant.is_demo) {
+      logger.info(`[demo] notify(${eventType}) skipped for tenant ${tenantId}`);
+      return { demo: true, skipped: true };
+    }
 
     // emailService templates expect a `company` object with name/phone/email/website.
     // Tolerate getCompanySettings failures (it falls back to env vars).

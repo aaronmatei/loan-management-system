@@ -32,6 +32,7 @@ function Clients() {
     address: "",
     city: "",
     county: "",
+    date_of_birth: "",
   });
 
   useEffect(() => {
@@ -81,6 +82,7 @@ function Clients() {
         address: "",
         city: "",
         county: "",
+        date_of_birth: "",
       });
       setShowForm(false);
       fetchClients();
@@ -333,6 +335,25 @@ function Clients() {
                   placeholder="John's Shop"
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Date of Birth
+                </label>
+                <input
+                  type="date"
+                  name="date_of_birth"
+                  value={formData.date_of_birth}
+                  onChange={handleInputChange}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional — powers borrower-age analytics
+                </p>
               </div>
             </div>
 
