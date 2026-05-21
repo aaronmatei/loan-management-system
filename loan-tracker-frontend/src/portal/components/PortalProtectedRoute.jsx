@@ -8,7 +8,7 @@ import { Navigate } from "react-router-dom";
 function PortalProtectedRoute({ children }) {
   const token = localStorage.getItem("portal_token");
   if (!token) {
-    return <Navigate to="/portal/login" replace />;
+    return <Navigate to="/loanfix/portal/login" replace />;
   }
 
   let currentTenant = null;
@@ -20,7 +20,7 @@ function PortalProtectedRoute({ children }) {
     currentTenant = null;
   }
   if (!currentTenant || !currentTenant.subdomain) {
-    return <Navigate to="/portal/select-tenant" replace />;
+    return <Navigate to="/loanfix/portal/select-tenant" replace />;
   }
 
   return children;

@@ -36,7 +36,7 @@ function AllLoans() {
       .then((r) => setData(r.data.data))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
         }
       })
       .finally(() => setLoading(false));
@@ -53,7 +53,7 @@ function AllLoans() {
         "portal_current_tenant",
         JSON.stringify(r.data.current_tenant),
       );
-      if (to === "dashboard") window.location.href = "/portal/dashboard";
+      if (to === "dashboard") window.location.href = "/loanfix/portal/dashboard";
       else navigate(to);
     } catch {
       alert("Failed to switch lender");
@@ -300,7 +300,7 @@ function AllLoans() {
                 <button
                   key={loan.id}
                   onClick={() =>
-                    switchTenant(loan.tenant_id, `/portal/loans/${loan.id}`)
+                    switchTenant(loan.tenant_id, `/loanfix/portal/loans/${loan.id}`)
                   }
                   className="w-full text-left bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
                 >

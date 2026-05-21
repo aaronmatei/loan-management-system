@@ -243,18 +243,18 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/portal/login" element={<CustomerLogin />} />
-            <Route path="/portal/register" element={<CustomerRegister />} />
+            <Route path="/loanfix/portal/login" element={<CustomerLogin />} />
+            <Route path="/loanfix/portal/register" element={<CustomerRegister />} />
             <Route
-              path="/portal/forgot-password"
+              path="/loanfix/portal/forgot-password"
               element={<CustomerForgotPassword />}
             />
             <Route
-              path="/portal/select-tenant"
+              path="/loanfix/portal/select-tenant"
               element={<TenantPicker />}
             />
             <Route
-              path="/portal/add-lender"
+              path="/loanfix/portal/add-lender"
               element={
                 <PortalProtectedRoute>
                   <CustomerAddLender />
@@ -262,7 +262,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/dashboard"
+              path="/loanfix/portal/dashboard"
               element={
                 <PortalProtectedRoute>
                   <CustomerDashboard />
@@ -270,7 +270,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/all-loans"
+              path="/loanfix/portal/all-loans"
               element={
                 <PortalProtectedRoute>
                   <CustomerAllLoans />
@@ -278,7 +278,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/apply"
+              path="/loanfix/portal/apply"
               element={
                 <PortalProtectedRoute>
                   <CustomerApplyLoan />
@@ -286,7 +286,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/applications"
+              path="/loanfix/portal/applications"
               element={
                 <PortalProtectedRoute>
                   <CustomerApplications />
@@ -294,7 +294,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/loans"
+              path="/loanfix/portal/loans"
               element={
                 <PortalProtectedRoute>
                   <CustomerMyLoans />
@@ -302,7 +302,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/loans/:id"
+              path="/loanfix/portal/loans/:id"
               element={
                 <PortalProtectedRoute>
                   <CustomerLoanDetails />
@@ -310,7 +310,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/calculator"
+              path="/loanfix/portal/calculator"
               element={
                 <PortalProtectedRoute>
                   <CustomerCalculator />
@@ -318,7 +318,7 @@ function App() {
               }
             />
             <Route
-              path="/portal/profile"
+              path="/loanfix/portal/profile"
               element={
                 <PortalProtectedRoute>
                   <CustomerProfile />

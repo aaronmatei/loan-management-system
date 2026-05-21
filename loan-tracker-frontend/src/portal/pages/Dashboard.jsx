@@ -30,13 +30,38 @@ function CustomerDashboard() {
   const { brand, gradient: brandGradient, rgba } = getPortalBrand();
   const Tile = ({ icon, size = 40 }) => <BrandTile icon={icon} size={size} />;
 
+  // Tenant-less customers (just registered / no lender linked yet) have no
+  // current tenant — show an "add your first lender" prompt instead of
+  // calling the tenant-scoped dashboard endpoint.
+  const hasLender = (() => {
+    try {
+      return !!JSON.parse(
+        localStorage.getItem("portal_current_tenant") || "null",
+      );
+    } catch {
+      return false;
+    }
+  })();
+  const customerName = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("portal_customer") || "{}")
+        .first_name;
+    } catch {
+      return "";
+    }
+  })();
+
   useEffect(() => {
+    if (!hasLender) {
+      setLoading(false);
+      return;
+    }
     portalApi
       .get("/portal/customer/dashboard")
       .then((r) => setData(r.data.data))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
         } else {
           alert(err.response?.data?.error || "Failed to load dashboard");
         }
@@ -79,6 +104,31 @@ function CustomerDashboard() {
     return (
       <PortalLayout>
         <div className="p-8 text-center text-slate-500">Loading…</div>
+      </PortalLayout>
+    );
+  }
+  if (!hasLender) {
+    return (
+      <PortalLayout>
+        <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 text-center">
+            <div className="text-6xl mb-4">🏦</div>
+            <h1 className="text-2xl font-bold text-navy-900 mb-2">
+              Welcome{customerName ? `, ${customerName}` : ""}! 👋
+            </h1>
+            <p className="text-slate-500 mb-6 max-w-md mx-auto">
+              You haven't linked a lender yet. Add your first lender to view
+              your loans, apply, and make payments.
+            </p>
+            <button
+              onClick={() => navigate("/loanfix/portal/add-lender")}
+              className="inline-flex items-center gap-2 px-6 py-3 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition"
+              style={{ background: brandGradient }}
+            >
+              ➕ Add Your First Lender
+            </button>
+          </div>
+        </div>
       </PortalLayout>
     );
   }
@@ -140,7 +190,7 @@ function CustomerDashboard() {
         {/* Primary actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <button
-            onClick={() => navigate("/portal/apply")}
+            onClick={() => navigate("/loanfix/portal/apply")}
             className="text-white py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition flex items-center justify-between"
             style={{ background: brandGradient }}
           >
@@ -160,7 +210,7 @@ function CustomerDashboard() {
 
           {lenderCount > 1 && (
             <button
-              onClick={() => navigate("/portal/all-loans")}
+              onClick={() => navigate("/loanfix/portal/all-loans")}
               className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition flex items-center justify-between px-6 py-4"
             >
               <span className="flex items-center gap-3">
@@ -212,7 +262,7 @@ function CustomerDashboard() {
             active_loans.map((l) => (
               <button
                 key={l.id}
-                onClick={() => navigate(`/portal/loans/${l.id}`)}
+                onClick={() => navigate(`/loanfix/portal/loans/${l.id}`)}
                 className="w-full text-left px-5 py-4 border-b border-slate-50 last:border-0 flex justify-between hover:bg-slate-50 transition"
               >
                 <div>
@@ -247,7 +297,7 @@ function CustomerDashboard() {
                 Calculator
               </h2>
               <button
-                onClick={() => navigate("/portal/calculator")}
+                onClick={() => navigate("/loanfix/portal/calculator")}
                 className="text-xs font-semibold hover:underline"
                 style={{ color: brand }}
               >
@@ -332,7 +382,7 @@ function CustomerDashboard() {
                     <button
                       onClick={() =>
                         navigate(
-                          `/portal/apply?amount=${calcAmount}&duration=${calcDuration}`,
+                          `/loanfix/portal/apply?amount=${calcAmount}&duration=${calcDuration}`,
                         )
                       }
                       className="mt-3 w-full py-2 text-white font-bold rounded-lg text-sm"

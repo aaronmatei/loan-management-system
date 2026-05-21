@@ -71,21 +71,25 @@ router.get("/check-phone/:phone", tenantContext, async (req, res) => {
   }
 });
 
-// ── register (new customer OR existing wanting a new tenant) ───
-router.post("/register", tenantContext, async (req, res) => {
+// ── register (tenant-less platform account) ───────────────────
+// Creates a platform_customers row with NO lender association. The
+// client adds a lender later (login → add-lender / select-tenant).
+// Phone OTP verification is still required; date_of_birth + gender are
+// captured here and stored on the platform account.
+router.post("/register", async (req, res) => {
   try {
-    const { phone_number, id_number, first_name, last_name } = req.body;
-    if (!req.tenant) {
-      return res.status(400).json({ error: "Tenant context required" });
-    }
-    if (!req.tenant.allow_self_signup) {
-      return res.status(403).json({
-        error:
-          "This lender does not allow self-signup. Please contact them for an invitation.",
-      });
-    }
+    const {
+      phone_number,
+      id_number,
+      first_name,
+      last_name,
+      date_of_birth,
+      gender,
+    } = req.body;
     if (!phone_number || !id_number || !first_name || !last_name) {
-      return res.status(400).json({ error: "All fields are required" });
+      return res
+        .status(400)
+        .json({ error: "Name, phone number, and ID number are required" });
     }
     const fp = formatPhone(phone_number);
 
@@ -107,27 +111,19 @@ router.post("/register", tenantContext, async (req, res) => {
       }
       customerId = c.id;
       if (c.phone_verified) {
-        const link = await query(
-          "SELECT id FROM customer_tenant_links WHERE platform_customer_id = $1 AND tenant_id = $2",
-          [customerId, req.tenant.id],
-        );
-        if (link.rows.length > 0) {
-          return res.status(409).json({
-            error:
-              "You already have an account with this lender. Please login.",
-            action: "login",
-          });
-        }
-        return res.json({
-          success: true,
-          customer_exists: true,
-          requires_password: true,
-          customer_id: customerId,
-          message:
-            "You have a platform account. Please login to add this lender.",
-          action: "login_to_add_tenant",
+        return res.status(409).json({
+          error: "You already have an account. Please login.",
+          action: "login",
         });
       }
+      // Unverified existing account → refresh details + resend OTP.
+      await query(
+        `UPDATE platform_customers
+            SET first_name = $1, last_name = $2,
+                date_of_birth = $3, gender = $4, updated_at = NOW()
+          WHERE id = $5`,
+        [first_name, last_name, date_of_birth || null, gender || null, customerId],
+      );
     } else {
       const idCheck = await query(
         "SELECT id FROM platform_customers WHERE id_number = $1",
@@ -142,19 +138,26 @@ router.post("/register", tenantContext, async (req, res) => {
       const nc = await query(
         `INSERT INTO platform_customers (
            phone_number, id_number, first_name, last_name,
-           registration_tenant_id, registration_ip
-         ) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-        [fp, id_number, first_name, last_name, req.tenant.id, ipOf(req)],
+           date_of_birth, gender, registration_ip
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [
+          fp,
+          id_number,
+          first_name,
+          last_name,
+          date_of_birth || null,
+          gender || null,
+          ipOf(req),
+        ],
       );
       customerId = nc.rows[0].id;
       isNew = true;
-      logger.info(`✓ New platform customer: ${fp}`);
+      logger.info(`✓ New platform customer (tenant-less): ${fp}`);
     }
 
     const otp = await sendOTP({
       customerId,
       phoneNumber: fp,
-      tenantId: req.tenant.id,
       purpose: "registration",
     });
     if (!otp.success) return res.status(500).json({ error: otp.error });
@@ -172,8 +175,8 @@ router.post("/register", tenantContext, async (req, res) => {
   }
 });
 
-// ── verify OTP + set password + link to tenant ────────────────
-router.post("/verify-otp", tenantContext, async (req, res) => {
+// ── verify OTP + set password (tenant-less) ───────────────────
+router.post("/verify-otp", async (req, res) => {
   try {
     const { customer_id, otp, password } = req.body;
     if (!customer_id || !otp || !password) {
@@ -204,45 +207,12 @@ router.post("/verify-otp", tenantContext, async (req, res) => {
     );
     const customer = cr.rows[0];
 
-    let clientId = null;
-    if (req.tenant) {
-      const existingClient = await query(
-        "SELECT id FROM clients WHERE phone_number = ANY($1::text[]) AND tenant_id = $2 LIMIT 1",
-        [phoneVariants(customer.phone_number), req.tenant.id],
-      );
-      if (existingClient.rows.length > 0) {
-        clientId = existingClient.rows[0].id;
-        logger.info(`✓ Linked existing client at tenant ${req.tenant.id}`);
-      } else {
-        const clientCode = await nextClientCode(query, req.tenant.id);
-        const ncl = await query(
-          `INSERT INTO clients (
-             tenant_id, client_code, first_name, last_name,
-             phone_number, id_number, status
-           ) VALUES ($1,$2,$3,$4,$5,$6,'active') RETURNING id`,
-          [
-            req.tenant.id,
-            clientCode,
-            customer.first_name,
-            customer.last_name,
-            customer.phone_number,
-            customer.id_number,
-          ],
-        );
-        clientId = ncl.rows[0].id;
-        logger.info(`✓ Created client ${clientCode}`);
-      }
-      await query(
-        `INSERT INTO customer_tenant_links (platform_customer_id, tenant_id, client_id, status)
-         VALUES ($1,$2,$3,'active') ON CONFLICT DO NOTHING`,
-        [customer_id, req.tenant.id, clientId],
-      );
-    }
-
+    // Tenant-less registration: no client / customer_tenant_links here.
+    // The customer adds a lender afterwards (add-lender / select-tenant).
     await query(
-      `INSERT INTO customer_activities (platform_customer_id, tenant_id, client_id, activity_type, ip_address)
-       VALUES ($1,$2,$3,'registration',$4)`,
-      [customer_id, req.tenant?.id || null, clientId, ipOf(req)],
+      `INSERT INTO customer_activities (platform_customer_id, activity_type, ip_address)
+       VALUES ($1,'registration',$2)`,
+      [customer_id, ipOf(req)],
     );
 
     const token = jwt.sign(
@@ -250,8 +220,8 @@ router.post("/verify-otp", tenantContext, async (req, res) => {
         platform_customer_id: customer.id,
         phone_number: customer.phone_number,
         user_type: "customer",
-        current_tenant_id: req.tenant?.id || null,
-        current_client_id: clientId,
+        current_tenant_id: null,
+        current_client_id: null,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" },
@@ -267,13 +237,7 @@ router.post("/verify-otp", tenantContext, async (req, res) => {
         first_name: customer.first_name,
         last_name: customer.last_name,
       },
-      current_tenant: req.tenant
-        ? {
-            id: req.tenant.id,
-            business_name: req.tenant.business_name,
-            subdomain: req.tenant.subdomain,
-          }
-        : null,
+      current_tenant: null,
     });
   } catch (error) {
     logger.error("OTP verification error:", error);

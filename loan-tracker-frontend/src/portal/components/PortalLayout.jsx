@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import TenantSwitcher from "./TenantSwitcher";
 import DevTenantSwitcher from "./DevTenantSwitcher";
 
 // Shared mobile-first shell for the authenticated portal pages
 // (Dashboard / My Loans / Profile). Reads the same localStorage keys
 // the rest of the portal uses; never refetches what pages already own.
 const MENU = [
-  { path: "/portal/dashboard", label: "Dashboard", icon: "🏠" },
-  { path: "/portal/all-loans", label: "All Lenders", icon: "📊" },
-  { path: "/portal/loans", label: "Current Lender", icon: "💰" },
-  { path: "/portal/calculator", label: "Calculator", icon: "🧮" },
-  { path: "/portal/apply", label: "Apply for Loan", icon: "📝" },
-  { path: "/portal/applications", label: "My Applications", icon: "📋" },
-  { path: "/portal/add-lender", label: "Add Lender", icon: "➕" },
-  { path: "/portal/profile", label: "Profile", icon: "👤" },
+  { path: "/loanfix/portal/dashboard", label: "Dashboard", icon: "🏠" },
+  { path: "/loanfix/portal/all-loans", label: "All Lenders", icon: "📊" },
+  { path: "/loanfix/portal/loans", label: "Current Lender", icon: "💰" },
+  { path: "/loanfix/portal/calculator", label: "Calculator", icon: "🧮" },
+  { path: "/loanfix/portal/apply", label: "Apply for Loan", icon: "📝" },
+  { path: "/loanfix/portal/applications", label: "My Applications", icon: "📋" },
+  { path: "/loanfix/portal/add-lender", label: "Add Lender", icon: "➕" },
+  { path: "/loanfix/portal/profile", label: "Profile", icon: "👤" },
 ];
 
 function PortalLayout({ children }) {
@@ -42,7 +41,7 @@ function PortalLayout({ children }) {
       "portal_current_tenant",
       "portal_tenants",
     ].forEach((k) => localStorage.removeItem(k));
-    navigate("/portal/login");
+    navigate("/loanfix/portal/login");
   };
 
   const brand = tenant?.brand_color || "#4F46E5";
@@ -135,7 +134,6 @@ function PortalLayout({ children }) {
                   {tenant?.business_name}
                 </h1>
                 <div className="flex-1 hidden lg:block" />
-                <TenantSwitcher />
               </div>
             </header>
 

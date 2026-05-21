@@ -19,11 +19,12 @@ function CustomerRegister() {
   const [submitting, setSubmitting] = useState(false);
   const [customerId, setCustomerId] = useState(null);
   const [form, setForm] = useState({
-    lender_subdomain: "",
     phone_number: "",
     id_number: "",
     first_name: "",
     last_name: "",
+    date_of_birth: "",
+    gender: "",
     otp: "",
     password: "",
     confirmPassword: "",
@@ -33,25 +34,21 @@ function CustomerRegister() {
 
   const submitDetails = async (e) => {
     e.preventDefault();
-    if (form.lender_subdomain) {
-      localStorage.setItem(
-        "portal_current_tenant",
-        JSON.stringify({ subdomain: form.lender_subdomain.toLowerCase() }),
-      );
-    }
     setSubmitting(true);
     try {
+      // Tenant-less registration — no lender chosen here. The customer
+      // adds a lender after logging in.
       const res = await portalApi.post("/portal/auth/register", {
         phone_number: form.phone_number,
         id_number: form.id_number,
         first_name: form.first_name,
         last_name: form.last_name,
+        date_of_birth: form.date_of_birth || null,
+        gender: form.gender || null,
       });
-      if (res.data.action === "login_to_add_tenant") {
-        alert(
-          "You already have a platform account. Please log in to add this lender.",
-        );
-        navigate("/portal/login");
+      if (res.data.action === "login") {
+        alert("You already have an account. Please log in.");
+        navigate("/loanfix/portal/login");
         return;
       }
       if (res.data.requires_otp) {
@@ -95,9 +92,9 @@ function CustomerRegister() {
           amount: widgetAmount,
           ...(widgetDuration ? { duration: widgetDuration } : {}),
         });
-        navigate(`/portal/apply?${p}`);
+        navigate(`/loanfix/portal/apply?${p}`);
       } else {
-        navigate("/portal/dashboard");
+        navigate("/loanfix/portal/dashboard");
       }
     } catch (err) {
       alert(err.response?.data?.error || "Verification failed");
@@ -144,18 +141,6 @@ function CustomerRegister() {
 
         {step === 1 ? (
           <form onSubmit={submitDetails} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                Lender Subdomain
-              </label>
-              <input
-                value={form.lender_subdomain}
-                onChange={set("lender_subdomain")}
-                required
-                placeholder="techtsadong"
-                className={field}
-              />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold mb-1">
@@ -203,6 +188,34 @@ function CustomerRegister() {
                 required
                 className={field}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Date of Birth
+                </label>
+                <input
+                  type="date"
+                  value={form.date_of_birth}
+                  onChange={set("date_of_birth")}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Gender
+                </label>
+                <select
+                  value={form.gender}
+                  onChange={set("gender")}
+                  className={field}
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
             </div>
             <button
               type="submit"
@@ -272,7 +285,7 @@ function CustomerRegister() {
         <p className="text-center text-sm mt-6">
           Already have an account?{" "}
           <Link
-            to="/portal/login"
+            to="/loanfix/portal/login"
             className="text-indigo-600 font-semibold"
           >
             Login

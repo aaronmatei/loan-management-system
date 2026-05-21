@@ -41,7 +41,7 @@ portalApi.interceptors.response.use(
       localStorage.removeItem("portal_customer");
       localStorage.removeItem("portal_current_tenant");
       localStorage.removeItem("portal_tenants");
-      window.location.href = "/portal/login";
+      window.location.href = "/loanfix/portal/login";
     }
     return Promise.reject(error);
   },

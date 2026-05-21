@@ -42,7 +42,7 @@ function CustomerApplications() {
       .then((r) => setApps(r.data.data || []))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant")
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
       })
       .finally(() => setLoading(false));
   };
@@ -81,7 +81,7 @@ function CustomerApplications() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/portal/apply")}
+            onClick={() => navigate("/loanfix/portal/apply")}
             className="px-4 py-2 text-white rounded-lg font-semibold"
             style={{ background: gradient }}
           >
@@ -99,7 +99,7 @@ function CustomerApplications() {
               Start your loan application journey.
             </p>
             <button
-              onClick={() => navigate("/portal/apply")}
+              onClick={() => navigate("/loanfix/portal/apply")}
               className="px-6 py-3 text-white font-bold rounded-lg"
               style={{ background: gradient }}
             >

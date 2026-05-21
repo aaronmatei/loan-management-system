@@ -58,10 +58,10 @@ function LoanDetails() {
       .then((r) => setData(r.data.data))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
         } else {
           alert(err.response?.data?.error || "Failed to load loan details");
-          navigate("/portal/loans");
+          navigate("/loanfix/portal/loans");
         }
       })
       .finally(() => setLoading(false));
@@ -129,7 +129,7 @@ function LoanDetails() {
       <div className="p-4 lg:p-8 max-w-5xl mx-auto" style={{ "--brand": brand }}>
         <div className="flex justify-between items-center mb-4">
           <button
-            onClick={() => navigate("/portal/loans")}
+            onClick={() => navigate("/loanfix/portal/loans")}
             className="text-[var(--brand)] font-semibold"
           >
             ← Back to Loans

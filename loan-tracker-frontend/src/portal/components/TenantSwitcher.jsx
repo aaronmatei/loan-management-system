@@ -41,7 +41,7 @@ function TenantSwitcher() {
         "portal_current_tenant",
         JSON.stringify(res.data.current_tenant),
       );
-      window.location.href = "/portal/dashboard";
+      window.location.href = "/loanfix/portal/dashboard";
     } catch {
       alert("Failed to switch tenant");
     }

@@ -43,7 +43,7 @@ function ApplyLoan() {
       .then((r) => setPolicy(r.data.data.policy))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant")
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
       })
       .finally(() => setLoading(false));
   }, [navigate]);
@@ -93,7 +93,7 @@ function ApplyLoan() {
     try {
       const r = await portalApi.post("/portal/customer/applications", form);
       alert(`🎉 ${r.data.message}\n\nLoan Code: ${r.data.data.loan_code}`);
-      navigate("/portal/applications");
+      navigate("/loanfix/portal/applications");
     } catch (err) {
       alert(err.response?.data?.error || "Failed to submit application");
     } finally {
@@ -117,7 +117,7 @@ function ApplyLoan() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto" style={{ "--brand": brand }}>
         <button
-          onClick={() => navigate("/portal/dashboard")}
+          onClick={() => navigate("/loanfix/portal/dashboard")}
           className="text-[var(--brand)] mb-2 font-semibold text-sm"
         >
           ← Back to Dashboard

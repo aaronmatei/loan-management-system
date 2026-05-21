@@ -43,7 +43,7 @@ function MyLoans() {
       .then((r) => setLoans(r.data.data || []))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
         } else {
           setError(err.response?.data?.error || "Failed to load loans");
         }
@@ -104,7 +104,7 @@ function MyLoans() {
             return (
               <button
                 key={loan.id}
-                onClick={() => navigate(`/portal/loans/${loan.id}`)}
+                onClick={() => navigate(`/loanfix/portal/loans/${loan.id}`)}
                 className="w-full text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-4 lg:p-6 hover:shadow-md transition"
               >
                 <div className="flex justify-between items-start mb-3">

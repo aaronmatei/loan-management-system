@@ -31,19 +31,19 @@ function CustomerLogin() {
             "portal_current_tenant",
             JSON.stringify(res.data.current_tenant),
           );
-          navigate("/portal/dashboard");
+          navigate("/loanfix/portal/dashboard");
           break;
         case "select_tenant":
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
           break;
         case "add_lender":
-          alert(
-            "Your account isn't linked to any lender yet. Please register with a lender.",
-          );
-          navigate("/portal/register");
+          // No lender linked yet — land on the dashboard, which shows the
+          // "add your first lender" empty state.
+          localStorage.removeItem("portal_current_tenant");
+          navigate("/loanfix/portal/dashboard");
           break;
         default:
-          navigate("/portal/dashboard");
+          navigate("/loanfix/portal/dashboard");
       }
     } catch (err) {
       alert(err.response?.data?.error || "Login failed");
@@ -102,7 +102,7 @@ function CustomerLogin() {
           </button>
           <div className="text-center text-sm space-y-2">
             <Link
-              to="/portal/forgot-password"
+              to="/loanfix/portal/forgot-password"
               className="text-indigo-600 block"
             >
               Forgot password?
@@ -110,7 +110,7 @@ function CustomerLogin() {
             <p>
               New here?{" "}
               <Link
-                to="/portal/register"
+                to="/loanfix/portal/register"
                 className="text-indigo-600 font-semibold"
               >
                 Register

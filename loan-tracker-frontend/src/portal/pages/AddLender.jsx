@@ -37,7 +37,7 @@ function AddLender() {
       .then((r) => setAvailable(r.data.data || []))
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/portal/select-tenant");
+          navigate("/loanfix/portal/select-tenant");
         }
       })
       .finally(() => setLoading(false));
@@ -104,7 +104,7 @@ function AddLender() {
                 </strong>
               </p>
               <button
-                onClick={() => navigate("/portal/select-tenant")}
+                onClick={() => navigate("/loanfix/portal/select-tenant")}
                 className="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold"
               >
                 View All My Lenders →
