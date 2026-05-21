@@ -1,27 +1,60 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Wallet,
-  Building2,
-  CheckCircle2,
   Coins,
-  PlusCircle,
+  Wallet,
+  TrendingUp,
+  Percent,
+  Building2,
   ArrowRight,
 } from "lucide-react";
+import {
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
-import { lenderColor } from "../lenderColor";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
+const kCompact = (v) =>
+  v >= 1e6
+    ? `${(v / 1e6).toFixed(1)}M`
+    : v >= 1e3
+      ? `${Math.round(v / 1e3)}k`
+      : `${v}`;
 
-// Aggregate landing for the global customer account. Shows combined stats
-// across every linked lender (LoanFix ocean chrome) plus one card per
-// lender (in that lender's own brand_color). Drilling into a lender mints a
-// tenant-scoped token via /select-tenant and opens that lender's loans.
+const RISK_HEX = {
+  green: "#16a34a",
+  yellow: "#ca8a04",
+  orange: "#ea580c",
+  red: "#dc2626",
+};
+const STATUS_HEX = {
+  active: "#16a34a",
+  completed: "#2563eb",
+  defaulted: "#dc2626",
+  pending: "#d97706",
+};
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Customer dashboard = a personal credit & borrowing analytics view across
+// every linked lender: credit score gauge, portfolio KPIs, a 6-month
+// repayment trend, and a loan-status breakdown.
 function CustomerDashboard() {
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const customerName = (() => {
@@ -35,8 +68,8 @@ function CustomerDashboard() {
 
   useEffect(() => {
     portalApi
-      .get("/portal/customer/all-loans")
-      .then((r) => setData(r.data.data))
+      .get("/portal/customer/analytics")
+      .then((r) => setD(r.data.data))
       .catch((err) =>
         alert(err.response?.data?.error || "Failed to load dashboard"),
       )
@@ -51,10 +84,7 @@ function CustomerDashboard() {
     );
   }
 
-  const summary = data?.summary;
-  const lenders = summary?.by_tenant || [];
-
-  if (lenders.length === 0) {
+  if (!d?.has_lenders) {
     return (
       <PortalLayout>
         <div className="p-4 lg:p-8 max-w-3xl mx-auto">
@@ -66,14 +96,14 @@ function CustomerDashboard() {
               Welcome{customerName ? `, ${customerName}` : ""}! 👋
             </h1>
             <p className="text-slate-500 mb-6 max-w-md mx-auto">
-              You haven't linked a lender yet. Add your first lender to view
-              your loans, apply, and make payments.
+              Link your first lender to start borrowing and unlock your credit
+              dashboard.
             </p>
             <button
-              onClick={() => navigate("/loanfix/portal/add-lender")}
+              onClick={() => navigate("/loanfix/lenders")}
               className="inline-flex items-center gap-2 px-6 py-3 bg-ocean-gradient text-white font-bold rounded-xl shadow-tile hover:shadow-lg transition"
             >
-              <PlusCircle size={18} /> Add Your First Lender
+              Browse lenders <ArrowRight size={18} />
             </button>
           </div>
         </div>
@@ -81,115 +111,254 @@ function CustomerDashboard() {
     );
   }
 
+  const { credit_score, risk, stats, monthly_repayments, status_breakdown } = d;
+  const scoreColor = RISK_HEX[risk?.color] || "#0086cc";
+
   const kpis = [
-    { label: "Active Balance", value: KES(summary.total_balance), icon: Coins },
-    { label: "Active Loans", value: summary.total_active || 0, icon: Wallet },
-    { label: "Lenders", value: summary.total_lenders || 0, icon: Building2 },
+    { label: "Total Borrowed", value: KES(stats.total_borrowed), icon: Coins },
+    { label: "Total Repaid", value: KES(stats.total_repaid), icon: TrendingUp },
+    { label: "Outstanding", value: KES(stats.outstanding), icon: Wallet },
     {
-      label: "Completed",
-      value: summary.total_completed || 0,
-      icon: CheckCircle2,
+      label: "On-time Rate",
+      value: `${stats.on_time_rate}%`,
+      icon: Percent,
     },
   ];
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
             Hi {customerName || "there"} 👋
           </h1>
-          <p className="text-slate-500 mt-1">All your lenders in one place</p>
+          <p className="text-slate-500 mt-1">
+            Your credit & borrowing overview across {stats.lenders} lender
+            {stats.lenders !== 1 ? "s" : ""}
+          </p>
         </div>
 
-        {/* Combined stats — LoanFix ocean chrome (not lender-specific) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {kpis.map((k) => (
-            <div
-              key={k.label}
-              className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5"
-            >
-              <div className="flex items-start justify-between">
-                <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-                  {k.label}
-                </p>
-                <IconTile icon={k.icon} variant="ocean" size={36} />
+        {/* Credit score + KPIs */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Credit score gauge */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Credit Score
+            </p>
+            <div className="relative h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart
+                  innerRadius="72%"
+                  outerRadius="100%"
+                  data={[{ value: credit_score }]}
+                  startAngle={220}
+                  endAngle={-40}
+                >
+                  <PolarAngleAxis
+                    type="number"
+                    domain={[0, 100]}
+                    angleAxisId={0}
+                    tick={false}
+                  />
+                  <RadialBar
+                    background={{ fill: "#eef2f6" }}
+                    dataKey="value"
+                    cornerRadius={12}
+                    fill={scoreColor}
+                    angleAxisId={0}
+                  />
+                </RadialBarChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span
+                  className="text-4xl font-extrabold"
+                  style={{ color: scoreColor }}
+                >
+                  {credit_score}
+                </span>
+                <span className="text-xs text-slate-400">out of 100</span>
               </div>
-              <p className="font-bold text-navy-900 mt-3 text-xl lg:text-2xl">
-                {k.value}
+            </div>
+            <p
+              className="text-center font-semibold mt-1"
+              style={{ color: scoreColor }}
+            >
+              {risk?.label}
+            </p>
+            <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 text-center text-xs">
+              <div>
+                <p className="font-bold text-green-600">{stats.on_time}</p>
+                <p className="text-slate-400">on-time</p>
+              </div>
+              <div>
+                <p className="font-bold text-amber-600">{stats.late}</p>
+                <p className="text-slate-400">late</p>
+              </div>
+              <div>
+                <p className="font-bold text-red-600">{stats.missed}</p>
+                <p className="text-slate-400">missed</p>
+              </div>
+            </div>
+          </div>
+
+          {/* KPI cards */}
+          <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+            {kpis.map((k) => (
+              <div
+                key={k.label}
+                className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between"
+              >
+                <div className="flex items-start justify-between">
+                  <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+                    {k.label}
+                  </p>
+                  <IconTile icon={k.icon} variant="ocean" size={36} />
+                </div>
+                <p className="font-bold text-navy-900 mt-3 text-xl lg:text-2xl">
+                  {k.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Repayment trend */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 lg:col-span-2">
+            <h2 className="font-bold text-navy-900 mb-4">
+              Repayments — last 6 months
+            </h2>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={monthly_repayments}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="repayFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0086cc" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#0086cc" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 12, fill: "#94a3b8" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tickFormatter={kCompact}
+                    tick={{ fontSize: 12, fill: "#94a3b8" }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    formatter={(v) => [KES(v), "Repaid"]}
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 13,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#0086cc"
+                    strokeWidth={2.5}
+                    fill="url(#repayFill)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Loan status breakdown */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <h2 className="font-bold text-navy-900 mb-2">Loans by status</h2>
+            {status_breakdown.length === 0 ? (
+              <p className="text-sm text-slate-400 py-12 text-center">
+                No loans yet.
+              </p>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={status_breakdown}
+                      dataKey="count"
+                      nameKey="status"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={2}
+                    >
+                      {status_breakdown.map((s) => (
+                        <Cell
+                          key={s.status}
+                          fill={STATUS_HEX[s.status] || "#94a3b8"}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v, n) => [v, cap(n)]}
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid #e2e8f0",
+                        fontSize: 13,
+                      }}
+                    />
+                    <Legend
+                      formatter={(val) => (
+                        <span className="text-xs text-slate-600">
+                          {cap(val)}
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Secondary counts */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: "Active", value: stats.active_loans, color: STATUS_HEX.active },
+            {
+              label: "Completed",
+              value: stats.completed_loans,
+              color: STATUS_HEX.completed,
+            },
+            {
+              label: "Pending",
+              value: stats.pending_loans,
+              color: STATUS_HEX.pending,
+            },
+            {
+              label: "Interest paid",
+              value: KES(stats.interest_paid),
+              color: "#0086cc",
+              wide: true,
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4"
+            >
+              <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+                {s.label}
+              </p>
+              <p
+                className={`font-bold mt-1 ${s.wide ? "text-base" : "text-2xl"}`}
+                style={{ color: s.color }}
+              >
+                {s.value}
               </p>
             </div>
           ))}
         </div>
-
-        {/* Your lenders — each card in that lender's own brand_color */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-navy-900">Your Lenders</h2>
-            <button
-              onClick={() => navigate("/loanfix/portal/add-lender")}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-ocean-600 hover:text-ocean-700"
-            >
-              <PlusCircle size={16} /> Add Lender
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {lenders.map((t) => {
-              const bc = lenderColor(t.brand_color, t.tenant_id);
-              const balance =
-                parseFloat(t.total_due || 0) - parseFloat(t.total_paid || 0);
-              return (
-                <button
-                  key={t.tenant_id}
-                  onClick={() =>
-                    navigate(`/loanfix/portal/loans?tenant_id=${t.tenant_id}`)
-                  }
-                  className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition overflow-hidden"
-                >
-                  <div className="h-1.5" style={{ backgroundColor: bc }} />
-                  <div className="p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div
-                        className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0"
-                        style={{ backgroundColor: bc }}
-                      >
-                        {t.business_name?.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-navy-900 truncate">
-                          {t.business_name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {t.active_loans} active loan
-                          {t.active_loans !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-xs text-slate-500">Balance</p>
-                        <p className="font-bold text-navy-900">
-                          {KES(Math.max(0, balance))}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500">Total Loans</p>
-                        <p className="font-bold text-navy-900">
-                          {t.total_loans}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center justify-end text-sm font-semibold" style={{ color: bc }}>
-                      View loans
-                      <ArrowRight size={16} className="ml-1" />
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
       </div>
     </PortalLayout>
   );

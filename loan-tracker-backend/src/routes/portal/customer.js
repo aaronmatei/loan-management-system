@@ -10,6 +10,10 @@ import {
 } from "../../utils/pdfDocuments.js";
 import logger from "../../config/logger.js";
 import smsService from "../../services/smsService.js";
+import {
+  calculateCreditScore,
+  getRiskLevel,
+} from "../../utils/creditScore.js";
 import notificationDispatcher from "../../services/notificationDispatcher.js";
 import { nextLoanCode } from "../../utils/clientCode.js";
 
@@ -430,6 +434,170 @@ router.get("/all-loans", async (req, res) => {
   } catch (error) {
     logger.error("All loans error:", error);
     res.status(500).json({ error: "Failed to fetch all loans" });
+  }
+});
+
+// Aggregate analytics for the customer dashboard: credit score (computed
+// across ALL their lenders with the shared scoring algorithm), portfolio
+// totals, payment behaviour, a 6-month repayment series, and a loan-status
+// breakdown for charts. Tenant-less (scoped to the customer's active links).
+router.get("/analytics", async (req, res) => {
+  try {
+    const links = await query(
+      `SELECT client_id, tenant_id FROM customer_tenant_links
+       WHERE platform_customer_id = $1 AND status = 'active'`,
+      [req.platformCustomerId],
+    );
+    if (links.rows.length === 0) {
+      return res.json({ success: true, data: { has_lenders: false } });
+    }
+    const clientIds = [...new Set(links.rows.map((r) => r.client_id))];
+    const tenantIds = [...new Set(links.rows.map((r) => r.tenant_id))];
+    const ids = [clientIds, tenantIds];
+
+    const loanAgg = (
+      await query(
+        `SELECT
+           COUNT(*) FILTER (WHERE status IN ('active','completed','defaulted'))::int AS total_loans,
+           COUNT(*) FILTER (WHERE status='active')::int    AS active_loans,
+           COUNT(*) FILTER (WHERE status='completed')::int  AS completed_loans,
+           COUNT(*) FILTER (WHERE status='defaulted')::int  AS defaulted_loans,
+           COUNT(*) FILTER (WHERE status IN ('pending','under_review','approved'))::int AS pending_loans,
+           COALESCE(SUM(principal_amount)
+             FILTER (WHERE status IN ('active','completed','defaulted')),0) AS total_borrowed
+         FROM loans
+         WHERE client_id = ANY($1::int[]) AND tenant_id = ANY($2::int[])`,
+        ids,
+      )
+    ).rows[0];
+
+    const repaid = (
+      await query(
+        `SELECT
+           COALESCE(SUM(t.amount_paid),0) AS total_repaid,
+           COALESCE(SUM(
+             t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due,0))
+           ),0) AS interest_paid
+         FROM transactions t
+         JOIN loans l ON t.loan_id = l.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND t.payment_status = 'completed'`,
+        ids,
+      )
+    ).rows[0];
+
+    const outstanding = (
+      await query(
+        `SELECT COALESCE(SUM(l.total_amount_due - COALESCE(p.paid,0)),0) AS outstanding
+         FROM loans l
+         LEFT JOIN (
+           SELECT loan_id, SUM(amount_paid) AS paid
+           FROM transactions WHERE payment_status='completed' GROUP BY loan_id
+         ) p ON p.loan_id = l.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
+           AND l.status = 'active'`,
+        ids,
+      )
+    ).rows[0].outstanding;
+
+    const behavior = (
+      await query(
+        `SELECT
+           COUNT(*) FILTER (
+             WHERE ps.status='paid' AND ps.actual_payment_date IS NOT NULL
+               AND ps.actual_payment_date <= ps.due_date)::int AS on_time,
+           COUNT(*) FILTER (
+             WHERE ps.status='paid' AND ps.actual_payment_date IS NOT NULL
+               AND ps.actual_payment_date > ps.due_date)::int AS late,
+           COUNT(*) FILTER (WHERE ps.status='overdue')::int AS missed
+         FROM payment_schedules ps
+         JOIN loans l ON ps.loan_id = l.id
+         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])`,
+        ids,
+      )
+    ).rows[0];
+
+    const monthly = (
+      await query(
+        `SELECT to_char(m, 'Mon') AS label,
+                COALESCE(SUM(t.amount_paid),0) AS amount
+         FROM generate_series(
+           date_trunc('month', CURRENT_DATE) - INTERVAL '5 months',
+           date_trunc('month', CURRENT_DATE),
+           INTERVAL '1 month'
+         ) m
+         LEFT JOIN transactions t
+           ON date_trunc('month', t.payment_date) = m
+          AND t.payment_status='completed'
+          AND t.loan_id IN (
+            SELECT id FROM loans
+            WHERE client_id = ANY($1::int[]) AND tenant_id = ANY($2::int[])
+          )
+         GROUP BY m ORDER BY m`,
+        ids,
+      )
+    ).rows;
+
+    const totalPayments = behavior.on_time + behavior.late;
+    const onTimeRate =
+      totalPayments > 0
+        ? parseFloat(((behavior.on_time / totalPayments) * 100).toFixed(1))
+        : 100;
+
+    const creditScore = calculateCreditScore({
+      defaulted_loans_count: loanAgg.defaulted_loans,
+      current_overdue_count: behavior.missed,
+      late_payments: behavior.late,
+      total_payments: totalPayments,
+      on_time_rate: onTimeRate,
+      completed_loans_count: loanAgg.completed_loans,
+    });
+    const risk = getRiskLevel(
+      creditScore,
+      loanAgg.defaulted_loans > 0,
+      behavior.missed > 0,
+    );
+
+    const statusBreakdown = [
+      { status: "active", count: loanAgg.active_loans },
+      { status: "completed", count: loanAgg.completed_loans },
+      { status: "defaulted", count: loanAgg.defaulted_loans },
+      { status: "pending", count: loanAgg.pending_loans },
+    ].filter((s) => s.count > 0);
+
+    res.json({
+      success: true,
+      data: {
+        has_lenders: true,
+        credit_score: creditScore,
+        risk,
+        stats: {
+          total_borrowed: parseFloat(loanAgg.total_borrowed),
+          total_repaid: parseFloat(repaid.total_repaid),
+          interest_paid: parseFloat(repaid.interest_paid),
+          outstanding: parseFloat(outstanding),
+          total_loans: loanAgg.total_loans,
+          active_loans: loanAgg.active_loans,
+          completed_loans: loanAgg.completed_loans,
+          defaulted_loans: loanAgg.defaulted_loans,
+          pending_loans: loanAgg.pending_loans,
+          lenders: tenantIds.length,
+          on_time_rate: onTimeRate,
+          on_time: behavior.on_time,
+          late: behavior.late,
+          missed: behavior.missed,
+          total_payments: totalPayments,
+        },
+        monthly_repayments: monthly.map((r) => ({
+          label: r.label,
+          amount: parseFloat(r.amount),
+        })),
+        status_breakdown: statusBreakdown,
+      },
+    });
+  } catch (error) {
+    logger.error("Customer analytics error:", error);
+    res.status(500).json({ error: "Failed to load analytics" });
   }
 });
 

@@ -144,6 +144,16 @@ describe("customer portal — full apply flow", () => {
     expect(found.tenant_name).toBe(tenant.business_name);
     expect(found.status).toBe("pending");
 
+    // 11b. Dashboard analytics aggregate is available once linked
+    const analytics = await api()
+      .get("/api/portal/customer/analytics")
+      .set(auth);
+    expect(analytics.status).toBe(200);
+    expect(analytics.body.data.has_lenders).toBe(true);
+    expect(analytics.body.data.credit_score).toBeGreaterThanOrEqual(0);
+    expect(analytics.body.data.credit_score).toBeLessThanOrEqual(100);
+    expect(analytics.body.data.monthly_repayments).toHaveLength(6);
+
     // 12. Lender detail now reflects the link + the pending application
     const detail2 = await api()
       .get(`/api/portal/customer/lenders/${tenant.id}`)
