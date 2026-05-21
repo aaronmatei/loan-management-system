@@ -585,23 +585,23 @@ function Dashboard() {
           </p>
         </button>
 
-        {/* Pending Refunds — hidden entirely when nothing is pending */}
-        {Number(metrics.pending_refunds) > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <div className="flex items-start justify-between">
-              <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-                Pending Refunds
-              </p>
-              <IconTile icon={RotateCcw} variant="ocean" size={40} />
-            </div>
-            <p className="text-2xl font-bold text-navy-900 mt-2">
-              {Number(metrics.pending_refunds).toLocaleString()}
+        {/* Pending Refunds — always shown; neutral "None pending" at zero */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Pending Refunds
             </p>
-            <p className="text-xs text-slate-500 mt-1">
-              {fmtKES(metrics.total_overpayment)} to refund
-            </p>
+            <IconTile icon={RotateCcw} variant="ocean" size={40} />
           </div>
-        )}
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {Number(metrics.pending_refunds || 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            {Number(metrics.pending_refunds) > 0
+              ? `${fmtKES(metrics.total_overpayment)} to refund`
+              : "None pending"}
+          </p>
+        </div>
       </div>
 
       {/* ── Distribution charts: age, loan size, payment method ─────── */}

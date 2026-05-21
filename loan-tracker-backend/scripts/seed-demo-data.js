@@ -107,7 +107,7 @@ export async function resetDemoData() {
   // ── 18 loans (mix of statuses with schedules + paid transactions)
   console.log("💰 loans + schedules…");
   const statuses = ["active", "active", "active", "completed", "active"];
-  const amounts = [10000, 25000, 50000, 75000, 100000];
+  const amounts = [1000, 5000, 10000, 25000, 50000, 75000, 100000];
   const durations = [3, 6, 12];
 
   for (let i = 0; i < 18; i++) {

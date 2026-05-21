@@ -1,0 +1,63 @@
+# Render Blueprint — backend web service for the cost-optimized split:
+#   Frontend  → Cloudflare Pages / Vercel (static)
+#   Backend   → Render (this file)
+#   Postgres  → Neon (DATABASE_URL)
+#   Redis     → Upstash (only once Bull jobs are wired into src/)
+# See DEPLOYMENT.md for the full walkthrough. Secrets are sync:false — you
+# set them in the Render dashboard; they are never committed.
+services:
+  - type: web
+    name: loanfix-backend
+    runtime: node
+    rootDir: loan-tracker-backend
+    plan: free # free web services sleep after ~15m idle (cold starts)
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm start # node src/server.js; listens on $PORT (Render-injected)
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Neon pooled connection string, e.g.
+      # postgres://user:pass@ep-xxx-pooler.region.aws.neon.tech/db?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE
+        value: 7d
+      # Comma-separated allowed browser origins = your deployed frontend URL(s).
+      # Set AFTER the frontend is deployed (Step 4 in DEPLOYMENT.md).
+      - key: CORS_ORIGINS
+        sync: false
+      # External integrations OFF by default; flip the flag + add the secrets
+      # in the dashboard when ready.
+      - key: SMS_ENABLED
+        value: "false"
+      - key: EMAIL_ENABLED
+        value: "false"
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: MPESA_ENV
+        value: sandbox
+      - key: MPESA_CONSUMER_KEY
+        sync: false
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+      - key: MPESA_SHORTCODE
+        sync: false
+      - key: MPESA_PASSKEY
+        sync: false
+      # Must be the PUBLIC backend URL once deployed:
+      # https://loanfix-backend.onrender.com/api/mpesa/callback
+      - key: MPESA_CALLBACK_URL
+        sync: false
+      - key: BACKUP_SCHEDULE_ENABLED
+        value: "false"
