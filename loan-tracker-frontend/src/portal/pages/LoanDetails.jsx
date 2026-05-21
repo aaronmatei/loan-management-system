@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import MpesaPayButton from "../../components/MpesaPayButton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const day = (d) => (d ? new Date(d).toLocaleDateString() : "N/A");
@@ -34,7 +35,9 @@ function LoanDetails() {
     }
   };
 
-  useEffect(() => {
+  // Extracted so the M-Pesa button's onSuccess can re-fetch and the
+  // balance / schedule / history reflect the new payment immediately.
+  const fetchLoan = () =>
     portalApi
       .get(`/portal/customer/loans/${id}`)
       .then((r) => setData(r.data.data))
@@ -47,6 +50,10 @@ function LoanDetails() {
         }
       })
       .finally(() => setLoading(false));
+
+  useEffect(() => {
+    fetchLoan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);
 
   if (loading) {
@@ -73,6 +80,11 @@ function LoanDetails() {
   const monthly = loan.loan_duration_months
     ? due / parseInt(loan.loan_duration_months, 10)
     : 0;
+  // Repay the next installment if one is pending, else clear the balance.
+  const repayAmount =
+    receiptSummary?.next_payment_amount > 0
+      ? receiptSummary.next_payment_amount
+      : balance;
 
   return (
     <PortalLayout>
@@ -84,13 +96,25 @@ function LoanDetails() {
           >
             ← Back to Loans
           </button>
-          <button
-            onClick={downloadStatement}
-            disabled={downloading}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
-          >
-            {downloading ? "Preparing…" : "⬇ Download Statement"}
-          </button>
+          <div className="flex items-center gap-2">
+            {loan.status === "active" && balance > 0 && (
+              <MpesaPayButton
+                endpoint="/mpesa/stk/loan-repayment"
+                payload={{ loan_id: loan.id, amount: repayAmount }}
+                apiClient={portalApi}
+                amountLabel={KES(repayAmount)}
+                buttonText="Repay with M-Pesa"
+                onSuccess={fetchLoan}
+              />
+            )}
+            <button
+              onClick={downloadStatement}
+              disabled={downloading}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+            >
+              {downloading ? "Preparing…" : "⬇ Download Statement"}
+            </button>
+          </div>
         </div>
 
         <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
