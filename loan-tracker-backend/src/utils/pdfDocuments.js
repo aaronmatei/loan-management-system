@@ -59,6 +59,25 @@ const streamToBuffer = (doc) =>
     doc.on("error", reject);
   });
 
+// Receipt palette — mirrors components/PaymentReceipt.buildReceiptTheme
+// so the PDF and the on-screen receipt are the same document. Driven by
+// the tenant brand color; deep emerald is ONLY a fallback for a
+// missing/invalid hex, never a co-default. Returns [r,g,b] arrays
+// (pdfkit's native color form).
+const receiptTheme = (brandColor) => {
+  const valid = brandColor && /^#[0-9a-fA-F]{6}$/.test(brandColor);
+  const n = parseInt((valid ? brandColor : "#0f3d2e").slice(1), 16);
+  const base = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const shift = (amt) =>
+    base.map((v) => Math.max(0, Math.min(255, v + amt)));
+  return {
+    accent: base,
+    deepTop: shift(-20),
+    deepBottom: shift(-70),
+    accentLight: shift(90),
+  };
+};
+
 // ============================================================
 // CLIENT STATEMENT
 // ============================================================
@@ -383,7 +402,8 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
 };
 
 // ============================================================
-// PAYMENT RECEIPT
+// RECEIPT — brand-driven, mirrors components/PaymentReceipt.jsx so the
+// printed/emailed PDF and the on-screen receipt are the same document.
 // ============================================================
 export const buildReceiptPdf = async (transactionId, tid) => {
   const tt = tClause(tid, 1, "t.tenant_id");
@@ -391,10 +411,12 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     `
       SELECT t.*,
         l.loan_code, l.principal_amount, l.total_amount_due,
-        c.first_name, c.last_name, c.phone_number, c.client_code
+        c.first_name, c.last_name, c.phone_number, c.client_code,
+        tn.brand_color, tn.business_name, tn.hide_platform_branding
       FROM transactions t
       JOIN loans l ON t.loan_id = l.id
       JOIN clients c ON t.client_id = c.id
+      JOIN tenants tn ON t.tenant_id = tn.id
       WHERE t.id = $1${tt.clause}
     `,
     [transactionId, ...tt.params],
@@ -405,58 +427,9 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   }
   const txn = result.rows[0];
 
-  const doc = new PDFDocument({ size: "A5", margin: 30 });
-  const filename = `receipt_${txn.transaction_code}.pdf`;
-  const done = streamToBuffer(doc);
-
-  doc
-    .fontSize(18)
-    .fillColor("#059669")
-    .text("PAYMENT RECEIPT", { align: "center" });
-  doc.moveDown(0.3);
-  doc
-    .fontSize(10)
-    .fillColor("#666")
-    .text(`#${txn.transaction_code}`, { align: "center" });
-  doc.moveDown();
-
-  doc.fontSize(11).fillColor("#000");
-  doc.text(`Date: ${formatDate(txn.payment_date)}`);
-  doc.text(`Time: ${new Date(txn.created_at).toLocaleTimeString()}`);
-  doc.moveDown();
-
-  doc.fontSize(12).fillColor("#4F46E5").text("CLIENT:", { underline: true });
-  doc.fontSize(11).fillColor("#000");
-  doc.text(`${txn.first_name} ${txn.last_name}`);
-  doc.text(`${txn.phone_number}`);
-  doc.text(`Client Code: ${txn.client_code}`);
-  doc.moveDown();
-
-  doc.fontSize(12).fillColor("#4F46E5").text("LOAN:", { underline: true });
-  doc.fontSize(11).fillColor("#000");
-  doc.text(`Loan Code: ${txn.loan_code}`);
-  doc.text(`Principal: ${formatCurrency(txn.principal_amount)}`);
-  doc.text(`Total Due: ${formatCurrency(txn.total_amount_due)}`);
-  doc.moveDown();
-
-  doc.rect(30, doc.y, 350, 60).fillAndStroke("#F0FDF4", "#059669");
-  doc.fillColor("#059669").fontSize(11);
-  const payY = doc.y + 10;
-  doc.text("PAYMENT AMOUNT:", 40, payY);
-  doc.fontSize(20).text(formatCurrency(txn.amount_paid), 40, payY + 18);
-  doc.y = payY + 60;
-  doc.moveDown();
-
-  doc.fontSize(10).fillColor("#000");
-  doc.text(`Method: ${txn.payment_method}`);
-  if (txn.payment_reference) {
-    doc.text(`Reference: ${txn.payment_reference}`);
-  }
-  doc.moveDown();
-
-  // Balance + next payment, computed AS OF this payment: cumulative
-  // amount paid through this transaction (id <= current) so a receipt
-  // re-printed later still reflects the state at the time it was paid.
+  // Balance AS OF this payment: cumulative completed payments through
+  // this transaction (id <= current) so a re-printed receipt still
+  // reflects the state at the time it was paid.
   const paidThroughRes = await query(
     `SELECT COALESCE(SUM(amount_paid), 0) AS paid
        FROM transactions
@@ -464,13 +437,9 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     [txn.loan_id, txn.id],
   );
   const paidThrough = parseFloat(paidThroughRes.rows[0].paid);
-  const remaining = Math.max(
-    0,
-    parseFloat(txn.total_amount_due) - paidThrough,
-  );
+  const remaining = Math.max(0, parseFloat(txn.total_amount_due) - paidThrough);
 
-  // Next unpaid installment after this payment (schedules are already
-  // allocated by the time the receipt is generated).
+  // Next unpaid installment (schedules are already allocated by now).
   const nextRes = await query(
     `SELECT payment_number, due_date, amount_due,
             COALESCE(amount_paid, 0) AS amount_paid
@@ -484,29 +453,313 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   const nextDue = next
     ? Math.max(0, parseFloat(next.amount_due) - parseFloat(next.amount_paid))
     : 0;
+  const fullyPaid = remaining <= 0;
 
-  doc.fontSize(12).fillColor("#4F46E5").text("BALANCE:", { underline: true });
-  doc.fontSize(11).fillColor("#000");
-  doc.text(`Remaining Balance: ${formatCurrency(remaining)}`);
-  if (remaining <= 0) {
-    doc.fillColor("#059669").text("Loan fully paid. Thank you!");
-    doc.fillColor("#000");
-  } else if (next) {
-    doc.text(`Next Payment: ${formatCurrency(nextDue)}`);
-    doc.text(`Next Payment Due: ${formatDate(next.due_date)}`);
-  }
-  doc.moveDown();
+  const theme = receiptTheme(txn.brand_color);
+  const firstName =
+    (txn.first_name || "").trim() || txn.business_name || "there";
 
-  if (txn.notes) {
-    doc.fontSize(9).fillColor("#666").text(`Notes: ${txn.notes}`);
-  }
+  const doc = new PDFDocument({ size: "A5", margin: 0 });
+  const filename = `receipt_${txn.transaction_code}.pdf`;
+  const done = streamToBuffer(doc);
 
-  doc.moveDown(2);
+  const W = doc.page.width; // A5 ≈ 419.5
+  const PAD = 28;
+  const CW = W - PAD * 2;
+  const WHITE = [255, 255, 255];
+  const microLabel = (txt, x, yy, w) =>
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .fillColor([150, 150, 150])
+      .text(txt, x, yy, { characterSpacing: 1, ...(w ? { width: w } : {}) });
+
+  // ── Dark gradient header ──────────────────────────────────────────
+  const headerH = 240;
+  const grad = doc.linearGradient(0, 0, W, headerH);
+  grad.stop(0, theme.deepTop).stop(1, theme.deepBottom);
+  doc.rect(0, 0, W, headerH).fill(grad);
+
+  // top-left: glow dot + PAYMENT RECEIVED
+  doc.circle(PAD + 3, 33, 3).fill(theme.accentLight);
   doc
+    .font("Helvetica-Bold")
     .fontSize(8)
-    .fillColor("#666")
-    .text("Thank you for your payment!", { align: "center" });
-  doc.text("This is a system-generated receipt.", { align: "center" });
+    .fillColor(theme.accentLight)
+    .text("PAYMENT RECEIVED", PAD + 12, 29, { characterSpacing: 1.5 });
+
+  // top-right: TRANSACTION / code / PAID pill
+  doc
+    .font("Helvetica")
+    .fontSize(7)
+    .fillColor(WHITE)
+    .fillOpacity(0.5)
+    .text("TRANSACTION", PAD, 29, { width: CW, align: "right", characterSpacing: 1 });
+  doc
+    .fillOpacity(0.9)
+    .font("Courier")
+    .fontSize(10)
+    .text(txn.transaction_code, PAD, 40, { width: CW, align: "right" });
+  doc.fillOpacity(1);
+  // pill (avoid the ✓ glyph — not in WinAnsi; "PAID" reads like a stamp)
+  doc.font("Helvetica-Bold").fontSize(7.5);
+  const pillTxt = "PAID";
+  const pillW = doc.widthOfString(pillTxt) + 18;
+  const pillX = W - PAD - pillW;
+  const pillY = 56;
+  doc.fillOpacity(0.1).roundedRect(pillX, pillY, pillW, 15, 7.5).fill(WHITE);
+  doc
+    .fillOpacity(0.3)
+    .lineWidth(0.5)
+    .roundedRect(pillX, pillY, pillW, 15, 7.5)
+    .stroke(WHITE);
+  doc
+    .fillOpacity(1)
+    .fillColor(WHITE)
+    .text(pillTxt, pillX, pillY + 4, { width: pillW, align: "center" });
+
+  // headline
+  doc
+    .font("Helvetica")
+    .fontSize(17)
+    .fillColor(WHITE)
+    .fillOpacity(0.9)
+    .text("Thank you,", PAD, 92);
+  doc
+    .fillOpacity(1)
+    .font("Times-Italic")
+    .fontSize(28)
+    .fillColor(theme.accentLight)
+    .text(`${firstName}.`, PAD, 112, { width: CW });
+
+  // amount — whole-shilling bold/white, decimals dimmed
+  const [whole, dec = "00"] = Number(txn.amount_paid || 0)
+    .toFixed(2)
+    .split(".");
+  const wholeFmt = Number(whole).toLocaleString();
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(7.5)
+    .fillColor(WHITE)
+    .fillOpacity(0.5)
+    .text("AMOUNT PAID", PAD, 162, { characterSpacing: 1.5 });
+  doc.fillOpacity(1);
+  const amtY = 176;
+  doc
+    .font("Helvetica")
+    .fontSize(12)
+    .fillColor(WHITE)
+    .fillOpacity(0.6)
+    .text("KES ", PAD, amtY + 14, { continued: true });
+  doc
+    .fillOpacity(1)
+    .font("Helvetica-Bold")
+    .fontSize(34)
+    .text(wholeFmt, { continued: true });
+  doc.font("Helvetica-Bold").fontSize(20).fillOpacity(0.4).text(`.${dec}`);
+  doc.fillOpacity(1);
+
+  // meta: date · time · via method
+  const timeStr = txn.created_at
+    ? new Date(txn.created_at).toLocaleTimeString("en-GB", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "";
+  const meta = [
+    formatDate(txn.payment_date),
+    timeStr,
+    txn.payment_method && `via ${txn.payment_method}`,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+  doc
+    .font("Helvetica")
+    .fontSize(8.5)
+    .fillColor(WHITE)
+    .fillOpacity(0.55)
+    .text(meta, PAD, 220);
+  doc.fillOpacity(1);
+
+  // ── Body ──────────────────────────────────────────────────────────
+  doc.rect(0, headerH, W, doc.page.height - headerH).fill([247, 246, 243]);
+  // ticket perforation: notch circles biting the seam + dashed line
+  doc.circle(0, headerH, 7).fill([247, 246, 243]);
+  doc.circle(W, headerH, 7).fill([247, 246, 243]);
+  doc
+    .save()
+    .lineWidth(0.7)
+    .dash(3, { space: 3 })
+    .strokeColor([212, 210, 205])
+    .moveTo(PAD - 6, headerH)
+    .lineTo(W - PAD + 6, headerH)
+    .stroke()
+    .undash()
+    .restore();
+
+  // detail grid (2 cols)
+  let by = headerH + 22;
+  const colL = PAD;
+  const colR = PAD + CW / 2;
+
+  microLabel("CLIENT", colL, by);
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor([40, 40, 40])
+    .text(`${txn.first_name} ${txn.last_name}`.trim(), colL, by + 9);
+  if (txn.phone_number)
+    doc
+      .font("Helvetica")
+      .fontSize(8.5)
+      .fillColor([130, 130, 130])
+      .text(txn.phone_number, colL, by + 22);
+  if (txn.client_code) {
+    microLabel("CLIENT CODE", colR, by);
+    doc
+      .font("Courier")
+      .fontSize(9)
+      .fillColor([40, 40, 40])
+      .text(txn.client_code, colR, by + 9);
+  }
+
+  by += 42;
+  microLabel("LOAN CODE", colL, by);
+  doc
+    .font("Courier")
+    .fontSize(9)
+    .fillColor([40, 40, 40])
+    .text(txn.loan_code, colL, by + 9);
+  microLabel("METHOD", colR, by);
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor([40, 40, 40])
+    .text(txn.payment_method || "—", colR, by + 9);
+  if (txn.payment_reference)
+    doc
+      .font("Courier")
+      .fontSize(8)
+      .fillColor([130, 130, 130])
+      .text(`Ref · ${txn.payment_reference}`, colR, by + 22, { width: CW / 2 - 8 });
+
+  by += 42;
+  doc
+    .lineWidth(0.5)
+    .strokeColor([225, 225, 225])
+    .moveTo(PAD, by)
+    .lineTo(W - PAD, by)
+    .stroke();
+  by += 14;
+
+  // loan summary panel
+  const sumH = 96;
+  doc.roundedRect(PAD, by, CW, sumH, 10).fill([238, 236, 231]);
+  let py = by + 12;
+  microLabel("LOAN SUMMARY", PAD + 12, py);
+  py += 15;
+  const sumRow = (label, valStr, opts = {}) => {
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor([120, 120, 120])
+      .text(label, PAD + 12, py, { width: CW - 24 });
+    doc
+      .font(opts.font || "Helvetica")
+      .fontSize(9)
+      .fillColor(opts.color || [60, 60, 60])
+      .text(valStr, PAD + 12, py, { width: CW - 24, align: "right" });
+    py += 14;
+  };
+  sumRow("Principal", formatCurrency(txn.principal_amount));
+  sumRow("Total due", formatCurrency(txn.total_amount_due));
+  sumRow("This payment", `- ${formatCurrency(txn.amount_paid)}`, {
+    color: theme.accent,
+    font: "Helvetica-Bold",
+  });
+  doc
+    .lineWidth(0.5)
+    .strokeColor([216, 213, 207])
+    .moveTo(PAD + 12, py)
+    .lineTo(PAD + CW - 12, py)
+    .stroke();
+  py += 7;
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor([80, 80, 80])
+    .text("Remaining balance", PAD + 12, py + 5);
+  doc
+    .font("Times-Roman")
+    .fontSize(17)
+    .fillColor([20, 20, 20])
+    .text(formatCurrency(remaining), PAD + 12, py, {
+      width: CW - 24,
+      align: "right",
+    });
+  by += sumH + 14;
+
+  // next-payment panel / fully-paid state
+  if (fullyPaid) {
+    const ph = 44;
+    doc.roundedRect(PAD, by, CW, ph, 10).lineWidth(1).stroke(theme.accent);
+    doc
+      .font("Times-Italic")
+      .fontSize(13)
+      .fillColor(theme.accent)
+      .text("Loan fully paid", PAD, by + 15, { width: CW, align: "center" });
+    by += ph + 12;
+  } else if (next) {
+    const ph = 50;
+    doc.roundedRect(PAD, by, CW, ph, 10).lineWidth(0.7).stroke([225, 225, 225]);
+    microLabel("NEXT PAYMENT", PAD + 14, by + 12);
+    doc
+      .font("Times-Roman")
+      .fontSize(15)
+      .fillColor([20, 20, 20])
+      .text(formatCurrency(nextDue), PAD + 14, by + 24);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .fillColor([150, 150, 150])
+      .text("DUE", PAD, by + 12, { width: CW - 14, align: "right", characterSpacing: 1 });
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .fillColor([70, 70, 70])
+      .text(formatDate(next.due_date), PAD, by + 24, {
+        width: CW - 14,
+        align: "right",
+      });
+    by += ph + 12;
+  }
+
+  // footer
+  by += 4;
+  doc
+    .font("Times-Italic")
+    .fontSize(11)
+    .fillColor([130, 130, 130])
+    .text("A receipt for your records.", PAD, by, { width: CW, align: "center" });
+  by += 16;
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(7)
+    .fillColor([165, 165, 165])
+    .text("SYSTEM GENERATED · NO SIGNATURE REQUIRED", PAD, by, {
+      width: CW,
+      align: "center",
+      characterSpacing: 1,
+    });
+  if (!txn.hide_platform_branding) {
+    by += 13;
+    doc
+      .font("Helvetica")
+      .fontSize(7)
+      .fillColor([200, 200, 200])
+      .text("Powered by LoanFix", PAD, by, { width: CW, align: "center" });
+  }
 
   doc.end();
   const buffer = await done;
