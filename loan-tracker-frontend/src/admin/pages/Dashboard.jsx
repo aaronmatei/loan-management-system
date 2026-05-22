@@ -60,7 +60,7 @@ function PlatformDashboard() {
             <p className="text-xs text-blue-100 mt-1">Across all tenants</p>
           </div>
           <div className="bg-gradient-to-br from-pink-500 to-rose-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-pink-100 text-xs uppercase">Total Customers</p>
+            <p className="text-pink-100 text-xs uppercase">Total Clients</p>
             <p className="text-3xl font-bold mt-1">{pm.total_customers}</p>
             <p className="text-xs text-pink-100 mt-1">
               {pm.total_customer_links} tenant links

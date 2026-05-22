@@ -4,6 +4,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { nextClientCode } from "../utils/clientCode.js";
+import { ensurePortalAccount } from "../services/portalAccountService.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 import {
@@ -437,6 +438,14 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     });
 
     logger.info(`✓ Client created: ${clientCode} - ${first_name} ${last_name}`);
+
+    // Give every new client a customer-portal login (verified, default
+    // password). Best-effort — never fail client creation if this hiccups.
+    try {
+      await ensurePortalAccount(result.rows[0]);
+    } catch (err) {
+      logger.error("Portal account creation failed for new client:", err);
+    }
 
     res.status(201).json({
       success: true,

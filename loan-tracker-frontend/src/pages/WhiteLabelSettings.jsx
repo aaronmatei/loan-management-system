@@ -48,7 +48,7 @@ function WhiteLabelSettings() {
     { id: "communications", label: "📧 Communications", needs: "pro" },
     { id: "reports", label: "📋 Reports", needs: "pro" },
     { id: "domain", label: "🌐 Custom Domain", needs: "enterprise" },
-    { id: "portal", label: "👤 Customer Portal", needs: "enterprise" },
+    { id: "portal", label: "👤 Client Portal", needs: "enterprise" },
   ];
   const locked = (need) =>
     (need === "pro" && !isPro) || (need === "enterprise" && !isEnt);
@@ -381,7 +381,7 @@ function WhiteLabelSettings() {
 
         {tab === "portal" && isEnt && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl mb-2">👤 Customer Portal</h2>
+            <h2 className="font-bold text-xl mb-2">👤 Client Portal</h2>
             <div>
               <label className="block text-sm font-semibold mb-1">
                 Portal Title
@@ -391,7 +391,7 @@ function WhiteLabelSettings() {
                 onChange={(e) =>
                   setS({ ...s, custom_portal_title: e.target.value })
                 }
-                placeholder="ABC Lenders Customer Portal"
+                placeholder="ABC Lenders Client Portal"
                 className={fld}
               />
             </div>

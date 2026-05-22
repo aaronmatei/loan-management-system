@@ -83,7 +83,7 @@ function EmbedSettings() {
           <li>✓ Help visitors estimate loans before applying</li>
           <li>✓ Branded with your business name and color</li>
           <li>
-            ✓ "Apply Now" goes straight to your customer portal with the
+            ✓ "Apply Now" goes straight to your client portal with the
             amount/duration pre-filled
           </li>
         </ul>
@@ -187,7 +187,7 @@ function EmbedSettings() {
           {[
             ["1. Copy code", "Click Copy on the iframe option — that's the recommended embed."],
             ["2. Paste on your site", "Add the snippet to your site's HTML where you want the calculator."],
-            ["3. Get leads", "Visitors calculate → click Apply → become your customers."],
+            ["3. Get leads", "Visitors calculate → click Apply → become your clients."],
           ].map(([t, d]) => (
             <div key={t} className="border-l-4 border-ocean-600 pl-3">
               <p className="font-bold text-sm mb-1">{t}</p>

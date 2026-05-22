@@ -44,7 +44,7 @@ function CronManager() {
       id: "reminders",
       name: "📅 Payment Reminders + Overdue",
       blurb:
-        "Customer side — fires payment_reminder + payment_overdue across all tenants. Dedupes via today's logs.",
+        "Client side — fires payment_reminder + payment_overdue across all tenants. Dedupes via today's logs.",
     },
     {
       id: "tenant_invoices",

@@ -235,13 +235,13 @@ function LandingHome() {
             {[
               { icon: "👥", title: "Client Management", description: "Store complete client profiles with KYC documents, business info, and loan history.", color: "from-blue-500 to-cyan-600" },
               { icon: "💰", title: "Loan Tracking", description: "Manage active loans, payment schedules, and automatic interest calculations.", color: "from-green-500 to-emerald-600" },
-              { icon: "📱", title: "Customer Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-ocean-400 to-pink-600" },
+              { icon: "📱", title: "Client Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-ocean-400 to-pink-600" },
               { icon: "📊", title: "Reports & Analytics", description: "Real-time insights into your portfolio. Export to Excel or PDF anytime.", color: "from-orange-500 to-red-600" },
               { icon: "💳", title: "M-Pesa Ready", description: "Built for the Kenyan market. Record M-Pesa payments instantly.", color: "from-yellow-500 to-orange-600" },
               { icon: "🔔", title: "SMS Notifications", description: "Automatic SMS for payment reminders, loan approvals, and overdue alerts.", color: "from-ocean-500 to-ocean-600" },
               { icon: "👨‍💼", title: "Multi-User Roles", description: "Add staff with different permission levels. Track who did what.", color: "from-teal-500 to-cyan-600" },
               { icon: "🔐", title: "Secure & Encrypted", description: "Bank-grade security. Your data is encrypted and backed up daily.", color: "from-rose-500 to-red-600" },
-              { icon: "📈", title: "Loan Applications", description: "Customers apply online. Review, approve, and disburse — all digital.", color: "from-pink-500 to-rose-600" },
+              { icon: "📈", title: "Loan Applications", description: "Clients apply online. Review, approve, and disburse — all digital.", color: "from-pink-500 to-rose-600" },
             ].map((feature, idx) => (
               <div
                 key={idx}
@@ -329,7 +329,7 @@ function LandingHome() {
               <ul className="space-y-2 mb-6 text-sm">
                 <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Full platform access</li>
                 <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Up to 50 clients</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Customer portal included</li>
+                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Client portal included</li>
                 <li className="flex items-center gap-2"><span className="text-green-500">✓</span> SMS notifications</li>
                 <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Email support</li>
               </ul>
@@ -417,7 +417,7 @@ function LandingHome() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {[
               { quote: "Before LoanFix, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance, Nairobi", rating: 5 },
-              { quote: "The SMS notifications alone are worth it. Customers don't forget to pay anymore. My collection rate is up 30%.", author: "John K.", business: "Quick Loans Co, Mombasa", rating: 5 },
+              { quote: "The SMS notifications alone are worth it. Clients don't forget to pay anymore. My collection rate is up 30%.", author: "John K.", business: "Quick Loans Co, Mombasa", rating: 5 },
               { quote: "I run a chama with 50 members. LoanFix keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Chama, Kisumu", rating: 5 },
             ].map((t, idx) => (
               <div key={idx} className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-md p-6">

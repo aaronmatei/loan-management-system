@@ -86,7 +86,7 @@ function PortalLayout({ children }) {
             <IconTile icon={Wallet} variant="ocean" size={38} />
             <div>
               <h2 className="text-xl font-bold tracking-tight">LoanFix</h2>
-              <p className="text-ocean-200/60 text-xs">Customer Portal</p>
+              <p className="text-ocean-200/60 text-xs">Client Portal</p>
             </div>
           </div>
           <button
