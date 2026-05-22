@@ -16,7 +16,8 @@ function Signup() {
     business_name: "",
     business_type: "microfinance",
     subdomain: "",
-    contact_name: "",
+    first_name: "",
+    last_name: "",
     contact_email: "",
     contact_phone: "",
     admin_password: "",
@@ -71,7 +72,13 @@ function Signup() {
     }
     setSubmitting(true);
     try {
-      const res = await api.post("/tenants/signup", formData);
+      // Backend /signup takes a single contact_name and splits it into
+      // first/last — rebuild it from the two fields.
+      const payload = {
+        ...formData,
+        contact_name: `${formData.first_name} ${formData.last_name}`.trim(),
+      };
+      const res = await api.post("/tenants/signup", payload);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem(
         "user",
@@ -187,7 +194,7 @@ function Signup() {
                         className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-l-lg focus:border-ocean-500 focus:outline-none"
                       />
                       <span className="px-3 py-2 bg-gray-100 border-2 border-l-0 border-gray-200 rounded-r-lg text-sm text-gray-600">
-                        .lms.co.ke
+                        .loanfix.co.ke
                       </span>
                     </div>
                     {subdomainStatus === "checking" && (
@@ -215,18 +222,33 @@ function Signup() {
                 👤 Admin Account
               </h3>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold mb-1">
-                    Your Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.contact_name}
-                    onChange={set("contact_name")}
-                    required
-                    placeholder="John Doe"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.first_name}
+                      onChange={set("first_name")}
+                      required
+                      placeholder={formData.subdomain || "yourcompany"}
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.last_name}
+                      onChange={set("last_name")}
+                      required
+                      placeholder="Admin"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
