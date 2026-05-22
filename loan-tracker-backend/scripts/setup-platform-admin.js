@@ -12,7 +12,6 @@
 //
 // Idempotent.
 
-import pg from "pg";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
@@ -22,15 +21,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, "..", ".env") });
 
-const { Pool } = pg;
-const pool = new Pool({
-  user: process.env.DB_USER || "aron",
-  host: process.env.DB_HOST || "localhost",
-  database: process.env.DB_NAME || "loan_tracker",
-  password: process.env.DB_PASSWORD || "",
-  port: process.env.DB_PORT || 5432,
-});
-const q = (text, params) => pool.query(text, params);
+// Use the shared DB connection (DATABASE_URL + SSL aware) so this works in the
+// Render Shell against Neon, not only a local DB. Imported after dotenv so the
+// pool reads the right env.
+const { default: pool, query: q } = await import("../src/config/database.js");
 
 // ── Config ───────────────────────────────────────────────────────
 const EMAIL = "admin@loanfix.com";
