@@ -7,15 +7,29 @@
 // keep their own password — we never clobber a real one.
 import bcryptjs from "bcryptjs";
 import { query } from "../config/database.js";
-import { formatPhone } from "../utils/formatter.js";
 import logger from "../config/logger.js";
 
 export const DEFAULT_PORTAL_PASSWORD = "Customer2026";
 
+// MUST match the portal's normalizer in routes/portal/auth.js EXACTLY, so the
+// accounts we create here are findable by portal login/check-phone (which look
+// up the "+254…" form). formatter.js returns "254…" (no +) — using it here was
+// the bug that made auto-created/backfilled clients unable to log in.
+// TODO: collapse the 3 phone normalizers (auth.js, formatter.js, smsService.js)
+// into one shared util.
+function normalizePhone(phone) {
+  if (!phone) return null;
+  let c = String(phone).replace(/[\s\-()]/g, "");
+  if (c.startsWith("+")) c = c.slice(1);
+  if (c.startsWith("0")) c = "254" + c.slice(1);
+  if (!c.startsWith("254")) c = "254" + c;
+  return "+" + c;
+}
+
 export async function ensurePortalAccount(client, opts = {}) {
   if (!client?.phone_number || !client?.tenant_id) return null;
 
-  const fp = formatPhone(client.phone_number);
+  const fp = normalizePhone(client.phone_number);
   // platform_customers.id_number is NOT NULL + UNIQUE; fall back to a stable,
   // globally-unique synthetic value when the client has no national ID.
   const idNumber = client.id_number || `AUTO-${client.id}`;

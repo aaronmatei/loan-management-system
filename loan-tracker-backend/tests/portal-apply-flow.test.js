@@ -47,22 +47,14 @@ describe("customer portal — full apply flow", () => {
     // 1. Register (tenant-less)
     const reg = await api().post("/api/portal/auth/register").send(CUSTOMER);
     expect(reg.status).toBe(200);
-    expect(reg.body.requires_otp).toBe(true);
+    expect(reg.body.requires_otp).toBe(false); // OTP disabled for now
     const customerId = reg.body.customer_id;
     expect(customerId).toBeTruthy();
 
-    // 2. SMS is disabled in test, so read the OTP straight off the row.
-    const otpRow = await query(
-      "SELECT otp_code FROM platform_customers WHERE id = $1",
-      [customerId],
-    );
-    const otp = otpRow.rows[0].otp_code;
-    expect(otp).toMatch(/^\d{6}$/);
-
-    // 3. Verify OTP + set the password
+    // 2. OTP is disabled — set the password directly (no code needed).
     const verify = await api()
       .post("/api/portal/auth/verify-otp")
-      .send({ customer_id: customerId, otp, password: PASSWORD });
+      .send({ customer_id: customerId, password: PASSWORD });
     expect(verify.status).toBe(200);
     expect(typeof verify.body.token).toBe("string");
 
@@ -219,13 +211,9 @@ describe("customer portal — full apply flow", () => {
     // Register + verify + login quickly
     const reg = await api().post("/api/portal/auth/register").send(CUSTOMER);
     const customerId = reg.body.customer_id;
-    const { rows } = await query(
-      "SELECT otp_code FROM platform_customers WHERE id = $1",
-      [customerId],
-    );
     await api()
       .post("/api/portal/auth/verify-otp")
-      .send({ customer_id: customerId, otp: rows[0].otp_code, password: PASSWORD });
+      .send({ customer_id: customerId, password: PASSWORD });
     const login = await api()
       .post("/api/portal/auth/login")
       .send({ phone_number: CUSTOMER.phone_number, password: PASSWORD });

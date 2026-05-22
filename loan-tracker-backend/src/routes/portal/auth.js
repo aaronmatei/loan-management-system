@@ -156,18 +156,22 @@ router.post("/register", async (req, res) => {
       logger.info(`✓ New platform customer (tenant-less): ${fp}`);
     }
 
-    const otp = await sendOTP({
-      customerId,
-      phoneNumber: fp,
-      purpose: "registration",
-    });
-    if (!otp.success) return res.status(500).json({ error: otp.error });
+    // TODO(OTP): re-enable phone verification once an SMS provider
+    // (Africa's Talking) is configured. Uncomment the sendOTP call below and
+    // flip requires_otp back to true. For now OTP is skipped — the account is
+    // marked phone_verified when the password is set (see /verify-otp).
+    // const otp = await sendOTP({
+    //   customerId,
+    //   phoneNumber: fp,
+    //   purpose: "registration",
+    // });
+    // if (!otp.success) return res.status(500).json({ error: otp.error });
 
     res.json({
       success: true,
-      message: otp.message,
+      message: "Account created. Set a password to finish.",
       customer_id: customerId,
-      requires_otp: true,
+      requires_otp: false, // TODO(OTP): true once SMS is configured
       is_new_customer: isNew,
     });
   } catch (error) {
@@ -180,10 +184,11 @@ router.post("/register", async (req, res) => {
 router.post("/verify-otp", async (req, res) => {
   try {
     const { customer_id, otp, password } = req.body;
-    if (!customer_id || !otp || !password) {
+    // TODO(OTP): require `otp` again once SMS is configured.
+    if (!customer_id || !password) {
       return res
         .status(400)
-        .json({ error: "Customer ID, OTP, and password required" });
+        .json({ error: "Customer ID and password required" });
     }
     // Project-wide password policy (spec's <6 is far too weak for
     // loan data — relax here only if you deliberately choose to).
@@ -194,16 +199,19 @@ router.post("/verify-otp", async (req, res) => {
       });
     }
 
-    const v = await verifyOTP({
-      customerId: customer_id,
-      otp,
-      purpose: "registration",
-    });
-    if (!v.success) return res.status(400).json({ error: v.error });
+    // TODO(OTP): re-enable OTP verification once SMS is configured.
+    // const v = await verifyOTP({
+    //   customerId: customer_id,
+    //   otp,
+    //   purpose: "registration",
+    // });
+    // if (!v.success) return res.status(400).json({ error: v.error });
 
     const passwordHash = await bcryptjs.hash(password, 10);
+    // phone_verified is set here because the OTP step (which normally sets it)
+    // is skipped while OTP is disabled.
     const cr = await query(
-      "UPDATE platform_customers SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+      "UPDATE platform_customers SET password_hash = $1, phone_verified = true, updated_at = NOW() WHERE id = $2 RETURNING *",
       [passwordHash, customer_id],
     );
     const customer = cr.rows[0];

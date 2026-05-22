@@ -17,6 +17,9 @@ function CustomerRegister() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [customerId, setCustomerId] = useState(null);
+  // OTP is currently disabled server-side; the field shows only if the
+  // backend says it's required. TODO(OTP): re-enable when SMS is configured.
+  const [requiresOtp, setRequiresOtp] = useState(false);
   const [form, setForm] = useState({
     phone_number: "",
     id_number: "",
@@ -50,10 +53,11 @@ function CustomerRegister() {
         navigate("/loanfix/portal/login");
         return;
       }
-      if (res.data.requires_otp) {
-        setCustomerId(res.data.customer_id);
-        setStep(2);
-      }
+      // Step 2 collects the password; the OTP field appears only if the
+      // backend requires it (disabled for now).
+      setCustomerId(res.data.customer_id);
+      setRequiresOtp(!!res.data.requires_otp);
+      setStep(2);
     } catch (err) {
       alert(err.response?.data?.error || "Registration failed");
     } finally {
@@ -136,7 +140,9 @@ function CustomerRegister() {
         <p className="text-gray-600 mb-6">
           {step === 1
             ? "One account works across all your lenders"
-            : "Enter the code we texted you"}
+            : requiresOtp
+              ? "Enter the code we texted you"
+              : "Set a password to finish"}
         </p>
 
         {step === 1 ? (
@@ -222,24 +228,26 @@ function CustomerRegister() {
               disabled={submitting}
               className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
             >
-              {submitting ? "Sending code..." : "Continue →"}
+              {submitting ? "Saving..." : "Continue →"}
             </button>
           </form>
         ) : (
           <form onSubmit={submitOtp} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                Verification Code
-              </label>
-              <input
-                value={form.otp}
-                onChange={set("otp")}
-                required
-                maxLength="6"
-                placeholder="6-digit code"
-                className={field}
-              />
-            </div>
+            {requiresOtp && (
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Verification Code
+                </label>
+                <input
+                  value={form.otp}
+                  onChange={set("otp")}
+                  required
+                  maxLength="6"
+                  placeholder="6-digit code"
+                  className={field}
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-semibold mb-1">
                 Set a Password
@@ -272,13 +280,15 @@ function CustomerRegister() {
             >
               {submitting ? "Verifying..." : "Verify & Finish"}
             </button>
-            <button
-              type="button"
-              onClick={resend}
-              className="w-full text-sm text-indigo-600"
-            >
-              Resend code
-            </button>
+            {requiresOtp && (
+              <button
+                type="button"
+                onClick={resend}
+                className="w-full text-sm text-indigo-600"
+              >
+                Resend code
+              </button>
+            )}
           </form>
         )}
 
