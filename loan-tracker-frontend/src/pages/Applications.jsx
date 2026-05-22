@@ -20,6 +20,10 @@ function Applications() {
     start_date: new Date().toISOString().split("T")[0],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showCounterModal, setShowCounterModal] = useState(false);
+  const [counterAmount, setCounterAmount] = useState("");
+  const [counterNote, setCounterNote] = useState("");
+  const [qualifiedMax, setQualifiedMax] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -95,6 +99,56 @@ function Applications() {
     }
   };
 
+  const openCounterOffer = async (loan) => {
+    setSelectedLoan(loan);
+    setCounterNote("");
+    setCounterAmount("");
+    setQualifiedMax(null);
+    setShowCounterModal(true);
+    // Best-effort: prefill with what the client qualifies for, capped below
+    // the requested amount.
+    if (loan.client_id) {
+      try {
+        const res = await api.get(`/clients/${loan.client_id}/credit-profile`);
+        const prof = res.data?.data ?? res.data;
+        const max = prof?.eligibility?.max_recommended_amount;
+        if (max != null) {
+          setQualifiedMax(max);
+          const principal = parseFloat(loan.principal_amount);
+          setCounterAmount(String(Math.min(Number(max), principal - 1)));
+        }
+      } catch {
+        /* prefill is best-effort */
+      }
+    }
+  };
+
+  const handleCounterOffer = async () => {
+    const amount = parseFloat(counterAmount);
+    if (!amount || amount <= 0) {
+      alert("Enter a valid offer amount");
+      return;
+    }
+    if (amount >= parseFloat(selectedLoan.principal_amount)) {
+      alert("The offer must be less than the requested amount");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post(`/loans/${selectedLoan.id}/counter-offer`, {
+        offered_amount: amount,
+        note: counterNote || undefined,
+      });
+      alert("✅ Counter-offer sent to the client");
+      setShowCounterModal(false);
+      fetchData();
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDisburse = async (e) => {
     e.preventDefault();
     if (
@@ -122,6 +176,7 @@ function Applications() {
     const badges = {
       pending: { color: "bg-yellow-100 text-yellow-700", icon: "⏳" },
       under_review: { color: "bg-blue-100 text-blue-700", icon: "🔍" },
+      counter_offered: { color: "bg-amber-100 text-amber-700", icon: "💸" },
       approved: { color: "bg-green-100 text-green-700", icon: "✅" },
       rejected: { color: "bg-red-100 text-red-700", icon: "❌" },
     };
@@ -208,6 +263,7 @@ function Applications() {
         {[
           { value: "pending", label: "⏳ Pending" },
           { value: "under_review", label: "🔍 Under Review" },
+          { value: "counter_offered", label: "💸 Counter-offered" },
           { value: "approved", label: "✅ Approved (Ready)" },
           { value: "rejected", label: "❌ Rejected" },
           { value: "all", label: "📋 All" },
@@ -365,6 +421,12 @@ function Applications() {
                         >
                           ❌ Reject
                         </button>
+                        <button
+                          onClick={() => openCounterOffer(app)}
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+                        >
+                          💸 Counter-offer
+                        </button>
                       </PermissionGate>
                     )}
 
@@ -438,6 +500,76 @@ function Applications() {
                 className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50"
               >
                 {submitting ? "Rejecting..." : "❌ Reject Application"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Counter-offer modal */}
+      {showCounterModal && selectedLoan && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">💸 Counter-offer</h3>
+            <p className="text-gray-600 mb-4">
+              Loan: <strong>{selectedLoan.loan_code}</strong>
+              <br />
+              Requested:{" "}
+              <strong>
+                KES {parseFloat(selectedLoan.principal_amount).toLocaleString()}
+              </strong>
+              {qualifiedMax != null && (
+                <>
+                  <br />
+                  Qualifies for ≈{" "}
+                  <strong>
+                    KES {parseFloat(qualifiedMax).toLocaleString()}
+                  </strong>
+                </>
+              )}
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold mb-1">
+                Offer Amount (KES) *
+              </label>
+              <input
+                type="number"
+                value={counterAmount}
+                onChange={(e) => setCounterAmount(e.target.value)}
+                min="1"
+                placeholder="e.g. 30000"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Must be less than the requested amount. The client accepts or
+                declines this offer in their portal.
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold mb-1">
+                Note to client (optional)
+              </label>
+              <textarea
+                value={counterNote}
+                onChange={(e) => setCounterNote(e.target.value)}
+                rows="2"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowCounterModal(false)}
+                disabled={submitting}
+                className="px-6 py-2 bg-gray-500 text-white rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCounterOffer}
+                disabled={submitting || !counterAmount}
+                className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50"
+              >
+                {submitting ? "Sending..." : "💸 Send Offer"}
               </button>
             </div>
           </div>

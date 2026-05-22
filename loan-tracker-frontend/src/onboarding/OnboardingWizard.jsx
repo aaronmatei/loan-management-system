@@ -5,6 +5,7 @@ import api from "../services/api";
 import WelcomeStep from "./steps/WelcomeStep";
 import BusinessProfileStep from "./steps/BusinessProfileStep";
 import LoanSettingsStep from "./steps/LoanSettingsStep";
+import CapitalStep from "./steps/CapitalStep";
 import FirstClientStep from "./steps/FirstClientStep";
 import FirstLoanStep from "./steps/FirstLoanStep";
 import InviteTeamStep from "./steps/InviteTeamStep";
@@ -14,6 +15,7 @@ const STEPS = [
   { component: WelcomeStep, title: "Welcome" },
   { component: BusinessProfileStep, title: "Business Profile" },
   { component: LoanSettingsStep, title: "Loan Settings" },
+  { component: CapitalStep, title: "Capital Pool" },
   { component: FirstClientStep, title: "First Client" },
   { component: FirstLoanStep, title: "First Loan" },
   { component: InviteTeamStep, title: "Team (Optional)" },

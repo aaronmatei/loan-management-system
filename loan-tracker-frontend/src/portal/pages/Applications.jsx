@@ -17,6 +17,11 @@ const STATUS = {
     icon: "🔍",
     label: "Under Review",
   },
+  counter_offered: {
+    color: "bg-amber-100 text-amber-700",
+    icon: "💸",
+    label: "New Offer",
+  },
   approved: {
     color: "bg-green-100 text-green-700",
     icon: "✅",
@@ -70,6 +75,44 @@ function CustomerApplications() {
       load();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to cancel");
+    }
+  };
+
+  // Accept or decline a lender's counter-offer.
+  const respond = async (app, accept) => {
+    const reason = accept
+      ? null
+      : window.prompt("Optional: reason for declining") || "";
+    if (
+      !window.confirm(
+        accept
+          ? `Accept the offer of ${KES(app.offered_amount)} for ${app.loan_code}?`
+          : `Decline the offer for ${app.loan_code}?`,
+      )
+    )
+      return;
+    try {
+      // The respond endpoint is tenant-scoped — point the session at this
+      // application's lender first (same as cancel).
+      const sel = await portalApi.post("/portal/auth/select-tenant", {
+        tenant_id: app.tenant_id,
+      });
+      localStorage.setItem("portal_token", sel.data.token);
+      localStorage.setItem(
+        "portal_current_tenant",
+        JSON.stringify({
+          ...sel.data.current_tenant,
+          brand_color: app.tenant_brand_color,
+        }),
+      );
+      await portalApi.post(`/portal/customer/applications/${app.id}/respond`, {
+        accept,
+        reason,
+      });
+      alert(accept ? "✅ Offer accepted!" : "Offer declined");
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to submit your response");
     }
   };
 
@@ -218,6 +261,40 @@ function CustomerApplications() {
                             Reviewing: {a.reviewer_name}
                           </p>
                         )}
+                      </div>
+                    )}
+                    {a.status === "counter_offered" && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                        <p className="font-semibold text-amber-800">
+                          💸 New offer from the lender
+                        </p>
+                        <p className="text-amber-800 mt-1">
+                          You requested{" "}
+                          <strong>
+                            {KES(a.requested_amount || a.principal_amount)}
+                          </strong>
+                          . They're offering{" "}
+                          <strong>{KES(a.offered_amount)}</strong>.
+                        </p>
+                        {a.counter_offer_note && (
+                          <p className="text-xs text-amber-700 mt-1">
+                            Note: {a.counter_offer_note}
+                          </p>
+                        )}
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => respond(a, true)}
+                            className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold"
+                          >
+                            ✅ Accept offer
+                          </button>
+                          <button
+                            onClick={() => respond(a, false)}
+                            className="px-4 py-2 text-sm bg-red-50 text-red-700 hover:bg-red-100 rounded-lg font-semibold"
+                          >
+                            Decline
+                          </button>
+                        </div>
                       </div>
                     )}
                     {a.status === "pending" && (

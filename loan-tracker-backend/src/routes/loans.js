@@ -606,6 +606,113 @@ router.post(
   },
 );
 
+// Counter-offer — reduce the principal to what the client qualifies for and
+// send it back for the client to accept/reject (status → 'counter_offered').
+router.post(
+  "/:id/counter-offer",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { offered_amount, note } = req.body || {};
+
+      const amount = parseFloat(offered_amount);
+      if (!offered_amount || isNaN(amount) || amount <= 0) {
+        return res
+          .status(400)
+          .json({ error: "A positive offered_amount is required" });
+      }
+
+      const coT = tenantClause(req, 1);
+      const loanCheck = await query(
+        `SELECT * FROM loans WHERE id = $1${coT.clause}`,
+        [id, ...coT.params],
+      );
+      if (loanCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Loan not found" });
+      }
+      const loan = loanCheck.rows[0];
+      if (!["pending", "under_review"].includes(loan.status)) {
+        return res.status(400).json({
+          error: `Cannot counter-offer a loan with status: ${loan.status}`,
+        });
+      }
+      // A counter-offer must REDUCE the principal.
+      if (amount >= parseFloat(loan.principal_amount)) {
+        return res.status(400).json({
+          error: `Offered amount must be less than the requested KES ${parseFloat(
+            loan.principal_amount,
+          ).toLocaleString()}`,
+        });
+      }
+
+      const result = await query(
+        `UPDATE loans SET
+           status = 'counter_offered',
+           requested_amount = principal_amount,
+           offered_amount = $1,
+           counter_offer_note = $2,
+           counter_offered_by = $3,
+           counter_offered_at = NOW(),
+           reviewed_by = COALESCE(reviewed_by, $3),
+           reviewed_at = COALESCE(reviewed_at, NOW()),
+           updated_at = NOW()
+         WHERE id = $4 AND tenant_id = $5 RETURNING *`,
+        [amount, note || null, req.user.id, id, loan.tenant_id],
+      );
+
+      await logAudit({
+        user: req.user,
+        action: "counter_offered",
+        entityType: "loan",
+        entityId: id,
+        entityCode: loan.loan_code,
+        description: `Counter-offered KES ${amount.toLocaleString()} (requested KES ${parseFloat(
+          loan.principal_amount,
+        ).toLocaleString()})`,
+        newValues: { offered_amount: amount, note: note || null },
+        req,
+      });
+
+      // Notify the client directly (SMS/email each gated by their *_ENABLED
+      // flag) — ask them to accept or decline in the portal.
+      try {
+        const meta = await query(
+          `SELECT phone_number, first_name, email FROM clients WHERE id = $1`,
+          [loan.client_id],
+        );
+        const c = meta.rows[0];
+        if (c) {
+          const msg = `Hi ${c.first_name}, your loan application ${loan.loan_code} has a new offer of KES ${amount.toLocaleString()}. Log in to accept or decline.`;
+          if (c.phone_number) {
+            sendSMS(c.phone_number, msg).catch((e) =>
+              logger.error("counter-offer SMS error:", e),
+            );
+          }
+          if (c.email) {
+            sendEmail({
+              to: c.email,
+              subject: `New loan offer — ${loan.loan_code}`,
+              html: `<p>Hi ${c.first_name},</p><p>${msg}</p>`,
+            }).catch((e) => logger.error("counter-offer email error:", e));
+          }
+        }
+      } catch (err) {
+        logger.error("Counter-offer notification error:", err);
+      }
+
+      res.json({
+        success: true,
+        message: "Counter-offer sent to client",
+        data: result.rows[0],
+      });
+    } catch (error) {
+      logger.error("Counter-offer error:", error);
+      res.status(500).json({ error: "Failed to send counter-offer" });
+    }
+  },
+);
+
 // Disburse — money goes out: loan becomes active, schedule is
 // generated, capital pool is debited, and the loan-approved SMS +
 // agreement-PDF email fire HERE (relocated from loan creation).

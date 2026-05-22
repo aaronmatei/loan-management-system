@@ -16,6 +16,7 @@ import {
   isRated,
 } from "../../utils/creditScore.js";
 import { syncForCustomer } from "../../services/customerNotificationService.js";
+import { createNotification } from "../../services/notificationService.js";
 import { lfxCode } from "../../utils/customerCode.js";
 import notificationDispatcher from "../../services/notificationDispatcher.js";
 import { nextLoanCode } from "../../utils/clientCode.js";
@@ -1098,6 +1099,119 @@ router.post("/change-password", async (req, res) => {
   }
 });
 
+// Respond to a lender's counter-offer. accept → principal becomes the offered
+// amount and the loan is approved (lender disburses next); reject → rejected.
+// Only valid while status='counter_offered', scoped to the customer's loan.
+router.post("/applications/:id/respond", async (req, res) => {
+  try {
+    const { accept, reason } = req.body || {};
+    if (typeof accept !== "boolean") {
+      return res
+        .status(400)
+        .json({ error: "`accept` (true/false) is required" });
+    }
+
+    const loanRes = await query(
+      `SELECT * FROM loans WHERE id = $1 AND client_id = $2 AND tenant_id = $3`,
+      [req.params.id, req.currentClientId, req.currentTenantId],
+    );
+    if (loanRes.rows.length === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+    const loan = loanRes.rows[0];
+    if (loan.status !== "counter_offered") {
+      return res
+        .status(400)
+        .json({ error: "This application has no pending offer to respond to" });
+    }
+
+    let updated;
+    if (accept) {
+      // Client accepts the reduced amount → it becomes the principal.
+      updated = await query(
+        `UPDATE loans SET
+           status = 'approved',
+           principal_amount = offered_amount,
+           approved_at = NOW(),
+           updated_at = NOW()
+         WHERE id = $1 AND tenant_id = $2 RETURNING *`,
+        [loan.id, loan.tenant_id],
+      );
+    } else {
+      updated = await query(
+        `UPDATE loans SET
+           status = 'rejected',
+           rejection_reason = $1,
+           rejected_at = NOW(),
+           updated_at = NOW()
+         WHERE id = $2 AND tenant_id = $3 RETURNING *`,
+        [
+          (reason && reason.trim()) || "Counter-offer declined by client",
+          loan.id,
+          loan.tenant_id,
+        ],
+      );
+    }
+
+    // Best-effort activity log — never block the response on it.
+    try {
+      await query(
+        `INSERT INTO customer_activities
+           (platform_customer_id, tenant_id, client_id, activity_type, details)
+         VALUES ($1,$2,$3,$4,$5)`,
+        [
+          req.platformCustomerId,
+          req.currentTenantId,
+          req.currentClientId,
+          accept ? "accepted_offer" : "rejected_offer",
+          JSON.stringify({
+            loan_id: loan.id,
+            offered_amount: loan.offered_amount,
+          }),
+        ],
+      );
+    } catch (err) {
+      logger.error("Counter-offer activity log error:", err);
+    }
+
+    // Notify this tenant's staff (in-app, tenant-scoped).
+    try {
+      const staff = await query(
+        `SELECT id FROM users
+          WHERE tenant_id = $1 AND role IN ('admin','manager') AND is_active = true`,
+        [loan.tenant_id],
+      );
+      const verb = accept ? "accepted" : "declined";
+      for (const u of staff.rows) {
+        await createNotification({
+          userId: u.id,
+          type: accept ? "counter_offer_accepted" : "counter_offer_declined",
+          title: `Counter-offer ${verb}`,
+          message: `${loan.loan_code}: client ${verb} the KES ${parseFloat(
+            loan.offered_amount,
+          ).toLocaleString()} offer`,
+          icon: accept ? "✅" : "🚫",
+          link: `/loans/${loan.id}`,
+          metadata: { loan_id: loan.id },
+        });
+      }
+    } catch (err) {
+      logger.error("Counter-offer response notification error:", err);
+    }
+
+    res.json({
+      success: true,
+      message: accept
+        ? "Offer accepted — your loan is approved and awaiting disbursement"
+        : "Offer declined",
+      data: updated.rows[0],
+    });
+  } catch (error) {
+    logger.error("Respond to counter-offer error:", error);
+    res.status(500).json({ error: "Failed to record your response" });
+  }
+});
+
 // ── Customer loan applications ────────────────────────────────
 // Floor for guarantor/collateral/max-pending policy (no per-tenant
 // table for these yet). Rate / amount / duration now come from
@@ -1328,7 +1442,7 @@ router.get("/applications", async (req, res) => {
        LEFT JOIN users ur ON l.reviewed_by = ur.id
        LEFT JOIN users ua ON l.approved_by = ua.id
        WHERE l.client_id = $1 AND l.tenant_id = $2
-         AND l.status IN ('pending','under_review','approved','rejected')
+         AND l.status IN ('pending','under_review','counter_offered','approved','rejected')
        ORDER BY l.application_date DESC NULLS LAST, l.created_at DESC`,
       [req.currentClientId, req.currentTenantId],
     );
@@ -1366,7 +1480,7 @@ router.get("/all-applications", async (req, res) => {
        LEFT JOIN users ur ON l.reviewed_by = ur.id
        LEFT JOIN users ua ON l.approved_by = ua.id
        WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-         AND l.status IN ('pending','under_review','approved','rejected')
+         AND l.status IN ('pending','under_review','counter_offered','approved','rejected')
        ORDER BY l.application_date DESC NULLS LAST, l.created_at DESC`,
       [clientIds, tenantIds],
     );

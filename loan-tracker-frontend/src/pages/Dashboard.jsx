@@ -69,6 +69,36 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpBusy, setTopUpBusy] = useState(false);
+  // Capital adjustments are admin-only on the backend.
+  const isAdmin =
+    JSON.parse(localStorage.getItem("user") || "{}").role === "admin";
+
+  const handleTopUp = async () => {
+    const amount = parseFloat(topUpAmount);
+    if (!amount || amount <= 0) {
+      alert("Enter a valid amount");
+      return;
+    }
+    setTopUpBusy(true);
+    try {
+      await api.post("/capital/adjust", {
+        type: "add",
+        amount,
+        description: "Capital top-up",
+      });
+      const poolRes = await api.get("/capital/status");
+      setPoolStatus(poolRes.data.data);
+      setShowTopUp(false);
+      setTopUpAmount("");
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setTopUpBusy(false);
+    }
+  };
 
   // First-mount: if the tenant hasn't finished onboarding, send them
   // to the wizard. Also handle the ?welcome=true banner shown right
@@ -346,6 +376,15 @@ function Dashboard() {
             </div>
           </div>
 
+          {isAdmin && (
+            <button
+              onClick={() => setShowTopUp(true)}
+              className="mb-4 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold transition"
+            >
+              + Top up capital
+            </button>
+          )}
+
           {/* Utilization Bar — wrapped in its own border */}
           <div className="rounded-xl border border-white/25 bg-white/10 p-4 mb-4">
             <div className="flex justify-between text-sm mb-2">
@@ -401,6 +440,52 @@ function Dashboard() {
                   }}
                 ></div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top-up capital modal */}
+      {showTopUp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 text-gray-800">
+              💰 Top up capital pool
+            </h3>
+            {poolStatus && (
+              <p className="text-sm text-gray-600 mb-4">
+                Available now:{" "}
+                <strong>
+                  KES {poolStatus.available_pool.toLocaleString()}
+                </strong>
+              </p>
+            )}
+            <label className="block text-sm font-semibold mb-1 text-gray-700">
+              Amount to add (KES) *
+            </label>
+            <input
+              type="number"
+              value={topUpAmount}
+              onChange={(e) => setTopUpAmount(e.target.value)}
+              min="1"
+              placeholder="e.g. 500000"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+            />
+            <div className="flex justify-end gap-3 mt-5">
+              <button
+                onClick={() => setShowTopUp(false)}
+                disabled={topUpBusy}
+                className="px-6 py-2 bg-gray-500 text-white rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTopUp}
+                disabled={topUpBusy || !topUpAmount}
+                className="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg disabled:opacity-50"
+              >
+                {topUpBusy ? "Adding..." : "Add capital"}
+              </button>
             </div>
           </div>
         </div>

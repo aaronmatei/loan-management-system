@@ -206,6 +206,33 @@ router.post("/", async (req, res) => {
       `✓ User created: ${normalizedEmail} (${role}) by ${req.user.email}`,
     );
 
+    // ─── TODO: invite email (DISABLED — uncomment to enable) ─────────────
+    // Emails the new member their login link + temporary password. To turn on:
+    //   1) add at the top of this file:
+    //        import { sendEmail } from "../services/emailService.js";
+    //   2) uncomment the block below
+    //   3) set EMAIL_ENABLED=true + EMAIL_USER/EMAIL_PASSWORD/EMAIL_FROM
+    //      (and optionally APP_URL) in the backend env
+    // sendEmail() already no-ops unless EMAIL_ENABLED==="true", and returns
+    // { success:false } instead of throwing, so it won't break user creation.
+    // `password` is the plaintext temp password from req.body.
+    /*
+    const loginUrl = process.env.APP_URL || "https://app.loanfix.co.ke";
+    await sendEmail({
+      to: normalizedEmail,
+      subject: "You've been invited to LoanFix",
+      html: `
+        <p>Hi ${first_name},</p>
+        <p>An account has been created for you (role: <b>${role}</b>).</p>
+        <p><b>Login:</b> <a href="${loginUrl}/login">${loginUrl}/login</a><br/>
+           <b>Email:</b> ${normalizedEmail}<br/>
+           <b>Temporary password:</b> ${password}</p>
+        <p>Please sign in and change your password on first login.</p>
+      `,
+    });
+    */
+    // ─────────────────────────────────────────────────────────────────────
+
     res.status(201).json({
       success: true,
       message: "User created successfully",

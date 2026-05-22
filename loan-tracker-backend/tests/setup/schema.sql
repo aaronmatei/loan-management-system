@@ -683,7 +683,12 @@ CREATE TABLE public.loans (
     application_source character varying(50) DEFAULT 'walk_in'::character varying,
     tenant_id integer NOT NULL,
     submitted_by_customer boolean DEFAULT false,
-    platform_customer_id integer
+    platform_customer_id integer,
+    requested_amount numeric(12,2),
+    offered_amount numeric(12,2),
+    counter_offered_by integer,
+    counter_offered_at timestamp without time zone,
+    counter_offer_note text
 );
 
 
