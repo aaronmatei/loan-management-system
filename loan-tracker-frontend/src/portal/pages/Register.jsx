@@ -3,6 +3,8 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PasswordInput from "../components/PasswordInput";
 import IdentityUploader from "../components/IdentityUploader";
+import { KENYA_COUNTIES } from "../../utils/counties";
+import { BUSINESS_TYPES } from "../../utils/businessTypes";
 
 // Two-step: details → OTP + password. Portal registration is scoped
 // to a lender (subdomain); in production that comes from the host,
@@ -29,6 +31,11 @@ function CustomerRegister() {
     email: "",
     date_of_birth: "",
     gender: "",
+    business_name: "",
+    business_type: "",
+    county: "",
+    city: "",
+    address: "",
     otp: "",
     password: "",
     confirmPassword: "",
@@ -50,6 +57,11 @@ function CustomerRegister() {
         email: form.email || null,
         date_of_birth: form.date_of_birth || null,
         gender: form.gender || null,
+        business_name: form.business_name || null,
+        business_type: form.business_type || null,
+        county: form.county || null,
+        city: form.city || null,
+        address: form.address || null,
       });
       if (res.data.action === "login") {
         alert("You already have an account. Please log in.");
@@ -255,6 +267,78 @@ function CustomerRegister() {
                 </select>
               </div>
             </div>
+
+            <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Business &amp; location (optional)
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Business Name
+                </label>
+                <input
+                  value={form.business_name}
+                  onChange={set("business_name")}
+                  placeholder="e.g. Mama Mboga Stores"
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Business Type
+                </label>
+                <select
+                  value={form.business_type}
+                  onChange={set("business_type")}
+                  className={`${field} bg-white`}
+                >
+                  <option value="">Select type…</option>
+                  {BUSINESS_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">County</label>
+                <select
+                  value={form.county}
+                  onChange={set("county")}
+                  className={`${field} bg-white`}
+                >
+                  <option value="">Select county…</option>
+                  {KENYA_COUNTIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Town / City
+                </label>
+                <input
+                  value={form.city}
+                  onChange={set("city")}
+                  placeholder="e.g. Nairobi"
+                  className={field}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Address</label>
+              <input
+                value={form.address}
+                onChange={set("address")}
+                placeholder="P.O Box / physical address"
+                className={field}
+              />
+            </div>
+
             <button
               type="submit"
               disabled={submitting}

@@ -88,6 +88,11 @@ router.post("/register", async (req, res) => {
       email,
       date_of_birth,
       gender,
+      business_name,
+      business_type,
+      city,
+      county,
+      address,
     } = req.body;
     if (!phone_number || !id_number || !first_name || !last_name) {
       return res
@@ -124,14 +129,25 @@ router.post("/register", async (req, res) => {
         `UPDATE platform_customers
             SET first_name = $1, last_name = $2,
                 email = COALESCE($3, email),
-                date_of_birth = $4, gender = $5, updated_at = NOW()
-          WHERE id = $6`,
+                date_of_birth = $4, gender = $5,
+                business_name = COALESCE($6, business_name),
+                business_type = COALESCE($7, business_type),
+                city = COALESCE($8, city),
+                county = COALESCE($9, county),
+                address = COALESCE($10, address),
+                updated_at = NOW()
+          WHERE id = $11`,
         [
           first_name,
           last_name,
           email || null,
           date_of_birth || null,
           gender || null,
+          business_name || null,
+          business_type || null,
+          city || null,
+          county || null,
+          address || null,
           customerId,
         ],
       );
@@ -149,8 +165,9 @@ router.post("/register", async (req, res) => {
       const nc = await query(
         `INSERT INTO platform_customers (
            phone_number, id_number, first_name, last_name, email,
-           date_of_birth, gender, registration_ip
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+           date_of_birth, gender, business_name, business_type,
+           city, county, address, registration_ip
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
         [
           fp,
           id_number,
@@ -159,6 +176,11 @@ router.post("/register", async (req, res) => {
           email || null,
           date_of_birth || null,
           gender || null,
+          business_name || null,
+          business_type || null,
+          city || null,
+          county || null,
+          address || null,
           ipOf(req),
         ],
       );
@@ -529,11 +551,17 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
       clientCode = ec.client_code;
     } else {
       clientCode = await nextClientCode(query, targetTenant.id);
+      // Seed the per-tenant client with the customer's own profile, including
+      // the business + location captured at portal sign-up, so the lender's
+      // client record matches what a tenant-added client would have.
       const ncl = await query(
         `INSERT INTO clients (
            tenant_id, client_code, first_name, last_name,
-           phone_number, id_number, email, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'active') RETURNING id`,
+           phone_number, id_number, email,
+           business_name, business_type, city, county, address,
+           date_of_birth, gender, status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active')
+         RETURNING id`,
         [
           targetTenant.id,
           clientCode,
@@ -542,6 +570,13 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
           customer.phone_number,
           customer.id_number,
           customer.email || null,
+          customer.business_name || null,
+          customer.business_type || null,
+          customer.city || null,
+          customer.county || null,
+          customer.address || null,
+          customer.date_of_birth || null,
+          customer.gender || null,
         ],
       );
       clientId = ncl.rows[0].id;
