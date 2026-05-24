@@ -359,9 +359,11 @@ function Dashboard() {
 
       {/* Capital Pool — light/glassy to match the rest of the dashboard */}
       {poolStatus && (
-        <div className="relative overflow-hidden bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-          {/* Faint brand glow keeps it on-brand without a heavy gradient. */}
-          <div className="pointer-events-none absolute -top-20 -right-16 w-64 h-64 rounded-full bg-ocean-200/25 blur-3xl" />
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-6 mb-6 bg-gradient-to-br from-ocean-100/70 via-white/55 to-indigo-100/60 backdrop-blur-md">
+          {/* Laced colour: soft brand auroras drifting behind the frosted glass. */}
+          <div className="pointer-events-none absolute -top-24 -right-16 w-72 h-72 rounded-full bg-ocean-300/30 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-20 w-72 h-72 rounded-full bg-indigo-300/25 blur-3xl" />
+          <div className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 w-56 h-56 rounded-full bg-emerald-200/20 blur-3xl" />
 
           {/* Header */}
           <div className="relative flex items-start justify-between gap-4">
@@ -411,7 +413,7 @@ function Dashboard() {
                 {poolStatus.utilization_rate.toFixed(1)}%
               </span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+            <div className="w-full bg-white/50 rounded-full h-2.5 overflow-hidden">
               <div
                 className="h-2.5 rounded-full bg-gradient-to-r from-ocean-600 to-ocean-300 transition-all"
                 style={{
@@ -423,31 +425,31 @@ function Dashboard() {
 
           {/* Stats */}
           <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Total Disbursed</p>
               <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
                 KES {fmtAxis(poolStatus.total_disbursed)}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Total Collected</p>
               <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
                 {fmtKES(poolStatus.total_collected)}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Interest Earned</p>
               <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
                 +{fmtKES(poolStatus.total_interest_earned)}
               </p>
             </div>
             {/* Collection Rate — moved here from the KPI strip */}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Collection Rate</p>
               <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
                 {metrics.collection_rate}%
               </p>
-              <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="w-full bg-white/60 rounded-full h-1.5 mt-2 overflow-hidden">
                 <div
                   className="bg-ocean-500 h-1.5 rounded-full transition-all"
                   style={{
