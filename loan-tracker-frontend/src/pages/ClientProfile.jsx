@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  Phone,
+  Mail,
+  Pencil,
+  Download,
+  MessageSquare,
+  Send,
+} from "lucide-react";
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
 
-const KES = (n) => `KES ${Number(n || 0).toLocaleString()}`;
-
-// Risk badge styling keyed off the API's risk_color
-const riskBadge = {
-  green: "bg-green-500 text-white",
-  yellow: "bg-yellow-400 text-yellow-900",
-  orange: "bg-orange-500 text-white",
-  red: "bg-red-600 text-white",
+// Small status dot beside the risk label in the credit-score card.
+const riskDot = {
+  green: "bg-green-500",
+  yellow: "bg-yellow-400",
+  orange: "bg-orange-500",
+  red: "bg-red-500",
 };
+
+const KES = (n) => `KES ${Number(n || 0).toLocaleString()}`;
 
 function Card({ title, value, icon, color }) {
   const accent =
@@ -130,66 +139,105 @@ function ClientProfile() {
     recent_payments: recentPayments,
   } = data;
 
+  const actionBtn =
+    "w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-ocean-200 text-slate-700 font-semibold transition text-left";
+
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="bg-ocean-gradient rounded-xl shadow-lg p-8 text-white mb-6">
+      {/* Page heading */}
+      <div className="mb-6">
         <button
           onClick={() => navigate("/clients")}
-          className="text-white/80 hover:text-white mb-4"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-ocean-600 mb-3"
         >
-          ← Back to Clients
+          <ArrowLeft size={16} /> Back to Clients
         </button>
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
+          Client Profile
+        </h1>
+        <p className="text-slate-500">
+          Manage client information and account details
+        </p>
+      </div>
 
-        <div className="flex flex-wrap justify-between items-start gap-6">
-          <div className="flex items-start gap-4">
+      {/* Header: identity + credit score / actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+        {/* Identity card */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
             {client.profile_photo_url ? (
               <img
                 src={client.profile_photo_url}
                 alt={`${client.first_name} ${client.last_name}`}
-                className="w-20 h-20 rounded-full object-cover ring-4 ring-white/30 shrink-0"
+                className="w-24 h-24 rounded-full object-cover ring-4 ring-ocean-100 shrink-0"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-white/15 flex items-center justify-center text-3xl font-bold shrink-0">
-                {(client.first_name || "?").charAt(0).toUpperCase()}
+              <div className="w-24 h-24 rounded-full bg-ocean-gradient flex items-center justify-center text-white text-2xl font-bold ring-4 ring-ocean-100 shrink-0">
+                {`${(client.first_name || "").charAt(0)}${(
+                  client.last_name || ""
+                ).charAt(0)}`.toUpperCase() || "?"}
               </div>
             )}
-            <div>
-              <p className="text-ocean-100 text-sm">Client Code</p>
-              <h1 className="text-3xl font-bold">{client.client_code}</h1>
-              <p className="text-xl mt-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Client Code
+              </p>
+              <h2 className="text-2xl lg:text-3xl font-extrabold text-navy-900 break-all">
+                {client.client_code}
+              </h2>
+              <p className="text-lg font-bold text-slate-800 mt-0.5">
                 {client.first_name} {client.last_name}
               </p>
-              <p className="text-ocean-100 mt-1">
-                📱 {client.phone_number}{" "}
-                {client.email && `• ✉️ ${client.email}`}
-              </p>
-              <p className="text-ocean-100 text-sm mt-1">
-                {client.business_name && `🏢 ${client.business_name} • `}
+              <p className="text-sm text-slate-500">
+                {client.business_name && `${client.business_name} · `}
                 Member since{" "}
                 {new Date(client.created_at).toLocaleDateString()}
               </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-x-5 gap-y-1.5 mt-3">
+                <a
+                  href={`tel:${client.phone_number}`}
+                  className="inline-flex items-center gap-2 text-ocean-600 hover:text-ocean-700 font-medium"
+                >
+                  <Phone size={16} /> {client.phone_number}
+                </a>
+                {client.email && (
+                  <a
+                    href={`mailto:${client.email}`}
+                    className="inline-flex items-center gap-2 text-ocean-600 hover:text-ocean-700 font-medium break-all"
+                  >
+                    <Mail size={16} /> {client.email}
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Credit score + actions */}
+        <div className="space-y-3">
+          <div className="bg-gradient-to-br from-ocean-50 to-ocean-100 rounded-2xl border border-ocean-100 p-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Credit Score
+            </p>
+            <p className="text-4xl font-extrabold text-ocean-600 mt-1 leading-none">
+              {rated ? creditScore : "New"}
+            </p>
+            <p className="text-sm text-slate-500 mt-1">
+              {rated ? "out of 100" : "unrated"}
+            </p>
+            <div className="inline-flex items-center gap-2 mt-3 bg-white rounded-full px-3 py-1 shadow-sm">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  riskDot[riskColor] || "bg-ocean-400"
+                }`}
+              />
+              <span className="text-sm font-semibold text-slate-700">
+                {riskLabel}
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-3">
-            {/* Credit Score Badge */}
-            <div className="text-center bg-white/10 rounded-xl p-6">
-              <p className="text-xs text-ocean-100 uppercase">Credit Score</p>
-              <p className="text-5xl font-bold mt-2">
-                {rated ? creditScore : "New"}
-              </p>
-              <p className="text-sm text-ocean-100">
-                {rated ? "out of 100" : "unrated"}
-              </p>
-              <div
-                className={`mt-2 px-3 py-1 rounded-full text-sm font-bold ${
-                  riskBadge[riskColor] || "bg-gray-200 text-gray-800"
-                }`}
-              >
-                {riskLabel}
-              </div>
-            </div>
+          <div className="space-y-2">
             <button
               onClick={() => {
                 setEditFormData({ ...client });
@@ -197,9 +245,9 @@ function ClientProfile() {
                 setEditSuccess("");
                 setShowEditModal(true);
               }}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition font-semibold"
+              className={actionBtn}
             >
-              ✏️ Edit Client
+              <Pencil size={18} className="text-ocean-600" /> Edit Client
             </button>
             <button
               onClick={async () => {
@@ -226,9 +274,9 @@ function ClientProfile() {
                   );
                 }
               }}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition font-semibold"
+              className={actionBtn}
             >
-              📄 Download Statement
+              <Download size={18} className="text-ocean-600" /> Download Statement
             </button>
             <button
               onClick={() =>
@@ -236,9 +284,9 @@ function ClientProfile() {
                   state: { preSelectClient: client.id },
                 })
               }
-              className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition font-semibold"
+              className={actionBtn}
             >
-              📱 Send SMS
+              <MessageSquare size={18} className="text-ocean-600" /> Send SMS
             </button>
             <button
               onClick={async () => {
@@ -259,14 +307,13 @@ function ClientProfile() {
                   alert("✅ " + (res.data?.message || "Statement sent"));
                 } catch (err) {
                   alert(
-                    "Failed: " +
-                      (err.response?.data?.error || err.message),
+                    "Failed: " + (err.response?.data?.error || err.message),
                   );
                 }
               }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold"
+              className={actionBtn}
             >
-              ✉️ Email Statement
+              <Send size={18} className="text-ocean-600" /> Email Statement
             </button>
           </div>
         </div>
