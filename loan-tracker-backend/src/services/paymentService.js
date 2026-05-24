@@ -22,6 +22,7 @@
 // the same SUM used everywhere else.
 
 import { query } from "../config/database.js";
+import { tenantPrefix } from "../utils/clientCode.js";
 import { sendSMS, templates } from "./smsService.js";
 import {
   sendEmail,
@@ -130,7 +131,11 @@ export async function recordLoanPayment({
     [loan.tenant_id],
   );
   const txnCount = parseInt(countResult.rows[0].count) + 1;
-  const transactionCode = `TXN-${year}-${String(txnCount).padStart(5, "0")}`;
+  // Lender-prefixed, mirroring loan_code / client_code (e.g. TXN-FAU-2026-00001).
+  const tRes = await query("SELECT subdomain FROM tenants WHERE id = $1", [
+    loan.tenant_id,
+  ]);
+  const transactionCode = `TXN-${tenantPrefix(tRes.rows[0]?.subdomain)}-${year}-${String(txnCount).padStart(5, "0")}`;
 
   // Record the transaction (full amount paid by client)
   const txnResult = await query(

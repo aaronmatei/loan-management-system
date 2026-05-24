@@ -1,7 +1,10 @@
 import express from "express";
+import multer from "multer";
 import bcryptjs from "bcryptjs";
 import { query } from "../../config/database.js";
 import { verifyCustomer } from "../../middleware/customerAuth.js";
+import { isCloudinaryConfigured, uploadBuffer } from "../../config/cloudinary.js";
+import { isKycComplete } from "../../utils/kyc.js";
 import { validatePassword } from "../../utils/validators.js";
 import {
   buildLoanStatementPdf,
@@ -23,6 +26,112 @@ import { nextLoanCode } from "../../utils/clientCode.js";
 
 const router = express.Router();
 router.use(verifyCustomer);
+
+// ── KYC identity documents (DP photo + ID front/back) ─────────────
+// Images are held in memory then streamed to Cloudinary; nothing touches
+// disk. 5 MB per image, images only.
+const kycUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) =>
+    /^image\//.test(file.mimetype)
+      ? cb(null, true)
+      : cb(new Error("Only image files are allowed")),
+});
+const KYC_FIELDS = [
+  { name: "profile_photo", maxCount: 1 },
+  { name: "id_front", maxCount: 1 },
+  { name: "id_back", maxCount: 1 },
+];
+// Map upload field → the platform_customers column it populates.
+const KYC_COLUMNS = {
+  profile_photo: "profile_photo_url",
+  id_front: "id_front_url",
+  id_back: "id_back_url",
+};
+// Run multer but turn its errors (size/type) into clean 400s instead of
+// bubbling to the global error handler.
+const runKycUpload = (req, res, next) =>
+  kycUpload.fields(KYC_FIELDS)(req, res, (err) => {
+    if (err) {
+      const msg =
+        err.code === "LIMIT_FILE_SIZE"
+          ? "Each image must be 5 MB or smaller"
+          : err.message;
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+
+// Current KYC state for the logged-in customer (drives the upload gate).
+router.get("/kyc", (req, res) => {
+  const c = req.customer;
+  res.json({
+    success: true,
+    data: {
+      profile_photo_url: c.profile_photo_url,
+      id_front_url: c.id_front_url,
+      id_back_url: c.id_back_url,
+      kyc_complete: isKycComplete(c),
+      cloudinary_enabled: isCloudinaryConfigured(),
+    },
+  });
+});
+
+// Upload any subset of the three identity images. Stored on the global
+// platform_customers row so every linked lender sees the same identity.
+router.post("/kyc", runKycUpload, async (req, res) => {
+  try {
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({
+        error: "Image storage is not configured yet. Please try again later.",
+      });
+    }
+    const files = req.files || {};
+    const updates = {};
+    for (const [field, column] of Object.entries(KYC_COLUMNS)) {
+      const f = files[field]?.[0];
+      if (f) {
+        const result = await uploadBuffer(f.buffer, {
+          folder: `loanfix/kyc/${req.platformCustomerId}`,
+          publicId: field,
+        });
+        updates[column] = result.secure_url;
+      }
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No images uploaded" });
+    }
+
+    const cols = Object.keys(updates);
+    const setSql = cols.map((c, i) => `${c} = $${i + 1}`).join(", ");
+    const vals = cols.map((c) => updates[c]);
+    vals.push(req.platformCustomerId);
+    const r = await query(
+      `UPDATE platform_customers SET ${setSql}, updated_at = NOW()
+       WHERE id = $${vals.length}
+       RETURNING profile_photo_url, id_front_url, id_back_url`,
+      vals,
+    );
+    const updated = r.rows[0];
+
+    await query(
+      `INSERT INTO customer_activities
+         (platform_customer_id, tenant_id, client_id, activity_type)
+       VALUES ($1,$2,$3,'kyc_uploaded')`,
+      [req.platformCustomerId, req.currentTenantId || null, req.currentClientId || null],
+    );
+
+    res.json({
+      success: true,
+      message: "Identity documents uploaded",
+      data: { ...updated, kyc_complete: isKycComplete(updated) },
+    });
+  } catch (error) {
+    logger.error("KYC upload error:", error);
+    res.status(500).json({ error: "Failed to upload identity documents" });
+  }
+});
 
 // Customer's linked tenants + platform-wide rollup
 router.get("/tenants", async (req, res) => {
@@ -96,6 +205,11 @@ router.get("/available-tenants", async (req, res) => {
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true
          AND t.allow_self_signup = true
+         -- Same exclusion as the /lenders directory: the LoanFix platform
+         -- owner and the demo sandbox are not real lenders to add.
+         AND COALESCE(t.is_demo, false) = false
+         AND COALESCE(t.plan, '') <> 'platform'
+         AND t.subdomain NOT IN ('platform', 'demo')
          AND t.id NOT IN (
            SELECT tenant_id FROM customer_tenant_links
            WHERE platform_customer_id = $3 AND status = 'active'
@@ -959,6 +1073,9 @@ router.get("/profile", async (req, res) => {
       date_of_birth: c.date_of_birth,
       gender: c.gender,
       profile_photo_url: c.profile_photo_url,
+      id_front_url: c.id_front_url,
+      id_back_url: c.id_back_url,
+      kyc_complete: isKycComplete(c),
       phone_verified: c.phone_verified,
       email_verified: c.email_verified,
       created_at: c.created_at,

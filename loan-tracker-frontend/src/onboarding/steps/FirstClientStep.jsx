@@ -1,5 +1,24 @@
 import React, { useState } from "react";
 import api from "../../services/api";
+import { KENYA_COUNTIES } from "../../utils/counties";
+
+const BUSINESS_TYPES = [
+  "Retail Shop",
+  "Wholesale",
+  "Boda Boda",
+  "Farming / Agriculture",
+  "Salon / Barber",
+  "Food / Restaurant",
+  "Tailoring",
+  "Hardware",
+  "Transport",
+  "M-Pesa Agent",
+  "Electronics",
+  "Clothing / Mitumba",
+  "Construction",
+  "Professional Services",
+  "Other",
+];
 
 function FirstClientStep({ onNext, onBack, setCreatedClient }) {
   const [form, setForm] = useState({
@@ -113,26 +132,36 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-semibold mb-1">County</label>
-              <input
+              <select
                 value={form.county}
-                onChange={(e) =>
-                  setForm({ ...form, county: e.target.value })
-                }
-                className={fld}
-              />
+                onChange={(e) => setForm({ ...form, county: e.target.value })}
+                className={`${fld} bg-white`}
+              >
+                {KENYA_COUNTIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-semibold mb-1">
                 Business Type
               </label>
-              <input
+              <select
                 value={form.business_type}
                 onChange={(e) =>
                   setForm({ ...form, business_type: e.target.value })
                 }
-                placeholder="e.g., Boda Boda"
-                className={fld}
-              />
+                className={`${fld} bg-white`}
+              >
+                <option value="">Select type…</option>
+                {BUSINESS_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="flex gap-2 pt-4">

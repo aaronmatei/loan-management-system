@@ -26,6 +26,17 @@ function normalizePhone(phone) {
   return "+" + c;
 }
 
+// Per-client default portal password, e.g. John Doe + ID 29094964 ->
+// "Jd29094964@2026". Staff share it with the client, who resets on first login.
+// Falls back to the shared default when name/ID are missing.
+function clientDefaultPassword(client) {
+  const fi = (client.first_name || "").trim().charAt(0).toUpperCase();
+  const li = (client.last_name || "").trim().charAt(0).toLowerCase();
+  const id = (client.id_number || "").replace(/\s/g, "");
+  if (fi && li && id) return `${fi}${li}${id}@${new Date().getFullYear()}`;
+  return DEFAULT_PORTAL_PASSWORD;
+}
+
 export async function ensurePortalAccount(client, opts = {}) {
   if (!client?.phone_number || !client?.tenant_id) return null;
 
@@ -33,7 +44,7 @@ export async function ensurePortalAccount(client, opts = {}) {
   // platform_customers.id_number is NOT NULL + UNIQUE; fall back to a stable,
   // globally-unique synthetic value when the client has no national ID.
   const idNumber = client.id_number || `AUTO-${client.id}`;
-  const password = opts.password || DEFAULT_PORTAL_PASSWORD;
+  const password = opts.password || clientDefaultPassword(client);
 
   // 1) Find an existing portal account by phone or ID (UNIQUE on both).
   let pc = (

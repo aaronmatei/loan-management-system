@@ -45,6 +45,15 @@ services:
         sync: false
       - key: EMAIL_PASSWORD
         sync: false
+      # Cloudinary — customer KYC image storage (DP photo + ID front/back).
+      # Until these are set the identity-upload gate stays OFF and the portal
+      # works normally. Set the trio (or a single CLOUDINARY_URL) to activate.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
       - key: MPESA_ENV
         value: sandbox
       - key: MPESA_CONSUMER_KEY

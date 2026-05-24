@@ -207,7 +207,7 @@ function Applications() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
         <button
           onClick={() => setStatusFilter("pending")}
           className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
@@ -231,6 +231,18 @@ function Applications() {
             {stats?.under_review || 0}
           </p>
           <p className="text-xs text-blue-100 mt-1">being reviewed</p>
+        </button>
+        <button
+          onClick={() => setStatusFilter("counter_offered")}
+          className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
+            statusFilter === "counter_offered" ? "ring-4 ring-amber-300" : ""
+          } bg-gradient-to-br from-amber-500 to-orange-600 text-white`}
+        >
+          <p className="text-amber-100 text-xs uppercase">Counter-offered</p>
+          <p className="text-2xl lg:text-3xl font-bold mt-2">
+            {stats?.counter_offered || 0}
+          </p>
+          <p className="text-xs text-amber-100 mt-1">awaiting client</p>
         </button>
         <button
           onClick={() => setStatusFilter("approved")}
@@ -403,7 +415,8 @@ function Applications() {
                       </PermissionGate>
                     )}
 
-                    {["pending", "under_review"].includes(app.status) && (
+                    {/* Approve only AFTER review — pending must be reviewed first */}
+                    {app.status === "under_review" && (
                       <PermissionGate role={["admin", "manager"]}>
                         <button
                           onClick={() => handleApprove(app)}
@@ -411,6 +424,11 @@ function Applications() {
                         >
                           ✅ Approve
                         </button>
+                      </PermissionGate>
+                    )}
+
+                    {["pending", "under_review"].includes(app.status) && (
+                      <PermissionGate role={["admin", "manager"]}>
                         <button
                           onClick={() => {
                             setSelectedLoan(app);

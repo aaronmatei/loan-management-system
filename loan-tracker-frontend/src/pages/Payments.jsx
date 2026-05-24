@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
@@ -35,6 +36,7 @@ function Payments() {
 
   // Receipt modal state — populated from POST /payments response.
   const [receiptModal, setReceiptModal] = useState(null);
+  const [txnModal, setTxnModal] = useState(null);
   const [tenantBranding, setTenantBranding] = useState(null);
 
   useEffect(() => {
@@ -482,15 +484,21 @@ function Payments() {
             >
               <div className="flex justify-between items-start mb-3">
                 <div className="min-w-0">
-                  <p className="font-mono text-sm font-bold text-green-600">
+                  <button
+                    onClick={() => setTxnModal(payment)}
+                    className="font-mono text-sm font-bold text-green-600 hover:underline"
+                  >
                     {payment.transaction_code}
-                  </p>
+                  </button>
                   <p className="font-semibold text-gray-800 truncate">
                     {payment.first_name} {payment.last_name}
                   </p>
-                  <p className="text-xs text-ocean-600 font-mono">
+                  <Link
+                    to={`/loans/${payment.loan_id}`}
+                    className="block text-xs text-ocean-600 font-mono hover:underline"
+                  >
                     {payment.loan_code}
-                  </p>
+                  </Link>
                 </div>
                 <span className="flex-shrink-0 inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
                   {payment.payment_method}
@@ -570,11 +578,21 @@ function Payments() {
                   key={payment.id}
                   className="border-b border-gray-100 hover:bg-gray-50 transition"
                 >
-                  <td className="px-6 py-4 font-mono text-sm font-semibold text-green-600">
-                    {payment.transaction_code}
+                  <td className="px-6 py-4 font-mono text-sm font-semibold">
+                    <button
+                      onClick={() => setTxnModal(payment)}
+                      className="text-green-600 hover:underline"
+                    >
+                      {payment.transaction_code}
+                    </button>
                   </td>
-                  <td className="px-6 py-4 font-mono text-sm text-ocean-600">
-                    {payment.loan_code}
+                  <td className="px-6 py-4 font-mono text-sm">
+                    <Link
+                      to={`/loans/${payment.loan_id}`}
+                      className="text-ocean-600 hover:underline"
+                    >
+                      {payment.loan_code}
+                    </Link>
                   </td>
                   <td className="px-6 py-4">
                     <div>
@@ -670,6 +688,73 @@ function Payments() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {txnModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setTxnModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold mb-1 text-gray-800">🧾 Transaction</h3>
+            <p className="font-mono text-green-600 mb-4">
+              {txnModal.transaction_code}
+            </p>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Loan</dt>
+                <dd className="font-mono">{txnModal.loan_code}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Client</dt>
+                <dd className="font-semibold">
+                  {txnModal.first_name} {txnModal.last_name}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Amount</dt>
+                <dd className="font-bold text-green-600">
+                  KES {parseFloat(txnModal.amount_paid).toLocaleString()}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Method</dt>
+                <dd>{txnModal.payment_method}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Reference</dt>
+                <dd>{txnModal.payment_reference || "—"}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Date</dt>
+                <dd>{new Date(txnModal.payment_date).toLocaleDateString()}</dd>
+              </div>
+              {txnModal.notes && (
+                <div>
+                  <dt className="text-gray-500">Notes</dt>
+                  <dd className="mt-1">{txnModal.notes}</dd>
+                </div>
+              )}
+            </dl>
+            <div className="flex justify-end gap-3 mt-5">
+              <Link
+                to={`/loans/${txnModal.loan_id}`}
+                className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg text-sm"
+              >
+                View loan
+              </Link>
+              <button
+                onClick={() => setTxnModal(null)}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

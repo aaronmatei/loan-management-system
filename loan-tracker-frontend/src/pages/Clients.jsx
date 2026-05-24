@@ -539,7 +539,7 @@ function Clients() {
                     ["Phone", "phone_number"],
                     ["Email", "email"],
                     ["Business", "business_name"],
-                    ["City", "city"],
+                    ["Location", "city"],
                     ["Status", "status"],
                   ].map(([label, key]) => (
                     <SortableHeader
@@ -586,10 +586,10 @@ function Clients() {
                       {client.email || "-"}
                     </td>
                     <td className="px-6 py-4 text-gray-600">
-                      {client.business_name || "-"}
+                      {client.business_name || client.business_type || "-"}
                     </td>
                     <td className="px-6 py-4 text-gray-600">
-                      {client.city || "-"}
+                      {client.city || client.county || "-"}
                     </td>
                     <td className="px-6 py-4">
                       <span

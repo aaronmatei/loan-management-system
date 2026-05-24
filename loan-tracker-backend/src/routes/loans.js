@@ -951,7 +951,7 @@ router.get("/applications/queue", async (req, res) => {
       LEFT JOIN users creator ON l.created_by = creator.id
       LEFT JOIN users reviewer ON l.reviewed_by = reviewer.id
       LEFT JOIN users approver ON l.approved_by = approver.id
-      WHERE l.status IN ('pending', 'under_review', 'approved', 'rejected')
+      WHERE l.status IN ('pending', 'under_review', 'counter_offered', 'approved', 'rejected')
     `;
     const params = [];
     if (status && status !== "all") {
@@ -978,13 +978,14 @@ router.get("/applications/stats", async (req, res) => {
       `SELECT
         COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending,
         COUNT(CASE WHEN status = 'under_review' THEN 1 END) AS under_review,
+        COUNT(CASE WHEN status = 'counter_offered' THEN 1 END) AS counter_offered,
         COUNT(CASE WHEN status = 'approved' THEN 1 END) AS approved,
         COUNT(CASE WHEN status = 'rejected' THEN 1 END) AS rejected,
         COUNT(CASE WHEN status = 'rejected' AND rejected_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS rejected_30d,
         COUNT(CASE WHEN status = 'active' AND disbursed_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS disbursed_30d,
         AVG(EXTRACT(EPOCH FROM (approved_at - application_date::timestamp)) / 3600)::int AS avg_approval_hours
       FROM loans
-      WHERE status IN ('pending', 'under_review', 'approved', 'rejected', 'active')${asT.clause}`,
+      WHERE status IN ('pending', 'under_review', 'counter_offered', 'approved', 'rejected', 'active')${asT.clause}`,
       asT.params,
     );
     res.json({ success: true, data: result.rows[0] });

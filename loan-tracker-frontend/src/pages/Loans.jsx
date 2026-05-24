@@ -76,7 +76,15 @@ function Loans() {
     try {
       setLoading(true);
       const response = await api.get("/loans");
-      setLoans(response.data.data || []);
+      // Applications (pending/under_review/counter_offered/approved/rejected)
+      // live on the Applications page. The Loans page — and its counts — show
+      // only loans that have actually been disbursed.
+      const all = response.data.data || [];
+      setLoans(
+        all.filter((l) =>
+          ["active", "completed", "defaulted", "suspended"].includes(l.status),
+        ),
+      );
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load loans");
     } finally {
@@ -572,7 +580,7 @@ function Loans() {
                   required
                   min="1000"
                   step="100"
-                  placeholder="50000"
+                  placeholder="5000"
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
@@ -630,13 +638,32 @@ function Loans() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Purpose
                 </label>
-                <input
+                <select
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
-                  placeholder="Business expansion, school fees, etc."
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                />
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                >
+                  <option value="">Select purpose…</option>
+                  {[
+                    "Business expansion",
+                    "Stock purchase",
+                    "Equipment purchase",
+                    "School fees",
+                    "Medical emergency",
+                    "Home improvement",
+                    "Vehicle purchase",
+                    "Farming inputs",
+                    "Working capital",
+                    "Wedding expenses",
+                    "Funeral expenses",
+                    "Other",
+                  ].map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

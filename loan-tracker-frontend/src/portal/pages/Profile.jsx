@@ -46,11 +46,6 @@ function Profile() {
             ? String(d.customer?.date_of_birth || d.client?.date_of_birth).split("T")[0]
             : "",
           gender: d.customer?.gender || d.client?.gender || "",
-          address: d.client?.address || "",
-          city: d.client?.city || "",
-          county: d.client?.county || "",
-          business_type: d.client?.business_type || "",
-          business_name: d.client?.business_name || "",
         });
       })
       .catch((err) => {
@@ -244,38 +239,6 @@ function Profile() {
               )}
             </div>
           </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="font-bold text-navy-900">
-            🏢 {client?.tenant_name || "Lender"} account
-          </h2>
-          {[
-            ["address", "Address"],
-            ["city", "City"],
-            ["county", "County"],
-            ["business_type", "Business Type"],
-            ["business_name", "Business Name"],
-          ].map(([key, label]) => (
-            <div key={key}>
-              <label className="block text-sm font-semibold mb-1">
-                {label}
-              </label>
-              {editing ? (
-                <input
-                  type="text"
-                  value={form[key]}
-                  onChange={(e) =>
-                    setForm({ ...form, [key]: e.target.value })
-                  }
-                  className={field}
-                />
-              ) : (
-                <p>{client?.[key] || "—"}</p>
-              )}
-            </div>
-          ))}
-
           {editing && (
             <div className="flex gap-2 pt-2">
               <button
@@ -297,6 +260,44 @@ function Profile() {
               </button>
             </div>
           )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-navy-900">🪪 Identity documents</h2>
+            <button
+              onClick={() =>
+                navigate(
+                  "/loanfix/portal/verify-identity?next=/loanfix/portal/profile",
+                )
+              }
+              className="text-sm font-semibold text-[var(--brand)]"
+            >
+              {customer.kyc_complete ? "Update" : "Upload"}
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              ["profile_photo_url", "Photo"],
+              ["id_front_url", "ID front"],
+              ["id_back_url", "ID back"],
+            ].map(([k, label]) => (
+              <div key={k} className="text-center">
+                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                  {customer[k] ? (
+                    <img
+                      src={customer[k]}
+                      alt={label}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-400">Not uploaded</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">{label}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow p-5">

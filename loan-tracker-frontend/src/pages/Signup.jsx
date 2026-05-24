@@ -232,7 +232,10 @@ function Signup() {
                       value={formData.first_name}
                       onChange={set("first_name")}
                       required
-                      placeholder={formData.subdomain || "yourcompany"}
+                      placeholder={(formData.subdomain || "yourcompany").replace(
+                        /^./,
+                        (c) => c.toUpperCase(),
+                      )}
                       className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
@@ -260,7 +263,7 @@ function Signup() {
                       value={formData.contact_email}
                       onChange={set("contact_email")}
                       required
-                      placeholder="john@yourbusiness.com"
+                      placeholder={`${formData.subdomain || "yourcompany"}@admin.com`}
                       className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>

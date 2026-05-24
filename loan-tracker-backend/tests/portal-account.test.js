@@ -43,7 +43,11 @@ describe("Auto portal account for new clients", () => {
     expect(pc.phone_verified).toBe(true);
     // stored in the portal's "+254…" form so portal login can find it
     expect(pc.phone_number).toBe("+254712000999");
-    expect(await bcryptjs.compare("Customer2026", pc.password_hash)).toBe(true);
+    // Per-client default password: first-initial(caps) + last-initial + ID + @year
+    const year = new Date().getFullYear();
+    expect(
+      await bcryptjs.compare(`Pc99887766@${year}`, pc.password_hash),
+    ).toBe(true);
 
     const link = await query(
       `SELECT 1 FROM customer_tenant_links

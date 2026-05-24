@@ -135,43 +135,33 @@ function CustomerCalculator() {
 
         {tenants.length > 1 && (
           <div className="bg-white rounded-xl shadow p-4 mb-4">
-            <label className="block text-sm font-semibold mb-2">
+            <label
+              htmlFor="lender-select"
+              className="block text-sm font-semibold mb-2"
+            >
               Calculate for which lender?
             </label>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+            <select
+              id="lender-select"
+              value={selected.tenant_id}
+              onChange={(e) => {
+                const t = tenants.find(
+                  (x) => String(x.tenant_id) === e.target.value,
+                );
+                if (t) {
+                  setSelected(t);
+                  setCalc(null);
+                }
+              }}
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg bg-white focus:border-[var(--brand)] focus:outline-none font-semibold"
+            >
               {tenants.map((t) => (
-                <button
-                  key={t.tenant_id}
-                  onClick={() => {
-                    setSelected(t);
-                    setCalc(null);
-                  }}
-                  className={`p-3 rounded-lg border-2 text-left transition ${
-                    selected.tenant_id === t.tenant_id
-                      ? "border-[var(--brand)] bg-[var(--brand)]/10"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                      style={{ backgroundColor: t.brand_color || "#4F46E5" }}
-                    >
-                      {t.business_name?.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">
-                        {t.business_name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {+(parseFloat(t.default_interest_rate) / 12).toFixed(2)}%
-                        p.m.
-                      </p>
-                    </div>
-                  </div>
-                </button>
+                <option key={t.tenant_id} value={t.tenant_id}>
+                  {t.business_name} —{" "}
+                  {+(parseFloat(t.default_interest_rate) / 12).toFixed(2)}% p.m.
+                </option>
               ))}
-            </div>
+            </select>
           </div>
         )}
 

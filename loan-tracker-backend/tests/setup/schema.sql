@@ -871,6 +871,8 @@ CREATE TABLE public.platform_customers (
     otp_attempts integer DEFAULT 0,
     otp_purpose character varying(30),
     profile_photo_url text,
+    id_front_url text,
+    id_back_url text,
     is_active boolean DEFAULT true,
     is_blacklisted_platform boolean DEFAULT false,
     blacklist_reason text,

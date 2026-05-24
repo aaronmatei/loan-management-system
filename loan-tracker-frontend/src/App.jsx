@@ -24,6 +24,7 @@ import CustomerLenderDetail from "./portal/pages/LenderDetail";
 import CustomerApplyLoan from "./portal/pages/ApplyLoan";
 import CustomerApplications from "./portal/pages/Applications";
 import CustomerCalculator from "./portal/pages/Calculator";
+import CustomerVerifyIdentity from "./portal/pages/VerifyIdentity";
 import PlatformDashboard from "./admin/pages/Dashboard";
 import PlatformTenants from "./admin/pages/Tenants";
 import PlatformTenantDetail from "./admin/pages/TenantDetail";
@@ -254,6 +255,14 @@ function App() {
             <Route
               path="/loanfix/portal/select-tenant"
               element={<TenantPicker />}
+            />
+            <Route
+              path="/loanfix/portal/verify-identity"
+              element={
+                <PortalProtectedRoute allowIncompleteKyc>
+                  <CustomerVerifyIdentity />
+                </PortalProtectedRoute>
+              }
             />
             <Route
               path="/loanfix/portal/add-lender"

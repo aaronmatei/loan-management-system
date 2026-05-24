@@ -92,14 +92,21 @@ function CustomerRegister() {
       alert(
         `Registration successful! 🎉\nYour LoanFix ID: ${res.data.customer?.customer_code || ""}`,
       );
-      if (fromWidget && widgetAmount) {
-        const p = new URLSearchParams({
-          amount: widgetAmount,
-          ...(widgetDuration ? { duration: widgetDuration } : {}),
-        });
-        navigate(`/loanfix/portal/apply?${p}`);
+      const dest =
+        fromWidget && widgetAmount
+          ? `/loanfix/portal/apply?${new URLSearchParams({
+              amount: widgetAmount,
+              ...(widgetDuration ? { duration: widgetDuration } : {}),
+            })}`
+          : "/loanfix/portal/dashboard";
+      // New accounts upload identity documents before proceeding (only when
+      // image storage is live; otherwise needs_kyc is false and we skip it).
+      if (res.data.customer?.needs_kyc) {
+        navigate(
+          `/loanfix/portal/verify-identity?next=${encodeURIComponent(dest)}`,
+        );
       } else {
-        navigate("/loanfix/portal/dashboard");
+        navigate(dest);
       }
     } catch (err) {
       alert(err.response?.data?.error || "Verification failed");

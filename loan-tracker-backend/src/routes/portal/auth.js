@@ -7,6 +7,7 @@ import { tenantContext } from "../../middleware/tenantContext.js";
 import { validatePassword } from "../../utils/validators.js";
 import { nextClientCode } from "../../utils/clientCode.js";
 import { lfxCode } from "../../utils/customerCode.js";
+import { needsKyc } from "../../utils/kyc.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -246,6 +247,7 @@ router.post("/verify-otp", async (req, res) => {
         phone_number: customer.phone_number,
         first_name: customer.first_name,
         last_name: customer.last_name,
+        needs_kyc: needsKyc(customer),
       },
       current_tenant: null,
     });
@@ -326,6 +328,7 @@ router.post("/login", tenantContext, async (req, res) => {
       phone_number: customer.phone_number,
       first_name: customer.first_name,
       last_name: customer.last_name,
+      needs_kyc: needsKyc(customer),
     };
     const sign = (claims, exp = "7d") =>
       jwt.sign(
