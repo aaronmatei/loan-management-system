@@ -10,6 +10,7 @@ import {
   BarChart3,
   CreditCard,
   Users,
+  Plus,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -356,89 +357,103 @@ function Dashboard() {
         </button>
       )}
 
-      {/* Capital Pool */}
+      {/* Capital Pool — light/glassy to match the rest of the dashboard */}
       {poolStatus && (
-        <div className="bg-gradient-to-r from-blue-600 via-ocean-600 to-ocean-600 rounded-2xl shadow-lg p-6 mb-6 text-white">
-          <div className="flex justify-between items-start mb-4">
+        <div className="relative overflow-hidden bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
+          {/* Faint brand glow keeps it on-brand without a heavy gradient. */}
+          <div className="pointer-events-none absolute -top-20 -right-16 w-64 h-64 rounded-full bg-ocean-200/25 blur-3xl" />
+
+          {/* Header */}
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <IconTile icon={Coins} variant="ocean" size={44} />
+              <div>
+                <h2 className="text-lg font-bold text-navy-900">Capital Pool</h2>
+                <p className="text-sm text-slate-500">Available for lending</p>
+              </div>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => setShowTopUp(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-ocean-200 bg-ocean-50 text-ocean-700 text-sm font-semibold hover:bg-ocean-100 transition"
+              >
+                <Plus size={16} /> Top up capital
+              </button>
+            )}
+          </div>
+
+          {/* Available capital + outstanding */}
+          <div className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mt-6">
             <div>
-              <h2 className="text-xl font-bold">💰 Capital Pool</h2>
-              <p className="text-blue-100 text-sm mt-1">
-                Available for lending
+              <p className="text-sm text-slate-500">Available Capital</p>
+              <p className="text-3xl lg:text-4xl font-extrabold text-navy-900 leading-none mt-1">
+                KES {fmtAxis(poolStatus.available_pool)}
+                <span className="text-sm font-medium text-slate-400 ml-2">
+                  of KES {fmtAxis(poolStatus.initial_capital)}
+                </span>
               </p>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold">
-                KES {poolStatus.available_pool.toLocaleString()}
-              </p>
-              <p className="text-blue-100 text-sm">
-                of KES {poolStatus.initial_capital.toLocaleString()}
+              <p className="text-sm text-slate-500">Outstanding</p>
+              <p className="text-2xl lg:text-3xl font-extrabold text-ocean-600 leading-none mt-1">
+                {fmtKES(poolStatus.outstanding_principal)}
               </p>
             </div>
           </div>
 
-          {isAdmin && (
-            <button
-              onClick={() => setShowTopUp(true)}
-              className="mb-4 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold transition"
-            >
-              + Top up capital
-            </button>
-          )}
-
-          {/* Utilization Bar — wrapped in its own border */}
-          <div className="rounded-xl border border-white/25 bg-white/10 p-4 mb-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span>
-                Utilization: {poolStatus.utilization_rate.toFixed(1)}%
+          {/* Utilization */}
+          <div className="relative mt-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium text-slate-500">
+                Utilization
               </span>
-              <span>
-                Outstanding: KES{" "}
-                {poolStatus.outstanding_principal.toLocaleString()}
+              <span className="text-sm font-bold text-ocean-600">
+                {poolStatus.utilization_rate.toFixed(1)}%
               </span>
             </div>
-            <div className="w-full bg-white/20 rounded-full h-3">
+            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
               <div
-                className="bg-white h-3 rounded-full transition-all"
+                className="h-2.5 rounded-full bg-gradient-to-r from-ocean-600 to-ocean-300 transition-all"
                 style={{
                   width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
                 }}
-              ></div>
+              />
             </div>
           </div>
 
-          {/* Stats — each element wrapped in its own border */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
-              <p className="text-xs text-blue-100">Total Disbursed</p>
-              <p className="text-base sm:text-lg font-bold whitespace-nowrap mt-1">
-                KES {poolStatus.total_disbursed.toLocaleString()}
+          {/* Stats */}
+          <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+              <p className="text-xs text-slate-500">Total Disbursed</p>
+              <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+                KES {fmtAxis(poolStatus.total_disbursed)}
               </p>
             </div>
-            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
-              <p className="text-xs text-blue-100">Total Collected</p>
-              <p className="text-base sm:text-lg font-bold whitespace-nowrap mt-1">
-                KES {poolStatus.total_collected.toLocaleString()}
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+              <p className="text-xs text-slate-500">Total Collected</p>
+              <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+                {fmtKES(poolStatus.total_collected)}
               </p>
             </div>
-            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
-              <p className="text-xs text-blue-100">Interest Earned</p>
-              <p className="text-base sm:text-lg font-bold text-green-300 whitespace-nowrap mt-1">
-                +KES {poolStatus.total_interest_earned.toLocaleString()}
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+              <p className="text-xs text-slate-500">Interest Earned</p>
+              <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
+                +{fmtKES(poolStatus.total_interest_earned)}
               </p>
             </div>
             {/* Collection Rate — moved here from the KPI strip */}
-            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
-              <p className="text-xs text-blue-100">Collection Rate</p>
-              <p className="text-base sm:text-lg font-bold whitespace-nowrap mt-1">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+              <p className="text-xs text-slate-500">Collection Rate</p>
+              <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
                 {metrics.collection_rate}%
               </p>
-              <div className="w-full bg-white/20 rounded-full h-1.5 mt-2">
+              <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
                 <div
-                  className="bg-white h-1.5 rounded-full transition-all"
+                  className="bg-ocean-500 h-1.5 rounded-full transition-all"
                   style={{
                     width: `${Math.min(metrics.collection_rate, 100)}%`,
                   }}
-                ></div>
+                />
               </div>
             </div>
           </div>
