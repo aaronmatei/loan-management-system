@@ -6,7 +6,7 @@ import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
 import SortHeader from "../components/SortHeader";
 import Pager from "../components/Pager";
-import { lenderColor } from "../lenderColor";
+import { lenderType } from "../lenderType";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 20;
@@ -103,15 +103,46 @@ function Lenders() {
   const fld =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-600 focus:outline-none bg-white";
 
+  // Distinct lender types present, for the colour legend.
+  const legendTypes = (() => {
+    const m = new Map();
+    for (const l of lenders) {
+      const t = lenderType(l.business_type);
+      if (!m.has(t.label)) m.set(t.label, t.color);
+    }
+    return [...m.entries()].map(([label, color]) => ({ label, color }));
+  })();
+
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
         <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1">
           🏦 Lenders
         </h1>
-        <p className="text-slate-500 mb-5">
+        <p className="text-slate-500 mb-3">
           Browse every lender on LoanFix and compare their terms.
         </p>
+
+        {/* Colour legend: each lender's colour reflects its type. */}
+        {legendTypes.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-5 text-xs">
+            <span className="text-slate-400 font-semibold uppercase tracking-wide">
+              Type
+            </span>
+            {legendTypes.map((t) => (
+              <span
+                key={t.label}
+                className="inline-flex items-center gap-1.5 text-slate-600"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: t.color }}
+                />
+                {t.label}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-5">
@@ -255,7 +286,10 @@ function Lenders() {
                 </thead>
                 <tbody>
                   {paged.map((l) => {
-                    const bc = lenderColor(l.brand_color, l.tenant_id);
+                    // Colour each lender by its TYPE so the category reads at a
+                    // glance (all microfinances share a colour, etc.).
+                    const ty = lenderType(l.business_type);
+                    const bc = ty.color;
                     return (
                       <tr
                         key={l.tenant_id}
@@ -283,11 +317,22 @@ function Lenders() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-500 capitalize truncate">
-                                {[l.business_type, l.city]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span
+                                  className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                                  style={{
+                                    color: bc,
+                                    backgroundColor: `${bc}1a`,
+                                  }}
+                                >
+                                  {ty.label}
+                                </span>
+                                {l.city && (
+                                  <span className="text-xs text-slate-500 capitalize truncate">
+                                    · {l.city}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
