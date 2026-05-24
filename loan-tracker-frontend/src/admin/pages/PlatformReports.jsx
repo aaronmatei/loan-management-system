@@ -31,6 +31,8 @@ function PlatformReports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [months]);
 
+  const [downloading, setDownloading] = useState("");
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -40,6 +42,27 @@ function PlatformReports() {
       console.error("Failed to load platform analytics:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Download the platform report as a PDF or Excel file.
+  const download = async (fmt) => {
+    setDownloading(fmt);
+    try {
+      const res = await platformApi.get(
+        `/analytics/platform/export/${fmt}?months=${months}`,
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `platform-report.${fmt === "pdf" ? "pdf" : "xlsx"}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Failed to download report");
+    } finally {
+      setDownloading("");
     }
   };
 
@@ -66,15 +89,31 @@ function PlatformReports() {
               LoanFix performance across all tenants
             </p>
           </div>
-          <select
-            value={months}
-            onChange={(e) => setMonths(parseInt(e.target.value, 10))}
-            className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
-          >
-            <option value={3}>Last 3 months</option>
-            <option value={6}>Last 6 months</option>
-            <option value={12}>Last 12 months</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={months}
+              onChange={(e) => setMonths(parseInt(e.target.value, 10))}
+              className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
+            >
+              <option value={3}>Last 3 months</option>
+              <option value={6}>Last 6 months</option>
+              <option value={12}>Last 12 months</option>
+            </select>
+            <button
+              onClick={() => download("pdf")}
+              disabled={!!downloading}
+              className="px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {downloading === "pdf" ? "…" : "⬇ PDF"}
+            </button>
+            <button
+              onClick={() => download("excel")}
+              disabled={!!downloading}
+              className="px-3 py-2 rounded-lg bg-ocean-gradient text-white text-sm font-semibold hover:shadow-lg disabled:opacity-50"
+            >
+              {downloading === "excel" ? "…" : "⬇ Excel"}
+            </button>
+          </div>
         </div>
 
         {/* KPI cards */}

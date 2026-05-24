@@ -287,8 +287,13 @@ class AnalyticsService {
 
     const platformLoans = await query(
       `SELECT
-         COUNT(*)::int                              AS total_loans,
-         COALESCE(SUM(principal_amount), 0)::float  AS total_disbursed
+         COUNT(*)::int AS total_loans,
+         -- "Disbursed" = money actually paid out. Pending / under_review /
+         -- approved / rejected / counter_offered loans have NOT been
+         -- disbursed, so they must not inflate this figure.
+         COALESCE(SUM(principal_amount)
+           FILTER (WHERE l.status IN ('active','completed','defaulted')), 0)::float
+           AS total_disbursed
        FROM loans l
        JOIN tenants t ON l.tenant_id = t.id
        WHERE COALESCE(t.is_demo, false) = false`,
@@ -343,8 +348,13 @@ class AnalyticsService {
     const result = await query(
       `SELECT
          t.id, t.business_name, t.brand_color, t.status,
-         COUNT(DISTINCT l.id)::int                          AS loans,
-         COALESCE(SUM(l.principal_amount), 0)::float        AS disbursed,
+         -- Rank by real disbursement volume: only loans actually paid out
+         -- (active/completed/defaulted), never pending applications.
+         COUNT(DISTINCT l.id) FILTER (
+           WHERE l.status IN ('active','completed','defaulted'))::int AS loans,
+         COALESCE(SUM(l.principal_amount)
+           FILTER (WHERE l.status IN ('active','completed','defaulted')), 0)::float
+           AS disbursed,
          COALESCE((
            SELECT SUM(i.amount_paid)
            FROM invoices i

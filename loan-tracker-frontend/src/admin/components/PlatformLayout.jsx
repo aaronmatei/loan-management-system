@@ -48,7 +48,7 @@ function PlatformLayout({ children }) {
 
   const logout = () => {
     localStorage.clear();
-    navigate("/login");
+    navigate("/"); // back to the public home page
   };
 
   return (
@@ -114,13 +114,7 @@ function PlatformLayout({ children }) {
               })}
             </ul>
           </nav>
-          <div className="p-4 border-t border-white/10 space-y-2 bg-navy-950/40">
-            <Link
-              to="/"
-              className="block w-full py-2 px-4 bg-white/10 hover:bg-white/15 text-ocean-100 rounded-lg text-sm text-center"
-            >
-              ← Back to Tenant View
-            </Link>
+          <div className="p-4 border-t border-white/10 bg-navy-950/40">
             <button
               onClick={logout}
               className="w-full py-2 px-4 bg-white/10 hover:bg-white/15 text-ocean-100 rounded-lg font-semibold text-sm flex items-center justify-center gap-2"

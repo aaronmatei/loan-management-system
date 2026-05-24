@@ -261,7 +261,9 @@ router.get("/stats", async (req, res) => {
     const monthlyTrends = await query(`
       SELECT DATE_TRUNC('month', created_at) AS month,
              COUNT(*)::int AS loans_created,
-             COALESCE(SUM(principal_amount),0) AS total_disbursed
+             -- Only count loans actually disbursed (not pending/unapproved).
+             COALESCE(SUM(principal_amount)
+               FILTER (WHERE status IN ('active','completed','defaulted')),0) AS total_disbursed
       FROM loans
       WHERE created_at >= NOW() - INTERVAL '12 months'
       GROUP BY 1 ORDER BY 1 ASC

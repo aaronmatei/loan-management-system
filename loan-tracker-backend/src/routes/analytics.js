@@ -437,6 +437,166 @@ router.get("/platform", async (req, res) => {
   }
 });
 
+// Platform report (PDF) — overview KPIs + tenant leaderboard. Platform-admin
+// only; mirrors the tenant /export/pdf pattern but with platform-wide data.
+router.get("/platform/export/pdf", async (req, res) => {
+  try {
+    if (!req.user?.is_platform_admin) {
+      return res.status(403).json({ error: "Platform admin only" });
+    }
+    const months = Math.min(
+      Math.max(parseInt(req.query.months, 10) || 6, 1),
+      24,
+    );
+    const [kpis, revenueTrend, leaderboard] = await Promise.all([
+      analyticsService.getPlatformKPIs(),
+      analyticsService.getPlatformRevenueTrend(months),
+      analyticsService.getTenantLeaderboard(),
+    ]);
+
+    const fmtKES = (n) =>
+      "KES " +
+      parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
+    const filename = `platform-report-${new Date().toISOString().split("T")[0]}.pdf`;
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    doc.pipe(res);
+
+    doc.fontSize(20).fillColor("#0086cc").text("LoanFix Platform Report", {
+      align: "center",
+    });
+    doc
+      .fontSize(10)
+      .fillColor("#999")
+      .text(`Generated: ${new Date().toLocaleString("en-KE")}`, {
+        align: "center",
+      });
+    doc.moveDown(2);
+
+    doc.fontSize(14).fillColor("#000").text("Platform Overview", {
+      underline: true,
+    });
+    doc.moveDown(0.5);
+    doc.fontSize(11).fillColor("#333");
+    doc.text(`Total Tenants: ${kpis.tenants.total_tenants}`);
+    doc.text(`Active Tenants: ${kpis.tenants.active_tenants}`);
+    doc.text(`Suspended Tenants: ${kpis.tenants.suspended_tenants}`);
+    doc.text(`New This Month: ${kpis.tenants.new_this_month}`);
+    doc.text(`Total Revenue (fees): ${fmtKES(kpis.revenue.total_revenue)}`);
+    doc.text(`Outstanding (unpaid invoices): ${fmtKES(kpis.revenue.outstanding)}`);
+    doc.text(`Platform Loans: ${kpis.platform_loans.total_loans}`);
+    doc.text(`Total Disbursed: ${fmtKES(kpis.platform_loans.total_disbursed)}`);
+    doc.moveDown(1.5);
+
+    doc.fontSize(14).fillColor("#000").text(
+      "Tenant Leaderboard (by disbursement)",
+      { underline: true },
+    );
+    doc.moveDown(0.5);
+    doc.fontSize(10).fillColor("#333");
+    if (leaderboard.length === 0) {
+      doc.text("No tenant activity yet.");
+    } else {
+      leaderboard.forEach((t, i) => {
+        doc.text(
+          `${i + 1}. ${t.business_name} — ${t.loans} loans · ${fmtKES(
+            t.disbursed,
+          )} disbursed · ${fmtKES(t.fees_paid)} fees`,
+        );
+      });
+    }
+
+    doc.end();
+  } catch (error) {
+    logger.error("Platform PDF export error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  }
+});
+
+// Platform report (Excel) — Summary + Leaderboard + Revenue trend sheets.
+router.get("/platform/export/excel", async (req, res) => {
+  try {
+    if (!req.user?.is_platform_admin) {
+      return res.status(403).json({ error: "Platform admin only" });
+    }
+    const months = Math.min(
+      Math.max(parseInt(req.query.months, 10) || 6, 1),
+      24,
+    );
+    const [kpis, revenueTrend, leaderboard] = await Promise.all([
+      analyticsService.getPlatformKPIs(),
+      analyticsService.getPlatformRevenueTrend(months),
+      analyticsService.getTenantLeaderboard(),
+    ]);
+
+    const wb = new ExcelJS.Workbook();
+    const s = wb.addWorksheet("Summary");
+    s.columns = [{ width: 32 }, { width: 22 }];
+    s.addRow(["LoanFix Platform Report", ""]);
+    s.addRow(["Generated", new Date().toLocaleString("en-KE")]);
+    s.addRow([]);
+    s.addRow(["Metric", "Value"]);
+    s.addRow(["Total Tenants", kpis.tenants.total_tenants]);
+    s.addRow(["Active Tenants", kpis.tenants.active_tenants]);
+    s.addRow(["Suspended Tenants", kpis.tenants.suspended_tenants]);
+    s.addRow(["New This Month", kpis.tenants.new_this_month]);
+    s.addRow(["Total Revenue (KES)", kpis.revenue.total_revenue]);
+    s.addRow(["Outstanding (KES)", kpis.revenue.outstanding]);
+    s.addRow(["Platform Loans", kpis.platform_loans.total_loans]);
+    s.addRow(["Total Disbursed (KES)", kpis.platform_loans.total_disbursed]);
+    s.getRow(1).font = { bold: true, size: 14 };
+    s.getRow(4).font = { bold: true };
+
+    const lb = wb.addWorksheet("Leaderboard");
+    lb.columns = [
+      { header: "#", key: "rank", width: 6 },
+      { header: "Tenant", key: "name", width: 28 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Loans", key: "loans", width: 10 },
+      { header: "Disbursed (KES)", key: "disbursed", width: 18 },
+      { header: "Fees Paid (KES)", key: "fees", width: 18 },
+    ];
+    lb.getRow(1).font = { bold: true };
+    leaderboard.forEach((t, i) =>
+      lb.addRow({
+        rank: i + 1,
+        name: t.business_name,
+        status: t.status,
+        loans: t.loans,
+        disbursed: t.disbursed,
+        fees: t.fees_paid,
+      }),
+    );
+
+    const rev = wb.addWorksheet("Revenue Trend");
+    rev.columns = [
+      { header: "Month", key: "month", width: 16 },
+      { header: "Revenue (KES)", key: "revenue", width: 18 },
+    ];
+    rev.getRow(1).font = { bold: true };
+    revenueTrend.forEach((r) =>
+      rev.addRow({ month: r.month, revenue: r.revenue }),
+    );
+
+    const filename = `platform-report-${new Date().toISOString().split("T")[0]}.xlsx`;
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    logger.error("Platform Excel export error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  }
+});
+
 // PDF portfolio report — KPI overview + PAR + aging. Streamed
 // straight to the response. Mirrors the existing servePdf pattern in
 // routes/reports.js but uses a bespoke builder (the shared builders
