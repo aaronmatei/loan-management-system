@@ -18,6 +18,8 @@ async function createClientViaRoute(admin, overrides = {}) {
       last_name: "Client",
       phone_number: "0712555888",
       id_number: "44556677",
+      business_type: "Retail Shop",
+      gender: "male",
       ...overrides,
     });
   expect(res.status).toBe(201);
@@ -29,6 +31,9 @@ describe("Staff client detail — KYC images", () => {
     const tenant = await createTenant();
     const admin = await createUser(tenant.id, { role: "admin" });
     const client = await createClientViaRoute(admin);
+    // Business type + gender captured at signup persist on the client.
+    expect(client.business_type).toBe("Retail Shop");
+    expect(client.gender).toBe("male");
 
     // The POST auto-provisioned a portal account + link; set its images.
     await query(

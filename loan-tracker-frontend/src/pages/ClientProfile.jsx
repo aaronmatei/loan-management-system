@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
+import { BUSINESS_TYPES } from "../utils/businessTypes";
 
 // Small status dot beside the risk label in the credit-score card.
 const riskDot = {
@@ -828,8 +829,7 @@ function ClientProfile() {
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Business Type
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={editFormData.business_type || ""}
                     onChange={(e) =>
                       setEditFormData({
@@ -837,8 +837,59 @@ function ClientProfile() {
                         business_type: e.target.value,
                       })
                     }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  >
+                    <option value="">-- Select Type --</option>
+                    {BUSINESS_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    value={
+                      editFormData.date_of_birth
+                        ? String(editFormData.date_of_birth).split("T")[0]
+                        : ""
+                    }
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        date_of_birth: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={editFormData.gender || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        gender: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
               </div>
 

@@ -1,24 +1,7 @@
 import React, { useState } from "react";
 import api from "../../services/api";
 import { KENYA_COUNTIES } from "../../utils/counties";
-
-const BUSINESS_TYPES = [
-  "Retail Shop",
-  "Wholesale",
-  "Boda Boda",
-  "Farming / Agriculture",
-  "Salon / Barber",
-  "Food / Restaurant",
-  "Tailoring",
-  "Hardware",
-  "Transport",
-  "M-Pesa Agent",
-  "Electronics",
-  "Clothing / Mitumba",
-  "Construction",
-  "Professional Services",
-  "Other",
-];
+import { BUSINESS_TYPES } from "../../utils/businessTypes";
 
 function FirstClientStep({ onNext, onBack, setCreatedClient }) {
   const [form, setForm] = useState({
