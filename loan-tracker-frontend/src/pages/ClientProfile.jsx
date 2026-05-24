@@ -142,21 +142,34 @@ function ClientProfile() {
         </button>
 
         <div className="flex flex-wrap justify-between items-start gap-6">
-          <div>
-            <p className="text-ocean-100 text-sm">Client Code</p>
-            <h1 className="text-3xl font-bold">{client.client_code}</h1>
-            <p className="text-xl mt-2">
-              {client.first_name} {client.last_name}
-            </p>
-            <p className="text-ocean-100 mt-1">
-              📱 {client.phone_number}{" "}
-              {client.email && `• ✉️ ${client.email}`}
-            </p>
-            <p className="text-ocean-100 text-sm mt-1">
-              {client.business_name && `🏢 ${client.business_name} • `}
-              Member since{" "}
-              {new Date(client.created_at).toLocaleDateString()}
-            </p>
+          <div className="flex items-start gap-4">
+            {client.profile_photo_url ? (
+              <img
+                src={client.profile_photo_url}
+                alt={`${client.first_name} ${client.last_name}`}
+                className="w-20 h-20 rounded-full object-cover ring-4 ring-white/30 shrink-0"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-white/15 flex items-center justify-center text-3xl font-bold shrink-0">
+                {(client.first_name || "?").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <p className="text-ocean-100 text-sm">Client Code</p>
+              <h1 className="text-3xl font-bold">{client.client_code}</h1>
+              <p className="text-xl mt-2">
+                {client.first_name} {client.last_name}
+              </p>
+              <p className="text-ocean-100 mt-1">
+                📱 {client.phone_number}{" "}
+                {client.email && `• ✉️ ${client.email}`}
+              </p>
+              <p className="text-ocean-100 text-sm mt-1">
+                {client.business_name && `🏢 ${client.business_name} • `}
+                Member since{" "}
+                {new Date(client.created_at).toLocaleDateString()}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col items-end gap-3">
@@ -256,6 +269,48 @@ function ClientProfile() {
               ✉️ Email Statement
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Identity documents — from the client's linked customer-portal account */}
+      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">
+          🪪 Identity Documents
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Uploaded by the client in the customer portal. Click an image to view
+          it full-size.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            ["profile_photo_url", "Profile Photo", "rounded-full"],
+            ["id_front_url", "ID — Front", "rounded-xl"],
+            ["id_back_url", "ID — Back", "rounded-xl"],
+          ].map(([key, label, shape]) => (
+            <div key={key} className="text-center">
+              {client[key] ? (
+                <a
+                  href={client[key]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block"
+                >
+                  <img
+                    src={client[key]}
+                    alt={label}
+                    className={`w-full aspect-square object-cover border border-gray-200 ${shape}`}
+                  />
+                </a>
+              ) : (
+                <div
+                  className={`w-full aspect-square bg-gray-100 flex items-center justify-center text-sm text-gray-400 border border-gray-200 ${shape}`}
+                >
+                  Not uploaded
+                </div>
+              )}
+              <p className="text-sm font-semibold text-gray-700 mt-2">{label}</p>
+            </div>
+          ))}
         </div>
       </div>
 

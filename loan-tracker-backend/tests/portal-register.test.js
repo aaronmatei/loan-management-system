@@ -18,10 +18,18 @@ describe("Portal self-registration (OTP disabled)", () => {
         id_number: `REG-${Date.now()}`,
         first_name: "Self",
         last_name: "Signup",
+        email: "self.signup@example.com",
       });
     expect(reg.status).toBe(200);
     expect(reg.body.requires_otp).toBe(false);
     expect(reg.body.customer_id).toBeTruthy();
+
+    // Email captured at registration is persisted on the platform account.
+    const emailRow = await query(
+      "SELECT email FROM platform_customers WHERE id = $1",
+      [reg.body.customer_id],
+    );
+    expect(emailRow.rows[0].email).toBe("self.signup@example.com");
 
     // No `otp` in the body — should still succeed.
     const fin = await request(app)

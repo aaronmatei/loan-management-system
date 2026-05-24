@@ -85,6 +85,7 @@ router.post("/register", async (req, res) => {
       id_number,
       first_name,
       last_name,
+      email,
       date_of_birth,
       gender,
     } = req.body;
@@ -122,9 +123,17 @@ router.post("/register", async (req, res) => {
       await query(
         `UPDATE platform_customers
             SET first_name = $1, last_name = $2,
-                date_of_birth = $3, gender = $4, updated_at = NOW()
-          WHERE id = $5`,
-        [first_name, last_name, date_of_birth || null, gender || null, customerId],
+                email = COALESCE($3, email),
+                date_of_birth = $4, gender = $5, updated_at = NOW()
+          WHERE id = $6`,
+        [
+          first_name,
+          last_name,
+          email || null,
+          date_of_birth || null,
+          gender || null,
+          customerId,
+        ],
       );
     } else {
       const idCheck = await query(
@@ -139,14 +148,15 @@ router.post("/register", async (req, res) => {
       }
       const nc = await query(
         `INSERT INTO platform_customers (
-           phone_number, id_number, first_name, last_name,
+           phone_number, id_number, first_name, last_name, email,
            date_of_birth, gender, registration_ip
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
         [
           fp,
           id_number,
           first_name,
           last_name,
+          email || null,
           date_of_birth || null,
           gender || null,
           ipOf(req),
@@ -247,6 +257,7 @@ router.post("/verify-otp", async (req, res) => {
         phone_number: customer.phone_number,
         first_name: customer.first_name,
         last_name: customer.last_name,
+        profile_photo_url: customer.profile_photo_url,
         needs_kyc: needsKyc(customer),
       },
       current_tenant: null,
@@ -328,6 +339,7 @@ router.post("/login", tenantContext, async (req, res) => {
       phone_number: customer.phone_number,
       first_name: customer.first_name,
       last_name: customer.last_name,
+      profile_photo_url: customer.profile_photo_url,
       needs_kyc: needsKyc(customer),
     };
     const sign = (claims, exp = "7d") =>

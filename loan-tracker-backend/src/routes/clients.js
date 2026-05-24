@@ -305,9 +305,21 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const gTs = tenantClause(req, 1);
+    // Pull the linked portal account's KYC images (profile photo + both ID
+    // sides) so staff can verify identity. These live on the cross-tenant
+    // platform_customers row, joined via the active customer_tenant_link.
+    const gTs = tenantClause(req, 1, "c.tenant_id");
     const result = await query(
-      `SELECT * FROM clients WHERE id = $1${gTs.clause}`,
+      `SELECT c.*,
+              pc.profile_photo_url,
+              pc.id_front_url,
+              pc.id_back_url
+         FROM clients c
+         LEFT JOIN customer_tenant_links ctl
+           ON ctl.client_id = c.id AND ctl.tenant_id = c.tenant_id
+          AND ctl.status = 'active'
+         LEFT JOIN platform_customers pc ON pc.id = ctl.platform_customer_id
+        WHERE c.id = $1${gTs.clause}`,
       [id, ...gTs.params],
     );
 

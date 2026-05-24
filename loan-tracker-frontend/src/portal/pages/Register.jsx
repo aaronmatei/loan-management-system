@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PasswordInput from "../components/PasswordInput";
+import IdentityUploader from "../components/IdentityUploader";
 
 // Two-step: details → OTP + password. Portal registration is scoped
 // to a lender (subdomain); in production that comes from the host,
@@ -25,6 +26,7 @@ function CustomerRegister() {
     id_number: "",
     first_name: "",
     last_name: "",
+    email: "",
     date_of_birth: "",
     gender: "",
     otp: "",
@@ -45,6 +47,7 @@ function CustomerRegister() {
         id_number: form.id_number,
         first_name: form.first_name,
         last_name: form.last_name,
+        email: form.email || null,
         date_of_birth: form.date_of_birth || null,
         gender: form.gender || null,
       });
@@ -89,24 +92,16 @@ function CustomerRegister() {
           JSON.stringify(res.data.current_tenant),
         );
       }
-      alert(
-        `Registration successful! 🎉\nYour LoanFix ID: ${res.data.customer?.customer_code || ""}`,
-      );
-      const dest =
-        fromWidget && widgetAmount
-          ? `/loanfix/portal/apply?${new URLSearchParams({
-              amount: widgetAmount,
-              ...(widgetDuration ? { duration: widgetDuration } : {}),
-            })}`
-          : "/loanfix/portal/dashboard";
-      // New accounts upload identity documents before proceeding (only when
-      // image storage is live; otherwise needs_kyc is false and we skip it).
+      // New accounts upload identity documents as the final signup step
+      // (only when image storage is live; otherwise needs_kyc is false and
+      // we finish straight away).
       if (res.data.customer?.needs_kyc) {
-        navigate(
-          `/loanfix/portal/verify-identity?next=${encodeURIComponent(dest)}`,
-        );
+        setStep(3);
       } else {
-        navigate(dest);
+        alert(
+          `Registration successful! 🎉\nYour LoanFix ID: ${res.data.customer?.customer_code || ""}`,
+        );
+        finishSignup();
       }
     } catch (err) {
       alert(err.response?.data?.error || "Verification failed");
@@ -127,12 +122,29 @@ function CustomerRegister() {
     }
   };
 
+  // Land the new customer on the apply page (widget hand-off) or the
+  // dashboard once signup — including identity upload — is done.
+  const finishSignup = () => {
+    const dest =
+      fromWidget && widgetAmount
+        ? `/loanfix/portal/apply?${new URLSearchParams({
+            amount: widgetAmount,
+            ...(widgetDuration ? { duration: widgetDuration } : {}),
+          })}`
+        : "/loanfix/portal/dashboard";
+    navigate(dest);
+  };
+
   const field =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
+      <div
+        className={`bg-white rounded-2xl shadow-2xl w-full p-6 lg:p-8 ${
+          step === 3 ? "max-w-xl" : "max-w-md"
+        }`}
+      >
         {fromWidget && widgetAmount && (
           <div className="mb-4 bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg py-2 px-3">
             📊 Applying for KES{" "}
@@ -147,9 +159,11 @@ function CustomerRegister() {
         <p className="text-gray-600 mb-6">
           {step === 1
             ? "One account works across all your lenders"
-            : requiresOtp
-              ? "Enter the code we texted you"
-              : "Set a password to finish"}
+            : step === 2
+              ? requiresOtp
+                ? "Enter the code we texted you"
+                : "Set a password to finish"
+              : "Upload your photo and ID to verify your identity"}
         </p>
 
         {step === 1 ? (
@@ -188,6 +202,17 @@ function CustomerRegister() {
                 onChange={set("phone_number")}
                 required
                 placeholder="0712345678"
+                className={field}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={set("email")}
+                required
+                placeholder="you@example.com"
                 className={field}
               />
             </div>
@@ -238,7 +263,7 @@ function CustomerRegister() {
               {submitting ? "Saving..." : "Continue →"}
             </button>
           </form>
-        ) : (
+        ) : step === 2 ? (
           <form onSubmit={submitOtp} className="space-y-4">
             {requiresOtp && (
               <div>
@@ -297,17 +322,21 @@ function CustomerRegister() {
               </button>
             )}
           </form>
+        ) : (
+          <IdentityUploader onComplete={finishSignup} />
         )}
 
-        <p className="text-center text-sm mt-6">
-          Already have an account?{" "}
-          <Link
-            to="/loanfix/portal/login"
-            className="text-indigo-600 font-semibold"
-          >
-            Login
-          </Link>
-        </p>
+        {step !== 3 && (
+          <p className="text-center text-sm mt-6">
+            Already have an account?{" "}
+            <Link
+              to="/loanfix/portal/login"
+              className="text-indigo-600 font-semibold"
+            >
+              Login
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

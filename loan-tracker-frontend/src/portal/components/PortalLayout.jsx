@@ -125,13 +125,26 @@ function PortalLayout({ children }) {
         </nav>
 
         <div className="p-4 border-t border-white/10 bg-navy-950/40">
-          <div className="mb-3">
-            <p className="text-sm font-semibold truncate text-white">
-              {customer.first_name} {customer.last_name}
-            </p>
-            <p className="text-xs text-ocean-200/50 truncate">
-              {customer.phone_number}
-            </p>
+          <div className="mb-3 flex items-center gap-3">
+            {customer.profile_photo_url ? (
+              <img
+                src={customer.profile_photo_url}
+                alt=""
+                className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white/20"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-ocean-gradient flex items-center justify-center text-white font-bold shrink-0">
+                {(customer.first_name || "?").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate text-white">
+                {customer.first_name} {customer.last_name}
+              </p>
+              <p className="text-xs text-ocean-200/50 truncate">
+                {customer.phone_number}
+              </p>
+            </div>
           </div>
           <button
             onClick={logout}
