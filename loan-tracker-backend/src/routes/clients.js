@@ -91,9 +91,20 @@ router.get("/:id/credit-profile", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const cpTs = tenantClause(req, 1);
+    // Include the linked portal account's KYC images (profile photo + both
+    // ID sides) so the client profile page can show them for verification.
+    const cpTs = tenantClause(req, 1, "c.tenant_id");
     const clientResult = await query(
-      `SELECT * FROM clients WHERE id = $1${cpTs.clause}`,
+      `SELECT c.*,
+              pc.profile_photo_url,
+              pc.id_front_url,
+              pc.id_back_url
+         FROM clients c
+         LEFT JOIN customer_tenant_links ctl
+           ON ctl.client_id = c.id AND ctl.tenant_id = c.tenant_id
+          AND ctl.status = 'active'
+         LEFT JOIN platform_customers pc ON pc.id = ctl.platform_customer_id
+        WHERE c.id = $1${cpTs.clause}`,
       [id, ...cpTs.params],
     );
     if (clientResult.rows.length === 0) {

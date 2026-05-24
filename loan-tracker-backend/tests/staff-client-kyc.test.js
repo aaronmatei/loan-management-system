@@ -50,6 +50,16 @@ describe("Staff client detail — KYC images", () => {
     expect(res.body.data.profile_photo_url).toBe("https://cdn/x/dp.jpg");
     expect(res.body.data.id_front_url).toBe("https://cdn/x/front.jpg");
     expect(res.body.data.id_back_url).toBe("https://cdn/x/back.jpg");
+
+    // The client profile page actually reads from /credit-profile — it must
+    // carry the same images.
+    const cp = await request(app)
+      .get(`/api/clients/${client.id}/credit-profile`)
+      .set("Authorization", auth(admin));
+    expect(cp.status).toBe(200);
+    expect(cp.body.data.client.profile_photo_url).toBe("https://cdn/x/dp.jpg");
+    expect(cp.body.data.client.id_front_url).toBe("https://cdn/x/front.jpg");
+    expect(cp.body.data.client.id_back_url).toBe("https://cdn/x/back.jpg");
   });
 
   it("returns null image fields when nothing is uploaded", async () => {
