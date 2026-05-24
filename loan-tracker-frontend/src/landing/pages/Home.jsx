@@ -39,25 +39,30 @@ function LandingHome() {
   return (
     <div className="min-h-screen bg-white">
       {/* ============= NAVBAR ============= */}
-      <nav className="bg-white border-b sticky top-0 z-50 shadow-sm">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="text-3xl">🏦</span>
-              <span className="text-xl font-bold bg-ocean-gradient bg-clip-text text-transparent">
+            <Link to="/" className="flex items-center gap-2.5">
+              <span className="w-9 h-9 rounded-xl bg-ocean-gradient flex items-center justify-center text-lg shadow-md">
+                🏦
+              </span>
+              <span className="text-xl font-extrabold bg-ocean-gradient bg-clip-text text-transparent">
                 LoanFix
               </span>
             </Link>
 
-            <div className="hidden lg:flex items-center gap-8">
-              <a href="#features" className="text-gray-700 hover:text-ocean-600 font-semibold">Features</a>
-              <a href="#how-it-works" className="text-gray-700 hover:text-ocean-600 font-semibold">How It Works</a>
-              <a href="#pricing" className="text-gray-700 hover:text-ocean-600 font-semibold">Pricing</a>
-              <a href="#faq" className="text-gray-700 hover:text-ocean-600 font-semibold">FAQ</a>
-              <Link to="/login" className="text-gray-700 hover:text-ocean-600 font-semibold">Login</Link>
+            <div className="hidden lg:flex items-center gap-6">
+              <a href="#features" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Features</a>
+              <a href="#how-it-works" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">How It Works</a>
+              <a href="#for-borrowers" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">For Borrowers</a>
+              <a href="#pricing" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Pricing</a>
+              <a href="#faq" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">FAQ</a>
+              <span className="h-5 w-px bg-slate-200" />
+              <Link to="/loanfix/portal/login" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Borrower Login</Link>
+              <Link to="/login" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Lender Login</Link>
               <Link
                 to="/signup"
-                className="px-4 py-2 bg-ocean-gradient text-white rounded-lg font-bold shadow-md hover:shadow-lg transition"
+                className="px-4 py-2 bg-ocean-gradient text-white rounded-lg font-bold text-sm shadow-md hover:shadow-lg transition"
               >
                 Start Free Trial
               </Link>
@@ -75,15 +80,18 @@ function LandingHome() {
           </div>
 
           {mobileMenuOpen && (
-            <div className="lg:hidden mt-3 pb-3 border-t pt-3 space-y-2">
-              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">Features</a>
-              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">How It Works</a>
-              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">Pricing</a>
-              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-gray-100 rounded">FAQ</a>
-              <Link to="/login" className="block px-3 py-2 hover:bg-gray-100 rounded">Login</Link>
+            <div className="lg:hidden mt-3 pb-3 border-t pt-3 space-y-1">
+              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Features</a>
+              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">How It Works</a>
+              <a href="#for-borrowers" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">For Borrowers</a>
+              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Pricing</a>
+              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">FAQ</a>
+              <div className="border-t my-2" />
+              <Link to="/loanfix/portal/login" className="block px-3 py-2 hover:bg-slate-100 rounded">Borrower Login</Link>
+              <Link to="/login" className="block px-3 py-2 hover:bg-slate-100 rounded">Lender Login</Link>
               <Link
                 to="/signup"
-                className="block px-3 py-2 bg-ocean-600 text-white rounded-lg font-bold text-center"
+                className="block px-3 py-2 bg-ocean-gradient text-white rounded-lg font-bold text-center"
               >
                 Start Free Trial →
               </Link>
@@ -95,6 +103,8 @@ function LandingHome() {
       {/* ============= HERO ============= */}
       <section className="relative overflow-hidden bg-gradient-to-br from-ocean-50 via-white to-ocean-100 py-16 lg:py-24">
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        <div className="pointer-events-none absolute -top-28 -left-24 w-[28rem] h-[28rem] rounded-full bg-ocean-300/30 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -right-20 w-[28rem] h-[28rem] rounded-full bg-pink-200/30 blur-3xl" />
 
         <div className="max-w-7xl mx-auto px-4 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -145,6 +155,23 @@ function LandingHome() {
                   Setup in 5 minutes
                 </div>
               </div>
+              <p className="mt-5 text-sm text-gray-600 border-t border-slate-200 pt-5">
+                👤 Borrowing from a LoanFix lender?{" "}
+                <Link
+                  to="/loanfix/portal/register"
+                  className="font-bold text-ocean-600 hover:text-ocean-700"
+                >
+                  Create a free account
+                </Link>{" "}
+                or{" "}
+                <Link
+                  to="/loanfix/portal/login"
+                  className="font-bold text-ocean-600 hover:text-ocean-700"
+                >
+                  log in
+                </Link>
+                .
+              </p>
             </div>
 
             {/* Hero mockup */}
@@ -301,6 +328,106 @@ function LandingHome() {
             >
               Start Your Free Trial →
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============= FOR BORROWERS ============= */}
+      <section
+        id="for-borrowers"
+        className="py-16 lg:py-24 bg-navy-gradient text-white relative overflow-hidden"
+      >
+        <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-ocean-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-ocean-400/10 blur-3xl" />
+        <div className="max-w-7xl mx-auto px-4 relative">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-block px-4 py-1 bg-white/10 text-ocean-100 rounded-full text-sm font-semibold mb-4">
+                👤 For Borrowers
+              </div>
+              <h2 className="text-3xl lg:text-5xl font-bold mb-4 leading-tight">
+                One free account for{" "}
+                <span className="bg-gradient-to-r from-ocean-300 to-ocean-100 bg-clip-text text-transparent">
+                  every lender
+                </span>
+              </h2>
+              <p className="text-lg text-ocean-100/80 mb-6 leading-relaxed">
+                Borrowing from a LoanFix lender? Create one account to apply for
+                loans, track repayments, build your credit score, and manage all
+                your lenders in a single place.
+              </p>
+              <ul className="grid sm:grid-cols-2 gap-3 mb-8">
+                {[
+                  "Apply for loans online, 24/7",
+                  "One login for every lender",
+                  "Track payments & schedules",
+                  "Build your credit score",
+                  "SMS & email updates",
+                  "Upload your documents once",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-ocean-50">
+                    <span className="text-ocean-300 font-bold">✓</span> {item}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  to="/loanfix/portal/register"
+                  className="px-7 py-3.5 bg-white text-navy-900 rounded-xl font-bold shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 text-center"
+                >
+                  Create free account →
+                </Link>
+                <Link
+                  to="/loanfix/portal/login"
+                  className="px-7 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-bold hover:bg-white/15 transition text-center"
+                >
+                  Borrower login
+                </Link>
+              </div>
+            </div>
+
+            {/* Borrower portal mockup */}
+            <div className="relative">
+              <div className="bg-white text-navy-900 rounded-2xl shadow-2xl p-6">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase tracking-wide">
+                      My credit score
+                    </p>
+                    <p className="text-3xl font-extrabold text-ocean-600">742</p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                    Good standing
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
+                  My loans across lenders
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { code: "LN-MFI-2026-031", lender: "Faulu Microfinance", tag: "Active", color: "bg-ocean-100 text-ocean-700" },
+                    { code: "LN-SAC-2026-118", lender: "Unity SACCO", tag: "On track", color: "bg-emerald-100 text-emerald-700" },
+                    { code: "LN-IND-2026-007", lender: "Jane (Individual)", tag: "Due soon", color: "bg-amber-100 text-amber-700" },
+                  ].map((l) => (
+                    <div
+                      key={l.code}
+                      className="bg-slate-50 rounded-lg p-2.5 flex justify-between items-center"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold">{l.code}</p>
+                        <p className="text-xs text-slate-500">{l.lender}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${l.color}`}>
+                        {l.tag}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="absolute -bottom-4 -left-4 bg-ocean-gradient text-white rounded-full px-4 py-2 shadow-lg text-sm font-bold">
+                🔒 One secure login
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -481,6 +608,15 @@ function LandingHome() {
           <p className="mt-6 text-ocean-100 text-sm">
             ✓ 14 days free • ✓ No credit card • ✓ Setup in 5 minutes
           </p>
+          <p className="mt-4 text-ocean-100 text-sm">
+            Just here to manage your loans?{" "}
+            <Link
+              to="/loanfix/portal/register"
+              className="underline font-semibold text-white hover:text-ocean-100"
+            >
+              Create a free borrower account
+            </Link>
+          </p>
         </div>
       </section>
 
@@ -504,6 +640,8 @@ function LandingHome() {
                 <li><a href="#features" className="hover:text-white">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
                 <li><a href="#how-it-works" className="hover:text-white">How It Works</a></li>
+                <li><Link to="/signup" className="hover:text-white">Become a Lender</Link></li>
+                <li><Link to="/loanfix/portal/login" className="hover:text-white">Borrower Portal</Link></li>
               </ul>
             </div>
             <div>
