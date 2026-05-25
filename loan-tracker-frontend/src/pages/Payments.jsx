@@ -765,7 +765,13 @@ function Payments() {
         <PaymentReceipt
           payment={receiptModal.payment}
           receipt={receiptModal.receipt}
-          tenant={tenantBranding}
+          tenant={{
+            ...tenantBranding,
+            business_type:
+              tenantBranding?.business_type ||
+              JSON.parse(localStorage.getItem("user") || "{}")?.tenant
+                ?.business_type,
+          }}
           onClose={() => setReceiptModal(null)}
         />
       )}

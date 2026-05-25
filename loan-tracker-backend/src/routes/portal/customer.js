@@ -965,13 +965,16 @@ router.get("/loans/:id", async (req, res) => {
               c.first_name AS client_first_name,
               c.last_name  AS client_last_name,
               c.phone_number AS client_phone,
+              tn.business_type AS tenant_business_type,
+              tn.brand_color   AS tenant_brand_color,
               COALESCE(SUM(t.amount_paid),0) AS total_paid
        FROM loans l
        JOIN clients c ON l.client_id = c.id
+       JOIN tenants tn ON l.tenant_id = tn.id
        LEFT JOIN transactions t
          ON l.id = t.loan_id AND t.payment_status = 'completed'
        WHERE l.id = $1 AND l.client_id = $2 AND l.tenant_id = $3
-       GROUP BY l.id, c.id`,
+       GROUP BY l.id, c.id, tn.id`,
       [req.params.id, req.currentClientId, req.currentTenantId],
     );
     if (loan.rows.length === 0) {

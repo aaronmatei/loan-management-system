@@ -1,5 +1,6 @@
 import React from "react";
 import { Printer, MessageSquare } from "lucide-react";
+import { LENDER_TYPES } from "../portal/lenderType";
 
 // Shared, premium payment receipt — used by the tenant admin
 // (post-payment modal in pages/Payments.jsx) AND the customer portal
@@ -17,8 +18,8 @@ import { Printer, MessageSquare } from "lucide-react";
 //             completion_percentage)
 //   tenant  — branding (business_name, brand_color, support_phone, ...)
 //
-// The whole header gradient + accents are derived from tenant.brand_color.
-// Emerald is ONLY a fallback when brand_color is missing/invalid.
+// The header gradient + accents are derived from the lender's TYPE colour
+// (tenant.business_type), falling back to tenant.brand_color, then a default.
 
 // Derive a header gradient + accents from a hex brand color. Emerald
 // fallback is used ONLY when brand_color is absent or not a 6-digit hex.
@@ -71,7 +72,12 @@ const money = (v) =>
 function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
   if (!payment || !receipt) return null;
 
-  const theme = buildReceiptTheme(tenant?.brand_color);
+  // Colour the receipt by the lender's TYPE (microfinance / sacco / chama /
+  // individual). Falls back to the tenant's brand_color, then the default.
+  const typeColor =
+    LENDER_TYPES[String(tenant?.business_type || "").trim().toLowerCase()]
+      ?.color || null;
+  const theme = buildReceiptTheme(typeColor || tenant?.brand_color);
   const businessName = tenant?.business_name || "Loan Payment Receipt";
 
   const txnCode = payment.transaction_code || `TXN-${payment.id || ""}`;

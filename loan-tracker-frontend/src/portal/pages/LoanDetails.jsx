@@ -547,7 +547,11 @@ function LoanDetails() {
         <PaymentReceipt
           payment={receiptTxn}
           receipt={buildReceipt(receiptTxn)}
-          tenant={portalTenant}
+          tenant={{
+            ...portalTenant,
+            business_type: loan.tenant_business_type,
+            brand_color: portalTenant?.brand_color || loan.tenant_brand_color,
+          }}
           onClose={() => setReceiptTxn(null)}
         />
       )}

@@ -80,7 +80,7 @@ router.post("/login", async (req, res) => {
     try {
       const tr = await query(
         `SELECT u.tenant_id, u.is_platform_admin,
-                tn.subdomain, tn.business_name,
+                tn.subdomain, tn.business_name, tn.business_type,
                 tn.plan AS tenant_plan, tn.status AS tenant_status,
                 tn.brand_color
          FROM users u
@@ -157,6 +157,7 @@ router.post("/login", async (req, res) => {
               id: t.tenant_id,
               subdomain: t.subdomain,
               business_name: t.business_name,
+              business_type: t.business_type,
               plan: t.tenant_plan,
               brand_color: t.brand_color,
             }
