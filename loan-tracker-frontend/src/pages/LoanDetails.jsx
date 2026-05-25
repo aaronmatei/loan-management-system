@@ -484,6 +484,18 @@ function LoanDetails() {
           <p className="text-sm text-gray-500 mt-1">
             {schedule.filter((s) => s.status === "paid").length} of{" "}
             {schedule.length} payments completed
+            {(() => {
+              const totalPenalty = schedule.reduce(
+                (sum, s) => sum + parseFloat(s.penalty_total || 0),
+                0,
+              );
+              return totalPenalty > 0 ? (
+                <span className="text-amber-700 font-medium">
+                  {" "}
+                  · KES {totalPenalty.toLocaleString()} penalty accrued
+                </span>
+              ) : null;
+            })()}
           </p>
         </div>
         <div className="overflow-auto max-h-[calc(100vh-200px)]">
@@ -501,6 +513,15 @@ function LoanDetails() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   Amount Paid
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  Late Fee
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  Penalty Interest
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  Penalty Total
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   Status
@@ -533,6 +554,28 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3 font-semibold text-green-600">
                       KES {parseFloat(item.amount_paid || 0).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-3 text-right text-gray-700">
+                      {item.penalty_total > 0
+                        ? `KES ${parseFloat(item.late_fee || 0).toLocaleString()}`
+                        : "-"}
+                    </td>
+                    <td
+                      className="px-6 py-3 text-right text-gray-700"
+                      title={
+                        item.penalty_total > 0
+                          ? `${item.penalty_rate}% per month × ${item.months_late} month${item.months_late !== 1 ? "s" : ""} on the overdue balance`
+                          : undefined
+                      }
+                    >
+                      {item.penalty_total > 0
+                        ? `KES ${parseFloat(item.penalty_interest || 0).toLocaleString()}`
+                        : "-"}
+                    </td>
+                    <td className="px-6 py-3 text-right font-semibold text-amber-700">
+                      {item.penalty_total > 0
+                        ? `KES ${parseFloat(item.penalty_total || 0).toLocaleString()}`
+                        : "-"}
                     </td>
                     <td className="px-6 py-3">
                       <span

@@ -10,6 +10,7 @@ import {
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { recordLoanPayment } from "../services/paymentService.js";
+import { computeInstallmentPenalty } from "../utils/penalty.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -156,13 +157,33 @@ router.get("/loan/:loanId/summary", async (req, res) => {
       [loanId],
     );
 
-    // Get payment schedule
+    // Get payment schedule. days_late drives the per-installment penalty.
     const scheduleResult = await query(
-      `SELECT * FROM payment_schedules 
-       WHERE loan_id = $1 
+      `SELECT *, (CURRENT_DATE - due_date::date) AS days_late
+       FROM payment_schedules
+       WHERE loan_id = $1
        ORDER BY payment_number ASC`,
       [loanId],
     );
+
+    // Annotate each installment with its late fee + penalty interest, using
+    // the same shared formula as the Overdue page (utils/penalty.js). Paid or
+    // not-yet-due installments resolve to zero penalty.
+    const scheduleWithPenalty = scheduleResult.rows.map((s) => {
+      const bal = parseFloat(s.amount_due) - parseFloat(s.amount_paid || 0);
+      const daysLate =
+        s.status === "paid" ? 0 : parseInt(s.days_late, 10) || 0;
+      return {
+        ...s,
+        balance_due: Math.round(Math.max(0, bal) * 100) / 100,
+        ...computeInstallmentPenalty({
+          balance: bal,
+          daysLate,
+          lateFee: loan.late_payment_fee,
+          penaltyRate: loan.penalty_rate,
+        }),
+      };
+    });
 
     // Get transactions
     const transactionsResult = await query(
@@ -236,7 +257,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
               ? ((Math.min(totalPaid, totalDue) / totalDue) * 100).toFixed(1)
               : "0",
         },
-        schedule: scheduleResult.rows,
+        schedule: scheduleWithPenalty,
         transactions: transactionsWithReceipt,
       },
     });

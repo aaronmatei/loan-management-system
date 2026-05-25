@@ -3,6 +3,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { runOverdueCheck } from "../utils/overdueChecker.js";
 import { tenantClause } from "../utils/tenantScope.js";
+import { computeInstallmentPenalty } from "../utils/penalty.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -150,28 +151,16 @@ router.get("/", async (req, res) => {
     const s = summaryResult.rows[0];
     const total = parseInt(s.total_overdue_count, 10);
 
-    // --- Penalty per installment ------------------------------------------
-    // Loan agreement: a flat late-payment fee per missed installment, plus a
-    // penalty interest of `penalty_rate`% per month on the overdue amount.
-    // Months late is rounded up so any part-month counts as a full month.
-    const rows = result.rows.map((r) => {
-      const balance = parseFloat(r.balance_due) || 0;
-      const lateFee = parseFloat(r.late_payment_fee) || 0;
-      const penaltyRate = parseFloat(r.penalty_rate) || 0;
-      const daysLate = parseInt(r.days_late, 10) || 0;
-      const monthsLate = Math.max(1, Math.ceil(daysLate / 30));
-      const penaltyInterest = (penaltyRate / 100) * balance * monthsLate;
-      const penaltyTotal = lateFee + penaltyInterest;
-      return {
-        ...r,
-        late_fee: lateFee,
-        penalty_rate: penaltyRate,
-        months_late: monthsLate,
-        penalty_interest: Math.round(penaltyInterest * 100) / 100,
-        penalty_total: Math.round(penaltyTotal * 100) / 100,
-        total_with_penalty: Math.round((balance + penaltyTotal) * 100) / 100,
-      };
-    });
+    // --- Penalty per installment (shared formula, see utils/penalty.js) ----
+    const rows = result.rows.map((r) => ({
+      ...r,
+      ...computeInstallmentPenalty({
+        balance: parseFloat(r.balance_due) || 0,
+        daysLate: parseInt(r.days_late, 10) || 0,
+        lateFee: r.late_payment_fee,
+        penaltyRate: r.penalty_rate,
+      }),
+    }));
 
     res.json({
       success: true,
