@@ -154,10 +154,14 @@ router.get("/:id/credit-profile", async (req, res) => {
         GROUP BY loan_id
       ) sc ON sc.loan_id = l.id
       WHERE l.client_id = $1
+        AND l.status IN ('active', 'completed', 'defaulted')
       ORDER BY l.start_date DESC, l.id DESC
       `,
       [id],
     );
+    // Only disbursed loans count as credit history — pending/approved
+    // applications are not yet real loans, so the loan history, borrowed
+    // totals and loan counts all exclude them.
     const loans = loansResult.rows;
 
     // Payment behaviour across every schedule for this client
