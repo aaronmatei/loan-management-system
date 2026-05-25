@@ -163,6 +163,42 @@ describe("Counter-offer — customer POST /api/portal/customer/applications/:id/
     expect(parseFloat(res.body.data.principal_amount)).toBe(30000);
   });
 
+  it("accept → recomputes interest, total due, processing fee + net from the new principal", async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant.id, { role: "admin" });
+    const client = await createClient(tenant.id);
+    // interest_rate is the stored MONTHLY rate (1%/mo), 6 months.
+    const loan = await createLoan(tenant.id, client.id, {
+      status: "under_review",
+      principal_amount: 50000,
+      interest_rate: 1.0,
+      loan_duration_months: 6,
+    });
+    // 5% processing fee snapshotted on the loan.
+    await query("UPDATE loans SET processing_fee_rate = 5 WHERE id = $1", [loan.id]);
+
+    await request(app)
+      .post(`/api/loans/${loan.id}/counter-offer`)
+      .set("Authorization", auth(admin))
+      .send({ offered_amount: 30000 });
+    const token = await makeCustomer(tenant.id, client.id);
+
+    const res = await request(app)
+      .post(`/api/portal/customer/applications/${loan.id}/respond`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ accept: true });
+
+    expect(res.status).toBe(200);
+    const d = res.body.data;
+    expect(parseFloat(d.principal_amount)).toBe(30000);
+    // 30,000 * 1% * 6 = 1,800 interest → 31,800 due
+    expect(parseFloat(d.total_interest)).toBe(1800);
+    expect(parseFloat(d.total_amount_due)).toBe(31800);
+    // 5% of 30,000 = 1,500 fee → net 28,500 (NOT based on the old 50,000)
+    expect(parseFloat(d.processing_fee)).toBe(1500);
+    expect(parseFloat(d.net_disbursed_amount)).toBe(28500);
+  });
+
   it("reject → status becomes rejected with a reason", async () => {
     const { loan, token } = await setupOffer();
     const res = await request(app)

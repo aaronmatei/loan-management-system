@@ -305,6 +305,33 @@ function Applications() {
         </div>
       </div>
 
+      {/* Counter-offer — requested vs offered (+ note) */}
+      {app.offered_amount != null && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex flex-wrap gap-x-8 gap-y-2">
+          <div>
+            <p className="text-xs text-gray-500">Requested</p>
+            <p className="font-bold text-gray-700">
+              KES{" "}
+              {parseFloat(
+                app.requested_amount ?? app.principal_amount,
+              ).toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Counter-offer</p>
+            <p className="font-bold text-amber-700">
+              KES {parseFloat(app.offered_amount).toLocaleString()}
+            </p>
+          </div>
+          {app.counter_offer_note && (
+            <div className="w-full">
+              <p className="text-xs text-gray-500">Note</p>
+              <p className="text-sm text-gray-700">{app.counter_offer_note}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Processing fee + net amount to disburse */}
       {(app.status === "approved" ||
         parseFloat(app.processing_fee || 0) > 0) && (
@@ -559,6 +586,15 @@ function Applications() {
                           <td className="px-4 py-3 text-right font-bold text-gray-800 text-sm">
                             KES{" "}
                             {parseFloat(app.principal_amount).toLocaleString()}
+                            {app.status === "counter_offered" &&
+                              app.offered_amount != null && (
+                                <p className="text-xs font-semibold text-amber-700">
+                                  → KES{" "}
+                                  {parseFloat(
+                                    app.offered_amount,
+                                  ).toLocaleString()}
+                                </p>
+                              )}
                           </td>
                           <td className="px-4 py-3 text-center text-sm text-gray-700">
                             {app.loan_duration_months} mo

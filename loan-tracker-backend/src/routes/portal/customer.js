@@ -1251,11 +1251,23 @@ router.post("/applications/:id/respond", async (req, res) => {
 
     let updated;
     if (accept) {
-      // Client accepts the reduced amount → it becomes the principal.
+      // Client accepts the reduced amount → it becomes the principal, and
+      // every derived figure is recomputed from it: interest + total due
+      // (so the repayment schedule is right) and the processing fee + net
+      // disbursed (interest_rate is the stored MONTHLY rate; processing_fee_
+      // rate was snapshotted at application).
       updated = await query(
         `UPDATE loans SET
            status = 'approved',
            principal_amount = offered_amount,
+           total_interest = ROUND(
+             offered_amount * (interest_rate / 100.0) * loan_duration_months, 2),
+           total_amount_due = ROUND(
+             offered_amount * (1 + (interest_rate / 100.0) * loan_duration_months), 2),
+           processing_fee = ROUND(
+             offered_amount * COALESCE(processing_fee_rate, 0) / 100.0, 2),
+           net_disbursed_amount = ROUND(
+             offered_amount - offered_amount * COALESCE(processing_fee_rate, 0) / 100.0, 2),
            approved_at = NOW(),
            updated_at = NOW()
          WHERE id = $1 AND tenant_id = $2 RETURNING *`,
