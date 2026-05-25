@@ -167,7 +167,7 @@ function Applications() {
     if (
       !window.confirm(
         `Confirm disbursement of KES ${parseFloat(
-          selectedLoan.principal_amount,
+          selectedLoan.net_disbursed_amount ?? selectedLoan.principal_amount,
         ).toLocaleString()} to ${selectedLoan.first_name}?`,
       )
     )
@@ -376,6 +376,35 @@ function Applications() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Processing fee + net amount to disburse — shown once a
+                        loan is approved (ready to disburse) or whenever a
+                        processing fee applies. */}
+                    {(app.status === "approved" ||
+                      parseFloat(app.processing_fee || 0) > 0) && (
+                      <div className="bg-ocean-50 border border-ocean-100 rounded-lg p-3 mb-2 flex flex-wrap gap-x-8 gap-y-2">
+                        {parseFloat(app.processing_fee || 0) > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-500">
+                              Processing Fee ({parseFloat(app.processing_fee_rate)}%)
+                            </p>
+                            <p className="font-bold text-amber-700">
+                              − KES{" "}
+                              {parseFloat(app.processing_fee).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-500">To Disburse</p>
+                          <p className="font-bold text-ocean-700">
+                            KES{" "}
+                            {parseFloat(
+                              app.net_disbursed_amount ?? app.principal_amount,
+                            ).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {app.purpose && (
                       <div className="mb-2">
@@ -612,18 +641,40 @@ function Applications() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Coins size={20} className="text-ocean-600"/> Disburse Loan</h3>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-green-800">
-                <strong>Amount:</strong> KES{" "}
-                {parseFloat(
-                  selectedLoan.principal_amount,
-                ).toLocaleString()}
-                <br />
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 text-sm text-green-900 space-y-1">
+              <div className="flex justify-between">
+                <span>Principal</span>
+                <span className="font-semibold">
+                  KES {parseFloat(selectedLoan.principal_amount).toLocaleString()}
+                </span>
+              </div>
+              {parseFloat(selectedLoan.processing_fee || 0) > 0 && (
+                <div className="flex justify-between text-amber-700">
+                  <span>
+                    Processing Fee ({parseFloat(selectedLoan.processing_fee_rate)}%)
+                  </span>
+                  <span className="font-semibold">
+                    − KES{" "}
+                    {parseFloat(selectedLoan.processing_fee).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-green-200 pt-1">
+                <span className="font-bold">Amount to Disburse</span>
+                <span className="font-bold">
+                  KES{" "}
+                  {parseFloat(
+                    selectedLoan.net_disbursed_amount ??
+                      selectedLoan.principal_amount,
+                  ).toLocaleString()}
+                </span>
+              </div>
+              <div className="pt-1">
                 <strong>Client:</strong> {selectedLoan.first_name}{" "}
                 {selectedLoan.last_name}
                 <br />
                 <strong>Phone:</strong> {selectedLoan.phone_number}
-              </p>
+              </div>
             </div>
             <form onSubmit={handleDisburse} className="space-y-4">
               <div>
