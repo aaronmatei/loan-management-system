@@ -11,6 +11,7 @@ import {
   Clock,
   BarChart3,
   PartyPopper,
+  RotateCcw,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -219,6 +220,73 @@ function LoanDetails() {
             </div>
           )}
         </div>
+
+        {/* Overpayment & refund — shown only when the client overpaid or a
+            refund is on record. */}
+        {(parseFloat(loan.overpayment_amount || 0) > 0 || loan.refund_status) && (
+          <div className="bg-white rounded-xl shadow p-4 mb-6 border-l-4 border-amber-400">
+            <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+              <RotateCcw size={18} className="text-amber-500" /> Overpayment &amp;
+              Refund
+            </h3>
+            <div className="space-y-2 text-sm">
+              {parseFloat(loan.overpayment_amount || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">You overpaid</span>
+                  <span className="font-bold text-amber-600">
+                    {KES(loan.overpayment_amount)}
+                  </span>
+                </div>
+              )}
+              {loan.refund_status && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Refund status</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-bold capitalize ${
+                      /refund|complet|paid/.test(
+                        String(loan.refund_status).toLowerCase(),
+                      )
+                        ? "bg-green-100 text-green-700"
+                        : String(loan.refund_status).toLowerCase() === "pending"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {String(loan.refund_status).replace(/_/g, " ")}
+                  </span>
+                </div>
+              )}
+              {loan.refunded_date && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Refunded on</span>
+                  <span className="font-semibold">{day(loan.refunded_date)}</span>
+                </div>
+              )}
+              {loan.refund_method && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Method</span>
+                  <span className="font-semibold capitalize">
+                    {loan.refund_method}
+                  </span>
+                </div>
+              )}
+              {loan.refund_reference && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Reference</span>
+                  <span className="font-semibold font-mono">
+                    {loan.refund_reference}
+                  </span>
+                </div>
+              )}
+            </div>
+            {String(loan.refund_status || "").toLowerCase() === "pending" && (
+              <p className="text-xs text-amber-700 mt-3">
+                Your refund is being processed by{" "}
+                {portalTenant?.business_name || "your lender"}.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow p-4">
