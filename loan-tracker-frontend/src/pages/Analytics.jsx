@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from "react";
+import {
+  BarChart3,
+  TrendingUp,
+  CreditCard,
+  AlertTriangle,
+  Trophy,
+  MapPin,
+  Lightbulb,
+} from "lucide-react";
 import api from "../services/api";
 import {
   LineChart,
@@ -123,8 +132,8 @@ function Analytics() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-6 lg:mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          📊 Analytics
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <BarChart3 size={28} /> Analytics
         </h1>
         <p className="text-sm lg:text-base text-gray-600 mt-1">
           Business insights and trends
@@ -171,8 +180,8 @@ function Analytics() {
 
       {/* Revenue Trends */}
       <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4">
-          📈 Revenue Trends (Last 12 Months)
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <TrendingUp size={22} /> Revenue Trends (Last 12 Months)
         </h2>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={data.revenueTrends}>
@@ -214,8 +223,8 @@ function Analytics() {
       {/* Portfolio + Payment Methods */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-xl shadow-md p-4 lg:p-6">
-          <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4">
-            🥧 Loan Portfolio
+          <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <BarChart3 size={22} /> Loan Portfolio
           </h2>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
@@ -254,8 +263,8 @@ function Analytics() {
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-4 lg:p-6">
-          <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4">
-            💳 Payment Methods
+          <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <CreditCard size={22} /> Payment Methods
           </h2>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
@@ -306,8 +315,8 @@ function Analytics() {
 
       {/* Default Rate Trend */}
       <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4">
-          ⚠️ Default Rate Trend
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <AlertTriangle size={22} className="text-red-500" /> Default Rate Trend
         </h2>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={data.defaultTrend}>
@@ -347,8 +356,8 @@ function Analytics() {
 
       {/* Loan Size Distribution */}
       <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4">
-          📐 Loan Size Distribution
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <BarChart3 size={22} /> Loan Size Distribution
         </h2>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={data.loanDistribution}>
@@ -380,8 +389,8 @@ function Analytics() {
 
       {/* Top Clients */}
       <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4">
-          🏆 Top 10 Clients by Total Borrowed
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Trophy size={22} className="text-yellow-500" /> Top 10 Clients by Total Borrowed
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -451,8 +460,8 @@ function Analytics() {
 
       {/* Geographic Distribution */}
       <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4">
-          🗺️ Geographic Distribution (Top 15 Counties)
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <MapPin size={22} /> Geographic Distribution (Top 15 Counties)
         </h2>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart
@@ -497,8 +506,8 @@ function Analytics() {
 
       {/* Insights */}
       <div className="bg-ocean-gradient-soft border border-ocean-200 rounded-xl p-6">
-        <h3 className="font-bold text-ocean-900 mb-3 text-lg">
-          💡 Quick Insights
+        <h3 className="font-bold text-ocean-900 mb-3 text-lg flex items-center gap-2">
+          <Lightbulb size={22} /> Quick Insights
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>

@@ -1,10 +1,11 @@
 import React from "react";
+import { PartyPopper, Lightbulb } from "lucide-react";
 
 function WelcomeStep({ onNext, onSkip }) {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="bg-white rounded-3xl shadow-2xl p-8 lg:p-12 text-center">
-        <div className="text-7xl mb-4">🎉</div>
+        <div className="flex justify-center mb-4"><PartyPopper size={72} className="text-ocean-500" /></div>
         <h1 className="text-3xl lg:text-5xl font-bold text-gray-900 mb-4">
           Welcome to LoanFix!
         </h1>
@@ -42,8 +43,8 @@ function WelcomeStep({ onNext, onSkip }) {
         >
           Skip Setup (Not Recommended)
         </button>
-        <p className="text-xs text-gray-400 mt-6">
-          💡 You can always come back to setup later
+        <p className="text-xs text-gray-400 mt-6 flex items-center justify-center gap-1">
+          <Lightbulb size={12} className="text-ocean-400" /> You can always come back to setup later
         </p>
       </div>
     </div>

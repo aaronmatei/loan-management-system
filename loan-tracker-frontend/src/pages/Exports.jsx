@@ -1,4 +1,15 @@
 import React, { useState } from "react";
+import {
+  Users,
+  Coins,
+  CheckCircle,
+  X,
+  AlertTriangle,
+  Download,
+  BarChart3,
+  Calendar,
+  Lightbulb,
+} from "lucide-react";
 import api from "../services/api";
 
 function Exports() {
@@ -39,7 +50,7 @@ function Exports() {
       title: "All Clients",
       description:
         "Complete client database with contact details and statistics",
-      icon: "👥",
+      Icon: Users,
       color: "from-blue-500 to-ocean-600",
       url: "/reports/export/clients",
       filename: `clients_${new Date().toISOString().split("T")[0]}.xlsx`,
@@ -47,7 +58,7 @@ function Exports() {
     {
       title: "All Loans",
       description: "Comprehensive loans report with status and balances",
-      icon: "💰",
+      Icon: Coins,
       color: "from-ocean-500 to-ocean-600",
       url: "/reports/export/loans",
       filename: `loans_${new Date().toISOString().split("T")[0]}.xlsx`,
@@ -55,7 +66,7 @@ function Exports() {
     {
       title: "Active Loans Only",
       description: "All currently active loans for collection management",
-      icon: "🟢",
+      Icon: CheckCircle,
       color: "from-green-500 to-emerald-600",
       url: "/reports/export/loans?status=active",
       filename: `active_loans_${new Date().toISOString().split("T")[0]}.xlsx`,
@@ -63,7 +74,7 @@ function Exports() {
     {
       title: "Completed Loans",
       description: "Successfully repaid loans for records",
-      icon: "✅",
+      Icon: CheckCircle,
       color: "from-cyan-500 to-blue-600",
       url: "/reports/export/loans?status=completed",
       filename: `completed_loans_${new Date().toISOString().split("T")[0]}.xlsx`,
@@ -71,7 +82,7 @@ function Exports() {
     {
       title: "Defaulted Loans",
       description: "Loans marked as defaulted for follow-up",
-      icon: "🔴",
+      Icon: X,
       color: "from-red-500 to-pink-600",
       url: "/reports/export/loans?status=defaulted",
       filename: `defaulted_loans_${new Date().toISOString().split("T")[0]}.xlsx`,
@@ -79,7 +90,7 @@ function Exports() {
     {
       title: "Overdue Payments",
       description: "All overdue payment schedules with days late",
-      icon: "⚠️",
+      Icon: AlertTriangle,
       color: "from-orange-500 to-red-600",
       url: "/reports/export/overdue",
       filename: `overdue_${new Date().toISOString().split("T")[0]}.xlsx`,
@@ -113,8 +124,8 @@ function Exports() {
 
       {/* Excel Exports */}
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
-          📊 Excel Exports
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <BarChart3 size={22} /> Excel Exports
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {reports.map((report, idx) => (
@@ -123,7 +134,7 @@ function Exports() {
               className={`bg-gradient-to-br ${report.color} text-white rounded-xl shadow-lg p-6`}
             >
               <div className="flex items-start justify-between mb-4">
-                <span className="text-4xl">{report.icon}</span>
+                <report.Icon size={40} className="text-white/90" />
                 {exporting === report.url && (
                   <span className="text-sm">Downloading...</span>
                 )}
@@ -135,9 +146,9 @@ function Exports() {
               <button
                 onClick={() => downloadFile(report.url, report.filename)}
                 disabled={exporting !== null}
-                className="w-full px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition font-semibold disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition font-semibold disabled:opacity-50"
               >
-                ⬇️ Download Excel
+                <Download size={16} /> Download Excel
               </button>
             </div>
           ))}
@@ -146,8 +157,8 @@ function Exports() {
 
       {/* Custom Date Range Payments */}
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
-          📅 Payments by Date Range
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Calendar size={22} /> Payments by Date Range
         </h2>
         <div className="bg-white rounded-xl shadow-md p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -180,9 +191,9 @@ function Exports() {
             <button
               onClick={downloadPayments}
               disabled={exporting !== null}
-              className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
             >
-              ⬇️ Download Payments
+              <Download size={16} /> Download Payments
             </button>
           </div>
         </div>
@@ -190,7 +201,7 @@ function Exports() {
 
       {/* Info Section */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h3 className="font-bold text-blue-900 mb-2">💡 About Reports</h3>
+        <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2"><Lightbulb size={18} /> About Reports</h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• Excel files include filters and formatting for easy analysis</li>
           <li>

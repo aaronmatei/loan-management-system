@@ -112,7 +112,7 @@ function CustomerDashboard() {
               <IconTile icon={Building2} variant="ocean" size={64} />
             </div>
             <h1 className="text-2xl font-bold text-navy-900 mb-2">
-              Welcome{customerName ? `, ${customerName}` : ""}! 👋
+              Welcome{customerName ? `, ${customerName}` : ""}!
             </h1>
             <p className="text-slate-500 mb-6 max-w-md mx-auto">
               Link your first lender to start borrowing and unlock your credit
@@ -158,7 +158,7 @@ function CustomerDashboard() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-              Hi {customerName || "there"} 👋
+              Hi {customerName || "there"}
             </h1>
             <p className="text-slate-500 mt-1">
               Your credit & borrowing overview across {stats.lenders} lender

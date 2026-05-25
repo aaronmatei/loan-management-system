@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { CreditCard, FileText } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import SortHeader from "../components/SortHeader";
@@ -83,8 +84,8 @@ function Payments() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1">
-          💳 Payments
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+          <CreditCard size={28} className="text-navy-900" /> Payments
         </h1>
         <p className="text-slate-500 mb-5">
           Every payment you've made, across all your lenders
@@ -96,7 +97,9 @@ function Payments() {
           </div>
         ) : sorted.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">
-            <p className="text-5xl mb-3">🧾</p>
+            <div className="flex justify-center mb-3">
+              <FileText size={48} className="text-slate-300" />
+            </div>
             <p>No payments yet.</p>
           </div>
         ) : (

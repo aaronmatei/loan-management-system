@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
+import { AlertTriangle, BarChart3, Phone, Users, Gem } from "lucide-react";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
 
@@ -60,8 +61,8 @@ function TenantDetail() {
             </div>
           </div>
           {tenant.suspension_reason && (
-            <p className="mt-4 text-sm bg-white/15 rounded-lg px-3 py-2">
-              ⚠️ Reason: {tenant.suspension_reason}
+            <p className="mt-4 text-sm bg-white/15 rounded-lg px-3 py-2 flex items-center gap-2">
+              <AlertTriangle size={16} /> Reason: {tenant.suspension_reason}
             </p>
           )}
         </div>
@@ -95,7 +96,7 @@ function TenantDetail() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold mb-3">📊 Tenant Stats</h3>
+            <h3 className="font-bold mb-3 flex items-center gap-2"><BarChart3 size={18} /> Tenant Stats</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Clients</span>
@@ -128,7 +129,7 @@ function TenantDetail() {
             </div>
           </div>
           <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold mb-3">📞 Contact</h3>
+            <h3 className="font-bold mb-3 flex items-center gap-2"><Phone size={18} /> Contact</h3>
             <div className="space-y-2 text-sm">
               <div>
                 <span className="text-gray-500">Contact:</span>{" "}
@@ -156,7 +157,7 @@ function TenantDetail() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
-          <h3 className="font-bold mb-1">💎 White-Label Tier</h3>
+          <h3 className="font-bold mb-1 flex items-center gap-2"><Gem size={18} /> White-Label Tier</h3>
           <p className="text-sm text-gray-600 mb-3">
             Current:{" "}
             <strong className="capitalize">
@@ -177,7 +178,7 @@ function TenantDetail() {
                         `/white-label/admin/${tenant.id}/tier`,
                         { tier: t },
                       );
-                      alert("✅ Tier updated");
+                      alert("Tier updated");
                       // refresh
                       const r = await platformApi.get(
                         `/platform/admin/tenants/${tenant.id}`,
@@ -205,7 +206,7 @@ function TenantDetail() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 lg:p-6">
-          <h2 className="font-bold mb-3">👥 Staff Users ({users.length})</h2>
+          <h2 className="font-bold mb-3 flex items-center gap-2"><Users size={18} /> Staff Users ({users.length})</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b text-gray-500">

@@ -71,7 +71,7 @@ function LenderDetail() {
       } catch {
         /* ignore */
       }
-      alert("✅ Lender unlinked");
+      alert("Lender unlinked");
       load();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to unlink");

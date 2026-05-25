@@ -21,6 +21,7 @@ import {
   Settings,
   ChevronRight,
   LogOut,
+  X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -283,10 +284,10 @@ function Layout({ children }) {
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-ocean-200/70 hover:text-white text-2xl"
+              className="lg:hidden text-ocean-200/70 hover:text-white"
               aria-label="Close menu"
             >
-              ✕
+              <X size={22} />
             </button>
           </div>
 

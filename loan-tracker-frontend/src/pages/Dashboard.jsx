@@ -11,6 +11,11 @@ import {
   CreditCard,
   Users,
   Plus,
+  PartyPopper,
+  Crown,
+  ClipboardList,
+  Banknote,
+  X,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -37,7 +42,7 @@ import IconTile from "../components/IconTile";
 function EmptyChart({ label }) {
   return (
     <div className="h-[260px] flex flex-col items-center justify-center text-slate-400">
-      <p className="text-4xl mb-2">📊</p>
+      <BarChart3 size={40} className="mb-2" />
       <p className="text-sm">{label}</p>
     </div>
   );
@@ -323,14 +328,14 @@ function Dashboard() {
         </h1>
         <p className="text-gray-600 mt-2">
           Welcome back,{" "}
-          <span className="font-semibold">{user?.first_name}</span>! 👋
+          <span className="font-semibold">{user?.first_name}</span>!
         </p>
       </div>
 
       {showWelcome && (
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-4 mb-4 flex justify-between items-center">
           <div>
-            <h3 className="font-bold">🎉 Welcome to your dashboard!</h3>
+            <h3 className="font-bold flex items-center gap-2"><PartyPopper size={18} /> Welcome to your dashboard!</h3>
             <p className="text-sm">
               Your first loan application is in the Applications queue — review
               and disburse it from there.
@@ -338,10 +343,10 @@ function Dashboard() {
           </div>
           <button
             onClick={() => setShowWelcome(false)}
-            className="text-white text-2xl leading-none"
+            className="text-white leading-none"
             aria-label="Dismiss"
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
       )}
@@ -351,9 +356,8 @@ function Dashboard() {
           onClick={() => navigate("/admin/dashboard")}
           className="w-full bg-ocean-gradient text-white py-3 px-4 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 hover:shadow-lg transition"
         >
-          <span>👑</span>
+          <Crown size={18} />
           <span className="font-semibold">Go to Platform Admin</span>
-          <span>→</span>
         </button>
       )}
 
@@ -466,8 +470,8 @@ function Dashboard() {
       {showTopUp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">
-              💰 Top up capital pool
+            <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              <Coins size={22} /> Top up capital pool
             </h3>
             {poolStatus && (
               <p className="text-sm text-gray-600 mb-4">
@@ -934,8 +938,8 @@ function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Payments Trend */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            💵 Payments (Last 6 Months)
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Banknote size={20} /> Payments (Last 6 Months)
           </h3>
           {trends.payments_trend.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
@@ -974,8 +978,8 @@ function Dashboard() {
 
         {/* Loans Trend */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            💰 Loans Issued (Last 6 Months)
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Coins size={20} /> Loans Issued (Last 6 Months)
           </h3>
           {trends.loans_trend.length === 0 ? (
             <p className="text-gray-500 text-center py-8">No loan data yet</p>
@@ -1016,7 +1020,7 @@ function Dashboard() {
         {/* Recent Loans */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800">📋 Recent Loans</h3>
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><ClipboardList size={20} /> Recent Loans</h3>
             <button
               onClick={() => navigate("/loans")}
               className="text-ocean-600 hover:text-ocean-700 text-sm font-semibold"
@@ -1069,8 +1073,8 @@ function Dashboard() {
         {/* Recent Payments */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800">
-              💵 Recent Payments
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Banknote size={20} /> Recent Payments
             </h3>
             <button
               onClick={() => navigate("/payments")}

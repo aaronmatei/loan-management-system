@@ -4,6 +4,7 @@ import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
+import { Coins, RotateCcw, ClipboardList, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(1)}K`;
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
@@ -68,7 +69,7 @@ function BillingDashboard() {
       );
       const { success, failed, skipped, period } = r.data.data;
       alert(
-        `✅ Period ${period}\n\n${success.length} generated\n${skipped.length} skipped\n${failed.length} failed`,
+        `Period ${period}\n\n${success.length} generated\n${skipped.length} skipped\n${failed.length} failed`,
       );
       load();
     } catch (err) {
@@ -91,8 +92,8 @@ function BillingDashboard() {
       <div className="p-4 lg:p-8">
         <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-              💰 Billing
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+              <Coins size={28} className="text-gray-700" /> Billing
             </h1>
             <p className="text-gray-600 mt-1">
               Invoices, payments, and revenue
@@ -103,7 +104,7 @@ function BillingDashboard() {
             disabled={generating}
             className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-lg font-semibold disabled:opacity-50"
           >
-            {generating ? "Generating…" : "🔄 Generate Monthly Invoices"}
+            {generating ? "Generating…" : <span className="inline-flex items-center gap-1.5"><RotateCcw size={15} /> Generate Monthly Invoices</span>}
           </button>
         </div>
 
@@ -159,9 +160,9 @@ function BillingDashboard() {
         <div className="flex flex-wrap gap-2 mb-4">
           {[
             { v: "all", l: "All" },
-            { v: "pending", l: "⏳ Pending" },
-            { v: "paid", l: "✅ Paid" },
-            { v: "overdue", l: "⚠️ Overdue" },
+            { v: "pending", l: <span className="inline-flex items-center gap-1"><Clock size={13} /> Pending</span> },
+            { v: "paid", l: <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> Paid</span> },
+            { v: "overdue", l: <span className="inline-flex items-center gap-1"><AlertTriangle size={13} /> Overdue</span> },
             { v: "partial", l: "Partial" },
           ].map((t) => (
             <button
@@ -180,7 +181,7 @@ function BillingDashboard() {
 
         {invoices.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-12 text-center">
-            <p className="text-5xl mb-3">📋</p>
+            <ClipboardList size={48} className="mx-auto mb-3 text-gray-300" />
             <p className="text-gray-500">No invoices yet.</p>
           </div>
         ) : (

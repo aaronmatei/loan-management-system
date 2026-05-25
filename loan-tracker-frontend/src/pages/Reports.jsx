@@ -8,6 +8,14 @@
 // in routes/analytics.js still serve pages/Analytics.jsx separately.
 
 import React, { useState, useEffect } from "react";
+import {
+  BarChart3,
+  Coins,
+  TrendingUp,
+  Clock,
+  FileText,
+  Users,
+} from "lucide-react";
 import api from "../services/api";
 import {
   LineChart,
@@ -97,8 +105,8 @@ function Reports() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-              📊 Reports &amp; Analytics
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+              <BarChart3 size={28} /> Reports &amp; Analytics
             </h1>
             <p className="text-gray-600 mt-1">Your portfolio performance</p>
           </div>
@@ -115,16 +123,16 @@ function Reports() {
             <button
               onClick={() => exportReport("pdf")}
               disabled={exporting !== null}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
             >
-              {exporting === "pdf" ? "…" : "📄 PDF"}
+              {exporting === "pdf" ? "…" : <><FileText size={15} /> PDF</>}
             </button>
             <button
               onClick={() => exportReport("excel")}
               disabled={exporting !== null}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
             >
-              {exporting === "excel" ? "…" : "📊 Excel"}
+              {exporting === "excel" ? "…" : <><BarChart3 size={15} /> Excel</>}
             </button>
           </div>
         </div>
@@ -170,7 +178,7 @@ function Reports() {
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3">💰 Collection Trend</h3>
+            <h3 className="font-bold mb-3 flex items-center gap-2"><Coins size={18} /> Collection Trend</h3>
             {collectionTrend.length === 0 ? (
               <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
                 No collections in this window
@@ -194,7 +202,7 @@ function Reports() {
           </div>
 
           <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3">📈 Disbursement Trend</h3>
+            <h3 className="font-bold mb-3 flex items-center gap-2"><TrendingUp size={18} /> Disbursement Trend</h3>
             {disbursementTrend.length === 0 ? (
               <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
                 No disbursements in this window
@@ -216,7 +224,7 @@ function Reports() {
         {/* Charts Row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3">⏳ Aging Analysis</h3>
+            <h3 className="font-bold mb-3 flex items-center gap-2"><Clock size={18} /> Aging Analysis</h3>
             {aging.length === 0 ? (
               <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
                 No outstanding payments
@@ -257,7 +265,7 @@ function Reports() {
           </div>
 
           <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3">🍩 Loan Status</h3>
+            <h3 className="font-bold mb-3 flex items-center gap-2"><BarChart3 size={18} /> Loan Status</h3>
             {statusDist.length === 0 ? (
               <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
                 No loans yet
@@ -288,7 +296,7 @@ function Reports() {
         {/* Loan officer performance */}
       {officers.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-4">
-          <h3 className="font-bold mb-3">👨‍💼 Loan Officer Performance</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2"><Users size={18} /> Loan Officer Performance</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">

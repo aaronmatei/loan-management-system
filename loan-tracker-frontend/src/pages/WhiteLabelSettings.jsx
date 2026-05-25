@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Palette,
+  Mail,
+  ClipboardList,
+  Globe,
+  User,
+  Crown,
+  Star,
+  Lock,
+  Save,
+  Info,
+} from "lucide-react";
 import api from "../services/api";
 
 const fld =
@@ -26,7 +38,7 @@ function WhiteLabelSettings() {
     setSaving(true);
     try {
       await api.put("/white-label/settings", payload);
-      alert("✅ Settings saved");
+      alert("Settings saved");
       load();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to save");
@@ -44,11 +56,11 @@ function WhiteLabelSettings() {
   const isEnt = tier === "enterprise";
 
   const TIER_TABS = [
-    { id: "branding", label: "🎨 Branding", needs: "basic" },
-    { id: "communications", label: "📧 Communications", needs: "pro" },
-    { id: "reports", label: "📋 Reports", needs: "pro" },
-    { id: "domain", label: "🌐 Custom Domain", needs: "enterprise" },
-    { id: "portal", label: "👤 Client Portal", needs: "enterprise" },
+    { id: "branding", icon: <Palette size={14} />, label: "Branding", needs: "basic" },
+    { id: "communications", icon: <Mail size={14} />, label: "Communications", needs: "pro" },
+    { id: "reports", icon: <ClipboardList size={14} />, label: "Reports", needs: "pro" },
+    { id: "domain", icon: <Globe size={14} />, label: "Custom Domain", needs: "enterprise" },
+    { id: "portal", icon: <User size={14} />, label: "Client Portal", needs: "enterprise" },
   ];
   const locked = (need) =>
     (need === "pro" && !isPro) || (need === "enterprise" && !isEnt);
@@ -56,8 +68,8 @@ function WhiteLabelSettings() {
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          🎨 White-Label Settings
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <Palette size={28} /> White-Label Settings
         </h1>
         <p className="text-gray-600 mt-1">
           Customize how your platform looks to customers
@@ -84,15 +96,17 @@ function WhiteLabelSettings() {
               Your Plan
             </p>
             <h2
-              className={`text-3xl font-bold ${
+              className={`text-3xl font-bold flex items-center gap-2 ${
                 tier === "basic" ? "text-gray-800" : "text-white"
               }`}
             >
-              {tier === "enterprise"
-                ? "👑 Enterprise"
-                : tier === "pro"
-                  ? "⭐ Pro"
-                  : "🆓 Basic"}
+              {tier === "enterprise" ? (
+                <><Crown size={28} /> Enterprise</>
+              ) : tier === "pro" ? (
+                <><Star size={28} /> Pro</>
+              ) : (
+                "Basic"
+              )}
             </h2>
           </div>
           {tier === "basic" && (
@@ -114,7 +128,7 @@ function WhiteLabelSettings() {
               key={t.id}
               onClick={() => !isLocked && setTab(t.id)}
               disabled={isLocked}
-              className={`px-3 py-2 text-sm font-semibold rounded-lg transition ${
+              className={`px-3 py-2 text-sm font-semibold rounded-lg transition inline-flex items-center gap-1.5 ${
                 tab === t.id
                   ? "bg-ocean-600 text-white"
                   : isLocked
@@ -122,7 +136,7 @@ function WhiteLabelSettings() {
                     : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
             >
-              {t.label} {isLocked && "🔒"}
+              {t.icon} {t.label} {isLocked && <Lock size={12} />}
             </button>
           );
         })}
@@ -131,7 +145,7 @@ function WhiteLabelSettings() {
       <div className="bg-white rounded-xl shadow p-6">
         {tab === "branding" && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl mb-2">🎨 Basic Branding</h2>
+            <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><Palette size={20} /> Basic Branding</h2>
             <p className="text-sm text-gray-600 mb-4">
               Available on every plan. Logo upload lives under Settings →
               Business Info.
@@ -199,9 +213,9 @@ function WhiteLabelSettings() {
 
         {tab === "communications" && isPro && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl mb-2">📧 Communications</h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2 text-sm text-blue-800">
-              💡 What customers see — your brand, not the platform's, on
+            <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><Mail size={20} /> Communications</h2>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2 text-sm text-blue-800 flex items-start gap-2">
+              <Info size={14} className="mt-0.5 shrink-0 text-blue-600" /> What customers see — your brand, not the platform's, on
               SMS / email / reports.
             </div>
             {[
@@ -272,7 +286,7 @@ function WhiteLabelSettings() {
 
         {tab === "reports" && isPro && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl mb-2">📋 Reports</h2>
+            <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><ClipboardList size={20} /> Reports</h2>
             <div>
               <label className="block text-sm font-semibold mb-1">
                 Report Header Text
@@ -327,7 +341,7 @@ function WhiteLabelSettings() {
 
         {tab === "domain" && isEnt && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl mb-2">🌐 Custom Domain</h2>
+            <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><Globe size={20} /> Custom Domain</h2>
             <div>
               <label className="block text-sm font-semibold mb-1">
                 Current URL
@@ -381,7 +395,7 @@ function WhiteLabelSettings() {
 
         {tab === "portal" && isEnt && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl mb-2">👤 Client Portal</h2>
+            <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><User size={20} /> Client Portal</h2>
             <div>
               <label className="block text-sm font-semibold mb-1">
                 Portal Title
@@ -465,7 +479,7 @@ function WhiteLabelSettings() {
         {((tab === "communications" || tab === "reports") && !isPro) ||
         ((tab === "domain" || tab === "portal") && !isEnt) ? (
           <div className="text-center py-8">
-            <p className="text-6xl mb-4">🔒</p>
+            <div className="flex justify-center mb-4"><Lock size={48} className="text-gray-400" /></div>
             <h3 className="text-xl font-bold mb-2">Upgrade to access</h3>
             <p className="text-gray-600 mb-4">
               This feature needs{" "}
@@ -487,7 +501,7 @@ function SaveRow({ onSave, saving }) {
         disabled={saving}
         className="px-6 py-3 bg-ocean-gradient text-white rounded-lg font-bold disabled:opacity-50"
       >
-        {saving ? "Saving…" : "💾 Save Changes"}
+        {saving ? "Saving…" : <span className="inline-flex items-center gap-2"><Save size={16} /> Save Changes</span>}
       </button>
     </div>
   );

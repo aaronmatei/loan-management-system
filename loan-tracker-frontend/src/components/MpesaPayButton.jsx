@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Smartphone, CheckCircle } from "lucide-react";
 import api from "../services/api";
 
 /**
@@ -50,7 +51,7 @@ function MpesaPayButton({
         if (status === "success") {
           clearInterval(pollRef.current);
           setStage("success");
-          setMessage("Payment confirmed! 🎉");
+          setMessage("Payment confirmed!");
           if (onSuccess) onSuccess(res.data.data);
         } else if (["failed", "cancelled", "timeout"].includes(status)) {
           clearInterval(pollRef.current);
@@ -106,10 +107,10 @@ function MpesaPayButton({
           reset();
           setOpen(true);
         }}
-        className="px-4 py-2 rounded-lg font-bold text-white shadow-md"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white shadow-md"
         style={{ backgroundColor: brandColor }}
       >
-        📱 {buttonText}
+        <Smartphone size={16} /> {buttonText}
       </button>
 
       {open && (
@@ -153,10 +154,10 @@ function MpesaPayButton({
                 )}
                 <button
                   onClick={handlePay}
-                  className="w-full py-3 rounded-lg font-bold text-white"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-lg font-bold text-white"
                   style={{ backgroundColor: brandColor }}
                 >
-                  📱 Send STK Push
+                  <Smartphone size={16} /> Send STK Push
                 </button>
                 <p className="text-xs text-gray-400 text-center mt-3">
                   A prompt will appear on your phone. Enter your M-Pesa PIN to
@@ -174,7 +175,9 @@ function MpesaPayButton({
 
             {stage === "waiting" && (
               <div className="text-center py-6">
-                <div className="animate-pulse text-5xl mb-3">📲</div>
+                <div className="animate-pulse flex justify-center mb-3">
+                  <Smartphone size={48} className="text-green-500" />
+                </div>
                 <p className="font-semibold text-gray-800">Check your phone</p>
                 <p className="text-sm text-gray-600 mt-1">{message}</p>
                 <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
@@ -186,7 +189,9 @@ function MpesaPayButton({
 
             {stage === "success" && (
               <div className="text-center py-6">
-                <div className="text-5xl mb-3">✅</div>
+                <div className="flex justify-center mb-3">
+                  <CheckCircle size={48} className="text-green-600" />
+                </div>
                 <p className="font-bold text-green-700 text-lg">{message}</p>
                 <button
                   onClick={() => {

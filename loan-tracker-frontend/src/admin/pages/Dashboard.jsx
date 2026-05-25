@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
+import { Crown, BarChart3, Briefcase, Trophy, UserPlus } from "lucide-react";
 
 const M = (v) => `KES ${(parseFloat(v || 0) / 1_000_000).toFixed(1)}M`;
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
@@ -34,8 +35,8 @@ function PlatformDashboard() {
   return (
     <PlatformLayout>
       <div className="p-4 lg:p-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          👑 Platform Overview
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <Crown size={28} className="text-gray-700" /> Platform Overview
         </h1>
         <p className="text-gray-600 mt-1 mb-6">Your SaaS at a glance</p>
 
@@ -70,7 +71,7 @@ function PlatformDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-bold text-gray-800 mb-3">📊 Tenants Status</h2>
+            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><BarChart3 size={18} /> Tenants Status</h2>
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-green-50 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-green-700">
@@ -93,7 +94,7 @@ function PlatformDashboard() {
             </div>
           </div>
           <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-bold text-gray-800 mb-3">💼 Platform Activity</h2>
+            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Briefcase size={18} /> Platform Activity</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-2 border-b">
                 <span>Total Clients</span>
@@ -123,7 +124,7 @@ function PlatformDashboard() {
 
         <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800">🏆 Top Tenants</h2>
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Trophy size={20} /> Top Tenants</h2>
             <button
               onClick={() => navigate("/admin/tenants")}
               className="text-sm text-ocean-600 font-semibold"
@@ -190,8 +191,8 @@ function PlatformDashboard() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 lg:p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
-            🆕 Recent Signups
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <UserPlus size={20} /> Recent Signups
           </h2>
           {recent_signups.length === 0 ? (
             <p className="text-gray-500 text-center py-4">

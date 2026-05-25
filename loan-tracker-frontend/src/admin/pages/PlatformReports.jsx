@@ -16,6 +16,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { BarChart3, Download, Banknote, Trophy } from "lucide-react";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -82,8 +83,8 @@ function PlatformReports() {
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-              📊 Platform Analytics
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+              <BarChart3 size={28} className="text-gray-700" /> Platform Analytics
             </h1>
             <p className="text-gray-600 mt-1">
               LoanFix performance across all tenants
@@ -104,14 +105,14 @@ function PlatformReports() {
               disabled={!!downloading}
               className="px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
-              {downloading === "pdf" ? "…" : "⬇ PDF"}
+              {downloading === "pdf" ? "…" : <span className="inline-flex items-center gap-1"><Download size={14} /> PDF</span>}
             </button>
             <button
               onClick={() => download("excel")}
               disabled={!!downloading}
               className="px-3 py-2 rounded-lg bg-ocean-gradient text-white text-sm font-semibold hover:shadow-lg disabled:opacity-50"
             >
-              {downloading === "excel" ? "…" : "⬇ Excel"}
+              {downloading === "excel" ? "…" : <span className="inline-flex items-center gap-1"><Download size={14} /> Excel</span>}
             </button>
           </div>
         </div>
@@ -154,7 +155,7 @@ function PlatformReports() {
 
         {/* Revenue trend */}
         <div className="bg-white rounded-xl shadow-md p-4 mb-4">
-          <h3 className="font-bold mb-3">💵 Revenue Trend (Platform Fees)</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2"><Banknote size={18} /> Revenue Trend (Platform Fees)</h3>
           {revenueTrend.length === 0 ? (
             <div className="h-[300px] flex items-center justify-center text-sm text-gray-400">
               No invoice payments in this window
@@ -179,7 +180,7 @@ function PlatformReports() {
 
         {/* Leaderboard */}
         <div className="bg-white rounded-xl shadow-md p-4">
-          <h3 className="font-bold mb-3">🏆 Tenant Leaderboard</h3>
+          <h3 className="font-bold mb-3 flex items-center gap-2"><Trophy size={18} /> Tenant Leaderboard</h3>
           {leaderboard.length === 0 ? (
             <div className="text-center py-8 text-gray-400 text-sm">
               No paying tenants yet

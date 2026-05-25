@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { Gamepad2 } from "lucide-react";
 
 // Sticky purple banner shown when a visitor entered via "Try Live
 // Demo". Drives conversion (Sign Up Free) and provides a clean
@@ -33,7 +34,7 @@ function DemoBanner() {
   return (
     <div className="bg-ocean-gradient text-white px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
       <div className="flex items-center gap-2">
-        <span className="text-lg">🎮</span>
+        <Gamepad2 size={18} className="shrink-0" />
         <span className="font-semibold">
           You're exploring the LoanFix demo. Data is sample only and resets nightly.
         </span>

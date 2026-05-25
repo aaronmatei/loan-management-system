@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Smartphone, Mail, AlertTriangle } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 
@@ -28,7 +29,7 @@ function BulkMessaging({ clientIds, onComplete }) {
         client_ids: clientIds,
         message: smsMessage,
       });
-      alert(`✅ ${res.data.message}`);
+      alert(res.data.message);
       setShowSMS(false);
       setSmsMessage("");
       onComplete?.();
@@ -49,7 +50,7 @@ function BulkMessaging({ clientIds, onComplete }) {
         client_ids: clientIds,
         ...emailData,
       });
-      alert(`✅ ${res.data.message}`);
+      alert(res.data.message);
       setShowEmail(false);
       setEmailData({ subject: "", message: "" });
       onComplete?.();
@@ -65,25 +66,25 @@ function BulkMessaging({ clientIds, onComplete }) {
       <PermissionGate permission="sms:send">
         <button
           onClick={() => setShowSMS(true)}
-          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
         >
-          📱 SMS
+          <Smartphone size={15} /> SMS
         </button>
       </PermissionGate>
 
       <PermissionGate permission="email:send">
         <button
           onClick={() => setShowEmail(true)}
-          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
         >
-          ✉️ Email
+          <Mail size={15} /> Email
         </button>
       </PermissionGate>
 
       {showSMS && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full text-gray-800">
-            <h3 className="text-2xl font-bold mb-4">📱 Bulk SMS</h3>
+            <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Smartphone size={22} /> Bulk SMS</h3>
             <p className="text-gray-600 mb-4">
               Sending to <strong>{count}</strong> selected client(s)
             </p>
@@ -102,8 +103,8 @@ function BulkMessaging({ clientIds, onComplete }) {
                 {"{last_name}"} are personalized
               </p>
               <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg my-4">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ Sends SMS to all {count} client(s) (~KES{" "}
+                <p className="text-sm text-yellow-800 flex items-center gap-1.5">
+                  <AlertTriangle size={14} className="shrink-0" /> Sends SMS to all {count} client(s) (~KES{" "}
                   {(count * 0.8).toFixed(2)} total)
                 </p>
               </div>
@@ -120,7 +121,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                   disabled={submitting}
                   className="px-6 py-2 bg-ocean-gradient text-white rounded-lg disabled:opacity-50"
                 >
-                  {submitting ? "Sending..." : "📱 Send to All"}
+                  {submitting ? "Sending..." : <span className="inline-flex items-center gap-1.5"><Smartphone size={15} /> Send to All</span>}
                 </button>
               </div>
             </form>
@@ -131,7 +132,7 @@ function BulkMessaging({ clientIds, onComplete }) {
       {showEmail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto text-gray-800">
-            <h3 className="text-2xl font-bold mb-4">✉️ Bulk Email</h3>
+            <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Mail size={22} /> Bulk Email</h3>
             <p className="text-gray-600 mb-4">
               Sending to <strong>{count}</strong> selected client(s)
             </p>
@@ -181,7 +182,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                   disabled={submitting}
                   className="px-6 py-2 bg-gradient-to-r from-blue-600 to-ocean-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {submitting ? "Sending..." : "✉️ Send to All"}
+                  {submitting ? "Sending..." : <span className="inline-flex items-center gap-1.5"><Mail size={15} /> Send to All</span>}
                 </button>
               </div>
             </form>

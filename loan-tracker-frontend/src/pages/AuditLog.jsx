@@ -1,4 +1,24 @@
 import React, { useState, useEffect } from "react";
+import {
+  Search,
+  Download,
+  Pencil,
+  Trash2,
+  RotateCcw,
+  LockOpen,
+  Ban,
+  Lock,
+  Coins,
+  Smartphone,
+  Mail,
+  Landmark,
+  BarChart3,
+  FileText,
+  Sparkles,
+  Upload,
+  Info,
+  X,
+} from "lucide-react";
 import api from "../services/api";
 
 function AuditLog() {
@@ -126,21 +146,21 @@ function AuditLog() {
 
   const getActionIcon = (action) => {
     const icons = {
-      created: "✨",
-      updated: "✏️",
-      deleted: "🗑️",
-      status_changed: "🔄",
-      login: "🔓",
-      login_failed: "🚫",
-      logout: "🔒",
-      payment_recorded: "💵",
-      refund_processed: "💰",
-      sms_sent: "📱",
-      email_sent: "✉️",
-      capital_adjusted: "🏦",
-      report_exported: "📊",
+      created: <Sparkles size={12} />,
+      updated: <Pencil size={12} />,
+      deleted: <Trash2 size={12} />,
+      status_changed: <RotateCcw size={12} />,
+      login: <LockOpen size={12} />,
+      login_failed: <Ban size={12} />,
+      logout: <Lock size={12} />,
+      payment_recorded: <Coins size={12} />,
+      refund_processed: <Coins size={12} />,
+      sms_sent: <Smartphone size={12} />,
+      email_sent: <Mail size={12} />,
+      capital_adjusted: <Landmark size={12} />,
+      report_exported: <BarChart3 size={12} />,
     };
-    return icons[action] || "📝";
+    return icons[action] || <FileText size={12} />;
   };
 
   const renderJson = (value) => {
@@ -161,16 +181,16 @@ function AuditLog() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">🔍 Audit Log</h1>
+          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2"><Search size={28} /> Audit Log</h1>
           <p className="text-gray-600 mt-2">
             Track all system activity and changes
           </p>
         </div>
         <button
           onClick={handleExport}
-          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
         >
-          ⬇️ Export Excel
+          <Download size={16} /> Export Excel
         </button>
       </div>
 
@@ -213,7 +233,7 @@ function AuditLog() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="🔍 Search descriptions, codes, users..."
+              placeholder="Search descriptions, codes, users..."
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
@@ -422,9 +442,9 @@ function AuditLog() {
                 </h3>
                 <button
                   onClick={() => setSelectedLog(null)}
-                  className="text-gray-400 text-2xl"
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  ✕
+                  <X size={22} />
                 </button>
               </div>
             </div>
@@ -474,8 +494,8 @@ function AuditLog() {
 
               {selectedLog.old_values && (
                 <div className="mt-4">
-                  <p className="text-sm font-semibold text-red-700 mb-2">
-                    📤 Old Values:
+                  <p className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                    <Upload size={14} /> Old Values:
                   </p>
                   <pre className="bg-red-50 p-3 rounded-lg text-xs overflow-x-auto">
                     {renderJson(selectedLog.old_values)}
@@ -485,8 +505,8 @@ function AuditLog() {
 
               {selectedLog.new_values && (
                 <div className="mt-4">
-                  <p className="text-sm font-semibold text-green-700 mb-2">
-                    📥 New Values:
+                  <p className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+                    <Download size={14} /> New Values:
                   </p>
                   <pre className="bg-green-50 p-3 rounded-lg text-xs overflow-x-auto">
                     {renderJson(selectedLog.new_values)}
@@ -496,8 +516,8 @@ function AuditLog() {
 
               {selectedLog.metadata && (
                 <div className="mt-4">
-                  <p className="text-sm font-semibold text-blue-700 mb-2">
-                    ℹ️ Metadata:
+                  <p className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-1">
+                    <Info size={14} /> Metadata:
                   </p>
                   <pre className="bg-blue-50 p-3 rounded-lg text-xs overflow-x-auto">
                     {renderJson(selectedLog.metadata)}

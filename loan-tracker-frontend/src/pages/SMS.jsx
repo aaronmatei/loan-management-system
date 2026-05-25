@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from "react";
+import {
+  Mail,
+  Zap,
+  AlertTriangle,
+  ClipboardList,
+  Check,
+  X,
+  Lightbulb,
+} from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
@@ -68,7 +77,7 @@ function SMS() {
     try {
       const response = await api.post("/sms/send-overdue-reminders");
       alert(
-        `✅ Sent ${response.data.sent} reminders, ${response.data.failed || 0} failed`,
+        `Sent ${response.data.sent} reminders, ${response.data.failed || 0} failed`,
       );
       fetchData();
     } catch (err) {
@@ -92,7 +101,7 @@ function SMS() {
         message: customMessage,
         message_type: "custom",
       });
-      alert("✅ SMS sent successfully!");
+      alert("SMS sent successfully!");
       setShowCustomModal(false);
       setSelectedClient(null);
       setCustomMessage("");
@@ -199,13 +208,13 @@ function SMS() {
             disabled={refreshing || loading}
             className="px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {refreshing ? "⏳ Refreshing..." : "🔄 Refresh"}
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
           <button
             onClick={() => setShowCustomModal(true)}
-            className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
           >
-            ✉️ Send Custom SMS
+            <Mail size={16} /> Send Custom SMS
           </button>
         </div>
       </div>
@@ -234,8 +243,8 @@ function SMS() {
 
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
-          ⚡ Quick Actions
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Zap size={20} /> Quick Actions
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
@@ -243,7 +252,7 @@ function SMS() {
             disabled={sending}
             className="p-6 bg-gradient-to-br from-red-500 to-orange-600 text-white rounded-xl shadow-md hover:shadow-lg transition text-left disabled:opacity-50"
           >
-            <div className="text-3xl mb-2">⚠️</div>
+            <div className="mb-2"><AlertTriangle size={32} /></div>
             <h3 className="text-lg font-bold mb-1">Send Overdue Reminders</h3>
             <p className="text-sm text-white/80">
               Send SMS to all clients with overdue payments
@@ -253,7 +262,7 @@ function SMS() {
             onClick={() => setShowCustomModal(true)}
             className="p-6 bg-ocean-gradient text-white rounded-xl shadow-md hover:shadow-lg transition text-left"
           >
-            <div className="text-3xl mb-2">✉️</div>
+            <div className="mb-2"><Mail size={32} /></div>
             <h3 className="text-lg font-bold mb-1">Send Custom Message</h3>
             <p className="text-sm text-white/80">
               Send personalized SMS to a specific client
@@ -274,7 +283,7 @@ function SMS() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="🔍 Search by name, phone, or message..."
+              placeholder="Search by name, phone, or message..."
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
@@ -291,13 +300,13 @@ function SMS() {
             >
               <option value="all">All ({typeCounts.all})</option>
               <option value="overdue_reminder">
-                ⚠️ Overdue Reminder ({typeCounts.overdue_reminder})
+                Overdue Reminder ({typeCounts.overdue_reminder})
               </option>
               <option value="payment_received">
-                💵 Payment Received ({typeCounts.payment_received})
+                Payment Received ({typeCounts.payment_received})
               </option>
               <option value="custom">
-                ✉️ Custom ({typeCounts.custom})
+                Custom ({typeCounts.custom})
               </option>
             </select>
           </div>
@@ -313,9 +322,9 @@ function SMS() {
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({statusCounts.all})</option>
-              <option value="sent">✓ Sent ({statusCounts.sent})</option>
+              <option value="sent">Sent ({statusCounts.sent})</option>
               <option value="failed">
-                ✕ Failed ({statusCounts.failed})
+                Failed ({statusCounts.failed})
               </option>
             </select>
           </div>
@@ -328,9 +337,9 @@ function SMS() {
                 setTypeFilter("all");
                 setStatusFilter("all");
               }}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition"
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
             >
-              ✖ Clear
+              <X size={16} /> Clear
             </button>
           )}
         </div>
@@ -347,7 +356,7 @@ function SMS() {
                     onClick={() => setSearchQuery("")}
                     className="ml-1"
                   >
-                    ✖
+                    <X size={12} />
                   </button>
                 </span>
               )}
@@ -358,7 +367,7 @@ function SMS() {
                     onClick={() => setTypeFilter("all")}
                     className="ml-1"
                   >
-                    ✖
+                    <X size={12} />
                   </button>
                 </span>
               )}
@@ -369,7 +378,7 @@ function SMS() {
                     onClick={() => setStatusFilter("all")}
                     className="ml-1"
                   >
-                    ✖
+                    <X size={12} />
                   </button>
                 </span>
               )}
@@ -385,7 +394,7 @@ function SMS() {
       {/* SMS Logs */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">📋 SMS History</h2>
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList size={20} /> SMS History</h2>
         </div>
         <div className="overflow-auto max-h-[calc(100vh-500px)]">
           <table className="w-full">
@@ -469,7 +478,11 @@ function SMS() {
                             : "bg-red-100 text-red-700"
                         }`}
                       >
-                        {log.status === "sent" ? "✓ Sent" : "✕ Failed"}
+                        {log.status === "sent" ? (
+                          <span className="inline-flex items-center gap-1"><Check size={12} /> Sent</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1"><X size={12} /> Failed</span>
+                        )}
                       </span>
                     </td>
                   </tr>
@@ -579,7 +592,7 @@ function SMS() {
                       }}
                       className="text-red-600 hover:text-red-800 font-bold"
                     >
-                      ✕
+                      <X size={14} />
                     </button>
                   </div>
                 ) : (
@@ -592,7 +605,7 @@ function SMS() {
                         setShowClientDropdown(true);
                       }}
                       onFocus={() => setShowClientDropdown(true)}
-                      placeholder="🔍 Search by name or phone..."
+                      placeholder="Search by name or phone..."
                       className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                     {showClientDropdown && (
@@ -639,8 +652,8 @@ function SMS() {
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  💡 Standard SMS: 160 characters. Longer messages cost more.
+                <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+                  <Lightbulb size={14} /> Standard SMS: 160 characters. Longer messages cost more.
                 </p>
               </div>
 
@@ -656,9 +669,9 @@ function SMS() {
                 <button
                   type="submit"
                   disabled={sending || !selectedClient || !customMessage.trim()}
-                  className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
                 >
-                  {sending ? "Sending..." : "✉️ Send SMS"}
+                  {sending ? "Sending..." : <><Mail size={16} /> Send SMS</>}
                 </button>
               </div>
             </form>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
+import { BarChart3, Coins, CreditCard, Check } from "lucide-react";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -42,7 +43,7 @@ function InvoiceDetail() {
         `/platform/billing/invoices/${id}/payments`,
         pay,
       );
-      alert("✅ Payment recorded");
+      alert("Payment recorded");
       setShowPay(false);
       load();
     } catch (err) {
@@ -126,7 +127,7 @@ function InvoiceDetail() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
-          <h2 className="font-bold mb-3">📊 Calculation Breakdown</h2>
+          <h2 className="font-bold mb-3 flex items-center gap-2"><BarChart3 size={18} /> Calculation Breakdown</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between py-2 border-b">
               <span>Interest earned this period</span>
@@ -168,16 +169,16 @@ function InvoiceDetail() {
           {balance > 0.01 && (
             <button
               onClick={() => setShowPay(true)}
-              className="w-full mt-4 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg"
+              className="w-full mt-4 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg flex items-center justify-center gap-2"
             >
-              💰 Record Payment
+              <Coins size={16} /> Record Payment
             </button>
           )}
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 lg:p-6">
-          <h2 className="font-bold mb-3">
-            💳 Payment History ({payments.length})
+          <h2 className="font-bold mb-3 flex items-center gap-2">
+            <CreditCard size={18} /> Payment History ({payments.length})
           </h2>
           {payments.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-4">
@@ -286,9 +287,9 @@ function InvoiceDetail() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2 bg-green-600 text-white rounded-lg font-semibold"
+                    className="flex-1 py-2 bg-green-600 text-white rounded-lg font-semibold flex items-center justify-center gap-1.5"
                   >
-                    ✓ Record
+                    <Check size={15} /> Record
                   </button>
                 </div>
               </form>

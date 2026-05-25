@@ -4,6 +4,7 @@ import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
+import { Building2, Search } from "lucide-react";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
 
@@ -58,7 +59,7 @@ function PlatformTenants() {
         status: newStatus,
         reason,
       });
-      alert("✅ Status updated");
+      alert("Status updated");
       load();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to update status");
@@ -68,31 +69,34 @@ function PlatformTenants() {
   return (
     <PlatformLayout>
       <div className="p-4 lg:p-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          🏢 All Tenants
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <Building2 size={28} className="text-gray-700" /> All Tenants
         </h1>
         <p className="text-gray-600 mt-1 mb-6">
           Manage all lenders on your platform
         </p>
 
         <div className="bg-white rounded-xl shadow p-4 mb-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="🔍 Search name, subdomain, or code…"
-            className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-          />
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, subdomain, or code…"
+              className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+            />
+          </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 bg-white focus:outline-none"
           >
             <option value="all">All Statuses</option>
-            <option value="active">🟢 Active</option>
-            <option value="trial">⏳ Trial</option>
-            <option value="suspended">🚫 Suspended</option>
-            <option value="cancelled">❌ Cancelled</option>
+            <option value="active">Active</option>
+            <option value="trial">Trial</option>
+            <option value="suspended">Suspended</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
 

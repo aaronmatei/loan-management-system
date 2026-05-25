@@ -44,7 +44,7 @@ function TenantPicker() {
       <div className="max-w-2xl mx-auto pt-12">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">
-            Hi {customer?.first_name}! 👋
+            Hi {customer?.first_name}!
           </h1>
           <p className="text-indigo-100 text-lg">
             You have accounts with {tenants.length} lenders

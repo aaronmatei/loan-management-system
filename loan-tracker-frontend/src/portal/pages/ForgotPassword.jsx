@@ -68,7 +68,7 @@ function ForgotPassword() {
         otp,
         new_password: password,
       });
-      alert("✅ Password reset. Please log in.");
+      alert("Password reset. Please log in.");
       navigate("/loanfix/portal/login");
     } catch (err) {
       alert(err.response?.data?.error || "Reset failed");

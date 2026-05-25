@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Coins,
+  BarChart3,
+  ClipboardList,
+  Users,
+  CheckCircle,
+  AlertTriangle,
+  Send,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 
@@ -133,7 +143,7 @@ function ApplyLoan() {
     setSubmitting(true);
     try {
       const r = await portalApi.post("/portal/customer/applications", form);
-      alert(`🎉 ${r.data.message}\n\nLoan Code: ${r.data.data.loan_code}`);
+      alert(`${r.data.message}\n\nLoan Code: ${r.data.data.loan_code}`);
       navigate("/loanfix/portal/applications");
     } catch (err) {
       alert(err.response?.data?.error || "Failed to submit application");
@@ -178,8 +188,8 @@ function ApplyLoan() {
           <ArrowLeft size={16} /> {lender.business_name}
         </button>
 
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-          📝 Apply for New Loan
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
+          <FileText size={28} className="text-navy-900" /> Apply for New Loan
         </h1>
         <p className="text-gray-600 mt-1 mb-5">
           You're applying to {lender.business_name}.
@@ -232,7 +242,7 @@ function ApplyLoan() {
                       : "bg-gray-200 text-gray-500"
                   }`}
                 >
-                  {step > s.n ? "✓" : s.n}
+                  {step > s.n ? <CheckCircle size={18} /> : s.n}
                 </div>
                 <p className="text-xs mt-1 text-gray-600">{s.l}</p>
               </div>
@@ -245,7 +255,7 @@ function ApplyLoan() {
             onSubmit={step1}
             className="bg-white rounded-2xl shadow p-6 lg:p-8 space-y-6"
           >
-            <h2 className="text-xl font-bold">💰 How much do you need?</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2"><Coins size={22} className="text-navy-900" /> How much do you need?</h2>
             <div>
               <label className="block text-sm font-semibold mb-2">
                 Loan Amount (KES)
@@ -291,7 +301,7 @@ function ApplyLoan() {
             </div>
             {calc && (
               <div className="bg-[var(--brand)]/10 border-2 border-[var(--brand)]/30 rounded-xl p-4 text-sm space-y-2">
-                <h3 className="font-bold text-navy-900">📊 Loan Summary</h3>
+                <h3 className="font-bold text-navy-900 flex items-center gap-1.5"><BarChart3 size={18} /> Loan Summary</h3>
                 <div className="flex justify-between">
                   <span>Principal</span>
                   <span className="font-bold">{KES(calc.principal)}</span>
@@ -337,7 +347,7 @@ function ApplyLoan() {
             onSubmit={step2}
             className="bg-white rounded-2xl shadow p-6 lg:p-8 space-y-4"
           >
-            <h2 className="text-xl font-bold">📋 Loan Details</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList size={22} className="text-navy-900" /> Loan Details</h2>
             <div>
               <label className="block text-sm font-semibold mb-2">
                 Loan Purpose *
@@ -384,8 +394,8 @@ function ApplyLoan() {
               />
             </div>
             <div className="border-t pt-4">
-              <h3 className="font-bold text-navy-900 mb-3">
-                👥 Guarantor (optional)
+              <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+                <Users size={18} /> Guarantor (optional)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input
@@ -417,7 +427,7 @@ function ApplyLoan() {
             </div>
             <div className="border-t pt-4">
               <h3 className="font-bold text-navy-900 mb-3">
-                🏠 Collateral (optional)
+                Collateral (optional)
               </h3>
               <textarea
                 value={form.collateral_description}
@@ -452,7 +462,7 @@ function ApplyLoan() {
 
         {step === 3 && calc && (
           <div className="bg-white rounded-2xl shadow p-6 lg:p-8 space-y-4">
-            <h2 className="text-xl font-bold">✅ Review & Submit</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2"><CheckCircle size={22} className="text-navy-900" /> Review &amp; Submit</h2>
             <div className="bg-[var(--brand)]/10 rounded-xl p-4 text-sm space-y-2">
               <div className="flex justify-between">
                 <span>Lender</span>
@@ -511,10 +521,11 @@ function ApplyLoan() {
                 <p className="text-sm">{form.collateral_description}</p>
               </div>
             )}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
-              ⚠️ <strong>Important:</strong> By submitting you agree to{" "}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800 flex items-start gap-2">
+              <AlertTriangle size={16} className="text-yellow-700 shrink-0 mt-0.5" />
+              <span><strong>Important:</strong> By submitting you agree to{" "}
               {lender.business_name}'s terms. The lender typically reviews
-              within 24–48 hours.
+              within 24–48 hours.</span>
             </div>
             <div className="flex gap-2 pt-2">
               <button
@@ -529,7 +540,7 @@ function ApplyLoan() {
                 disabled={submitting}
                 className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-bold rounded-lg disabled:opacity-50"
               >
-                {submitting ? "Submitting…" : "📤 Submit Application"}
+                {submitting ? "Submitting…" : <span className="inline-flex items-center gap-1.5"><Send size={15} /> Submit Application</span>}
               </button>
             </div>
           </div>

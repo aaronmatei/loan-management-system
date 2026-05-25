@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  ClipboardList,
+  Search,
+  Coins,
+  CheckCircle,
+  X,
+  Clock,
+  PartyPopper,
+  FileText,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import { lenderColor } from "../lenderColor";
@@ -9,27 +19,27 @@ const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const STATUS = {
   pending: {
     color: "bg-yellow-100 text-yellow-700",
-    icon: "⏳",
+    Icon: Clock,
     label: "Awaiting Review",
   },
   under_review: {
     color: "bg-blue-100 text-blue-700",
-    icon: "🔍",
+    Icon: Search,
     label: "Under Review",
   },
   counter_offered: {
     color: "bg-amber-100 text-amber-700",
-    icon: "💸",
+    Icon: Coins,
     label: "New Offer",
   },
   approved: {
     color: "bg-green-100 text-green-700",
-    icon: "✅",
+    Icon: CheckCircle,
     label: "Approved!",
   },
   rejected: {
     color: "bg-red-100 text-red-700",
-    icon: "❌",
+    Icon: X,
     label: "Rejected",
   },
 };
@@ -71,7 +81,7 @@ function CustomerApplications() {
         }),
       );
       await portalApi.delete(`/portal/customer/applications/${app.id}`);
-      alert("✅ Application cancelled");
+      alert("Application cancelled");
       load();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to cancel");
@@ -109,7 +119,7 @@ function CustomerApplications() {
         accept,
         reason,
       });
-      alert(accept ? "✅ Offer accepted!" : "Offer declined");
+      alert(accept ? "Offer accepted!" : "Offer declined");
       load();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to submit your response");
@@ -129,8 +139,8 @@ function CustomerApplications() {
       <div className="p-4 lg:p-8 max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-              📋 My Applications
+            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
+              <ClipboardList size={28} className="text-navy-900" /> My Applications
             </h1>
             <p className="text-slate-500 mt-1">
               Track your loan application status across all lenders
@@ -146,7 +156,9 @@ function CustomerApplications() {
 
         {apps.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-            <p className="text-5xl mb-3">📝</p>
+            <div className="flex justify-center mb-3">
+              <FileText size={48} className="text-slate-300" />
+            </div>
             <p className="text-navy-900 font-semibold mb-1">
               No applications yet
             </p>
@@ -164,6 +176,7 @@ function CustomerApplications() {
           <div className="space-y-4">
             {apps.map((a) => {
               const s = STATUS[a.status] || STATUS.pending;
+              const SIcon = s.Icon;
               const bc = lenderColor(a.tenant_brand_color, a.tenant_id);
               return (
                 <div
@@ -199,7 +212,7 @@ function CustomerApplications() {
                       <span
                         className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${s.color}`}
                       >
-                        {s.icon} {s.label}
+                        <SIcon size={12} /> {s.label}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3 text-sm">
@@ -229,8 +242,8 @@ function CustomerApplications() {
 
                     {a.status === "approved" && (
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
-                        <p className="font-semibold text-green-800">
-                          🎉 Approved! Your loan will be disbursed shortly.
+                        <p className="font-semibold text-green-800 flex items-center gap-1.5">
+                          <PartyPopper size={16} className="text-green-700" /> Approved! Your loan will be disbursed shortly.
                         </p>
                         {a.approver_name && (
                           <p className="text-xs text-green-600 mt-1">
@@ -253,8 +266,8 @@ function CustomerApplications() {
                     )}
                     {a.status === "under_review" && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                        <p className="text-blue-800">
-                          🔍 A loan officer is reviewing your application.
+                        <p className="text-blue-800 flex items-center gap-1.5">
+                          <Search size={16} className="text-blue-700 shrink-0" /> A loan officer is reviewing your application.
                         </p>
                         {a.reviewer_name && (
                           <p className="text-xs text-blue-700 mt-1">
@@ -265,8 +278,8 @@ function CustomerApplications() {
                     )}
                     {a.status === "counter_offered" && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
-                        <p className="font-semibold text-amber-800">
-                          💸 New offer from the lender
+                        <p className="font-semibold text-amber-800 flex items-center gap-1.5">
+                          <Coins size={16} className="text-amber-700" /> New offer from the lender
                         </p>
                         <p className="text-amber-800 mt-1">
                           You requested{" "}
@@ -284,9 +297,9 @@ function CustomerApplications() {
                         <div className="flex gap-2 mt-3">
                           <button
                             onClick={() => respond(a, true)}
-                            className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold"
                           >
-                            ✅ Accept offer
+                            <CheckCircle size={15} /> Accept offer
                           </button>
                           <button
                             onClick={() => respond(a, false)}
@@ -299,8 +312,8 @@ function CustomerApplications() {
                     )}
                     {a.status === "pending" && (
                       <div className="flex justify-between items-center pt-3 border-t text-sm">
-                        <p className="text-gray-600">
-                          ⏳ Awaiting review (typically 24–48 hours)
+                        <p className="text-gray-600 flex items-center gap-1.5">
+                          <Clock size={15} className="text-gray-500 shrink-0" /> Awaiting review (typically 24–48 hours)
                         </p>
                         <button
                           onClick={() => cancel(a)}

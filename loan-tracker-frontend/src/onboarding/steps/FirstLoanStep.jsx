@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from "../../services/api";
+import { Coins } from "lucide-react";
 
 // IMPORTANT: the staff POST /loans endpoint ALWAYS creates a
 // 'pending' loan application (status is hard-coded in loans.js — any
@@ -52,7 +53,7 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
     <div className="max-w-2xl mx-auto px-4">
       <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-3">💰</div>
+          <div className="flex justify-center mb-3"><Coins size={48} className="text-ocean-500" /></div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
             Submit First Loan Application
           </h2>

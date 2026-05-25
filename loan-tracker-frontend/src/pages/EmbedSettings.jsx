@@ -1,4 +1,16 @@
 import React, { useState, useEffect } from "react";
+import {
+  Package,
+  Link,
+  Globe,
+  Eye,
+  Smartphone,
+  Monitor,
+  ClipboardList,
+  CheckCircle,
+  Info,
+  Calculator,
+} from "lucide-react";
 import api from "../services/api";
 
 function EmbedSettings() {
@@ -34,13 +46,13 @@ function EmbedSettings() {
 </iframe>`;
 
   const linkCode = `<a href="${widgetUrl}" target="_blank" rel="noopener">
-  📊 Use Our Loan Calculator
+  Use Our Loan Calculator
 </a>`;
 
   const buttonCode = `<a href="${widgetUrl}" target="_blank" rel="noopener"
   style="display: inline-block; padding: 12px 24px; background: ${brand};
          color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
-  💰 Calculate Your Loan
+  Calculate Your Loan
 </a>`;
 
   const copy = (code, type) => {
@@ -58,9 +70,9 @@ function EmbedSettings() {
       </pre>
       <button
         onClick={() => copy(code, type)}
-        className="mt-2 w-full py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm"
+        className="mt-2 w-full py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm inline-flex items-center justify-center gap-2"
       >
-        {copied === type ? "✅ Copied!" : "📋 Copy"}
+        {copied === type ? <><CheckCircle size={16} /> Copied!</> : <><ClipboardList size={16} /> Copy</>}
       </button>
     </div>
   );
@@ -68,8 +80,8 @@ function EmbedSettings() {
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          🧮 Loan Calculator Widget
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <Calculator size={28} /> Loan Calculator Widget
         </h1>
         <p className="text-gray-600 mt-1">
           Embed your branded calculator on your website
@@ -77,13 +89,13 @@ function EmbedSettings() {
       </div>
 
       <div className="bg-ocean-gradient-soft rounded-2xl p-4 mb-6 border border-ocean-200">
-        <h2 className="font-bold text-ocean-900 mb-2">💡 Why use this?</h2>
+        <h2 className="font-bold text-ocean-900 mb-2 flex items-center gap-2"><Info size={16} className="text-ocean-700" /> Why use this?</h2>
         <ul className="space-y-1 text-sm text-ocean-800">
-          <li>✓ Capture leads directly from YOUR website</li>
-          <li>✓ Help visitors estimate loans before applying</li>
-          <li>✓ Branded with your business name and color</li>
-          <li>
-            ✓ "Apply Now" goes straight to your client portal with the
+          <li className="flex items-start gap-2"><CheckCircle size={14} className="mt-0.5 shrink-0 text-ocean-600" /> Capture leads directly from YOUR website</li>
+          <li className="flex items-start gap-2"><CheckCircle size={14} className="mt-0.5 shrink-0 text-ocean-600" /> Help visitors estimate loans before applying</li>
+          <li className="flex items-start gap-2"><CheckCircle size={14} className="mt-0.5 shrink-0 text-ocean-600" /> Branded with your business name and color</li>
+          <li className="flex items-start gap-2">
+            <CheckCircle size={14} className="mt-0.5 shrink-0 text-ocean-600" /> &ldquo;Apply Now&rdquo; goes straight to your client portal with the
             amount/duration pre-filled
           </li>
         </ul>
@@ -92,25 +104,25 @@ function EmbedSettings() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
           <CopyCard
-            title="📦 Embed (iframe)"
+            title={<span className="inline-flex items-center gap-2"><Package size={16} /> Embed (iframe)</span>}
             desc="Best option — embeds the full calculator on any page."
             code={iframeCode}
             type="iframe"
           />
           <CopyCard
-            title="🔘 Button Link"
+            title={<span className="inline-flex items-center gap-2"><Link size={16} /> Button Link</span>}
             desc="Opens the calculator in a new tab."
             code={buttonCode}
             type="button"
           />
           <CopyCard
-            title="🔗 Simple Link"
+            title={<span className="inline-flex items-center gap-2"><Link size={16} /> Simple Link</span>}
             desc="Just a plain text link."
             code={linkCode}
             type="link"
           />
           <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-gray-800 mb-1">🌐 Direct URL</h3>
+            <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><Globe size={16} /> Direct URL</h3>
             <p className="text-sm text-gray-600 mb-3">Share the widget directly.</p>
             <div className="bg-gray-100 p-3 rounded-lg text-sm font-mono break-all">
               {widgetUrl}
@@ -120,7 +132,7 @@ function EmbedSettings() {
                 onClick={() => copy(widgetUrl, "url")}
                 className="flex-1 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm"
               >
-                {copied === "url" ? "✅ Copied!" : "📋 Copy URL"}
+                {copied === "url" ? <span className="inline-flex items-center gap-1"><CheckCircle size={14} /> Copied!</span> : <span className="inline-flex items-center gap-1"><ClipboardList size={14} /> Copy URL</span>}
               </button>
               <a
                 href={widgetUrl}
@@ -137,27 +149,27 @@ function EmbedSettings() {
         <div>
           <div className="bg-white rounded-xl shadow p-4 sticky top-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-bold text-gray-800">👁️ Live preview</h3>
+              <h3 className="font-bold text-gray-800 flex items-center gap-2"><Eye size={16} /> Live preview</h3>
               <div className="flex gap-1">
                 <button
                   onClick={() => setPreviewSize("mobile")}
-                  className={`px-2 py-1 text-xs rounded ${
+                  className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${
                     previewSize === "mobile"
                       ? "bg-ocean-600 text-white"
                       : "bg-gray-100"
                   }`}
                 >
-                  📱
+                  <Smartphone size={14} />
                 </button>
                 <button
                   onClick={() => setPreviewSize("desktop")}
-                  className={`px-2 py-1 text-xs rounded ${
+                  className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${
                     previewSize === "desktop"
                       ? "bg-ocean-600 text-white"
                       : "bg-gray-100"
                   }`}
                 >
-                  💻
+                  <Monitor size={14} />
                 </button>
               </div>
             </div>
@@ -182,7 +194,7 @@ function EmbedSettings() {
       </div>
 
       <div className="bg-white rounded-xl shadow p-4 lg:p-6 mt-6">
-        <h2 className="font-bold text-xl mb-4">📘 How to embed</h2>
+        <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Info size={20} /> How to embed</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {[
             ["1. Copy code", "Click Copy on the iframe option — that's the recommended embed."],

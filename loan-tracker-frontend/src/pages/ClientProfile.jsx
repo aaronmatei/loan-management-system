@@ -8,6 +8,15 @@ import {
   Download,
   MessageSquare,
   Send,
+  IdCard,
+  ClipboardList,
+  CheckCircle,
+  AlertTriangle,
+  Coins,
+  Clock,
+  Banknote,
+  X,
+  Check,
 } from "lucide-react";
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
@@ -90,7 +99,7 @@ function ClientProfile() {
 
     try {
       await api.put(`/clients/${id}`, editFormData);
-      setEditSuccess("✅ Client updated successfully!");
+      setEditSuccess("Client updated successfully!");
       setTimeout(() => {
         setShowEditModal(false);
         fetchClientProfile();
@@ -305,7 +314,7 @@ function ClientProfile() {
                   const res = await api.post(
                     `/email/send-statement/${client.id}`,
                   );
-                  alert("✅ " + (res.data?.message || "Statement sent"));
+                  alert(res.data?.message || "Statement sent");
                 } catch (err) {
                   alert(
                     "Failed: " + (err.response?.data?.error || err.message),
@@ -322,8 +331,8 @@ function ClientProfile() {
 
       {/* Identity documents — from the client's linked customer-portal account */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">
-          🪪 Identity Documents
+        <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+          <IdCard size={20} className="text-gray-600" /> Identity Documents
         </h2>
         <p className="text-sm text-gray-500 mb-4">
           Uploaded by the client in the customer portal. Click an image to view
@@ -367,37 +376,37 @@ function ClientProfile() {
         <Card
           title="Total Loans"
           value={summary.total_loans_count}
-          icon="📋"
+          icon={<ClipboardList size={14} className="inline mr-1 text-gray-400" />}
           color="indigo"
         />
         <Card
           title="Active"
           value={summary.active_loans_count}
-          icon="🟢"
+          icon={<CheckCircle size={14} className="inline mr-1 text-green-500" />}
           color="green"
         />
         <Card
           title="Completed"
           value={summary.completed_loans_count}
-          icon="✅"
+          icon={<CheckCircle size={14} className="inline mr-1 text-blue-500" />}
           color="blue"
         />
         <Card
           title="Defaulted"
           value={summary.defaulted_loans_count}
-          icon="🔴"
+          icon={<AlertTriangle size={14} className="inline mr-1 text-red-500" />}
           color="red"
         />
         <Card
           title="On-Time Rate"
           value={`${summary.on_time_rate}%`}
-          icon="⏱️"
+          icon={<Clock size={14} className="inline mr-1 text-gray-400" />}
           color="green"
         />
         <Card
           title="Total Borrowed"
           value={KES(summary.total_borrowed)}
-          icon="💰"
+          icon={<Coins size={14} className="inline mr-1 text-gray-400" />}
           color="purple"
         />
       </div>
@@ -432,8 +441,8 @@ function ClientProfile() {
             {KES(summary.current_outstanding)}
           </p>
           {summary.current_overdue_count > 0 && (
-            <p className="text-sm text-red-600 mt-1 font-semibold">
-              ⚠️ {summary.current_overdue_count} overdue
+            <p className="text-sm text-red-600 mt-1 font-semibold flex items-center gap-1">
+              <AlertTriangle size={14} className="shrink-0" /> {summary.current_overdue_count} overdue
             </p>
           )}
         </div>
@@ -450,13 +459,13 @@ function ClientProfile() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h3
-              className={`text-xl font-bold ${
+              className={`text-xl font-bold flex items-center gap-2 ${
                 eligibility.can_borrow ? "text-green-800" : "text-red-800"
               }`}
             >
               {eligibility.can_borrow
-                ? "✅ Eligible for New Loan"
-                : "❌ Not Eligible"}
+                ? <><CheckCircle size={20} /> Eligible for New Loan</>
+                : <><X size={20} /> Not Eligible</>}
             </h3>
             <p className="text-gray-700 mt-2">{eligibility.reason}</p>
 
@@ -511,8 +520,8 @@ function ClientProfile() {
       {/* Loans History */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">
-            📋 Loan History
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <ClipboardList size={20} className="text-gray-500" /> Loan History
           </h3>
           <p className="text-sm text-gray-500 mt-1">
             {loans.length} loan{loans.length !== 1 ? "s" : ""} total
@@ -520,7 +529,9 @@ function ClientProfile() {
         </div>
         {loans.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="text-4xl mb-2">📋</div>
+            <div className="flex justify-center mb-2">
+              <ClipboardList size={40} className="text-gray-300" />
+            </div>
             <p>No loans yet</p>
           </div>
         ) : (
@@ -604,8 +615,8 @@ function ClientProfile() {
       {/* Recent Payments */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">
-            💵 Recent Payments
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <Banknote size={20} className="text-gray-500" /> Recent Payments
           </h3>
           <p className="text-sm text-gray-500 mt-1">
             Last {recentPayments.length} payment
@@ -614,7 +625,9 @@ function ClientProfile() {
         </div>
         {recentPayments.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="text-4xl mb-2">💵</div>
+            <div className="flex justify-center mb-2">
+              <Banknote size={40} className="text-gray-300" />
+            </div>
             <p>No payments recorded yet</p>
           </div>
         ) : (
@@ -678,9 +691,9 @@ function ClientProfile() {
               <h3 className="text-2xl font-bold text-gray-800">Edit Client</h3>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
+                className="text-gray-400 hover:text-gray-600"
               >
-                ✕
+                <X size={22} />
               </button>
             </div>
 
@@ -691,8 +704,8 @@ function ClientProfile() {
             )}
 
             {editSuccess && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-                {editSuccess}
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+                <CheckCircle size={16} className="text-green-500 shrink-0" />{editSuccess}
               </div>
             )}
 
@@ -965,7 +978,7 @@ function ClientProfile() {
                   disabled={submitting}
                   className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "✓ Save Changes"}
+                  {submitting ? "Saving..." : <span className="inline-flex items-center gap-1"><Check size={16} /> Save Changes</span>}
                 </button>
               </div>
             </form>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Bell, Trash2, Check, Mail } from "lucide-react";
 import api from "../services/api";
 
 function Notifications() {
@@ -72,8 +73,8 @@ function Notifications() {
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            🔔 Notifications
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <Bell size={28} /> Notifications
           </h1>
           <p className="text-sm lg:text-base text-gray-600 mt-1">
             All your notifications in one place
@@ -82,15 +83,15 @@ function Notifications() {
         <div className="flex gap-2">
           <button
             onClick={handleMarkAllRead}
-            className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg text-sm font-semibold"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg text-sm font-semibold"
           >
-            ✓ Mark All Read
+            <Check size={15} /> Mark All Read
           </button>
           <button
             onClick={handleClearOld}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold"
           >
-            🗑️ Clear Old
+            <Trash2 size={15} /> Clear Old
           </button>
         </div>
       </div>
@@ -122,7 +123,7 @@ function Notifications() {
         <div className="bg-white rounded-xl p-12 text-center">Loading...</div>
       ) : notifications.length === 0 ? (
         <div className="bg-white rounded-xl p-12 text-center">
-          <p className="text-6xl mb-4">📭</p>
+          <Mail size={56} className="mx-auto mb-4 text-gray-300" />
           <p className="text-gray-500">No notifications</p>
         </div>
       ) : (
@@ -136,7 +137,7 @@ function Notifications() {
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className="text-3xl">{notif.icon || "📢"}</div>
+                <div className="text-2xl flex items-center">{notif.icon || <Bell size={28} className="text-gray-400" />}</div>
                 <div className="flex-1 min-w-0">
                   <h3
                     className={`${

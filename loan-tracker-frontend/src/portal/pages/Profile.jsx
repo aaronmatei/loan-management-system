@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  User,
+  Pencil,
+  Check,
+  IdCard,
+  FileText,
+  Download,
+  Lock,
+  KeyRound,
+  Save,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
@@ -64,7 +75,7 @@ function Profile() {
     setSaving(true);
     try {
       await portalApi.put("/portal/customer/profile", form);
-      alert("✅ Profile updated");
+      alert("Profile updated");
       setEditing(false);
       load();
     } catch (err) {
@@ -89,7 +100,7 @@ function Profile() {
         current_password: pwd.current_password,
         new_password: pwd.new_password,
       });
-      alert("✅ Password changed");
+      alert("Password changed");
       setShowPwd(false);
       setPwd({ current_password: "", new_password: "", confirm_password: "" });
     } catch (err) {
@@ -142,15 +153,15 @@ function Profile() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-4" style={{ "--brand": brand }}>
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-            👤 My Profile
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
+            <User size={28} className="text-navy-900" /> My Profile
           </h1>
           {!editing && (
             <button
               onClick={() => setEditing(true)}
-              className="px-4 py-2 bg-[var(--brand)] text-white rounded-lg font-semibold"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--brand)] text-white rounded-lg font-semibold"
             >
-              ✏️ Edit
+              <Pencil size={15} /> Edit
             </button>
           )}
         </div>
@@ -162,7 +173,7 @@ function Profile() {
           <Row label="Phone">
             {customer.phone_number}
             {customer.phone_verified && (
-              <span className="ml-2 text-green-600 text-xs">✓ Verified</span>
+              <span className="ml-2 inline-flex items-center gap-0.5 text-green-600 text-xs"><Check size={12} /> Verified</span>
             )}
           </Row>
           <Row label="ID Number">{customer.id_number}</Row>
@@ -256,7 +267,7 @@ function Profile() {
                 disabled={saving}
                 className="flex-1 py-2 bg-[var(--brand)] text-white rounded-lg font-semibold disabled:opacity-50"
               >
-                {saving ? "Saving…" : "💾 Save Changes"}
+                {saving ? "Saving…" : <span className="inline-flex items-center gap-1.5"><Save size={15} /> Save Changes</span>}
               </button>
             </div>
           )}
@@ -264,7 +275,7 @@ function Profile() {
 
         <div className="bg-white rounded-xl shadow p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-navy-900">🪪 Identity documents</h2>
+            <h2 className="font-bold text-navy-900 flex items-center gap-1.5"><IdCard size={18} /> Identity documents</h2>
             <button
               onClick={() =>
                 navigate(
@@ -301,7 +312,7 @@ function Profile() {
         </div>
 
         <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="font-bold text-navy-900 mb-2">📄 Statements</h2>
+          <h2 className="font-bold text-navy-900 mb-2 flex items-center gap-1.5"><FileText size={18} /> Statements</h2>
           <p className="text-sm text-gray-600 mb-4">
             Download your full account statement at{" "}
             {client?.tenant_name || "this lender"}.
@@ -311,18 +322,18 @@ function Profile() {
             disabled={dl}
             className="px-4 py-2 bg-[var(--brand)] hover:brightness-95 text-white rounded-lg font-semibold disabled:opacity-50"
           >
-            {dl ? "Preparing…" : "⬇ Download Account Statement"}
+            {dl ? "Preparing…" : <span className="inline-flex items-center gap-1.5"><Download size={15} /> Download Account Statement</span>}
           </button>
         </div>
 
         <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="font-bold text-navy-900 mb-4">🔒 Security</h2>
+          <h2 className="font-bold text-navy-900 mb-4 flex items-center gap-1.5"><Lock size={18} /> Security</h2>
           {!showPwd ? (
             <button
               onClick={() => setShowPwd(true)}
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold"
             >
-              🔑 Change Password
+              <KeyRound size={16} /> Change Password
             </button>
           ) : (
             <div className="space-y-3">

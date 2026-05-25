@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import api from "../../services/api";
 import { KENYA_COUNTIES } from "../../utils/counties";
 import { BUSINESS_TYPES } from "../../utils/businessTypes";
+import { User, Shuffle } from "lucide-react";
 
 function FirstClientStep({ onNext, onBack, setCreatedClient }) {
   const [form, setForm] = useState({
@@ -47,7 +48,7 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
     <div className="max-w-2xl mx-auto px-4">
       <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-3">👤</div>
+          <div className="flex justify-center mb-3"><User size={48} className="text-ocean-500" /></div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
             Add Your First Client
           </h2>
@@ -58,9 +59,9 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
         <button
           type="button"
           onClick={useSampleData}
-          className="w-full mb-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-100"
+          className="w-full mb-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-100 inline-flex items-center justify-center gap-2"
         >
-          🎲 Fill with Sample Data (Mary Wanjiku)
+          <Shuffle size={14} /> Fill with Sample Data (Mary Wanjiku)
         </button>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">

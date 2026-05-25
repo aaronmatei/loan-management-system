@@ -1,5 +1,23 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  Landmark,
+  Rocket,
+  Gamepad2,
+  Check,
+  User,
+  Users,
+  Coins,
+  Smartphone,
+  BarChart3,
+  CreditCard,
+  Bell,
+  Briefcase,
+  Lock,
+  TrendingUp,
+  Lightbulb,
+  Star,
+} from "lucide-react";
 
 // NOTE: the testimonials, stats numbers, contact email/phone, and
 // /privacy /terms footer links below are MARKETING PLACEHOLDERS —
@@ -43,8 +61,8 @@ function LandingHome() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center gap-2.5">
-              <span className="w-9 h-9 rounded-xl bg-ocean-gradient flex items-center justify-center text-lg shadow-md">
-                🏦
+              <span className="w-9 h-9 rounded-xl bg-ocean-gradient flex items-center justify-center shadow-md">
+                <Landmark size={20} className="text-white" />
               </span>
               <span className="text-xl font-extrabold bg-ocean-gradient bg-clip-text text-transparent">
                 LoanFix
@@ -109,8 +127,8 @@ function LandingHome() {
         <div className="max-w-7xl mx-auto px-4 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-block px-4 py-1 bg-ocean-100 text-ocean-700 rounded-full text-sm font-semibold mb-4">
-                🚀 Built for Kenyan Lenders
+              <div className="inline-flex items-center gap-1.5 px-4 py-1 bg-ocean-100 text-ocean-700 rounded-full text-sm font-semibold mb-4">
+                <Rocket size={14} /> Built for Kenyan Lenders
               </div>
               <h1 className="text-4xl lg:text-6xl font-bold leading-tight text-gray-900 mb-6">
                 Run Your{" "}
@@ -136,7 +154,7 @@ function LandingHome() {
                   disabled={demoLoading}
                   className="px-8 py-4 bg-ocean-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 disabled:opacity-60"
                 >
-                  {demoLoading ? "Loading demo…" : "🎮 Try Live Demo"}
+                  {demoLoading ? "Loading demo…" : <span className="inline-flex items-center gap-2"><Gamepad2 size={16} /> Try Live Demo</span>}
                 </button>
                 <a
                   href="#features"
@@ -147,16 +165,16 @@ function LandingHome() {
               </div>
               <div className="mt-6 flex items-center gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-1">
-                  <span className="text-green-500">✓</span>
+                  <Check size={14} className="text-green-500" />
                   No credit card needed
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-green-500">✓</span>
+                  <Check size={14} className="text-green-500" />
                   Setup in 5 minutes
                 </div>
               </div>
-              <p className="mt-5 text-sm text-gray-600 border-t border-slate-200 pt-5">
-                👤 Borrowing from a LoanFix lender?{" "}
+              <p className="mt-5 text-sm text-gray-600 border-t border-slate-200 pt-5 flex items-start gap-1.5">
+                <User size={14} className="mt-0.5 shrink-0" /> Borrowing from a LoanFix lender?{" "}
                 <Link
                   to="/loanfix/portal/register"
                   className="font-bold text-ocean-600 hover:text-ocean-700"
@@ -213,7 +231,7 @@ function LandingHome() {
                 </div>
               </div>
               <div className="absolute -bottom-4 -right-4 bg-yellow-300 rounded-full px-4 py-2 shadow-lg transform -rotate-12">
-                <p className="text-sm font-bold">🇰🇪 Made in Kenya</p>
+                <p className="text-sm font-bold">Made in Kenya</p>
               </div>
             </div>
           </div>
@@ -260,21 +278,21 @@ function LandingHome() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: "👥", title: "Client Management", description: "Store complete client profiles with KYC documents, business info, and loan history.", color: "from-blue-500 to-cyan-600" },
-              { icon: "💰", title: "Loan Tracking", description: "Manage active loans, payment schedules, and automatic interest calculations.", color: "from-green-500 to-emerald-600" },
-              { icon: "📱", title: "Client Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-ocean-400 to-pink-600" },
-              { icon: "📊", title: "Reports & Analytics", description: "Real-time insights into your portfolio. Export to Excel or PDF anytime.", color: "from-orange-500 to-red-600" },
-              { icon: "💳", title: "M-Pesa Ready", description: "Built for the Kenyan market. Record M-Pesa payments instantly.", color: "from-yellow-500 to-orange-600" },
-              { icon: "🔔", title: "SMS Notifications", description: "Automatic SMS for payment reminders, loan approvals, and overdue alerts.", color: "from-ocean-500 to-ocean-600" },
-              { icon: "👨‍💼", title: "Multi-User Roles", description: "Add staff with different permission levels. Track who did what.", color: "from-teal-500 to-cyan-600" },
-              { icon: "🔐", title: "Secure & Encrypted", description: "Bank-grade security. Your data is encrypted and backed up daily.", color: "from-rose-500 to-red-600" },
-              { icon: "📈", title: "Loan Applications", description: "Clients apply online. Review, approve, and disburse — all digital.", color: "from-pink-500 to-rose-600" },
+              { icon: <Users size={28} className="text-white" />, title: "Client Management", description: "Store complete client profiles with KYC documents, business info, and loan history.", color: "from-blue-500 to-cyan-600" },
+              { icon: <Coins size={28} className="text-white" />, title: "Loan Tracking", description: "Manage active loans, payment schedules, and automatic interest calculations.", color: "from-green-500 to-emerald-600" },
+              { icon: <Smartphone size={28} className="text-white" />, title: "Client Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-ocean-400 to-pink-600" },
+              { icon: <BarChart3 size={28} className="text-white" />, title: "Reports & Analytics", description: "Real-time insights into your portfolio. Export to Excel or PDF anytime.", color: "from-orange-500 to-red-600" },
+              { icon: <CreditCard size={28} className="text-white" />, title: "M-Pesa Ready", description: "Built for the Kenyan market. Record M-Pesa payments instantly.", color: "from-yellow-500 to-orange-600" },
+              { icon: <Bell size={28} className="text-white" />, title: "SMS Notifications", description: "Automatic SMS for payment reminders, loan approvals, and overdue alerts.", color: "from-ocean-500 to-ocean-600" },
+              { icon: <Briefcase size={28} className="text-white" />, title: "Multi-User Roles", description: "Add staff with different permission levels. Track who did what.", color: "from-teal-500 to-cyan-600" },
+              { icon: <Lock size={28} className="text-white" />, title: "Secure & Encrypted", description: "Bank-grade security. Your data is encrypted and backed up daily.", color: "from-rose-500 to-red-600" },
+              { icon: <TrendingUp size={28} className="text-white" />, title: "Loan Applications", description: "Clients apply online. Review, approve, and disburse — all digital.", color: "from-pink-500 to-rose-600" },
             ].map((feature, idx) => (
               <div
                 key={idx}
                 className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all transform hover:-translate-y-1"
               >
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center text-3xl mb-4`}>
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4`}>
                   {feature.icon}
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
@@ -299,16 +317,16 @@ function LandingHome() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {[
-              { number: "1", title: "Sign Up Free", description: "Create your account and customize your business details. Your own subdomain in 60 seconds.", emoji: "🚀" },
-              { number: "2", title: "Add Clients & Loans", description: "Import existing records or start fresh. Track loans, payments, and schedules.", emoji: "📝" },
-              { number: "3", title: "Grow Your Business", description: "Let customers apply online, manage your portfolio, and watch your business scale.", emoji: "📈" },
+              { number: "1", title: "Sign Up Free", description: "Create your account and customize your business details. Your own subdomain in 60 seconds.", stepIcon: <Rocket size={40} className="text-ocean-500" /> },
+              { number: "2", title: "Add Clients & Loans", description: "Import existing records or start fresh. Track loans, payments, and schedules.", stepIcon: <Users size={40} className="text-ocean-500" /> },
+              { number: "3", title: "Grow Your Business", description: "Let customers apply online, manage your portfolio, and watch your business scale.", stepIcon: <TrendingUp size={40} className="text-ocean-500" /> },
             ].map((step, idx, arr) => (
               <div key={idx} className="relative">
                 <div className="text-center">
                   <div className="w-16 h-16 mx-auto bg-ocean-gradient text-white rounded-full flex items-center justify-center text-3xl font-bold shadow-lg mb-4">
                     {step.number}
                   </div>
-                  <div className="text-5xl mb-3">{step.emoji}</div>
+                  <div className="flex justify-center mb-3">{step.stepIcon}</div>
                   <h3 className="text-2xl font-bold mb-2">{step.title}</h3>
                   <p className="text-gray-600">{step.description}</p>
                 </div>
@@ -342,8 +360,8 @@ function LandingHome() {
         <div className="max-w-7xl mx-auto px-4 relative">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-block px-4 py-1 bg-white/10 text-ocean-100 rounded-full text-sm font-semibold mb-4">
-                👤 For Borrowers
+              <div className="inline-flex items-center gap-1.5 px-4 py-1 bg-white/10 text-ocean-100 rounded-full text-sm font-semibold mb-4">
+                <User size={14} /> For Borrowers
               </div>
               <h2 className="text-3xl lg:text-5xl font-bold mb-4 leading-tight">
                 One free account for{" "}
@@ -366,7 +384,7 @@ function LandingHome() {
                   "Upload your documents once",
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-ocean-50">
-                    <span className="text-ocean-300 font-bold">✓</span> {item}
+                    <Check size={14} className="text-ocean-300 shrink-0" /> {item}
                   </li>
                 ))}
               </ul>
@@ -424,8 +442,8 @@ function LandingHome() {
                   ))}
                 </div>
               </div>
-              <div className="absolute -bottom-4 -left-4 bg-ocean-gradient text-white rounded-full px-4 py-2 shadow-lg text-sm font-bold">
-                🔒 One secure login
+              <div className="absolute -bottom-4 -left-4 bg-ocean-gradient text-white rounded-full px-4 py-2 shadow-lg text-sm font-bold inline-flex items-center gap-1.5">
+                <Lock size={14} /> One secure login
               </div>
             </div>
           </div>
@@ -454,11 +472,11 @@ function LandingHome() {
                 <span className="text-lg font-normal text-gray-500">/14 days</span>
               </p>
               <ul className="space-y-2 mb-6 text-sm">
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Full platform access</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Up to 50 clients</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Client portal included</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> SMS notifications</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Email support</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Full platform access</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Up to 50 clients</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Client portal included</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> SMS notifications</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Email support</li>
               </ul>
               <Link
                 to="/signup"
@@ -477,12 +495,12 @@ function LandingHome() {
               <p className="text-5xl font-bold mb-2">5%</p>
               <p className="text-ocean-100 text-sm mb-6">of interest earned monthly</p>
               <ul className="space-y-2 mb-6 text-sm">
-                <li className="flex items-center gap-2">✓ Everything in Free Trial</li>
-                <li className="flex items-center gap-2">✓ Unlimited clients</li>
-                <li className="flex items-center gap-2">✓ Unlimited loans</li>
-                <li className="flex items-center gap-2">✓ Custom branding</li>
-                <li className="flex items-center gap-2">✓ Priority support</li>
-                <li className="flex items-center gap-2">✓ All future features</li>
+                <li className="flex items-center gap-2"><Check size={16} className="shrink-0" />Everything in Free Trial</li>
+                <li className="flex items-center gap-2"><Check size={16} className="shrink-0" />Unlimited clients</li>
+                <li className="flex items-center gap-2"><Check size={16} className="shrink-0" />Unlimited loans</li>
+                <li className="flex items-center gap-2"><Check size={16} className="shrink-0" />Custom branding</li>
+                <li className="flex items-center gap-2"><Check size={16} className="shrink-0" />Priority support</li>
+                <li className="flex items-center gap-2"><Check size={16} className="shrink-0" />All future features</li>
               </ul>
               <Link
                 to="/signup"
@@ -503,12 +521,12 @@ function LandingHome() {
                 <span className="text-lg font-normal text-gray-500"> pricing</span>
               </p>
               <ul className="space-y-2 mb-6 text-sm">
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Everything in Pay-As-You-Grow</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Custom integrations</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Dedicated account manager</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Custom features</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> SLA guarantee</li>
-                <li className="flex items-center gap-2"><span className="text-green-500">✓</span> White-label option</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Everything in Pay-As-You-Grow</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Custom integrations</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Dedicated account manager</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> Custom features</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> SLA guarantee</li>
+                <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> White-label option</li>
               </ul>
               <a
                 href="mailto:sales@loanfix.co.ke"
@@ -520,10 +538,10 @@ function LandingHome() {
           </div>
 
           <div className="text-center mt-12">
-            <p className="text-sm text-gray-600">
-              💡 <strong>Why 5%?</strong> We only earn when you earn interest. No
+            <p className="text-sm text-gray-600 inline-flex items-start gap-1.5 justify-center">
+              <Lightbulb size={14} className="text-ocean-500 mt-0.5 shrink-0" /> <span><strong>Why 5%?</strong> We only earn when you earn interest. No
               upfront costs, no monthly minimums. If you don't have an active
-              month, you don't pay.
+              month, you don't pay.</span>
             </p>
           </div>
         </div>
@@ -550,7 +568,7 @@ function LandingHome() {
               <div key={idx} className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-md p-6">
                 <div className="flex gap-1 mb-3">
                   {[...Array(t.rating)].map((_, i) => (
-                    <span key={i} className="text-yellow-400 text-xl">★</span>
+                    <Star key={i} size={18} className="text-yellow-400 fill-yellow-400" />
                   ))}
                 </div>
                 <p className="text-gray-700 mb-4 italic">"{t.quote}"</p>
@@ -605,8 +623,8 @@ function LandingHome() {
           >
             Start Your Free Trial Today →
           </Link>
-          <p className="mt-6 text-ocean-100 text-sm">
-            ✓ 14 days free • ✓ No credit card • ✓ Setup in 5 minutes
+          <p className="mt-6 text-ocean-100 text-sm inline-flex items-center gap-2 justify-center">
+            <Check size={13} /> 14 days free • <Check size={13} /> No credit card • <Check size={13} /> Setup in 5 minutes
           </p>
           <p className="mt-4 text-ocean-100 text-sm">
             Just here to manage your loans?{" "}
@@ -626,7 +644,7 @@ function LandingHome() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-3xl">🏦</span>
+                <Landmark size={28} className="text-ocean-400" />
                 <span className="text-xl font-bold text-white">LoanFix</span>
               </div>
               <p className="text-sm">
@@ -662,7 +680,7 @@ function LandingHome() {
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col lg:flex-row justify-between items-center text-sm">
             <p>© {new Date().getFullYear()} LoanFix. All rights reserved.</p>
-            <p>🇰🇪 Proudly built in Kenya</p>
+            <p>Proudly built in Kenya</p>
           </div>
         </div>
       </footer>

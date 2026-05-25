@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from "react";
+import {
+  Gift,
+  Copy,
+  CheckCircle,
+  MessageSquare,
+  PartyPopper,
+  Clock,
+  Mail,
+} from "lucide-react";
 import api from "../services/api";
 
 // Refer & Earn dashboard. Every tenant has a deterministic referral
@@ -56,8 +65,8 @@ function Referrals() {
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            🎁 Refer & Earn
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <Gift size={28} /> Refer &amp; Earn
           </h1>
           <p className="text-gray-600 mt-1">
             Refer other lenders and earn free months
@@ -67,7 +76,7 @@ function Referrals() {
         {/* Hero card with link + share */}
         <div className="bg-ocean-gradient text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
           <div className="text-center">
-            <div className="text-5xl mb-3">🎁</div>
+            <div className="flex justify-center mb-3"><Gift size={48} className="text-white" /></div>
             <h2 className="text-2xl font-bold mb-2">
               Earn Rewards for Every Referral!
             </h2>
@@ -86,17 +95,17 @@ function Referrals() {
                 </span>
                 <button
                   onClick={copyLink}
-                  className="px-3 py-1 bg-ocean-600 text-white rounded text-sm font-semibold whitespace-nowrap"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-600 text-white rounded text-sm font-semibold whitespace-nowrap"
                 >
-                  {copied ? "✅ Copied" : "📋 Copy"}
+                  {copied ? <><CheckCircle size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
                 </button>
               </div>
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={shareWhatsApp}
-                  className="flex-1 py-2 bg-green-500 text-white rounded-lg font-semibold text-sm"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 bg-green-500 text-white rounded-lg font-semibold text-sm"
                 >
-                  💬 Share on WhatsApp
+                  <MessageSquare size={15} /> Share on WhatsApp
                 </button>
               </div>
             </div>
@@ -133,8 +142,8 @@ function Referrals() {
         {/* Credit banner — only when redemption is pending */}
         {credits > 0 && (
           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6 text-center">
-            <p className="text-green-800">
-              🎉 You have{" "}
+            <p className="text-green-800 flex items-center justify-center gap-2">
+              <PartyPopper size={18} /> You have{" "}
               <strong>
                 {credits} free month{credits > 1 ? "s" : ""}
               </strong>{" "}
@@ -183,7 +192,7 @@ function Referrals() {
           <h3 className="font-bold text-lg mb-4">Your Referrals</h3>
           {data.referrals.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p className="text-4xl mb-2">📭</p>
+              <Mail size={40} className="mx-auto mb-2 text-gray-400" />
               <p>No referrals yet. Share your link to start earning!</p>
             </div>
           ) : (
@@ -212,9 +221,9 @@ function Referrals() {
                     }`}
                   >
                     {ref.status === "qualified"
-                      ? "✅ Earned"
+                      ? <span className="inline-flex items-center gap-1"><CheckCircle size={13} /> Earned</span>
                       : ref.status === "pending"
-                        ? "⏳ Pending"
+                        ? <span className="inline-flex items-center gap-1"><Clock size={13} /> Pending</span>
                         : ref.status}
                   </span>
                 </div>

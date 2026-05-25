@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { BarChart3 } from "lucide-react";
 
 // These values are stored in onboarding_data (the wizard memo only) so
 // they pre-fill the FirstLoan step. We don't write tenant-level loan
@@ -26,7 +27,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
     <div className="max-w-2xl mx-auto px-4">
       <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-3">📊</div>
+          <div className="flex justify-center mb-3"><BarChart3 size={48} className="text-ocean-500" /></div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
             Set Your Loan Defaults
           </h2>
@@ -133,8 +134,8 @@ function LoanSettingsStep({ data, onNext, onBack }) {
           </div>
 
           <div className="bg-gradient-to-br from-blue-50 to-ocean-50 border-2 border-blue-200 rounded-xl p-4">
-            <h3 className="font-bold text-blue-900 mb-2">
-              📊 Example Calculation
+            <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+              <BarChart3 size={16} /> Example Calculation
             </h3>
             <p className="text-sm text-blue-800 mb-3">
               For a KES 50,000 loan over {form.default_duration_months} months

@@ -1,4 +1,5 @@
 import React from "react";
+import { Printer, MessageSquare } from "lucide-react";
 
 // Shared, premium payment receipt — used by the tenant admin
 // (post-payment modal in pages/Payments.jsx) AND the customer portal
@@ -365,16 +366,16 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
           </button>
           <button
             onClick={onPrint || (() => window.print())}
-            className="flex-1 py-2.5 rounded-xl font-semibold text-white shadow-sm"
+            className="inline-flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl font-semibold text-white shadow-sm"
             style={{ backgroundColor: theme.accent }}
           >
-            🖨 Print
+            <Printer size={16} /> Print
           </button>
           <button
             onClick={onWhatsApp}
-            className="flex-1 py-2.5 bg-[#25D366] text-white rounded-xl font-semibold shadow-sm hover:brightness-95"
+            className="inline-flex items-center justify-center gap-2 flex-1 py-2.5 bg-[#25D366] text-white rounded-xl font-semibold shadow-sm hover:brightness-95"
           >
-            💬 WhatsApp
+            <MessageSquare size={16} /> WhatsApp
           </button>
         </div>
       </div>

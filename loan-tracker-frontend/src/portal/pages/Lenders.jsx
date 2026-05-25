@@ -116,8 +116,8 @@ function Lenders() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1">
-          🏦 Lenders
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+          <Building2 size={28} className="text-navy-900" /> Lenders
         </h1>
         <p className="text-slate-500 mb-3">
           Browse every lender on LoanFix and compare their terms.

@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from "react";
+import {
+  Mail,
+  Zap,
+  AlertTriangle,
+  ClipboardList,
+  Paperclip,
+  Check,
+  X,
+} from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
@@ -69,7 +78,7 @@ function Email() {
     try {
       const response = await api.post("/email/send-overdue-reminders");
       alert(
-        `✅ Sent ${response.data.sent} emails, ${response.data.failed || 0} failed`,
+        `Sent ${response.data.sent} emails, ${response.data.failed || 0} failed`,
       );
       fetchData();
     } catch (err) {
@@ -98,7 +107,7 @@ function Email() {
         message: emailForm.message,
         attach_statement: attachStatement,
       });
-      alert("✅ Email sent successfully!");
+      alert("Email sent successfully!");
       setShowCustomModal(false);
       setSelectedClient(null);
       setEmailForm({ subject: "", message: "" });
@@ -209,13 +218,13 @@ function Email() {
             disabled={refreshing || loading}
             className="px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {refreshing ? "⏳ Refreshing..." : "🔄 Refresh"}
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
           <button
             onClick={() => setShowCustomModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-ocean-700 text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-ocean-700 text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
           >
-            ✉️ Compose Email
+            <Mail size={16} /> Compose Email
           </button>
         </div>
       </div>
@@ -244,8 +253,8 @@ function Email() {
 
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
-          ⚡ Quick Actions
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Zap size={20} /> Quick Actions
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
@@ -253,7 +262,7 @@ function Email() {
             disabled={sending}
             className="p-6 bg-gradient-to-br from-red-500 to-orange-600 text-white rounded-xl shadow-md hover:shadow-lg transition text-left disabled:opacity-50"
           >
-            <div className="text-3xl mb-2">⚠️</div>
+            <div className="mb-2"><AlertTriangle size={32} /></div>
             <h3 className="text-lg font-bold mb-1">Send Overdue Reminders</h3>
             <p className="text-sm text-white/80">
               Email all clients with overdue payments
@@ -263,7 +272,7 @@ function Email() {
             onClick={() => setShowCustomModal(true)}
             className="p-6 bg-ocean-gradient text-white rounded-xl shadow-md hover:shadow-lg transition text-left"
           >
-            <div className="text-3xl mb-2">✉️</div>
+            <div className="mb-2"><Mail size={32} /></div>
             <h3 className="text-lg font-bold mb-1">Compose Email</h3>
             <p className="text-sm text-white/80">
               Send a personalized email, optionally with a statement
@@ -284,7 +293,7 @@ function Email() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="🔍 Search by name, email, or subject..."
+              placeholder="Search by name, email, or subject..."
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
@@ -301,19 +310,19 @@ function Email() {
             >
               <option value="all">All ({typeCounts.all})</option>
               <option value="payment_received">
-                💵 Payment Received ({typeCounts.payment_received})
+                Payment Received ({typeCounts.payment_received})
               </option>
               <option value="overdue_reminder">
-                ⚠️ Overdue Reminder ({typeCounts.overdue_reminder})
+                Overdue Reminder ({typeCounts.overdue_reminder})
               </option>
               <option value="statement">
-                📄 Statement ({typeCounts.statement})
+                Statement ({typeCounts.statement})
               </option>
               <option value="loan_agreement">
-                📝 Loan Agreement ({typeCounts.loan_agreement})
+                Loan Agreement ({typeCounts.loan_agreement})
               </option>
               <option value="custom">
-                ✉️ Custom ({typeCounts.custom})
+                Custom ({typeCounts.custom})
               </option>
             </select>
           </div>
@@ -329,9 +338,9 @@ function Email() {
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({statusCounts.all})</option>
-              <option value="sent">✓ Sent ({statusCounts.sent})</option>
+              <option value="sent">Sent ({statusCounts.sent})</option>
               <option value="failed">
-                ✕ Failed ({statusCounts.failed})
+                Failed ({statusCounts.failed})
               </option>
             </select>
           </div>
@@ -344,9 +353,9 @@ function Email() {
                 setTypeFilter("all");
                 setStatusFilter("all");
               }}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition"
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
             >
-              ✖ Clear
+              <X size={16} /> Clear
             </button>
           )}
         </div>
@@ -363,7 +372,7 @@ function Email() {
                     onClick={() => setSearchQuery("")}
                     className="ml-1"
                   >
-                    ✖
+                    <X size={12} />
                   </button>
                 </span>
               )}
@@ -374,7 +383,7 @@ function Email() {
                     onClick={() => setTypeFilter("all")}
                     className="ml-1"
                   >
-                    ✖
+                    <X size={12} />
                   </button>
                 </span>
               )}
@@ -385,7 +394,7 @@ function Email() {
                     onClick={() => setStatusFilter("all")}
                     className="ml-1"
                   >
-                    ✖
+                    <X size={12} />
                   </button>
                 </span>
               )}
@@ -401,7 +410,7 @@ function Email() {
       {/* Email Logs */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">📋 Email History</h2>
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList size={20} /> Email History</h2>
         </div>
         <div className="overflow-auto max-h-[calc(100vh-500px)]">
           <table className="w-full">
@@ -479,8 +488,8 @@ function Email() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {log.has_attachment ? (
-                        <span title={log.attachment_name}>
-                          📎 {log.attachment_name}
+                        <span title={log.attachment_name} className="inline-flex items-center gap-1">
+                          <Paperclip size={14} /> {log.attachment_name}
                         </span>
                       ) : (
                         <span className="text-gray-400">—</span>
@@ -494,7 +503,11 @@ function Email() {
                             : "bg-red-100 text-red-700"
                         }`}
                       >
-                        {log.status === "sent" ? "✓ Sent" : "✕ Failed"}
+                        {log.status === "sent" ? (
+                          <span className="inline-flex items-center gap-1"><Check size={12} /> Sent</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1"><X size={12} /> Failed</span>
+                        )}
                       </span>
                     </td>
                   </tr>
@@ -604,7 +617,7 @@ function Email() {
                       }}
                       className="text-red-600 hover:text-red-800 font-bold"
                     >
-                      ✕
+                      <X size={14} />
                     </button>
                   </div>
                 ) : (
@@ -617,7 +630,7 @@ function Email() {
                         setShowClientDropdown(true);
                       }}
                       onFocus={() => setShowClientDropdown(true)}
-                      placeholder="🔍 Search by name or email..."
+                      placeholder="Search by name or email..."
                       className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                     {showClientDropdown && (
@@ -695,7 +708,7 @@ function Email() {
                   onChange={(e) => setAttachStatement(e.target.checked)}
                   className="w-4 h-4"
                 />
-                📎 Attach account statement (PDF)
+                <Paperclip size={14} /> Attach account statement (PDF)
               </label>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
@@ -715,9 +728,9 @@ function Email() {
                     !emailForm.subject.trim() ||
                     !emailForm.message.trim()
                   }
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-ocean-700 text-white font-semibold rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-ocean-700 text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
                 >
-                  {sending ? "Sending..." : "✉️ Send Email"}
+                  {sending ? "Sending..." : <><Mail size={16} /> Send Email</>}
                 </button>
               </div>
             </form>

@@ -111,7 +111,7 @@ function CustomerRegister() {
         setStep(3);
       } else {
         alert(
-          `Registration successful! 🎉\nYour LoanFix ID: ${res.data.customer?.customer_code || ""}`,
+          `Registration successful!\nYour LoanFix ID: ${res.data.customer?.customer_code || ""}`,
         );
         finishSignup();
       }
@@ -159,7 +159,7 @@ function CustomerRegister() {
       >
         {fromWidget && widgetAmount && (
           <div className="mb-4 bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg py-2 px-3">
-            📊 Applying for KES{" "}
+            Applying for KES{" "}
             <strong>{parseFloat(widgetAmount).toLocaleString()}</strong>
             {widgetDuration ? ` over ${widgetDuration} months` : ""}. Finish
             sign-up to continue.

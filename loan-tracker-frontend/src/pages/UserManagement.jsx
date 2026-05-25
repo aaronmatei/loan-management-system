@@ -1,4 +1,14 @@
 import React, { useState, useEffect } from "react";
+import {
+  Users,
+  Pencil,
+  KeyRound,
+  UserX,
+  UserCheck,
+  Check,
+  X,
+  AlertTriangle,
+} from "lucide-react";
 import api from "../services/api";
 import { getRoleBadge } from "../utils/permissions";
 
@@ -47,7 +57,7 @@ function UserManagement() {
     setSubmitting(true);
     try {
       await api.post("/users", formData);
-      alert("✅ User created successfully!");
+      alert("User created successfully!");
       setShowAddModal(false);
       setFormData({
         email: "",
@@ -70,7 +80,7 @@ function UserManagement() {
     setSubmitting(true);
     try {
       await api.put(`/users/${selectedUser.id}`, editData);
-      alert("✅ User updated successfully!");
+      alert("User updated successfully!");
       setShowEditModal(false);
       fetchUsers();
     } catch (err) {
@@ -87,7 +97,7 @@ function UserManagement() {
       await api.post(`/users/${selectedUser.id}/reset-password`, {
         new_password: newPassword,
       });
-      alert(`✅ Password reset for ${selectedUser.email}`);
+      alert(`Password reset for ${selectedUser.email}`);
       setShowPasswordModal(false);
       setNewPassword("");
     } catch (err) {
@@ -118,8 +128,8 @@ function UserManagement() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            👥 User Management
+          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <Users size={28} /> User Management
           </h1>
           <p className="text-gray-600 mt-2">
             Manage staff access and permissions
@@ -212,7 +222,11 @@ function UserManagement() {
                           : "bg-red-100 text-red-700"
                       }`}
                     >
-                      {user.is_active ? "✓ Active" : "✕ Inactive"}
+                      {user.is_active ? (
+                      <span className="inline-flex items-center gap-1"><Check size={12} /> Active</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1"><X size={12} /> Inactive</span>
+                    )}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -229,9 +243,9 @@ function UserManagement() {
                           });
                           setShowEditModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        className="text-blue-600 hover:text-blue-800 text-sm inline-flex items-center gap-1"
                       >
-                        ✏️ Edit
+                        <Pencil size={14} /> Edit
                       </button>
                       <button
                         onClick={() => {
@@ -239,19 +253,19 @@ function UserManagement() {
                           setNewPassword("");
                           setShowPasswordModal(true);
                         }}
-                        className="text-ocean-600 hover:text-ocean-800 text-sm"
+                        className="text-ocean-600 hover:text-ocean-800 text-sm inline-flex items-center gap-1"
                       >
-                        🔑 Reset Password
+                        <KeyRound size={14} /> Reset Password
                       </button>
                       <button
                         onClick={() => toggleUserStatus(user)}
-                        className={`text-sm ${
+                        className={`text-sm inline-flex items-center gap-1 ${
                           user.is_active
                             ? "text-red-600 hover:text-red-800"
                             : "text-green-600 hover:text-green-800"
                         }`}
                       >
-                        {user.is_active ? "🚫 Deactivate" : "✅ Activate"}
+                        {user.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Activate</>}
                       </button>
                     </div>
                   </td>
@@ -352,14 +366,17 @@ function UserManagement() {
                   required
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
-                  <option value="loan_officer">💼 Loan Officer</option>
-                  <option value="manager">📊 Manager</option>
-                  <option value="viewer">👁️ Viewer</option>
-                  <option value="admin">👑 Admin</option>
+                  <option value="loan_officer">Loan Officer</option>
+                  <option value="manager">Manager</option>
+                  <option value="viewer">Viewer</option>
+                  <option value="admin">Admin</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.role === "admin" &&
-                    "⚠️ Admin has full access including user management"}
+                  {formData.role === "admin" && (
+                    <span className="inline-flex items-center gap-1">
+                      <AlertTriangle size={12} /> Admin has full access including user management
+                    </span>
+                  )}
                   {formData.role === "manager" &&
                     "Manager can do everything except create users and settings"}
                   {formData.role === "loan_officer" &&
@@ -380,9 +397,9 @@ function UserManagement() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-ocean-gradient text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-gradient text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-1"
                 >
-                  {submitting ? "Creating..." : "✓ Create User"}
+                  {submitting ? "Creating..." : <><Check size={14} /> Create User</>}
                 </button>
               </div>
             </form>
@@ -448,10 +465,10 @@ function UserManagement() {
                   }
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
-                  <option value="loan_officer">💼 Loan Officer</option>
-                  <option value="manager">📊 Manager</option>
-                  <option value="viewer">👁️ Viewer</option>
-                  <option value="admin">👑 Admin</option>
+                  <option value="loan_officer">Loan Officer</option>
+                  <option value="manager">Manager</option>
+                  <option value="viewer">Viewer</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
 
@@ -466,9 +483,9 @@ function UserManagement() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-1"
                 >
-                  {submitting ? "Saving..." : "✓ Save Changes"}
+                  {submitting ? "Saving..." : <><Check size={14} /> Save Changes</>}
                 </button>
               </div>
             </form>
@@ -511,9 +528,9 @@ function UserManagement() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-ocean-600 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-ocean-600 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
                 >
-                  {submitting ? "Resetting..." : "🔑 Reset Password"}
+                  {submitting ? "Resetting..." : <><KeyRound size={14} /> Reset Password</>}
                 </button>
               </div>
             </form>

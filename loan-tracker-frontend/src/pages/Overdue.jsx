@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertTriangle, RotateCcw, PartyPopper, Search, X, Download, BarChart3 } from "lucide-react";
 import api from "../services/api";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
@@ -189,8 +190,8 @@ function Overdue() {
       {/* Header */}
       <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            ⚠️ Overdue Payments
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <AlertTriangle size={28} className="text-red-500" /> Overdue Payments
           </h1>
           <p className="text-gray-600 mt-1">
             Total:{" "}
@@ -206,7 +207,7 @@ function Overdue() {
           disabled={refreshing || loading}
           className="px-6 py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {refreshing ? "⏳ Refreshing..." : "🔄 Refresh"}
+          {refreshing ? "Refreshing..." : <span className="inline-flex items-center gap-1.5"><RotateCcw size={16} /> Refresh</span>}
         </button>
       </div>
 
@@ -222,7 +223,7 @@ function Overdue() {
         </div>
       ) : overdueList.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-6xl mb-4">🎉</div>
+          <PartyPopper size={56} className="mx-auto mb-4 text-green-400" />
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
             No overdue payments! Great job!
           </h3>
@@ -286,8 +287,8 @@ function Overdue() {
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-[220px]">
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                    🔍
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                    <Search size={16} />
                   </span>
                   <input
                     type="text"
@@ -314,9 +315,9 @@ function Overdue() {
               {filtersActive && (
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
                 >
-                  ✖ Clear
+                  <X size={15} /> Clear
                 </button>
               )}
             </div>
@@ -342,7 +343,7 @@ function Overdue() {
                       className="hover:text-red-900"
                       aria-label="Clear search"
                     >
-                      ✖
+                      <X size={12} />
                     </button>
                   </span>
                 )}
@@ -357,7 +358,7 @@ function Overdue() {
                       className="hover:text-orange-900"
                       aria-label="Clear severity filter"
                     >
-                      ✖
+                      <X size={12} />
                     </button>
                   </span>
                 )}
@@ -435,7 +436,7 @@ function Overdue() {
           {/* Table */}
           {filtered.length === 0 ? (
             <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <div className="text-6xl mb-4">🔍</div>
+              <Search size={56} className="mx-auto mb-4 text-gray-300" />
               <h3 className="text-xl font-semibold text-gray-600 mb-2">
                 No payments match your filters
               </h3>
@@ -444,9 +445,9 @@ function Overdue() {
               </p>
               <button
                 onClick={clearFilters}
-                className="px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
+                className="inline-flex items-center gap-1.5 px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
               >
-                ✖ Clear Filters
+                <X size={15} /> Clear Filters
               </button>
             </div>
           ) : (
@@ -566,8 +567,7 @@ function Overdue() {
                         colSpan="6"
                         className="px-4 py-4 font-bold text-gray-800 text-sm"
                       >
-                        📊 TOTALS — {filtered.length} overdue •{" "}
-                        {filteredLoans} loans
+                        <span className="inline-flex items-center gap-1.5"><BarChart3 size={15} /> TOTALS — {filtered.length} overdue • {filteredLoans} loans</span>
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-gray-800 text-sm">
                         {KES(filteredAmountDue)}
@@ -660,9 +660,9 @@ function Overdue() {
       >
         <button
           onClick={handleBulkExport}
-          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
         >
-          ⬇️ Export
+          <Download size={15} /> Export
         </button>
 
         <BulkMessaging

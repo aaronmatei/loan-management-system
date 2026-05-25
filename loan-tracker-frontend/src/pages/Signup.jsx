@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { Gift, Building2, User, Lock, Phone, Rocket } from "lucide-react";
 import api from "../services/api";
 
 function Signup() {
@@ -85,7 +86,7 @@ function Signup() {
         JSON.stringify({ ...res.data.user, tenant: res.data.tenant }),
       );
       alert(
-        `🎉 Welcome to ${formData.business_name}! Your 14-day trial has started.`,
+        `Welcome to ${formData.business_name}! Your 14-day trial has started.`,
       );
       // Hard navigation so App.jsx re-reads localStorage and the
       // authed branch (which holds /onboarding) renders. navigate()
@@ -117,8 +118,8 @@ function Signup() {
         </div>
 
         {referralInfo && (
-          <div className="bg-ocean-gradient text-white p-3 rounded-lg text-center text-sm mb-4 shadow-lg">
-            🎁 Referred by <strong>{referralInfo.referrer_name}</strong>!
+          <div className="bg-ocean-gradient text-white p-3 rounded-lg text-center text-sm mb-4 shadow-lg flex items-center justify-center gap-2">
+            <Gift size={16} /> Referred by <strong>{referralInfo.referrer_name}</strong>!
             {referralInfo.bonus ? (
               <>
                 {" "}You'll get <strong>{referralInfo.bonus}</strong>.
@@ -139,8 +140,8 @@ function Signup() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                🏢 Business Information
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Building2 size={20} /> Business Information
               </h3>
               <div className="space-y-4">
                 <div>
@@ -203,13 +204,13 @@ function Signup() {
                       </p>
                     )}
                     {subdomainStatus === "available" && (
-                      <p className="text-xs text-green-600 mt-1">
-                        ✓ Available!
+                      <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                        Available!
                       </p>
                     )}
                     {subdomainStatus === "taken" && (
-                      <p className="text-xs text-red-600 mt-1">
-                        ✗ Already taken
+                      <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                        Already taken
                       </p>
                     )}
                   </div>
@@ -218,8 +219,8 @@ function Signup() {
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                👤 Admin Account
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <User size={20} /> Admin Account
               </h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -342,7 +343,7 @@ function Signup() {
             >
               {submitting
                 ? "Creating your account..."
-                : "🚀 Start Free Trial"}
+                : <span className="inline-flex items-center gap-2"><Rocket size={18} /> Start Free Trial</span>}
             </button>
 
             <p className="text-center text-gray-600 text-sm">
@@ -356,15 +357,15 @@ function Signup() {
 
         <div className="mt-8 grid grid-cols-3 gap-4 text-center text-white">
           <div>
-            <p className="text-2xl">🔒</p>
+            <Lock size={28} className="mx-auto" />
             <p className="text-xs mt-1">Bank-grade Security</p>
           </div>
           <div>
-            <p className="text-2xl">⚡</p>
+            <Rocket size={28} className="mx-auto" />
             <p className="text-xs mt-1">Setup in 5 minutes</p>
           </div>
           <div>
-            <p className="text-2xl">📞</p>
+            <Phone size={28} className="mx-auto" />
             <p className="text-xs mt-1">24/7 Support</p>
           </div>
         </div>

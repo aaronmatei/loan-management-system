@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  X,
+  Check,
+  Download,
+  CheckCircle,
+} from "lucide-react";
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
 import { BUSINESS_TYPES } from "../utils/businessTypes";
@@ -71,7 +78,7 @@ function Clients() {
     try {
       const response = await api.post("/clients", formData);
       setSuccess(
-        `✅ Client ${response.data.data.client_code} created successfully!`,
+        `Client ${response.data.data.client_code} created successfully!`,
       );
       setFormData({
         first_name: "",
@@ -97,7 +104,7 @@ function Clients() {
     }
   };
 
-  // ✅ Real-time client-side search (same pattern as the Loans page)
+  // Real-time client-side search (same pattern as the Loans page)
   const query = searchTerm.trim().toLowerCase();
   const filteredClients = query
     ? clients.filter((c) =>
@@ -154,7 +161,7 @@ function Clients() {
         client_ids: bulk.selectedArray,
         status,
       });
-      alert(`✅ ${res.data.message}`);
+      alert(res.data.message);
       bulk.clear();
       fetchClients();
     } catch (err) {
@@ -177,9 +184,9 @@ function Clients() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
         >
-          {showForm ? "✖ Cancel" : "+ Add Client"}
+          {showForm ? <><X size={16} /> Cancel</> : <><Check size={16} className="text-white" /> Add Client</>}
         </button>
       </div>
 
@@ -189,7 +196,7 @@ function Clients() {
           <div className="flex-1 min-w-[220px]">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                🔍
+                <Search size={16} />
               </span>
               <input
                 type="text"
@@ -205,7 +212,7 @@ function Clients() {
               onClick={() => setSearchTerm("")}
               className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
             >
-              ✖ Clear
+              <X size={14} className="inline mr-1" />Clear
             </button>
           )}
         </div>
@@ -230,7 +237,7 @@ function Clients() {
                 className="hover:text-blue-900"
                 aria-label="Clear search"
               >
-                ✖
+                <X size={12} />
               </button>
             </span>
           </div>
@@ -239,8 +246,8 @@ function Clients() {
 
       {/* Messages */}
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-          {success}
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+          <CheckCircle size={16} className="text-green-500 shrink-0" />{success}
         </div>
       )}
       {error && (
@@ -456,9 +463,9 @@ function Clients() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
               >
-                {submitting ? "Saving..." : "✓ Save Client"}
+                {submitting ? "Saving..." : <><Check size={16} /> Save Client</>}
               </button>
             </div>
           </form>
@@ -545,7 +552,9 @@ function Clients() {
         </div>
       ) : filteredClients.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-6xl mb-4">🔍</div>
+          <div className="flex justify-center mb-4">
+            <Search size={48} className="text-gray-300" />
+          </div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
             No clients match your search
           </h3>
@@ -554,9 +563,9 @@ function Clients() {
           </p>
           <button
             onClick={() => setSearchTerm("")}
-            className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="inline-flex items-center gap-2 px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
           >
-            ✖ Clear Search
+            <X size={16} /> Clear Search
           </button>
         </div>
       ) : (
@@ -724,9 +733,9 @@ function Clients() {
       >
         <button
           onClick={handleBulkExport}
-          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
         >
-          ⬇️ Export
+          <Download size={15} /> Export
         </button>
 
         <BulkMessaging
@@ -738,21 +747,21 @@ function Clients() {
           <div className="border-l border-white/30 mx-1 h-6"></div>
           <button
             onClick={() => handleBulkStatus("active")}
-            className="px-4 py-2 bg-green-500/30 hover:bg-green-500/50 rounded-lg text-sm font-semibold"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-500/30 hover:bg-green-500/50 rounded-lg text-sm font-semibold"
           >
-            ✓ Activate
+            <Check size={15} /> Activate
           </button>
           <button
             onClick={() => handleBulkStatus("inactive")}
-            className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 rounded-lg text-sm font-semibold"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 rounded-lg text-sm font-semibold"
           >
-            ⏸️ Deactivate
+            <X size={15} /> Deactivate
           </button>
           <button
             onClick={() => handleBulkStatus("blacklisted")}
-            className="px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-semibold"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-semibold"
           >
-            🚫 Blacklist
+            <X size={15} /> Blacklist
           </button>
         </PermissionGate>
       </BulkActionBar>

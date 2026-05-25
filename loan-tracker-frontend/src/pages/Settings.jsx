@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Building2, Landmark, CheckCircle } from "lucide-react";
 import api from "../services/api";
 
 function Settings() {
@@ -40,7 +41,7 @@ function Settings() {
     setSaving(true);
     try {
       await api.put("/settings/company", settings);
-      setSuccess("✅ Settings saved successfully!");
+      setSuccess("Settings saved successfully!");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       alert("Failed to save: " + (err.response?.data?.error || err.message));
@@ -71,8 +72,8 @@ function Settings() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Company Info */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
-            🏢 Company Information
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Building2 size={22} /> Company Information
           </h2>
           <div className="space-y-4">
             <div>
@@ -166,8 +167,8 @@ function Settings() {
 
         {/* Bank Details */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
-            🏦 Payment Details
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Landmark size={22} /> Payment Details
           </h2>
           <p className="text-sm text-gray-600 mb-4">
             These appear on loan agreements for client payments
@@ -258,7 +259,7 @@ function Settings() {
           disabled={saving}
           className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
         >
-          {saving ? "Saving..." : "✓ Save Settings"}
+          {saving ? "Saving..." : <span className="inline-flex items-center gap-1.5"><CheckCircle size={16} /> Save Settings</span>}
         </button>
       </form>
     </div>

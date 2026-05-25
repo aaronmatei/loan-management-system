@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Plus,
+  PartyPopper,
+  ClipboardList,
+  Landmark,
+  MapPin,
+  Sparkles,
+  X,
+  Check,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
@@ -96,8 +106,8 @@ function AddLender() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-4xl mx-auto" style={{ "--brand": brand }}>
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-          ➕ Add Another Lender
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
+          <Plus size={28} className="text-navy-900" /> Add Another Lender
         </h1>
         <p className="text-gray-600 mt-1 mb-6">
           Link your account to more lenders for one-stop loan management.
@@ -105,7 +115,7 @@ function AddLender() {
 
         {success && (
           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-            <span className="text-3xl">🎉</span>
+            <PartyPopper size={28} className="text-green-600 shrink-0" />
             <div className="flex-1">
               <h3 className="font-bold text-green-900">Successfully Added!</h3>
               <p className="text-green-700 mt-1">{success.message}</p>
@@ -127,14 +137,14 @@ function AddLender() {
               className="text-green-700"
               aria-label="Dismiss"
             >
-              ✕
+              <X size={18} />
             </button>
           </div>
         )}
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-          <h3 className="font-bold text-blue-900 mb-2">
-            📋 Your Current Lenders
+          <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-1.5">
+            <ClipboardList size={18} /> Your Current Lenders
           </h3>
           <div className="flex flex-wrap gap-2">
             {currentTenants.map((t) => (
@@ -152,8 +162,8 @@ function AddLender() {
           </p>
         </div>
 
-        <h2 className="text-xl font-bold text-navy-900 mb-4">
-          🏦 Available Lenders ({available.length})
+        <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+          <Landmark size={22} /> Available Lenders ({available.length})
         </h2>
 
         {loading ? (
@@ -162,7 +172,9 @@ function AddLender() {
           </div>
         ) : available.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-12 text-center">
-            <p className="text-5xl mb-3">🎉</p>
+            <div className="flex justify-center mb-3">
+              <PartyPopper size={48} className="text-green-400" />
+            </div>
             <p className="font-semibold text-gray-800">
               You're linked to all available lenders!
             </p>
@@ -199,14 +211,14 @@ function AddLender() {
                   </div>
                 </div>
                 {(t.city || t.county) && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    📍 {[t.city, t.county].filter(Boolean).join(", ")}
+                  <p className="text-sm text-gray-600 mb-2 flex items-center gap-1">
+                    <MapPin size={14} className="text-gray-400 shrink-0" /> {[t.city, t.county].filter(Boolean).join(", ")}
                   </p>
                 )}
                 {t.is_existing_client && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-3">
-                    <p className="text-xs font-semibold text-green-800">
-                      ✨ We found your existing account here!
+                    <p className="text-xs font-semibold text-green-800 flex items-center gap-1">
+                      <Sparkles size={12} className="text-green-600" /> We found your existing account here!
                     </p>
                     <p className="text-xs text-green-700">
                       Your loans will auto-link.
@@ -214,10 +226,10 @@ function AddLender() {
                   </div>
                 )}
                 <span
-                  className="block w-full mt-4 py-2 rounded-lg font-semibold text-white text-center"
+                  className="inline-flex items-center justify-center gap-1.5 w-full mt-4 py-2 rounded-lg font-semibold text-white text-center"
                   style={{ backgroundColor: t.brand_color || "#4F46E5" }}
                 >
-                  ➕ Add This Lender
+                  <Plus size={16} /> Add This Lender
                 </span>
               </button>
             ))}
@@ -246,8 +258,8 @@ function AddLender() {
             </div>
             {selected.is_existing_client && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                <p className="text-sm font-semibold text-green-800">
-                  ✨ You already have a client account here — your loans
+                <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                  <Sparkles size={15} className="text-green-600" /> You already have a client account here — your loans
                   will auto-link.
                 </p>
               </div>
@@ -288,7 +300,7 @@ function AddLender() {
                     backgroundColor: selected.brand_color || "#4F46E5",
                   }}
                 >
-                  {submitting ? "Adding…" : "✓ Confirm & Add"}
+                  {submitting ? "Adding…" : <span className="inline-flex items-center gap-1.5"><Check size={15} /> Confirm &amp; Add</span>}
                 </button>
               </div>
             </form>

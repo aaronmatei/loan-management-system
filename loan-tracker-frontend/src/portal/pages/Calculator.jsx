@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Calculator, Coins, BarChart3, Calendar, Lightbulb } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 
@@ -126,8 +127,8 @@ function CustomerCalculator() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-4xl mx-auto" style={{ "--brand": brand }}>
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-          🧮 Loan Calculator
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
+          <Calculator size={28} className="text-navy-900" /> Loan Calculator
         </h1>
         <p className="text-gray-600 mt-1 mb-6">
           Estimate your loan payments before applying
@@ -185,7 +186,7 @@ function CustomerCalculator() {
                 </div>
               )}
               <div>
-                <h2 className="font-bold text-lg">💰 Loan Calculator</h2>
+                <h2 className="font-bold text-lg flex items-center gap-1.5"><Coins size={20} /> Loan Calculator</h2>
                 <p className="text-sm opacity-90">{selected.business_name}</p>
               </div>
             </div>
@@ -255,10 +256,10 @@ function CustomerCalculator() {
             <button
               onClick={calculate}
               disabled={!amount || parseFloat(amount) < min}
-              className="w-full py-3 rounded-lg font-bold text-white shadow-md disabled:opacity-50 transition text-lg"
+              className="w-full py-3 rounded-lg font-bold text-white shadow-md disabled:opacity-50 transition text-lg inline-flex items-center justify-center gap-2"
               style={{ backgroundColor: brand }}
             >
-              📊 Calculate
+              <BarChart3 size={20} /> Calculate
             </button>
 
             {calc && (
@@ -314,15 +315,15 @@ function CustomerCalculator() {
                   >
                     Apply for This Loan →
                   </button>
-                  <p className="text-xs text-center text-gray-500 mt-3">
-                    💡 Final terms will be confirmed by{" "}
+                  <p className="text-xs text-center text-gray-500 mt-3 flex items-center justify-center gap-1">
+                    <Lightbulb size={13} className="text-gray-400" /> Final terms will be confirmed by{" "}
                     {selected.business_name}
                   </p>
                 </div>
 
                 <div className="bg-white rounded-xl shadow p-4">
-                  <h3 className="font-bold text-navy-900 mb-3">
-                    📅 Payment Schedule
+                  <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+                    <Calendar size={18} /> Payment Schedule
                   </h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -364,8 +365,8 @@ function CustomerCalculator() {
 
                 {tenants.length > 1 && (
                   <div className="bg-white rounded-xl shadow p-4">
-                    <h3 className="font-bold text-navy-900 mb-1">
-                      📊 Compare Lenders
+                    <h3 className="font-bold text-navy-900 mb-1 flex items-center gap-1.5">
+                      <BarChart3 size={18} /> Compare Lenders
                     </h3>
                     <p className="text-xs text-gray-500 mb-3">
                       Same loan at each lender. (Rates are placeholders
@@ -427,7 +428,7 @@ function CustomerCalculator() {
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-bold text-blue-900 mb-2">💡 Tips</h3>
+          <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-1.5"><Lightbulb size={18} /> Tips</h3>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Shorter periods = less total interest but higher monthly payments</li>
             <li>• Longer periods = more total interest but easier monthly payments</li>

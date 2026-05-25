@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Lock, ShieldCheck } from "lucide-react";
 import portalApi from "../services/portalApi";
 
 function CustomerLogin() {
@@ -81,7 +82,7 @@ function CustomerLogin() {
             disabled={submitting}
             className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
           >
-            {submitting ? "Logging in..." : "🔐 Login"}
+            {submitting ? "Logging in..." : <span className="inline-flex items-center gap-1.5"><Lock size={16} /> Login</span>}
           </button>
           <div className="text-center text-sm space-y-2">
             <Link
@@ -102,8 +103,8 @@ function CustomerLogin() {
           </div>
         </form>
         <div className="mt-6 pt-6 border-t border-gray-100">
-          <p className="text-xs text-center text-gray-500">
-            🔒 One login • Many lenders • Secure
+          <p className="text-xs text-center text-gray-500 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={14} className="text-gray-400" /> One login • Many lenders • Secure
           </p>
         </div>
       </div>

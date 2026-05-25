@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Rocket, X } from "lucide-react";
 
 // Sits in the bottom-right corner of any staff page during a demo
 // session. Pops 60 seconds after page load to nudge conversion. The
@@ -29,9 +30,11 @@ function DemoSignupPrompt() {
         className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
         aria-label="Dismiss"
       >
-        ✕
+        <X size={18} />
       </button>
-      <div className="text-3xl mb-2">🚀</div>
+      <div className="flex mb-2">
+        <Rocket size={32} className="text-ocean-600" />
+      </div>
       <h3 className="font-bold text-lg mb-1">Enjoying LoanFix?</h3>
       <p className="text-sm text-gray-600 mb-3">
         Create your own account in 60 seconds. Free 14-day trial, no credit

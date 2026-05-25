@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  X,
+  AlertTriangle,
+  ClipboardList,
+  Coins,
+  Smartphone,
+  Mail,
+  BarChart3,
+  Search,
+  Download,
+  Check,
+  Plus,
+} from "lucide-react";
 import api from "../services/api";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
@@ -21,7 +34,7 @@ function Loans() {
   const [poolStatus, setPoolStatus] = useState(null);
   const [clientCreditProfile, setClientCreditProfile] = useState(null);
 
-  // ✅ Filter state
+  // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     status: "all",
@@ -29,7 +42,7 @@ function Loans() {
   });
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ✅ Client search state
+  // Client search state
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -38,7 +51,7 @@ function Loans() {
   const [formData, setFormData] = useState({
     client_id: "",
     principal_amount: "",
-    annual_interest_rate: "50", // ✅ Per annum default 50% (platform default)
+    annual_interest_rate: "50", // Per annum default 50% (platform default)
     loan_duration_months: "12",
     start_date: new Date().toISOString().split("T")[0],
     purpose: "",
@@ -110,7 +123,7 @@ function Loans() {
     }
   };
 
-  // ✅ Filter clients based on search
+  // Filter clients based on search
   const filteredClients = clients.filter((client) => {
     if (!clientSearch) return true;
     const search = clientSearch.toLowerCase();
@@ -150,7 +163,7 @@ function Loans() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ Live calculation with annual rate
+  // Live calculation with annual rate
   const calculateLoanDetails = () => {
     const principal = parseFloat(formData.principal_amount) || 0;
     const annualRate = parseFloat(formData.annual_interest_rate) || 0;
@@ -185,7 +198,7 @@ function Loans() {
     try {
       const response = await api.post("/loans", formData);
       setSuccess(
-        `✅ Application ${response.data.data.loan_code} submitted! A manager will review it shortly.`,
+        `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.`,
       );
 
       // Reset form
@@ -221,7 +234,7 @@ function Loans() {
 
   const calc = calculateLoanDetails();
 
-  // ✅ Counts for dropdown labels (always based on the full list)
+  // Counts for dropdown labels (always based on the full list)
   const statusCounts = {
     all: loans.length,
     active: loans.filter((l) => l.status === "active").length,
@@ -236,7 +249,7 @@ function Loans() {
     none: loans.filter((l) => !l.refund_status).length,
   };
 
-  // ✅ Apply all filters in combination (AND logic), client-side
+  // Apply all filters in combination (AND logic), client-side
   const filteredLoans = loans.filter((loan) => {
     // Applications live on the Applications page, not here — only
     // show real loans (active/completed/defaulted/suspended).
@@ -345,7 +358,7 @@ function Loans() {
         loan_ids: bulk.selectedArray,
         status,
       });
-      alert(`✅ ${res.data.message}`);
+      alert(res.data.message);
       bulk.clear();
       fetchLoans();
     } catch (err) {
@@ -370,13 +383,17 @@ function Loans() {
           disabled={clients.length === 0}
           className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {showForm ? "✖ Cancel" : "+ New Application"}
+          {showForm ? (
+            <span className="inline-flex items-center gap-1"><X size={16}/> Cancel</span>
+          ) : (
+            <span className="inline-flex items-center gap-1"><Plus size={16}/> New Application</span>
+          )}
         </button>
       </div>
 
       {clients.length === 0 && !loading && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
-          ⚠️ You need to add clients before creating loans. Go to Clients page
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+          <AlertTriangle size={16} className="text-yellow-600 flex-shrink-0"/> You need to add clients before creating loans. Go to Clients page
           first.
         </div>
       )}
@@ -395,16 +412,16 @@ function Loans() {
       {/* Create Loan Form */}
       {showForm && (
         <div className="bg-white rounded-xl shadow-md p-8 mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
-            📋 New Loan Application
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <ClipboardList size={24}/> New Loan Application
           </h2>
 
           {poolStatus && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm font-semibold text-blue-900">
-                    💰 Available Pool Balance
+                  <p className="text-sm font-semibold text-blue-900 flex items-center gap-1">
+                    <Coins size={16} className="text-blue-700"/> Available Pool Balance
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
                     Maximum amount you can lend
@@ -417,7 +434,7 @@ function Loans() {
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* ✅ Searchable Client Dropdown */}
+            {/* Searchable Client Dropdown */}
             <div ref={dropdownRef} className="relative">
               <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Select Client *
@@ -441,9 +458,9 @@ function Loans() {
                   <button
                     type="button"
                     onClick={handleClearClient}
-                    className="text-red-600 hover:text-red-800 font-bold text-xl px-2"
+                    className="text-red-600 hover:text-red-800 px-2"
                   >
-                    ✖
+                    <X size={20}/>
                   </button>
                 </div>
               ) : (
@@ -456,7 +473,7 @@ function Loans() {
                       setShowDropdown(true);
                     }}
                     onFocus={() => setShowDropdown(true)}
-                    placeholder="🔍 Type to search clients..."
+                    placeholder="Type to search clients..."
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
 
@@ -479,9 +496,11 @@ function Loans() {
                                 <p className="font-semibold text-gray-800">
                                   {client.first_name} {client.last_name}
                                 </p>
-                                <p className="text-sm text-gray-500 mt-1">
-                                  📱 {client.phone_number}
-                                  {client.email && ` • ✉️ ${client.email}`}
+                                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1 flex-wrap">
+                                  <Smartphone size={13}/> {client.phone_number}
+                                  {client.email && (
+                                    <><span>•</span><Mail size={13}/>{client.email}</>
+                                  )}
                                 </p>
                                 {client.id_number && (
                                   <p className="text-xs text-gray-400">
@@ -539,8 +558,8 @@ function Loans() {
 
                     {!clientCreditProfile.eligibility.can_borrow && (
                       <div className="mt-2">
-                        <p className="font-semibold text-red-700">
-                          ⚠️ Cannot create loan:
+                        <p className="font-semibold text-red-700 flex items-center gap-1">
+                          <AlertTriangle size={16} className="text-red-600"/> Cannot create loan:
                         </p>
                         <ul className="list-disc list-inside text-sm text-red-600 mt-1">
                           {clientCreditProfile.eligibility.blockers.map(
@@ -669,8 +688,8 @@ function Loans() {
 
             {/* Agreement Details Section */}
             <div className="border-t-2 border-gray-100 pt-4 mt-4">
-              <h3 className="text-lg font-bold text-gray-800 mb-3">
-                📋 Agreement Details (Optional)
+              <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <ClipboardList size={20}/> Agreement Details (Optional)
               </h3>
 
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
@@ -753,8 +772,8 @@ function Loans() {
             {/* Live Calculation Preview */}
             {formData.principal_amount && (
               <div className="bg-ocean-50 border border-ocean-200 rounded-lg p-4">
-                <h3 className="font-semibold text-ocean-900 mb-3">
-                  📊 Loan Summary
+                <h3 className="font-semibold text-ocean-900 mb-3 flex items-center gap-2">
+                  <BarChart3 size={20}/> Loan Summary
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                   <div>
@@ -806,8 +825,8 @@ function Loans() {
               formData.principal_amount &&
               parseFloat(formData.principal_amount) >
                 poolStatus.available_pool && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">
-                  ⚠️ This amount exceeds available pool balance (KES{" "}
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-red-600 flex-shrink-0"/> This amount exceeds available pool balance (KES{" "}
                   {poolStatus.available_pool.toLocaleString()})!
                 </div>
               )}
@@ -835,14 +854,14 @@ function Loans() {
                 }
                 className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Submitting..." : "📋 Submit Application"}
+                {submitting ? "Submitting..." : <span className="inline-flex items-center gap-2"><ClipboardList size={16}/> Submit Application</span>}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* ✅ Filter Bar */}
+      {/* Filter Bar */}
       {!loading && loans.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
           <div className="flex flex-wrap items-end gap-4">
@@ -853,7 +872,7 @@ function Loans() {
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  🔍
+                  <Search size={16}/>
                 </span>
                 <input
                   type="text"
@@ -879,13 +898,13 @@ function Loans() {
               >
                 <option value="all">All Statuses ({statusCounts.all})</option>
                 <option value="active">
-                  🟢 Active ({statusCounts.active})
+                  Active ({statusCounts.active})
                 </option>
                 <option value="completed">
-                  🔵 Completed ({statusCounts.completed})
+                  Completed ({statusCounts.completed})
                 </option>
                 <option value="defaulted">
-                  🔴 Defaulted ({statusCounts.defaulted})
+                  Defaulted ({statusCounts.defaulted})
                 </option>
               </select>
             </div>
@@ -904,10 +923,10 @@ function Loans() {
               >
                 <option value="all">All Refunds ({refundCounts.all})</option>
                 <option value="pending">
-                  ⏳ Pending Refund ({refundCounts.pending})
+                  Pending Refund ({refundCounts.pending})
                 </option>
                 <option value="refunded">
-                  ✅ Refunded ({refundCounts.refunded})
+                  Refunded ({refundCounts.refunded})
                 </option>
                 <option value="none">No Refund ({refundCounts.none})</option>
               </select>
@@ -917,9 +936,9 @@ function Loans() {
             {filtersActive && (
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+                className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition inline-flex items-center gap-1"
               >
-                ✖ Clear
+                <X size={16}/> Clear
               </button>
             )}
           </div>
@@ -947,7 +966,7 @@ function Loans() {
                     className="hover:text-blue-900"
                     aria-label="Remove search filter"
                   >
-                    ✖
+                    <X size={12}/>
                   </button>
                 </span>
               )}
@@ -960,7 +979,7 @@ function Loans() {
                     className="hover:text-green-900"
                     aria-label="Remove status filter"
                   >
-                    ✖
+                    <X size={12}/>
                   </button>
                 </span>
               )}
@@ -978,7 +997,7 @@ function Loans() {
                     className="hover:text-ocean-900"
                     aria-label="Remove refund filter"
                   >
-                    ✖
+                    <X size={12}/>
                   </button>
                 </span>
               )}
@@ -1080,7 +1099,7 @@ function Loans() {
         </div>
       ) : loans.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-6xl mb-4">💰</div>
+          <div className="flex justify-center mb-4"><Coins size={48} className="text-gray-300"/></div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
             No loans yet
           </h3>
@@ -1090,7 +1109,7 @@ function Loans() {
         </div>
       ) : filteredLoans.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-6xl mb-4">🔍</div>
+          <div className="flex justify-center mb-4"><Search size={48} className="text-gray-300"/></div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
             No loans match your filters
           </h3>
@@ -1099,9 +1118,9 @@ function Loans() {
           </p>
           <button
             onClick={clearFilters}
-            className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+            className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
           >
-            ✖ Clear Filters
+            <X size={16}/> Clear Filters
           </button>
         </div>
       ) : (
@@ -1218,9 +1237,11 @@ function Loans() {
                                   : "bg-yellow-100 text-yellow-700"
                               }`}
                             >
-                              {loan.refund_status === "refunded"
-                                ? "✓ Refunded"
-                                : "⏳ Pending"}
+                              {loan.refund_status === "refunded" ? (
+                                <span className="inline-flex items-center gap-1"><Check size={12}/> Refunded</span>
+                              ) : (
+                                "Pending"
+                              )}
                             </span>
                           </div>
                         ) : (
@@ -1250,14 +1271,14 @@ function Loans() {
                 })}
               </tbody>
 
-              {/* ✅ TOTALS ROW */}
+              {/* TOTALS ROW */}
               <tfoot className="bg-ocean-gradient-soft border-t-2 border-ocean-200">
                 <tr>
                   <td
                     colSpan="3"
                     className="px-4 py-4 font-bold text-gray-800 text-sm"
                   >
-                    📊 TOTALS ({filteredLoans.length} loans)
+                    <span className="inline-flex items-center gap-2"><BarChart3 size={16}/> TOTALS ({filteredLoans.length} loans)</span>
                   </td>
                   <td className="px-4 py-4 text-right">
                     <p className="font-bold text-gray-800 text-sm">
@@ -1421,9 +1442,9 @@ function Loans() {
       >
         <button
           onClick={handleBulkExport}
-          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold"
+          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold inline-flex items-center gap-2"
         >
-          ⬇️ Export
+          <Download size={16}/> Export
         </button>
 
         <BulkMessaging
@@ -1437,19 +1458,19 @@ function Loans() {
             onClick={() => handleBulkStatus("defaulted")}
             className="px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-semibold"
           >
-            🔴 Mark Defaulted
+            Mark Defaulted
           </button>
           <button
             onClick={() => handleBulkStatus("suspended")}
             className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 rounded-lg text-sm font-semibold"
           >
-            ⏸️ Suspend
+            Suspend
           </button>
           <button
             onClick={() => handleBulkStatus("active")}
-            className="px-4 py-2 bg-green-500/30 hover:bg-green-500/50 rounded-lg text-sm font-semibold"
+            className="px-4 py-2 bg-green-500/30 hover:bg-green-500/50 rounded-lg text-sm font-semibold inline-flex items-center gap-1"
           >
-            ✓ Reactivate
+            <Check size={16}/> Reactivate
           </button>
         </PermissionGate>
       </BulkActionBar>

@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from "react";
+import {
+  Save,
+  Upload,
+  Download,
+  RotateCcw,
+  Trash2,
+  AlertTriangle,
+  Info,
+} from "lucide-react";
 import api from "../services/api";
 
 function Backup() {
@@ -40,7 +49,7 @@ function Backup() {
     try {
       const res = await api.post("/backup/create");
       alert(
-        `✅ Backup created: ${res.data.data.filename} (${res.data.data.size_mb} MB)`,
+        `Backup created: ${res.data.data.filename} (${res.data.data.size_mb} MB)`,
       );
       fetchData();
     } catch (err) {
@@ -76,7 +85,7 @@ function Backup() {
       await api.post(`/backup/${selectedBackup.id}/restore`, {
         confirm: "RESTORE",
       });
-      alert("✅ Database restored successfully! The page will reload.");
+      alert("Database restored successfully! The page will reload.");
       setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
       alert("Restore failed: " + (err.response?.data?.error || err.message));
@@ -93,7 +102,7 @@ function Backup() {
       return;
     try {
       await api.delete(`/backup/${backup.id}`);
-      alert("✅ Backup deleted");
+      alert("Backup deleted");
       fetchData();
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
@@ -118,7 +127,7 @@ function Backup() {
       await api.post("/backup/upload-restore", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      alert("✅ Database restored from uploaded backup! Page will reload.");
+      alert("Database restored from uploaded backup! Page will reload.");
       setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
@@ -130,7 +139,7 @@ function Backup() {
     if (!window.confirm("Delete backups older than 30 days?")) return;
     try {
       const res = await api.post("/backup/cleanup", { retention_days: 30 });
-      alert(`✅ Deleted ${res.data.deleted_count} old backups`);
+      alert(`Deleted ${res.data.deleted_count} old backups`);
       fetchData();
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
@@ -149,8 +158,8 @@ function Backup() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            💾 Backup &amp; Restore
+          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <Save size={28} /> Backup &amp; Restore
           </h1>
           <p className="text-gray-600 mt-2">
             Protect your data with regular backups
@@ -163,9 +172,9 @@ function Backup() {
               setUploadFile(null);
               setShowUploadModal(true);
             }}
-            className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg"
+            className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg inline-flex items-center gap-2"
           >
-            📤 Upload &amp; Restore
+            <Upload size={16} /> Upload &amp; Restore
           </button>
           <button
             onClick={handleCreateBackup}
@@ -205,8 +214,8 @@ function Backup() {
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-        <h3 className="font-bold text-blue-900 mb-2">
-          💡 Backup Information
+        <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+          <Info size={16} className="text-blue-700" /> Backup Information
         </h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• Automatic backups run daily at 2:00 AM</li>
@@ -222,9 +231,9 @@ function Backup() {
       <div className="flex justify-end mb-4">
         <button
           onClick={handleCleanup}
-          className="text-sm text-gray-600 hover:text-gray-800"
+          className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
         >
-          🗑️ Cleanup Old Backups
+          <Trash2 size={14} /> Cleanup Old Backups
         </button>
       </div>
 
@@ -317,10 +326,10 @@ function Backup() {
                           <>
                             <button
                               onClick={() => handleDownload(backup)}
-                              className="text-blue-600 hover:text-blue-800 text-sm"
+                              className="text-blue-600 hover:text-blue-800"
                               title="Download"
                             >
-                              ⬇️
+                              <Download size={16} />
                             </button>
                             <button
                               onClick={() => {
@@ -328,19 +337,19 @@ function Backup() {
                                 setConfirmText("");
                                 setShowRestoreModal(true);
                               }}
-                              className="text-orange-600 hover:text-orange-800 text-sm"
+                              className="text-orange-600 hover:text-orange-800"
                               title="Restore"
                             >
-                              🔄
+                              <RotateCcw size={16} />
                             </button>
                           </>
                         )}
                         <button
                           onClick={() => handleDelete(backup)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="text-red-600 hover:text-red-800"
                           title="Delete"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -355,9 +364,9 @@ function Backup() {
       {showRestoreModal && selectedBackup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
-            <h3 className="text-2xl font-bold mb-4">⚠️ Restore Database</h3>
+            <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><AlertTriangle size={22} className="text-red-600" /> Restore Database</h3>
             <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-4">
-              <p className="font-bold text-red-800 mb-2">⚠️ WARNING</p>
+              <p className="font-bold text-red-800 mb-2 flex items-center gap-1"><AlertTriangle size={14} /> WARNING</p>
               <p className="text-sm text-red-700">
                 This REPLACES ALL current data with the backup. A safety
                 backup is taken first, and the restore runs in one
@@ -401,7 +410,7 @@ function Backup() {
                 disabled={restoring || confirmText !== "RESTORE"}
                 className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50"
               >
-                {restoring ? "Restoring..." : "🔄 Restore Database"}
+                {restoring ? "Restoring..." : <span className="inline-flex items-center gap-2"><RotateCcw size={16} /> Restore Database</span>}
               </button>
             </div>
           </div>
@@ -411,10 +420,10 @@ function Backup() {
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
-            <h3 className="text-2xl font-bold mb-4">📤 Upload &amp; Restore</h3>
+            <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Upload size={22} /> Upload &amp; Restore</h3>
             <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
-              <p className="text-sm text-yellow-800">
-                ⚠️ Upload a .sql backup to restore the database. This
+              <p className="text-sm text-yellow-800 flex items-start gap-1">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" /> Upload a .sql backup to restore the database. This
                 REPLACES all current data (safety backup taken first).
               </p>
             </div>
@@ -462,7 +471,7 @@ function Backup() {
                   }
                   className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {uploading ? "Uploading..." : "📤 Upload & Restore"}
+                  {uploading ? "Uploading..." : <span className="inline-flex items-center gap-2"><Upload size={16} /> Upload &amp; Restore</span>}
                 </button>
               </div>
             </form>

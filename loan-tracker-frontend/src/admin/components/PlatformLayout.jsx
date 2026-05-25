@@ -9,6 +9,7 @@ import {
   ScrollText,
   Crown,
   LogOut,
+  Globe,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 
@@ -150,8 +151,8 @@ function PlatformLayout({ children }) {
                 Platform Admin
               </h1>
               <div className="flex-1 hidden lg:block" />
-              <div className="text-sm text-gray-600">
-                🌍 Platform-wide view
+              <div className="text-sm text-gray-600 flex items-center gap-1.5">
+                <Globe size={15} className="text-gray-500" /> Platform-wide view
               </div>
             </div>
           </header>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from "../../services/api";
+import { Building2 } from "lucide-react";
 
 // Calls the NEW /api/onboarding/business-profile endpoint (the spec's
 // /settings/business doesn't exist).
@@ -33,7 +34,7 @@ function BusinessProfileStep({ data, onNext, onBack }) {
     <div className="max-w-2xl mx-auto px-4">
       <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-3">🏢</div>
+          <div className="flex justify-center mb-3"><Building2 size={48} className="text-ocean-500" /></div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
             Tell Us About Your Business
           </h2>

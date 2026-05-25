@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from "../../services/api";
+import { Users, Lightbulb } from "lucide-react";
 
 // Default temporary password MUST satisfy validatePassword
 // (>=12 chars, uppercase, digit, special). The spec's 'TempPass2026'
@@ -53,7 +54,7 @@ function InviteTeamStep({ onNext, onBack }) {
     <div className="max-w-2xl mx-auto px-4">
       <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-3">👥</div>
+          <div className="flex justify-center mb-3"><Users size={48} className="text-ocean-500" /></div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
             Invite Your Team
           </h2>
@@ -128,8 +129,8 @@ function InviteTeamStep({ onNext, onBack }) {
           >
             + Add Another Team Member
           </button>
-          <p className="text-xs text-gray-500 text-center">
-            💡 Default temporary password{" "}
+          <p className="text-xs text-gray-500 text-center flex items-start justify-center gap-1">
+            <Lightbulb size={12} className="text-ocean-400 mt-0.5 shrink-0" /> Default temporary password{" "}
             <span className="font-mono">{TEMP_PASSWORD}</span> — share securely
             and ask each member to reset on first login.
           </p>

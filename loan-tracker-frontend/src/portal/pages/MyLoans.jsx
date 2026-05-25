@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Coins, FileText, X } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import SortHeader from "../components/SortHeader";
@@ -21,11 +21,11 @@ const STATUS_BADGE = {
 };
 
 const TABS = [
-  { value: "all", label: "All", emoji: "📋" },
-  { value: "active", label: "Active", emoji: "🟢" },
-  { value: "completed", label: "Completed", emoji: "✅" },
-  { value: "defaulted", label: "Defaulted", emoji: "⚠️" },
-  { value: "pending", label: "Pending", emoji: "⏳" },
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "defaulted", label: "Defaulted" },
+  { value: "pending", label: "Pending" },
 ];
 
 // Status ordering for the sortable Status column (active first → rejected).
@@ -136,8 +136,8 @@ function MyLoans() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1">
-          💰 My Loans
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1 flex items-center gap-2">
+          <Coins size={28} className="text-navy-900" /> My Loans
         </h1>
         <p className="text-slate-500 mb-5">
           Every loan across all your lenders, in one place
@@ -161,7 +161,7 @@ function MyLoans() {
                 className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/25"
                 aria-label="Clear lender filter"
               >
-                ✕
+                <X size={12} />
               </button>
             </span>
           </div>
@@ -179,7 +179,7 @@ function MyLoans() {
                   : "bg-white text-gray-700 hover:bg-gray-100"
               }`}
             >
-              {t.emoji} {t.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -190,7 +190,9 @@ function MyLoans() {
           </div>
         ) : sorted.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">
-            <p className="text-5xl mb-3">📭</p>
+            <div className="flex justify-center mb-3">
+              <FileText size={48} className="text-slate-300" />
+            </div>
             <p>No loans found.</p>
           </div>
         ) : (

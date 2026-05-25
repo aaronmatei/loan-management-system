@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { Bell, Trash2, Megaphone } from "lucide-react";
 import api from "../services/api";
 
 function NotificationBell() {
@@ -119,19 +120,7 @@ function NotificationBell() {
         className="relative p-2 rounded-lg hover:bg-gray-100 transition"
         aria-label="Notifications"
       >
-        <svg
-          className="w-6 h-6 text-gray-700"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-          />
-        </svg>
+        <Bell size={24} className="text-gray-700" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center animate-pulse">
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -143,7 +132,7 @@ function NotificationBell() {
         <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
           <div className="bg-ocean-gradient text-white p-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg">🔔 Notifications</h3>
+              <h3 className="font-bold text-lg flex items-center gap-2"><Bell size={18} /> Notifications</h3>
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
@@ -156,7 +145,7 @@ function NotificationBell() {
             <p className="text-xs text-ocean-100 mt-1">
               {unreadCount > 0
                 ? `${unreadCount} unread`
-                : "All caught up! ✨"}
+                : "All caught up!"}
             </p>
           </div>
 
@@ -165,7 +154,9 @@ function NotificationBell() {
               <div className="p-8 text-center text-gray-500">Loading...</div>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center">
-                <p className="text-4xl mb-2">📭</p>
+                <div className="flex justify-center mb-2">
+                  <Megaphone size={36} className="text-gray-300" />
+                </div>
                 <p className="text-gray-500">No notifications yet</p>
               </div>
             ) : (
@@ -178,8 +169,8 @@ function NotificationBell() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="text-2xl flex-shrink-0">
-                      {notif.icon || "📢"}
+                    <div className="text-2xl flex-shrink-0 flex items-center justify-center">
+                      {notif.icon || <Megaphone size={22} className="text-gray-400" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
@@ -203,9 +194,10 @@ function NotificationBell() {
                         </p>
                         <button
                           onClick={(e) => handleDelete(e, notif)}
-                          className="text-xs text-red-500 opacity-0 group-hover:opacity-100 transition"
+                          className="text-red-500 opacity-0 group-hover:opacity-100 transition"
+                          aria-label="Delete notification"
                         >
-                          🗑️
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>

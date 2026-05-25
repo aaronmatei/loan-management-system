@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, X } from "lucide-react";
+import { Bell, X, Coins, CheckCircle, Landmark, AlertTriangle, Clock } from "lucide-react";
 import portalApi from "../services/portalApi";
 
 const META = {
-  payment: { icon: "💵", label: "Payment received" },
-  approved: { icon: "✅", label: "Application approved" },
-  disbursed: { icon: "💰", label: "Loan disbursed" },
-  rejected: { icon: "❌", label: "Application declined" },
-  overdue: { icon: "⚠️", label: "Payment overdue" },
-  due_soon: { icon: "⏰", label: "Payment due soon" },
+  payment: { Icon: Coins, label: "Payment received" },
+  approved: { Icon: CheckCircle, label: "Application approved" },
+  disbursed: { Icon: Landmark, label: "Loan disbursed" },
+  rejected: { Icon: X, label: "Application declined" },
+  overdue: { Icon: AlertTriangle, label: "Payment overdue" },
+  due_soon: { Icon: Clock, label: "Payment due soon" },
 };
 
 const ago = (d) => {
@@ -133,7 +133,8 @@ function PortalNotificationBell() {
               </p>
             ) : (
               items.map((n) => {
-                const m = META[n.type] || { icon: "🔔", label: n.type };
+                const m = META[n.type] || { Icon: Bell, label: n.type };
+                const NIcon = m.Icon;
                 return (
                   <div
                     key={n.id}
@@ -145,8 +146,8 @@ function PortalNotificationBell() {
                       onClick={() => openNotif(n)}
                       className="flex gap-3 flex-1 min-w-0 text-left"
                     >
-                      <span className="text-lg leading-none mt-0.5">
-                        {m.icon}
+                      <span className="flex items-center justify-center w-5 h-5 mt-0.5 shrink-0 text-slate-500">
+                        <NIcon size={18} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-navy-900">

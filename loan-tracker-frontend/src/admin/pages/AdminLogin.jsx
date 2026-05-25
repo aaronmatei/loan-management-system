@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import { ShieldCheck } from "lucide-react";
 
 // Dedicated platform-admin door. Uses the same /api/auth/login
 // endpoint as the staff login (one credential store), but rejects
@@ -45,7 +46,9 @@ function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-slate-800 p-4">
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🛡️</div>
+          <div className="flex justify-center mb-3">
+            <ShieldCheck size={48} className="text-slate-700" />
+          </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
             LoanFix Platform Admin
           </h1>

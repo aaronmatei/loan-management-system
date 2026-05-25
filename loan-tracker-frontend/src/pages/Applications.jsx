@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Clock,
+  Search,
+  Banknote,
+  CheckCircle,
+  X,
+  ClipboardList,
+  Calendar,
+  User,
+  Eye,
+  AlertTriangle,
+  Coins,
+} from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 
@@ -71,7 +84,7 @@ function Applications() {
       return;
     try {
       await api.post(`/loans/${loan.id}/approve`);
-      alert("✅ Loan approved! Ready for disbursement.");
+      alert("Loan approved! Ready for disbursement.");
       fetchData();
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
@@ -88,7 +101,7 @@ function Applications() {
       await api.post(`/loans/${selectedLoan.id}/reject`, {
         reason: rejectReason,
       });
-      alert("✅ Loan rejected");
+      alert("Loan rejected");
       setShowRejectModal(false);
       setRejectReason("");
       fetchData();
@@ -139,7 +152,7 @@ function Applications() {
         offered_amount: amount,
         note: counterNote || undefined,
       });
-      alert("✅ Counter-offer sent to the client");
+      alert("Counter-offer sent to the client");
       setShowCounterModal(false);
       fetchData();
     } catch (err) {
@@ -162,7 +175,7 @@ function Applications() {
     setSubmitting(true);
     try {
       await api.post(`/loans/${selectedLoan.id}/disburse`, disburseData);
-      alert("✅ Loan disbursed successfully! Now active for repayment.");
+      alert("Loan disbursed successfully! Now active for repayment.");
       setShowDisburseModal(false);
       fetchData();
     } catch (err) {
@@ -174,13 +187,13 @@ function Applications() {
 
   const getStatusBadge = (status) => {
     const badges = {
-      pending: { color: "bg-yellow-100 text-yellow-700", icon: "⏳" },
-      under_review: { color: "bg-blue-100 text-blue-700", icon: "🔍" },
-      counter_offered: { color: "bg-amber-100 text-amber-700", icon: "💸" },
-      approved: { color: "bg-green-100 text-green-700", icon: "✅" },
-      rejected: { color: "bg-red-100 text-red-700", icon: "❌" },
+      pending: { color: "bg-yellow-100 text-yellow-700", icon: <Clock size={12}/> },
+      under_review: { color: "bg-blue-100 text-blue-700", icon: <Search size={12}/> },
+      counter_offered: { color: "bg-amber-100 text-amber-700", icon: <Banknote size={12}/> },
+      approved: { color: "bg-green-100 text-green-700", icon: <CheckCircle size={12}/> },
+      rejected: { color: "bg-red-100 text-red-700", icon: <X size={12}/> },
     };
-    return badges[status] || { color: "bg-gray-100 text-gray-700", icon: "?" };
+    return badges[status] || { color: "bg-gray-100 text-gray-700", icon: null };
   };
 
   if (loading) return <div className="p-4 lg:p-8">Loading...</div>;
@@ -189,8 +202,8 @@ function Applications() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            📋 Loan Applications
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <ClipboardList size={28}/> Loan Applications
           </h1>
           <p className="text-sm lg:text-base text-gray-600 mt-1">
             Review and process loan applications
@@ -273,12 +286,12 @@ function Applications() {
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2 mb-4 border-b">
         {[
-          { value: "pending", label: "⏳ Pending" },
-          { value: "under_review", label: "🔍 Under Review" },
-          { value: "counter_offered", label: "💸 Counter-offered" },
-          { value: "approved", label: "✅ Approved (Ready)" },
-          { value: "rejected", label: "❌ Rejected" },
-          { value: "all", label: "📋 All" },
+          { value: "pending", label: <span className="inline-flex items-center gap-1"><Clock size={14}/> Pending</span> },
+          { value: "under_review", label: <span className="inline-flex items-center gap-1"><Search size={14}/> Under Review</span> },
+          { value: "counter_offered", label: <span className="inline-flex items-center gap-1"><Banknote size={14}/> Counter-offered</span> },
+          { value: "approved", label: <span className="inline-flex items-center gap-1"><CheckCircle size={14}/> Approved (Ready)</span> },
+          { value: "rejected", label: <span className="inline-flex items-center gap-1"><X size={14}/> Rejected</span> },
+          { value: "all", label: <span className="inline-flex items-center gap-1"><ClipboardList size={14}/> All</span> },
         ].map((tab) => (
           <button
             key={tab.value}
@@ -382,9 +395,9 @@ function Applications() {
                       </div>
                     )}
 
-                    <div className="text-xs text-gray-500 mt-3 flex flex-wrap gap-x-4">
-                      <span>
-                        📅 Applied:{" "}
+                    <div className="text-xs text-gray-500 mt-3 flex flex-wrap gap-x-4 items-center">
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar size={12}/> Applied:{" "}
                         {app.application_date
                           ? new Date(
                               app.application_date,
@@ -392,13 +405,13 @@ function Applications() {
                           : "—"}
                       </span>
                       {app.created_by_name && (
-                        <span>👤 By: {app.created_by_name}</span>
+                        <span className="inline-flex items-center gap-1"><User size={12}/> By: {app.created_by_name}</span>
                       )}
                       {app.reviewed_by_name && (
-                        <span>🔍 Reviewed: {app.reviewed_by_name}</span>
+                        <span className="inline-flex items-center gap-1"><Search size={12}/> Reviewed: {app.reviewed_by_name}</span>
                       )}
                       {app.approved_by_name && (
-                        <span>✅ Approved: {app.approved_by_name}</span>
+                        <span className="inline-flex items-center gap-1"><CheckCircle size={12}/> Approved: {app.approved_by_name}</span>
                       )}
                     </div>
                   </div>
@@ -408,9 +421,9 @@ function Applications() {
                       <PermissionGate role={["admin", "manager"]}>
                         <button
                           onClick={() => handleStartReview(app)}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
                         >
-                          🔍 Start Review
+                          <Search size={16}/> Start Review
                         </button>
                       </PermissionGate>
                     )}
@@ -420,9 +433,9 @@ function Applications() {
                       <PermissionGate role={["admin", "manager"]}>
                         <button
                           onClick={() => handleApprove(app)}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
                         >
-                          ✅ Approve
+                          <CheckCircle size={16}/> Approve
                         </button>
                       </PermissionGate>
                     )}
@@ -435,15 +448,15 @@ function Applications() {
                             setRejectReason("");
                             setShowRejectModal(true);
                           }}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
                         >
-                          ❌ Reject
+                          <X size={16}/> Reject
                         </button>
                         <button
                           onClick={() => openCounterOffer(app)}
-                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
                         >
-                          💸 Counter-offer
+                          <Banknote size={16}/> Counter-offer
                         </button>
                       </PermissionGate>
                     )}
@@ -455,18 +468,18 @@ function Applications() {
                             setSelectedLoan(app);
                             setShowDisburseModal(true);
                           }}
-                          className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap"
+                          className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
                         >
-                          💰 Disburse
+                          <Coins size={16}/> Disburse
                         </button>
                       </PermissionGate>
                     )}
 
                     <button
                       onClick={() => navigate(`/loans/${app.id}`)}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm whitespace-nowrap"
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
                     >
-                      👁️ View Details
+                      <Eye size={16}/> View Details
                     </button>
                   </div>
                 </div>
@@ -480,7 +493,7 @@ function Applications() {
       {showRejectModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">❌ Reject Application</h3>
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><X size={20} className="text-red-600"/> Reject Application</h3>
             <p className="text-gray-600 mb-4">
               Loan: <strong>{selectedLoan.loan_code}</strong>
               <br />
@@ -517,7 +530,7 @@ function Applications() {
                 disabled={submitting || !rejectReason.trim()}
                 className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50"
               >
-                {submitting ? "Rejecting..." : "❌ Reject Application"}
+                {submitting ? "Rejecting..." : <span className="inline-flex items-center gap-2"><X size={16}/> Reject Application</span>}
               </button>
             </div>
           </div>
@@ -528,7 +541,7 @@ function Applications() {
       {showCounterModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">💸 Counter-offer</h3>
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Banknote size={20} className="text-amber-500"/> Counter-offer</h3>
             <p className="text-gray-600 mb-4">
               Loan: <strong>{selectedLoan.loan_code}</strong>
               <br />
@@ -587,7 +600,7 @@ function Applications() {
                 disabled={submitting || !counterAmount}
                 className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50"
               >
-                {submitting ? "Sending..." : "💸 Send Offer"}
+                {submitting ? "Sending..." : <span className="inline-flex items-center gap-2"><Banknote size={16}/> Send Offer</span>}
               </button>
             </div>
           </div>
@@ -598,7 +611,7 @@ function Applications() {
       {showDisburseModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">💰 Disburse Loan</h3>
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Coins size={20} className="text-ocean-600"/> Disburse Loan</h3>
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-green-800">
                 <strong>Amount:</strong> KES{" "}
@@ -628,10 +641,10 @@ function Applications() {
                   required
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
-                  <option value="mpesa">📱 M-Pesa</option>
-                  <option value="bank_transfer">🏦 Bank Transfer</option>
-                  <option value="cash">💵 Cash</option>
-                  <option value="cheque">📝 Cheque</option>
+                  <option value="mpesa">M-Pesa</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="cheque">Cheque</option>
                 </select>
               </div>
               <div>
@@ -688,8 +701,8 @@ function Applications() {
                 </div>
               </div>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-xs text-yellow-800">
-                  ⚠️ This marks the loan ACTIVE, creates the payment
+                <p className="text-xs text-yellow-800 flex items-start gap-1">
+                  <AlertTriangle size={14} className="text-yellow-600 flex-shrink-0 mt-0.5"/> This marks the loan ACTIVE, creates the payment
                   schedule, debits the capital pool, and sends the
                   agreement.
                 </p>
@@ -707,7 +720,7 @@ function Applications() {
                   disabled={submitting}
                   className="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {submitting ? "Disbursing..." : "💰 Disburse Now"}
+                  {submitting ? "Disbursing..." : <span className="inline-flex items-center gap-2"><Coins size={16}/> Disburse Now</span>}
                 </button>
               </div>
             </form>

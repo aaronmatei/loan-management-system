@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  Download,
+  ClipboardList,
+  Coins,
+  Calendar,
+  CreditCard,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  BarChart3,
+  PartyPopper,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import MpesaPayButton from "../../components/MpesaPayButton";
@@ -155,7 +167,7 @@ function LoanDetails() {
               disabled={downloading}
               className="px-4 py-2 bg-[var(--brand)] hover:brightness-95 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
             >
-              {downloading ? "Preparing…" : "⬇ Download Statement"}
+              {downloading ? "Preparing…" : <span className="inline-flex items-center gap-1.5"><Download size={15} /> Download Statement</span>}
             </button>
           </div>
         </div>
@@ -210,8 +222,8 @@ function LoanDetails() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-navy-900 mb-3">
-              📋 Loan Information
+            <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+              <ClipboardList size={18} /> Loan Information
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -235,8 +247,8 @@ function LoanDetails() {
             </div>
           </div>
           <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-navy-900 mb-3">
-              💰 Financial Summary
+            <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+              <Coins size={18} /> Financial Summary
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -269,23 +281,23 @@ function LoanDetails() {
           <div className="flex border-b">
             <button
               onClick={() => setTab("schedule")}
-              className={`flex-1 py-3 px-4 font-semibold ${
+              className={`flex-1 py-3 px-4 font-semibold inline-flex items-center justify-center gap-1.5 ${
                 tab === "schedule"
                   ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
                   : "text-gray-600"
               }`}
             >
-              📅 Payment Schedule
+              <Calendar size={16} /> Payment Schedule
             </button>
             <button
               onClick={() => setTab("history")}
-              className={`flex-1 py-3 px-4 font-semibold ${
+              className={`flex-1 py-3 px-4 font-semibold inline-flex items-center justify-center gap-1.5 ${
                 tab === "history"
                   ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
                   : "text-gray-600"
               }`}
             >
-              💳 Payment History
+              <CreditCard size={16} /> Payment History
             </button>
           </div>
 
@@ -309,12 +321,12 @@ function LoanDetails() {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xl">
+                        <span className="flex items-center justify-center w-7 h-7 shrink-0">
                           {s.status === "paid"
-                            ? "✅"
+                            ? <CheckCircle size={20} className="text-green-500" />
                             : s.status === "overdue"
-                              ? "⚠️"
-                              : "⏳"}
+                              ? <AlertTriangle size={20} className="text-red-500" />
+                              : <Clock size={20} className="text-yellow-500" />}
                         </span>
                         <div>
                           <p className="font-semibold">
@@ -418,8 +430,8 @@ function LoanDetails() {
 
                   {receiptSummary && (
                     <div className="bg-[var(--brand)]/10 border-2 border-[var(--brand)]/30 rounded-xl p-4 mt-4">
-                      <h3 className="font-bold mb-3 text-gray-800">
-                        📊 Current Status
+                      <h3 className="font-bold mb-3 text-gray-800 flex items-center gap-1.5">
+                        <BarChart3 size={18} /> Current Status
                       </h3>
                       <div className="grid grid-cols-2 gap-3 text-center">
                         <div>
@@ -438,8 +450,8 @@ function LoanDetails() {
                       {receiptSummary.next_payment_date &&
                         !receiptSummary.is_fully_paid && (
                           <div className="mt-3 pt-3 border-t border-[var(--brand)]/30 text-center">
-                            <p className="text-xs text-gray-500">
-                              📅 Next Payment
+                            <p className="text-xs text-gray-500 inline-flex items-center gap-1 justify-center">
+                              <Calendar size={12} /> Next Payment
                             </p>
                             <p className="font-bold text-lg text-blue-600">
                               {KES(receiptSummary.next_payment_amount)}
@@ -450,8 +462,8 @@ function LoanDetails() {
                           </div>
                         )}
                       {receiptSummary.is_fully_paid && (
-                        <p className="mt-3 text-center text-green-700 font-bold">
-                          🎉 LOAN FULLY PAID!
+                        <p className="mt-3 text-center text-green-700 font-bold flex items-center justify-center gap-1.5">
+                          <PartyPopper size={18} className="text-green-600" /> LOAN FULLY PAID!
                         </p>
                       )}
                     </div>

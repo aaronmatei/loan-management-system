@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
@@ -141,7 +142,7 @@ function Payments() {
       const response = await api.post("/payments", formData);
       const txn = response.data.data;
       setSuccess(
-        `✅ Payment ${txn.transaction_code} recorded successfully!`,
+        `Payment ${txn.transaction_code} recorded successfully!`,
       );
 
       // Show the receipt modal if the backend returned a receipt block
@@ -204,13 +205,13 @@ function Payments() {
           disabled={loans.length === 0}
           className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {showForm ? "✖ Cancel" : "+ Record Payment"}
+          {showForm ? <span className="inline-flex items-center gap-1.5"><X size={16} /> Cancel</span> : "+ Record Payment"}
         </button>
       </div>
 
       {loans.length === 0 && !loading && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
-          ⚠️ No active loans available. Create a loan first to record payments.
+          <span className="inline-flex items-center gap-1.5"><AlertTriangle size={16} className="text-yellow-600" /> No active loans available. Create a loan first to record payments.</span>
         </div>
       )}
 
@@ -248,8 +249,10 @@ function Payments() {
                       {selectedLoan.loan_code} - {selectedLoan.first_name}{" "}
                       {selectedLoan.last_name}
                     </p>
-                    <p className="text-sm text-green-700">
-                      📱 {selectedLoan.phone_number} • 💰 KES{" "}
+                    <p className="text-sm text-green-700 flex items-center gap-1.5">
+                      <Smartphone size={14} /> {selectedLoan.phone_number}
+                      <span className="mx-1">•</span>
+                      <Coins size={14} /> KES{" "}
                       {parseFloat(
                         selectedLoan.principal_amount,
                       ).toLocaleString()}
@@ -258,9 +261,9 @@ function Payments() {
                   <button
                     type="button"
                     onClick={handleClearLoan}
-                    className="text-red-600 hover:text-red-800 font-bold text-xl px-2"
+                    className="text-red-600 hover:text-red-800 px-2"
                   >
-                    ✖
+                    <X size={18} />
                   </button>
                 </div>
               ) : (
@@ -273,7 +276,7 @@ function Payments() {
                       setShowDropdown(true);
                     }}
                     onFocus={() => setShowDropdown(true)}
-                    placeholder="🔍 Type to search active loans..."
+                    placeholder="Type to search active loans..."
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
                   />
 
@@ -327,8 +330,8 @@ function Payments() {
             {/* Loan Summary if selected */}
             {loanSummary && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-3">
-                  📊 Loan Status
+                <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                  <BarChart3 size={16} /> Loan Status
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                   <div>
@@ -467,7 +470,7 @@ function Payments() {
                 disabled={submitting || !formData.loan_id}
                 className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
               >
-                {submitting ? "Recording..." : "✓ Record Payment"}
+                {submitting ? "Recording..." : <span className="inline-flex items-center gap-1.5"><Check size={16} /> Record Payment</span>}
               </button>
             </div>
           </form>
@@ -538,7 +541,7 @@ function Payments() {
         </div>
       ) : payments.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="text-6xl mb-4">💵</div>
+          <Coins size={56} className="mx-auto mb-4 text-gray-300" />
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
             No payments yet
           </h3>
@@ -700,7 +703,7 @@ function Payments() {
             className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-bold mb-1 text-gray-800">🧾 Transaction</h3>
+            <h3 className="text-xl font-bold mb-1 text-gray-800 flex items-center gap-2"><Search size={20} /> Transaction</h3>
             <p className="font-mono text-green-600 mb-4">
               {txnModal.transaction_code}
             </p>

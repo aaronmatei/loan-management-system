@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { AlertTriangle, Coins, BarChart3, Lightbulb, Phone } from "lucide-react";
 
 // Public, no auth. Designed to be iframed onto third-party sites.
 function CalculatorWidget() {
@@ -99,7 +100,7 @@ function CalculatorWidget() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white p-4">
         <div className="text-center">
-          <p className="text-6xl mb-3">⚠️</p>
+          <AlertTriangle size={48} className="text-orange-400 mx-auto mb-3" />
           <p className="text-gray-700 font-semibold">Calculator unavailable</p>
           <p className="text-sm text-gray-500 mt-2">{error}</p>
         </div>
@@ -134,7 +135,7 @@ function CalculatorWidget() {
                 </div>
               )}
               <div>
-                <h2 className="font-bold text-lg">💰 Loan Calculator</h2>
+                <h2 className="font-bold text-lg flex items-center gap-2"><Coins size={18} /> Loan Calculator</h2>
                 <p className="text-sm opacity-90">{tenant.business_name}</p>
               </div>
             </div>
@@ -187,10 +188,10 @@ function CalculatorWidget() {
               disabled={
                 !amount || parseFloat(amount) < parseInt(tenant.min_amount, 10)
               }
-              className="w-full py-3 rounded-lg font-bold text-white shadow-md disabled:opacity-50 transition"
+              className="w-full py-3 rounded-lg font-bold text-white shadow-md disabled:opacity-50 transition inline-flex items-center justify-center gap-2"
               style={{ backgroundColor: brand }}
             >
-              📊 Calculate
+              <BarChart3 size={16} /> Calculate
             </button>
 
             {calculated && (
@@ -245,8 +246,8 @@ function CalculatorWidget() {
                 >
                   Apply for This Loan →
                 </button>
-                <p className="text-xs text-center text-gray-500 mt-3">
-                  💡 Final terms will be confirmed by {tenant.business_name}
+                <p className="text-xs text-center text-gray-500 mt-3 inline-flex items-center gap-1">
+                  <Lightbulb size={12} className="text-ocean-500" /> Final terms will be confirmed by {tenant.business_name}
                 </p>
               </div>
             )}
@@ -257,9 +258,9 @@ function CalculatorWidget() {
               {tenant.support_phone && (
                 <a
                   href={`tel:${tenant.support_phone}`}
-                  className="text-gray-600 hover:underline"
+                  className="text-gray-600 hover:underline inline-flex items-center gap-1"
                 >
-                  📞 Contact
+                  <Phone size={12} /> Contact
                 </a>
               )}
             </div>
