@@ -12,6 +12,8 @@ import {
   Eye,
   AlertTriangle,
   Coins,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
@@ -38,7 +40,17 @@ function Applications() {
   const [counterNote, setCounterNote] = useState("");
   const [qualifiedMax, setQualifiedMax] = useState(null);
 
+  // Which application rows are expanded to reveal their full details.
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggleExpand = (id) =>
+    setExpanded((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
   useEffect(() => {
+    setExpanded(new Set()); // collapse all when the filter changes
     fetchData();
   }, [statusFilter]);
 
@@ -196,6 +208,169 @@ function Applications() {
     return badges[status] || { color: "bg-gray-100 text-gray-700", icon: null };
   };
 
+  // Contextual action buttons for an application (status-dependent). Reused by
+  // the desktop table rows and the mobile cards.
+  const actBtn =
+    "px-2.5 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1 whitespace-nowrap";
+  const renderActions = (app) => (
+    <div className="flex flex-wrap gap-1.5 justify-end">
+      {app.status === "pending" && (
+        <PermissionGate role={["admin", "manager"]}>
+          <button
+            onClick={() => handleStartReview(app)}
+            className={`${actBtn} bg-blue-600 hover:bg-blue-700 text-white`}
+          >
+            <Search size={14} /> Review
+          </button>
+        </PermissionGate>
+      )}
+      {app.status === "under_review" && (
+        <PermissionGate role={["admin", "manager"]}>
+          <button
+            onClick={() => handleApprove(app)}
+            className={`${actBtn} bg-green-600 hover:bg-green-700 text-white`}
+          >
+            <CheckCircle size={14} /> Approve
+          </button>
+        </PermissionGate>
+      )}
+      {["pending", "under_review"].includes(app.status) && (
+        <PermissionGate role={["admin", "manager"]}>
+          <button
+            onClick={() => {
+              setSelectedLoan(app);
+              setRejectReason("");
+              setShowRejectModal(true);
+            }}
+            className={`${actBtn} bg-red-600 hover:bg-red-700 text-white`}
+          >
+            <X size={14} /> Reject
+          </button>
+          <button
+            onClick={() => openCounterOffer(app)}
+            className={`${actBtn} bg-amber-500 hover:bg-amber-600 text-white`}
+          >
+            <Banknote size={14} /> Counter
+          </button>
+        </PermissionGate>
+      )}
+      {app.status === "approved" && (
+        <PermissionGate role={["admin", "manager"]}>
+          <button
+            onClick={() => {
+              setSelectedLoan(app);
+              setShowDisburseModal(true);
+            }}
+            className={`${actBtn} bg-ocean-600 hover:bg-ocean-700 text-white`}
+          >
+            <Coins size={14} /> Disburse
+          </button>
+        </PermissionGate>
+      )}
+      <button
+        onClick={() => navigate(`/loans/${app.id}`)}
+        className={`${actBtn} bg-gray-100 hover:bg-gray-200 text-gray-700`}
+      >
+        <Eye size={14} /> View
+      </button>
+    </div>
+  );
+
+  // Full detail panel for an expanded application (the financials, fee, purpose
+  // and processing meta). Reused by the desktop expanded row and mobile cards.
+  const renderDetails = (app) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <p className="text-xs text-gray-500">Principal</p>
+          <p className="font-bold text-lg">
+            KES {parseFloat(app.principal_amount).toLocaleString()}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Total Due</p>
+          <p className="font-bold">
+            KES {parseFloat(app.total_amount_due).toLocaleString()}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Duration</p>
+          <p className="font-bold">{app.loan_duration_months} months</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Interest Rate</p>
+          <p className="font-bold">
+            {(parseFloat(app.interest_rate) * 12).toFixed(2)}% p.a.
+          </p>
+        </div>
+      </div>
+
+      {/* Processing fee + net amount to disburse */}
+      {(app.status === "approved" ||
+        parseFloat(app.processing_fee || 0) > 0) && (
+        <div className="bg-ocean-50 border border-ocean-100 rounded-lg p-3 flex flex-wrap gap-x-8 gap-y-2">
+          {parseFloat(app.processing_fee || 0) > 0 && (
+            <div>
+              <p className="text-xs text-gray-500">
+                Processing Fee ({parseFloat(app.processing_fee_rate)}%)
+              </p>
+              <p className="font-bold text-amber-700">
+                − KES {parseFloat(app.processing_fee).toLocaleString()}
+              </p>
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-gray-500">To Disburse</p>
+            <p className="font-bold text-ocean-700">
+              KES{" "}
+              {parseFloat(
+                app.net_disbursed_amount ?? app.principal_amount,
+              ).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {app.purpose && (
+        <div>
+          <p className="text-xs text-gray-500">Purpose:</p>
+          <p className="text-sm text-gray-700">{app.purpose}</p>
+        </div>
+      )}
+
+      {app.rejection_reason && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p className="text-xs font-semibold text-red-700">Rejection Reason:</p>
+          <p className="text-sm text-red-600">{app.rejection_reason}</p>
+        </div>
+      )}
+
+      <div className="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1 items-center">
+        <span className="inline-flex items-center gap-1">
+          <Calendar size={12} /> Applied:{" "}
+          {app.application_date
+            ? new Date(app.application_date).toLocaleDateString()
+            : "—"}
+        </span>
+        {app.created_by_name && (
+          <span className="inline-flex items-center gap-1">
+            <User size={12} /> By: {app.created_by_name}
+          </span>
+        )}
+        {app.reviewed_by_name && (
+          <span className="inline-flex items-center gap-1">
+            <Search size={12} /> Reviewed: {app.reviewed_by_name}
+          </span>
+        )}
+        {app.approved_by_name && (
+          <span className="inline-flex items-center gap-1">
+            <CheckCircle size={12} /> Approved: {app.approved_by_name}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
   if (loading) return <div className="p-4 lg:p-8">Loading...</div>;
 
   return (
@@ -308,215 +483,166 @@ function Applications() {
       </div>
 
       {/* Applications list */}
-      <div className="space-y-3">
-        {applications.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-500">
-            No applications found
+      {applications.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-500">
+          No applications found
+        </div>
+      ) : (
+        <>
+          {/* Desktop table — one row per application, expand for full details */}
+          <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="overflow-auto max-h-[calc(100vh-340px)]">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    <th className="px-3 py-3 w-10"></th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Loan Code
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Client
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                      Principal
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Duration
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applications.map((app) => {
+                    const open = expanded.has(app.id);
+                    const badge = getStatusBadge(app.status);
+                    return (
+                      <React.Fragment key={app.id}>
+                        <tr
+                          className={`border-b border-gray-100 hover:bg-gray-50 transition ${
+                            open ? "bg-gray-50" : ""
+                          }`}
+                        >
+                          <td className="px-3 py-3">
+                            <button
+                              onClick={() => toggleExpand(app.id)}
+                              className="text-gray-400 hover:text-gray-700"
+                              aria-label={open ? "Collapse" : "Expand"}
+                            >
+                              {open ? (
+                                <ChevronDown size={18} />
+                              ) : (
+                                <ChevronRight size={18} />
+                              )}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => toggleExpand(app.id)}
+                              className="font-mono text-sm font-bold text-ocean-600 hover:underline"
+                            >
+                              {app.loan_code}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-gray-800 text-sm">
+                              {app.first_name} {app.last_name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {app.phone_number} • {app.client_code}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-gray-800 text-sm">
+                            KES{" "}
+                            {parseFloat(app.principal_amount).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-center text-sm text-gray-700">
+                            {app.loan_duration_months} mo
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${badge.color}`}
+                            >
+                              {badge.icon}{" "}
+                              {app.status.replace("_", " ").toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">{renderActions(app)}</td>
+                        </tr>
+                        {open && (
+                          <tr className="bg-gray-50/60">
+                            <td colSpan={7} className="px-6 pb-4 pt-1">
+                              {renderDetails(app)}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        ) : (
-          applications.map((app) => {
-            const badge = getStatusBadge(app.status);
-            return (
-              <div
-                key={app.id}
-                className="bg-white rounded-xl shadow-md p-4 lg:p-6"
-              >
-                <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-start gap-3 mb-3">
-                      <span
-                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}
-                      >
-                        {badge.icon}{" "}
-                        {app.status.replace("_", " ").toUpperCase()}
+
+          {/* Mobile cards — collapsed summary, expand for details + actions */}
+          <div className="md:hidden space-y-3">
+            {applications.map((app) => {
+              const open = expanded.has(app.id);
+              const badge = getStatusBadge(app.status);
+              return (
+                <div key={app.id} className="bg-white rounded-xl shadow-md p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <button
+                      onClick={() => toggleExpand(app.id)}
+                      className="flex items-start gap-2 text-left flex-1 min-w-0"
+                    >
+                      <span className="text-gray-400 mt-0.5">
+                        {open ? (
+                          <ChevronDown size={18} />
+                        ) : (
+                          <ChevronRight size={18} />
+                        )}
                       </span>
-                      <div className="flex-1">
-                        <p className="font-mono text-ocean-600 text-sm font-bold">
+                      <div className="min-w-0">
+                        <p className="font-mono text-ocean-600 text-xs font-bold">
                           {app.loan_code}
                         </p>
-                        <h3 className="text-lg font-bold text-gray-800">
+                        <p className="font-semibold text-gray-800 truncate">
                           {app.first_name} {app.last_name}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          {app.phone_number} • {app.client_code}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {app.phone_number}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-                      <div>
-                        <p className="text-xs text-gray-500">Principal</p>
-                        <p className="font-bold text-lg">
-                          KES{" "}
-                          {parseFloat(
-                            app.principal_amount,
-                          ).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Total Due</p>
-                        <p className="font-bold">
-                          KES{" "}
-                          {parseFloat(
-                            app.total_amount_due,
-                          ).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Duration</p>
-                        <p className="font-bold">
-                          {app.loan_duration_months} months
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Interest Rate</p>
-                        <p className="font-bold">
-                          {(parseFloat(app.interest_rate) * 12).toFixed(2)}%
-                          p.a.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Processing fee + net amount to disburse — shown once a
-                        loan is approved (ready to disburse) or whenever a
-                        processing fee applies. */}
-                    {(app.status === "approved" ||
-                      parseFloat(app.processing_fee || 0) > 0) && (
-                      <div className="bg-ocean-50 border border-ocean-100 rounded-lg p-3 mb-2 flex flex-wrap gap-x-8 gap-y-2">
-                        {parseFloat(app.processing_fee || 0) > 0 && (
-                          <div>
-                            <p className="text-xs text-gray-500">
-                              Processing Fee ({parseFloat(app.processing_fee_rate)}%)
-                            </p>
-                            <p className="font-bold text-amber-700">
-                              − KES{" "}
-                              {parseFloat(app.processing_fee).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-xs text-gray-500">To Disburse</p>
-                          <p className="font-bold text-ocean-700">
-                            KES{" "}
-                            {parseFloat(
-                              app.net_disbursed_amount ?? app.principal_amount,
-                            ).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {app.purpose && (
-                      <div className="mb-2">
-                        <p className="text-xs text-gray-500">Purpose:</p>
-                        <p className="text-sm text-gray-700">{app.purpose}</p>
-                      </div>
-                    )}
-
-                    {app.rejection_reason && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
-                        <p className="text-xs font-semibold text-red-700">
-                          Rejection Reason:
-                        </p>
-                        <p className="text-sm text-red-600">
-                          {app.rejection_reason}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="text-xs text-gray-500 mt-3 flex flex-wrap gap-x-4 items-center">
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar size={12}/> Applied:{" "}
-                        {app.application_date
-                          ? new Date(
-                              app.application_date,
-                            ).toLocaleDateString()
-                          : "—"}
-                      </span>
-                      {app.created_by_name && (
-                        <span className="inline-flex items-center gap-1"><User size={12}/> By: {app.created_by_name}</span>
-                      )}
-                      {app.reviewed_by_name && (
-                        <span className="inline-flex items-center gap-1"><Search size={12}/> Reviewed: {app.reviewed_by_name}</span>
-                      )}
-                      {app.approved_by_name && (
-                        <span className="inline-flex items-center gap-1"><CheckCircle size={12}/> Approved: {app.approved_by_name}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    {app.status === "pending" && (
-                      <PermissionGate role={["admin", "manager"]}>
-                        <button
-                          onClick={() => handleStartReview(app)}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
-                        >
-                          <Search size={16}/> Start Review
-                        </button>
-                      </PermissionGate>
-                    )}
-
-                    {/* Approve only AFTER review — pending must be reviewed first */}
-                    {app.status === "under_review" && (
-                      <PermissionGate role={["admin", "manager"]}>
-                        <button
-                          onClick={() => handleApprove(app)}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
-                        >
-                          <CheckCircle size={16}/> Approve
-                        </button>
-                      </PermissionGate>
-                    )}
-
-                    {["pending", "under_review"].includes(app.status) && (
-                      <PermissionGate role={["admin", "manager"]}>
-                        <button
-                          onClick={() => {
-                            setSelectedLoan(app);
-                            setRejectReason("");
-                            setShowRejectModal(true);
-                          }}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
-                        >
-                          <X size={16}/> Reject
-                        </button>
-                        <button
-                          onClick={() => openCounterOffer(app)}
-                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
-                        >
-                          <Banknote size={16}/> Counter-offer
-                        </button>
-                      </PermissionGate>
-                    )}
-
-                    {app.status === "approved" && (
-                      <PermissionGate role={["admin", "manager"]}>
-                        <button
-                          onClick={() => {
-                            setSelectedLoan(app);
-                            setShowDisburseModal(true);
-                          }}
-                          className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
-                        >
-                          <Coins size={16}/> Disburse
-                        </button>
-                      </PermissionGate>
-                    )}
-
-                    <button
-                      onClick={() => navigate(`/loans/${app.id}`)}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm whitespace-nowrap inline-flex items-center gap-2"
-                    >
-                      <Eye size={16}/> View Details
                     </button>
+                    <span
+                      className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${badge.color}`}
+                    >
+                      {badge.icon} {app.status.replace("_", " ").toUpperCase()}
+                    </span>
                   </div>
+                  <div className="flex justify-between text-sm mt-3 pt-3 border-t border-gray-100">
+                    <span className="text-gray-500">Principal</span>
+                    <span className="font-bold">
+                      KES {parseFloat(app.principal_amount).toLocaleString()}
+                    </span>
+                  </div>
+                  {open && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+                      {renderDetails(app)}
+                      {renderActions(app)}
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Reject modal */}
       {showRejectModal && selectedLoan && (
