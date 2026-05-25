@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search } from "lucide-react";
+import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search, ChevronRight, ChevronDown } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
@@ -18,6 +18,15 @@ function Payments() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  // Which loans are expanded to reveal their transactions.
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggleExpand = (loanId) =>
+    setExpanded((s) => {
+      const next = new Set(s);
+      next.has(loanId) ? next.delete(loanId) : next.add(loanId);
+      return next;
+    });
 
   // Loan search
   const [loanSearch, setLoanSearch] = useState("");
@@ -175,17 +184,51 @@ function Payments() {
   };
 
   // Sort then paginate
+  // Group transactions into ONE entry per loan, with the transactions nested
+  // for the expand view. Group fields (count, total_paid, last_date) drive
+  // sorting + the collapsed row; the transactions themselves show on expand.
+  const loanGroups = (() => {
+    const map = new Map();
+    for (const p of payments) {
+      let g = map.get(p.loan_id);
+      if (!g) {
+        g = {
+          loan_id: p.loan_id,
+          loan_code: p.loan_code,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          phone_number: p.phone_number,
+          transactions: [],
+          count: 0,
+          total_paid: 0,
+          last_date: p.payment_date,
+        };
+        map.set(p.loan_id, g);
+      }
+      g.transactions.push(p);
+      g.count += 1;
+      g.total_paid += parseFloat(p.amount_paid || 0);
+      if (new Date(p.payment_date) > new Date(g.last_date))
+        g.last_date = p.payment_date;
+    }
+    for (const g of map.values())
+      g.transactions.sort(
+        (a, b) => new Date(b.payment_date) - new Date(a.payment_date),
+      );
+    return [...map.values()];
+  })();
+
   const {
-    sortedData: sortedPayments,
+    sortedData: sortedGroups,
     requestSort,
     getSortIndicator,
-  } = useSortableTable(payments, "payment_date", "desc");
+  } = useSortableTable(loanGroups, "last_date", "desc");
 
-  // Pagination math (same pattern as Clients/Overdue pages)
-  const totalPages = Math.ceil(sortedPayments.length / itemsPerPage);
+  // Pagination math (same pattern as Clients/Overdue pages) — over LOANS now
+  const totalPages = Math.ceil(sortedGroups.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedPayments = sortedPayments.slice(startIndex, endIndex);
+  const paginatedGroups = sortedGroups.slice(startIndex, endIndex);
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -480,57 +523,84 @@ function Payments() {
       {/* Mobile card list (desktop uses the table below) */}
       {!loading && payments.length > 0 && (
         <div className="md:hidden space-y-3 mb-4">
-          {paginatedPayments.map((payment) => (
-            <div
-              key={payment.id}
-              className="bg-white rounded-xl shadow-md p-4"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="min-w-0">
-                  <button
-                    onClick={() => setTxnModal(payment)}
-                    className="font-mono text-sm font-bold text-green-600 hover:underline"
-                  >
-                    {payment.transaction_code}
-                  </button>
-                  <p className="font-semibold text-gray-800 truncate">
-                    {payment.first_name} {payment.last_name}
-                  </p>
-                  <Link
-                    to={`/loans/${payment.loan_id}`}
-                    className="block text-xs text-ocean-600 font-mono hover:underline"
-                  >
-                    {payment.loan_code}
-                  </Link>
-                </div>
-                <span className="flex-shrink-0 inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                  {payment.payment_method}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
-                <div>
-                  <p className="text-xs text-gray-500">Amount</p>
-                  <p className="font-bold text-green-600">
-                    KES {parseFloat(payment.amount_paid).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Date</p>
-                  <p className="font-semibold">
-                    {new Date(payment.payment_date).toLocaleDateString()}
-                  </p>
-                </div>
-                {payment.payment_reference && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-500">Reference</p>
-                    <p className="font-semibold truncate">
-                      {payment.payment_reference}
+          {paginatedGroups.map((g) => {
+            const open = expanded.has(g.loan_id);
+            return (
+              <div key={g.loan_id} className="bg-white rounded-xl shadow-md p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-800 truncate">
+                      {g.first_name} {g.last_name}
                     </p>
+                    <p className="text-xs text-gray-500">{g.phone_number}</p>
+                    <Link
+                      to={`/loans/${g.loan_id}`}
+                      className="block text-xs text-ocean-600 font-mono hover:underline"
+                    >
+                      {g.loan_code}
+                    </Link>
+                  </div>
+                  <span className="flex-shrink-0 inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                    {g.count} payment{g.count !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Total Paid</p>
+                    <p className="font-bold text-green-600">
+                      KES {g.total_paid.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Last Payment</p>
+                    <p className="font-semibold">
+                      {new Date(g.last_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => toggleExpand(g.loan_id)}
+                  className="mt-3 w-full inline-flex items-center justify-center gap-1 text-xs font-semibold text-ocean-600"
+                >
+                  {open ? (
+                    <>
+                      <ChevronDown size={14} /> Hide transactions
+                    </>
+                  ) : (
+                    <>
+                      <ChevronRight size={14} /> Show {g.count} transaction
+                      {g.count !== 1 ? "s" : ""}
+                    </>
+                  )}
+                </button>
+                {open && (
+                  <div className="mt-2 space-y-2 border-t border-gray-100 pt-2">
+                    {g.transactions.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex justify-between items-center text-xs"
+                      >
+                        <button
+                          onClick={() => setTxnModal(p)}
+                          className="font-mono font-semibold text-green-600 hover:underline"
+                        >
+                          {p.transaction_code}
+                        </button>
+                        <span className="flex items-center gap-2">
+                          <span className="text-gray-500">
+                            {new Date(p.payment_date).toLocaleDateString()}
+                          </span>
+                          <span className="font-bold text-green-600">
+                            KES {parseFloat(p.amount_paid).toLocaleString()}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -556,13 +626,11 @@ function Payments() {
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
               <tr>
                 {[
-                  ["Transaction", "transaction_code"],
-                  ["Loan", "loan_code"],
                   ["Client", "first_name"],
-                  ["Amount", "amount_paid"],
-                  ["Method", "payment_method"],
-                  ["Reference", "payment_reference"],
-                  ["Date", "payment_date"],
+                  ["Loan", "loan_code"],
+                  ["Payments", "count"],
+                  ["Total Paid", "total_paid"],
+                  ["Last Payment", "last_date"],
                 ].map(([label, key]) => (
                   <SortableHeader
                     key={key}
@@ -576,53 +644,121 @@ function Payments() {
               </tr>
             </thead>
             <tbody>
-              {paginatedPayments.map((payment) => (
-                <tr
-                  key={payment.id}
-                  className="border-b border-gray-100 hover:bg-gray-50 transition"
-                >
-                  <td className="px-6 py-4 font-mono text-sm font-semibold">
-                    <button
-                      onClick={() => setTxnModal(payment)}
-                      className="text-green-600 hover:underline"
-                    >
-                      {payment.transaction_code}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 font-mono text-sm">
-                    <Link
-                      to={`/loans/${payment.loan_id}`}
-                      className="text-ocean-600 hover:underline"
-                    >
-                      {payment.loan_code}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="font-semibold text-gray-800">
-                        {payment.first_name} {payment.last_name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {payment.phone_number}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-green-600">
-                    KES {parseFloat(payment.amount_paid).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                      {payment.payment_method}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">
-                    {payment.payment_reference || "-"}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">
-                    {new Date(payment.payment_date).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
+              {paginatedGroups.map((g) => {
+                const open = expanded.has(g.loan_id);
+                return (
+                  <React.Fragment key={g.loan_id}>
+                    <tr className="border-b border-gray-100 hover:bg-gray-50 transition">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleExpand(g.loan_id)}
+                            className="text-gray-400 hover:text-gray-700 shrink-0"
+                            aria-label={open ? "Collapse" : "Expand"}
+                          >
+                            {open ? (
+                              <ChevronDown size={16} />
+                            ) : (
+                              <ChevronRight size={16} />
+                            )}
+                          </button>
+                          <div>
+                            <p className="font-semibold text-gray-800">
+                              {g.first_name} {g.last_name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {g.phone_number}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-sm">
+                        <Link
+                          to={`/loans/${g.loan_id}`}
+                          className="text-ocean-600 hover:underline"
+                        >
+                          {g.loan_code}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => toggleExpand(g.loan_id)}
+                          className="font-semibold text-gray-800 hover:text-ocean-600"
+                        >
+                          {g.count} payment{g.count !== 1 ? "s" : ""}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-green-600">
+                        KES {g.total_paid.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 text-sm">
+                        {new Date(g.last_date).toLocaleDateString()}
+                      </td>
+                    </tr>
+                    {open && (
+                      <tr className="bg-gray-50/70">
+                        <td colSpan="5" className="px-8 pb-4 pt-1">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-[11px] uppercase tracking-wide text-gray-400">
+                                <th className="text-left py-1 font-semibold">
+                                  Transaction
+                                </th>
+                                <th className="text-left py-1 font-semibold">
+                                  Amount
+                                </th>
+                                <th className="text-left py-1 font-semibold">
+                                  Method
+                                </th>
+                                <th className="text-left py-1 font-semibold">
+                                  Reference
+                                </th>
+                                <th className="text-right py-1 font-semibold">
+                                  Date
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {g.transactions.map((p) => (
+                                <tr
+                                  key={p.id}
+                                  className="border-t border-gray-200/70"
+                                >
+                                  <td className="py-1.5">
+                                    <button
+                                      onClick={() => setTxnModal(p)}
+                                      className="font-mono font-semibold text-green-600 hover:underline"
+                                    >
+                                      {p.transaction_code}
+                                    </button>
+                                  </td>
+                                  <td className="py-1.5 font-bold text-green-600">
+                                    KES{" "}
+                                    {parseFloat(p.amount_paid).toLocaleString()}
+                                  </td>
+                                  <td className="py-1.5">
+                                    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                                      {p.payment_method}
+                                    </span>
+                                  </td>
+                                  <td className="py-1.5 text-gray-600">
+                                    {p.payment_reference || "-"}
+                                  </td>
+                                  <td className="py-1.5 text-right text-gray-600">
+                                    {new Date(
+                                      p.payment_date,
+                                    ).toLocaleDateString()}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
             </table>
           </div>
@@ -633,10 +769,10 @@ function Payments() {
                 Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
                 to{" "}
                 <span className="font-semibold">
-                  {Math.min(endIndex, payments.length)}
+                  {Math.min(endIndex, loanGroups.length)}
                 </span>{" "}
-                of <span className="font-semibold">{payments.length}</span>{" "}
-                results
+                of <span className="font-semibold">{loanGroups.length}</span>{" "}
+                loans
               </div>
 
               <div className="flex items-center gap-2">
