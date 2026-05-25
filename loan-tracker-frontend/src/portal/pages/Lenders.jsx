@@ -46,6 +46,7 @@ function Lenders() {
   const [amount, setAmount] = useState(""); // amount the customer wants
   const [maxRate, setMaxRate] = useState(""); // max acceptable MONTHLY interest
   const [linkFilter, setLinkFilter] = useState("all"); // all | linked | unlinked
+  const [typeFilter, setTypeFilter] = useState("all"); // "all" | type label
   const [sort, setSort] = useState({ key: "linked", dir: "asc" });
   const [page, setPage] = useState(1);
 
@@ -65,6 +66,8 @@ function Lenders() {
     const list = lenders.filter((l) => {
       if (linkFilter === "linked" && !l.is_linked) return false;
       if (linkFilter === "unlinked" && l.is_linked) return false;
+      if (typeFilter !== "all" && lenderType(l.business_type).label !== typeFilter)
+        return false;
       if (
         search &&
         !l.business_name?.toLowerCase().includes(search.toLowerCase())
@@ -83,10 +86,13 @@ function Lenders() {
     return [...list].sort((a, b) =>
       sort.dir === "asc" ? base(a, b) : -base(a, b),
     );
-  }, [lenders, search, amount, maxRate, linkFilter, sort]);
+  }, [lenders, search, amount, maxRate, linkFilter, typeFilter, sort]);
 
   // Reset to page 1 whenever the filter/sort changes.
-  useEffect(() => setPage(1), [search, amount, maxRate, linkFilter, sort]);
+  useEffect(
+    () => setPage(1),
+    [search, amount, maxRate, linkFilter, typeFilter, sort],
+  );
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pageCount);
@@ -123,24 +129,46 @@ function Lenders() {
           Browse every lender on LoanFix and compare their terms.
         </p>
 
-        {/* Colour legend: each lender's colour reflects its type. */}
-        {legendTypes.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-5 text-xs">
-            <span className="text-slate-400 font-semibold uppercase tracking-wide">
+        {/* Filter by lender type. Each chip's colour matches the row colour,
+            so this doubles as the colour legend. */}
+        {legendTypes.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 mr-1">
               Type
             </span>
-            {legendTypes.map((t) => (
-              <span
-                key={t.label}
-                className="inline-flex items-center gap-1.5 text-slate-600"
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: t.color }}
-                />
-                {t.label}
-              </span>
-            ))}
+            <button
+              onClick={() => setTypeFilter("all")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                typeFilter === "all"
+                  ? "bg-ocean-gradient text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
+            {legendTypes.map((t) => {
+              const active = typeFilter === t.label;
+              return (
+                <button
+                  key={t.label}
+                  onClick={() => setTypeFilter(active ? "all" : t.label)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                    active
+                      ? "text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  style={active ? { backgroundColor: t.color } : undefined}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{
+                      backgroundColor: active ? "rgba(255,255,255,0.9)" : t.color,
+                    }}
+                  />
+                  {t.label}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -208,13 +236,18 @@ function Lenders() {
                 {label}
               </button>
             ))}
-            {(search || amount || maxRate || linkFilter !== "all") && (
+            {(search ||
+              amount ||
+              maxRate ||
+              linkFilter !== "all" ||
+              typeFilter !== "all") && (
               <button
                 onClick={() => {
                   setSearch("");
                   setAmount("");
                   setMaxRate("");
                   setLinkFilter("all");
+                  setTypeFilter("all");
                 }}
                 className="ml-auto text-xs font-semibold text-ocean-600 hover:text-ocean-700"
               >
