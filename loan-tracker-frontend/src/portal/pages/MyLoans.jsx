@@ -20,12 +20,13 @@ const STATUS_BADGE = {
   rejected: "bg-gray-200 text-gray-600",
 };
 
+// My Loans only shows disbursed loans, so no pending/approved tabs here —
+// those live in My Applications until the lender disburses.
 const TABS = [
   { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "completed", label: "Completed" },
   { value: "defaulted", label: "Defaulted" },
-  { value: "pending", label: "Pending" },
 ];
 
 // Status ordering for the sortable Status column (active first → rejected).

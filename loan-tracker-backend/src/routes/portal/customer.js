@@ -451,8 +451,12 @@ router.get("/all-loans", async (req, res) => {
     // customer's own client records; the tenant_id filter is a
     // belt-and-braces guard.
     const params = [clientIds, tenantIds];
+    // "My Loans" only shows DISBURSED loans (money paid out). Everything before
+    // disbursement — pending/under_review/approved (incl. an accepted offer)/
+    // counter_offered/rejected — stays in "My Applications" until the lender
+    // disburses and the status becomes 'active'.
     let where =
-      "l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])";
+      "l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[]) AND l.status IN ('active','completed','defaulted')";
     if (tenant_id) {
       params.push(parseInt(tenant_id, 10));
       where += ` AND l.tenant_id = $${params.length}`;
@@ -492,7 +496,7 @@ router.get("/all-loans", async (req, res) => {
     const summary = (
       await query(
         `SELECT
-           COUNT(*)::int AS total_loans,
+           COUNT(*) FILTER (WHERE status IN ('active','completed','defaulted'))::int AS total_loans,
            COUNT(*) FILTER (WHERE status='active')::int    AS total_active,
            COUNT(*) FILTER (WHERE status='completed')::int  AS total_completed,
            COUNT(*) FILTER (WHERE status='defaulted')::int  AS total_defaulted
@@ -509,7 +513,7 @@ router.get("/all-loans", async (req, res) => {
       await query(
         `SELECT
            t.id AS tenant_id, t.business_name, t.subdomain, t.brand_color,
-           COUNT(l.id)::int AS total_loans,
+           COUNT(l.id) FILTER (WHERE l.status IN ('active','completed','defaulted'))::int AS total_loans,
            COUNT(l.id) FILTER (WHERE l.status='active')::int AS active_loans,
            COALESCE(SUM(l.total_amount_due) FILTER (WHERE l.status='active'),0) AS total_due,
            COALESCE((
