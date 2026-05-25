@@ -17,6 +17,14 @@ function daysBadgeClass(days) {
   return "bg-yellow-100 text-yellow-700";
 }
 
+// Loan-status badge for the overdue rows (so defaulted loans stand out).
+const LOAN_STATUS_BADGE = {
+  active: "bg-green-100 text-green-700",
+  defaulted: "bg-red-100 text-red-700",
+  suspended: "bg-amber-100 text-amber-700",
+  completed: "bg-blue-100 text-blue-700",
+};
+
 const RANGE_FILTERS = [
   { key: "all", label: "All" },
   { key: "1-7", label: "1-7 days late" },
@@ -432,6 +440,14 @@ function Overdue() {
                           >
                             {p.loan_code}
                           </button>
+                          <span
+                            className={`ml-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                              LOAN_STATUS_BADGE[p.loan_status] ||
+                              "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {String(p.loan_status || "").replace("_", " ")}
+                          </span>
                         </div>
                       </div>
                       <span
@@ -505,6 +521,7 @@ function Overdue() {
                         ["Days Late", "days_late", "center"],
                         ["Amount Due", "amount_due", "right"],
                         ["Balance", "amount_due", "right"],
+                        ["Status", "loan_status", "center"],
                       ].map(([label, key, align], i) => (
                         <SortableHeader
                           key={`${key}-${i}`}
@@ -581,6 +598,16 @@ function Overdue() {
                             </p>
                           </td>
                           <td className="px-4 py-4 text-center">
+                            <span
+                              className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                                LOAN_STATUS_BADGE[p.loan_status] ||
+                                "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {String(p.loan_status || "").replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-center">
                             <button
                               onClick={() => navigate(`/loans/${p.loan_id}`)}
                               className="px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
@@ -608,7 +635,7 @@ function Overdue() {
                       <td className="px-4 py-4 text-right font-bold text-red-700 text-sm">
                         {KES(filteredBalance)}
                       </td>
-                      <td className="px-4 py-4"></td>
+                      <td className="px-4 py-4" colSpan="2"></td>
                     </tr>
                   </tfoot>
                 </table>
