@@ -93,6 +93,8 @@ router.get("/", async (req, res) => {
         l.loan_code,
         l.principal_amount AS loan_principal,
         l.status AS loan_status,
+        l.late_payment_fee,
+        l.penalty_rate,
         l.loan_duration_months AS total_payments_in_loan,
         (SELECT COUNT(*) FROM payment_schedules ps2 WHERE ps2.loan_id = l.id)
           AS total_payments,
@@ -148,9 +150,32 @@ router.get("/", async (req, res) => {
     const s = summaryResult.rows[0];
     const total = parseInt(s.total_overdue_count, 10);
 
+    // --- Penalty per installment ------------------------------------------
+    // Loan agreement: a flat late-payment fee per missed installment, plus a
+    // penalty interest of `penalty_rate`% per month on the overdue amount.
+    // Months late is rounded up so any part-month counts as a full month.
+    const rows = result.rows.map((r) => {
+      const balance = parseFloat(r.balance_due) || 0;
+      const lateFee = parseFloat(r.late_payment_fee) || 0;
+      const penaltyRate = parseFloat(r.penalty_rate) || 0;
+      const daysLate = parseInt(r.days_late, 10) || 0;
+      const monthsLate = Math.max(1, Math.ceil(daysLate / 30));
+      const penaltyInterest = (penaltyRate / 100) * balance * monthsLate;
+      const penaltyTotal = lateFee + penaltyInterest;
+      return {
+        ...r,
+        late_fee: lateFee,
+        penalty_rate: penaltyRate,
+        months_late: monthsLate,
+        penalty_interest: Math.round(penaltyInterest * 100) / 100,
+        penalty_total: Math.round(penaltyTotal * 100) / 100,
+        total_with_penalty: Math.round((balance + penaltyTotal) * 100) / 100,
+      };
+    });
+
     res.json({
       success: true,
-      data: result.rows,
+      data: rows,
       total,
       page,
       limit,

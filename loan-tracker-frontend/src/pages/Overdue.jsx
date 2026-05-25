@@ -137,6 +137,10 @@ function Overdue() {
     (s, p) => s + parseFloat(p.balance_due || 0),
     0,
   );
+  const filteredPenalty = filtered.reduce(
+    (s, p) => s + parseFloat(p.penalty_total || 0),
+    0,
+  );
 
   // Group overdue installments into ONE entry per loan, with its installments
   // nested for the expand view. Group-level fields (days_late = worst,
@@ -160,6 +164,7 @@ function Overdue() {
           overdue_count: 0,
           amount_due: 0,
           balance_due: 0,
+          penalty_total: 0,
           days_late: 0,
           oldest_due_date: p.due_date,
         };
@@ -169,6 +174,7 @@ function Overdue() {
       g.overdue_count += 1;
       g.amount_due += parseFloat(p.amount_due || 0);
       g.balance_due += parseFloat(p.balance_due || 0);
+      g.penalty_total += parseFloat(p.penalty_total || 0);
       const d = parseInt(p.days_late, 10) || 0;
       if (d > g.days_late) g.days_late = d;
       if (new Date(p.due_date) < new Date(g.oldest_due_date))
@@ -376,6 +382,19 @@ function Overdue() {
             </div>
           </div>
 
+          {/* Penalty policy explainer */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 flex items-start gap-2 text-sm text-amber-800">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <p>
+              <span className="font-semibold">Late penalty:</span> a flat
+              late-payment fee per missed installment plus a penalty interest
+              charged per month on the overdue balance (default KES 500 + 5% per
+              month). The <span className="font-semibold">Penalty</span> column
+              shows the running charge per loan — expand a loan to see the
+              breakdown per installment.
+            </p>
+          </div>
+
           {/* Filter Bar */}
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
             <div className="flex flex-wrap items-center gap-3">
@@ -535,6 +554,12 @@ function Overdue() {
                           {KES(g.balance_due)}
                         </p>
                       </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Penalty</p>
+                        <p className="font-semibold text-amber-700">
+                          {KES(g.penalty_total)}
+                        </p>
+                      </div>
                     </div>
                     <button
                       onClick={() => toggleExpand(g.loan_id)}
@@ -558,24 +583,29 @@ function Overdue() {
                           return (
                             <div
                               key={s.schedule_id || s.id}
-                              className="flex justify-between items-center text-xs"
+                              className="text-xs"
                             >
-                              <span className="text-gray-600">
-                                #{s.payment_number} ·{" "}
-                                {new Date(s.due_date).toLocaleDateString()}
-                              </span>
-                              <span className="flex items-center gap-2">
-                                <span
-                                  className={`px-1.5 py-0.5 rounded-full font-bold ${daysBadgeClass(
-                                    d,
-                                  )}`}
-                                >
-                                  {d}d
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-600">
+                                  #{s.payment_number} ·{" "}
+                                  {new Date(s.due_date).toLocaleDateString()}
                                 </span>
-                                <span className="font-semibold text-red-600">
-                                  {KES(s.balance_due)}
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded-full font-bold ${daysBadgeClass(
+                                      d,
+                                    )}`}
+                                  >
+                                    {d}d
+                                  </span>
+                                  <span className="font-semibold text-red-600">
+                                    {KES(s.balance_due)}
+                                  </span>
                                 </span>
-                              </span>
+                              </div>
+                              <div className="flex justify-end text-[11px] text-amber-700">
+                                + {KES(s.penalty_total)} penalty
+                              </div>
                             </div>
                           );
                         })}
@@ -626,6 +656,7 @@ function Overdue() {
                         ["Days Late", "days_late", "center"],
                         ["Amount Due", "amount_due", "right"],
                         ["Balance", "balance_due", "right"],
+                        ["Penalty", "penalty_total", "right"],
                         ["Status", "loan_status", "center"],
                       ].map(([label, key, align], i) => (
                         <SortableHeader
@@ -721,6 +752,14 @@ function Overdue() {
                                 {KES(g.balance_due)}
                               </p>
                             </td>
+                            <td className="px-4 py-4 text-right">
+                              <p
+                                className="font-semibold text-amber-700 text-sm"
+                                title="Late fee per missed payment + penalty interest on the overdue balance"
+                              >
+                                {KES(g.penalty_total)}
+                              </p>
+                            </td>
                             <td className="px-4 py-4 text-center">
                               <span
                                 className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
@@ -742,7 +781,7 @@ function Overdue() {
                           </tr>
                           {open && (
                             <tr className="bg-gray-50/70">
-                              <td colSpan="10" className="px-6 pb-4 pt-1">
+                              <td colSpan="11" className="px-6 pb-4 pt-1">
                                 <table className="w-full text-sm">
                                   <thead>
                                     <tr className="text-[11px] uppercase tracking-wide text-gray-400">
@@ -761,6 +800,15 @@ function Overdue() {
                                       <th className="text-right py-1 font-semibold">
                                         Balance
                                       </th>
+                                      <th className="text-right py-1 font-semibold">
+                                        Late Fee
+                                      </th>
+                                      <th className="text-right py-1 font-semibold">
+                                        Penalty Interest
+                                      </th>
+                                      <th className="text-right py-1 font-semibold">
+                                        Penalty Total
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -770,6 +818,8 @@ function Overdue() {
                                         s.total_payments_in_loan ||
                                         s.total_payments ||
                                         "?";
+                                      const months = s.months_late || 1;
+                                      const rate = Number(s.penalty_rate || 0);
                                       return (
                                         <tr
                                           key={s.schedule_id || s.id}
@@ -798,6 +848,18 @@ function Overdue() {
                                           <td className="py-1.5 text-right font-semibold text-red-600">
                                             {KES(s.balance_due)}
                                           </td>
+                                          <td className="py-1.5 text-right text-gray-700">
+                                            {KES(s.late_fee)}
+                                          </td>
+                                          <td
+                                            className="py-1.5 text-right text-gray-700"
+                                            title={`${rate}% per month × ${months} month${months !== 1 ? "s" : ""} on the overdue balance`}
+                                          >
+                                            {KES(s.penalty_interest)}
+                                          </td>
+                                          <td className="py-1.5 text-right font-semibold text-amber-700">
+                                            {KES(s.penalty_total)}
+                                          </td>
                                         </tr>
                                       );
                                     })}
@@ -825,6 +887,9 @@ function Overdue() {
                       </td>
                       <td className="px-4 py-4 text-right font-bold text-red-700 text-sm">
                         {KES(filteredBalance)}
+                      </td>
+                      <td className="px-4 py-4 text-right font-bold text-amber-700 text-sm">
+                        {KES(filteredPenalty)}
                       </td>
                       <td className="px-4 py-4" colSpan="2"></td>
                     </tr>
