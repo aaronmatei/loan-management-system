@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, RotateCcw, PartyPopper, Search, X, Download, BarChart3 } from "lucide-react";
+import { AlertTriangle, RotateCcw, PartyPopper, Search, X, Download, BarChart3, ChevronRight, ChevronDown } from "lucide-react";
 import api from "../services/api";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
@@ -59,6 +59,15 @@ function Overdue() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  // Which loans are expanded to reveal their overdue installments.
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggleExpand = (loanId) =>
+    setExpanded((s) => {
+      const next = new Set(s);
+      next.has(loanId) ? next.delete(loanId) : next.add(loanId);
+      return next;
+    });
 
   useEffect(() => {
     fetchOverdueData();
@@ -128,20 +137,64 @@ function Overdue() {
     (s, p) => s + parseFloat(p.balance_due || 0),
     0,
   );
-  const filteredLoans = new Set(filtered.map((p) => p.loan_id)).size;
 
-  // Sort then paginate — default: most overdue first
+  // Group overdue installments into ONE entry per loan, with its installments
+  // nested for the expand view. Group-level fields (days_late = worst,
+  // amount_due/balance_due = sums, oldest_due_date) drive sorting + display.
+  const loanGroups = (() => {
+    const map = new Map();
+    for (const p of filtered) {
+      let g = map.get(p.loan_id);
+      if (!g) {
+        g = {
+          id: p.loan_id, // bulk-selection key (one selection per loan)
+          loan_id: p.loan_id,
+          loan_code: p.loan_code,
+          client_id: p.client_id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          phone_number: p.phone_number,
+          client_code: p.client_code,
+          loan_status: p.loan_status,
+          installments: [],
+          overdue_count: 0,
+          amount_due: 0,
+          balance_due: 0,
+          days_late: 0,
+          oldest_due_date: p.due_date,
+        };
+        map.set(p.loan_id, g);
+      }
+      g.installments.push(p);
+      g.overdue_count += 1;
+      g.amount_due += parseFloat(p.amount_due || 0);
+      g.balance_due += parseFloat(p.balance_due || 0);
+      const d = parseInt(p.days_late, 10) || 0;
+      if (d > g.days_late) g.days_late = d;
+      if (new Date(p.due_date) < new Date(g.oldest_due_date))
+        g.oldest_due_date = p.due_date;
+    }
+    for (const g of map.values())
+      g.installments.sort(
+        (a, b) => new Date(a.due_date) - new Date(b.due_date),
+      );
+    return [...map.values()];
+  })();
+
+  const filteredLoans = loanGroups.length;
+
+  // Sort then paginate the LOANS — default: most overdue first
   const {
-    sortedData: sortedOverdue,
+    sortedData: sortedGroups,
     requestSort,
     getSortIndicator,
-  } = useSortableTable(filtered, "days_late", "desc");
+  } = useSortableTable(loanGroups, "days_late", "desc");
 
   // Pagination math (same pattern as Clients/Loans pages)
-  const totalPages = Math.ceil(sortedOverdue.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedGroups.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginated = sortedOverdue.slice(startIndex, endIndex);
+  const paginated = sortedGroups.slice(startIndex, endIndex);
 
   // Severity counts for the dropdown — from the API summary so they
   // reflect the full data set, not the current page
@@ -171,13 +224,13 @@ function Overdue() {
     setSeverityFilter("all");
   };
 
-  // ── Bulk selection (keyed by schedule id) ───────────────────
+  // ── Bulk selection (keyed by loan id — one selection per loan) ──
   const bulk = useBulkSelection(paginated);
-  const selectedRows = overdueList.filter((p) => bulk.isSelected(p.id));
+  const selectedGroups = loanGroups.filter((g) => bulk.isSelected(g.id));
   const selectedClientIds = [
-    ...new Set(selectedRows.map((p) => p.client_id)),
+    ...new Set(selectedGroups.map((g) => g.client_id)),
   ];
-  const selectedLoanIds = [...new Set(selectedRows.map((p) => p.loan_id))];
+  const selectedLoanIds = selectedGroups.map((g) => g.loan_id);
 
   const handleBulkExport = async () => {
     try {
@@ -410,72 +463,124 @@ function Overdue() {
           {/* Mobile card list (desktop uses the table below) */}
           {filtered.length > 0 && (
             <div className="md:hidden space-y-3 mb-4">
-              {paginated.map((p) => {
-                const days = parseInt(p.days_late, 10) || 0;
+              {paginated.map((g) => {
+                const open = expanded.has(g.loan_id);
                 return (
                   <div
-                    key={p.schedule_id || p.id}
+                    key={g.loan_id}
                     className={`bg-white rounded-xl shadow-md p-4 ${
-                      bulk.isSelected(p.id) ? "ring-2 ring-red-400" : ""
+                      bulk.isSelected(g.id) ? "ring-2 ring-red-400" : ""
                     }`}
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-start gap-2 flex-1 min-w-0">
                         <input
                           type="checkbox"
-                          checked={bulk.isSelected(p.id)}
-                          onChange={() => bulk.toggle(p.id)}
+                          checked={bulk.isSelected(g.id)}
+                          onChange={() => bulk.toggle(g.id)}
                           className="w-5 h-5 mt-1 cursor-pointer flex-shrink-0"
                         />
                         <div className="min-w-0">
                           <p className="font-semibold text-gray-800 truncate">
-                            {p.first_name} {p.last_name}
+                            {g.first_name} {g.last_name}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {p.phone_number}
+                            {g.phone_number}
                           </p>
                           <button
-                            onClick={() => navigate(`/loans/${p.loan_id}`)}
+                            onClick={() => navigate(`/loans/${g.loan_id}`)}
                             className="font-mono text-xs font-semibold text-ocean-600 hover:underline"
                           >
-                            {p.loan_code}
+                            {g.loan_code}
                           </button>
                           <span
                             className={`ml-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                              LOAN_STATUS_BADGE[p.loan_status] ||
+                              LOAN_STATUS_BADGE[g.loan_status] ||
                               "bg-gray-100 text-gray-700"
                             }`}
                           >
-                            {String(p.loan_status || "").replace("_", " ")}
+                            {String(g.loan_status || "").replace("_", " ")}
                           </span>
                         </div>
                       </div>
                       <span
                         className={`flex-shrink-0 inline-block px-3 py-1 rounded-full text-xs font-bold ${daysBadgeClass(
-                          days,
+                          g.days_late,
                         )}`}
                       >
-                        {days} {days === 1 ? "day" : "days"}
+                        {g.days_late}d late
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
                       <div>
-                        <p className="text-xs text-gray-500">Due Date</p>
+                        <p className="text-xs text-gray-500">Overdue</p>
                         <p className="font-semibold">
-                          {new Date(p.due_date).toLocaleDateString()}
+                          {g.overdue_count} payment
+                          {g.overdue_count !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Oldest Due</p>
+                        <p className="font-semibold">
+                          {new Date(g.oldest_due_date).toLocaleDateString()}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Amount Due</p>
-                        <p className="font-semibold">{KES(p.amount_due)}</p>
+                        <p className="font-semibold">{KES(g.amount_due)}</p>
                       </div>
-                      <div className="col-span-2">
+                      <div>
                         <p className="text-xs text-gray-500">Balance</p>
                         <p className="font-bold text-red-600">
-                          {KES(p.balance_due)}
+                          {KES(g.balance_due)}
                         </p>
                       </div>
                     </div>
+                    <button
+                      onClick={() => toggleExpand(g.loan_id)}
+                      className="mt-3 w-full inline-flex items-center justify-center gap-1 text-xs font-semibold text-ocean-600"
+                    >
+                      {open ? (
+                        <>
+                          <ChevronDown size={14} /> Hide payments
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight size={14} /> Show {g.overdue_count} overdue
+                          payment{g.overdue_count !== 1 ? "s" : ""}
+                        </>
+                      )}
+                    </button>
+                    {open && (
+                      <div className="mt-2 space-y-1.5 border-t border-gray-100 pt-2">
+                        {g.installments.map((s) => {
+                          const d = parseInt(s.days_late, 10) || 0;
+                          return (
+                            <div
+                              key={s.schedule_id || s.id}
+                              className="flex justify-between items-center text-xs"
+                            >
+                              <span className="text-gray-600">
+                                #{s.payment_number} ·{" "}
+                                {new Date(s.due_date).toLocaleDateString()}
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded-full font-bold ${daysBadgeClass(
+                                    d,
+                                  )}`}
+                                >
+                                  {d}d
+                                </span>
+                                <span className="font-semibold text-red-600">
+                                  {KES(s.balance_due)}
+                                </span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -516,11 +621,11 @@ function Overdue() {
                       {[
                         ["Client", "first_name", "left"],
                         ["Loan Code", "loan_code", "left"],
-                        ["Payment #", "payment_number", "left"],
-                        ["Due Date", "due_date", "left"],
+                        ["Overdue", "overdue_count", "left"],
+                        ["Oldest Due", "oldest_due_date", "left"],
                         ["Days Late", "days_late", "center"],
                         ["Amount Due", "amount_due", "right"],
-                        ["Balance", "amount_due", "right"],
+                        ["Balance", "balance_due", "right"],
                         ["Status", "loan_status", "center"],
                       ].map(([label, key, align], i) => (
                         <SortableHeader
@@ -539,83 +644,169 @@ function Overdue() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginated.map((p) => {
-                      const days = parseInt(p.days_late, 10) || 0;
-                      const totalInLoan =
-                        p.total_payments_in_loan || p.total_payments || "?";
+                    {paginated.map((g) => {
+                      const open = expanded.has(g.loan_id);
                       return (
-                        <tr
-                          key={p.schedule_id || p.id}
-                          className={`border-b border-gray-100 hover:bg-red-50 transition ${
-                            bulk.isSelected(p.id) ? "bg-red-50" : ""
-                          }`}
-                        >
-                          <td className="px-4 py-4">
-                            <input
-                              type="checkbox"
-                              checked={bulk.isSelected(p.id)}
-                              onChange={() => bulk.toggle(p.id)}
-                              className="w-4 h-4 cursor-pointer"
-                            />
-                          </td>
-                          <td className="px-4 py-4">
-                            <p className="font-semibold text-gray-800 text-sm">
-                              {p.first_name} {p.last_name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {p.phone_number}
-                            </p>
-                          </td>
-                          <td className="px-4 py-4">
-                            <button
-                              onClick={() => navigate(`/loans/${p.loan_id}`)}
-                              className="font-mono text-sm font-semibold text-ocean-600 hover:text-ocean-800 hover:underline"
-                            >
-                              {p.loan_code}
-                            </button>
-                          </td>
-                          <td className="px-4 py-4 text-sm text-gray-700">
-                            Payment {p.payment_number} of {totalInLoan}
-                          </td>
-                          <td className="px-4 py-4 text-sm text-gray-700">
-                            {new Date(p.due_date).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${daysBadgeClass(
-                                days,
-                              )}`}
-                            >
-                              {days} {days === 1 ? "day" : "days"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-right text-sm font-semibold text-gray-700">
-                            {KES(p.amount_due)}
-                          </td>
-                          <td className="px-4 py-4 text-right">
-                            <p className="font-bold text-red-600 text-sm">
-                              {KES(p.balance_due)}
-                            </p>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <span
-                              className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-                                LOAN_STATUS_BADGE[p.loan_status] ||
-                                "bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              {String(p.loan_status || "").replace("_", " ")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            <button
-                              onClick={() => navigate(`/loans/${p.loan_id}`)}
-                              className="px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
-                            >
-                              View Loan
-                            </button>
-                          </td>
-                        </tr>
+                        <React.Fragment key={g.loan_id}>
+                          <tr
+                            className={`border-b border-gray-100 hover:bg-red-50 transition ${
+                              bulk.isSelected(g.id) ? "bg-red-50" : ""
+                            }`}
+                          >
+                            <td className="px-4 py-4">
+                              <input
+                                type="checkbox"
+                                checked={bulk.isSelected(g.id)}
+                                onChange={() => bulk.toggle(g.id)}
+                                className="w-4 h-4 cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => toggleExpand(g.loan_id)}
+                                  className="text-gray-400 hover:text-gray-700 shrink-0"
+                                  aria-label={open ? "Collapse" : "Expand"}
+                                >
+                                  {open ? (
+                                    <ChevronDown size={16} />
+                                  ) : (
+                                    <ChevronRight size={16} />
+                                  )}
+                                </button>
+                                <div>
+                                  <p className="font-semibold text-gray-800 text-sm">
+                                    {g.first_name} {g.last_name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {g.phone_number}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <button
+                                onClick={() => navigate(`/loans/${g.loan_id}`)}
+                                className="font-mono text-sm font-semibold text-ocean-600 hover:text-ocean-800 hover:underline"
+                              >
+                                {g.loan_code}
+                              </button>
+                            </td>
+                            <td className="px-4 py-4 text-sm">
+                              <button
+                                onClick={() => toggleExpand(g.loan_id)}
+                                className="font-semibold text-gray-800 hover:text-ocean-600"
+                              >
+                                {g.overdue_count} payment
+                                {g.overdue_count !== 1 ? "s" : ""}
+                              </button>
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-700">
+                              {new Date(g.oldest_due_date).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <span
+                                className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${daysBadgeClass(
+                                  g.days_late,
+                                )}`}
+                              >
+                                {g.days_late} {g.days_late === 1 ? "day" : "days"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-right text-sm font-semibold text-gray-700">
+                              {KES(g.amount_due)}
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <p className="font-bold text-red-600 text-sm">
+                                {KES(g.balance_due)}
+                              </p>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <span
+                                className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                                  LOAN_STATUS_BADGE[g.loan_status] ||
+                                  "bg-gray-100 text-gray-700"
+                                }`}
+                              >
+                                {String(g.loan_status || "").replace("_", " ")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <button
+                                onClick={() => navigate(`/loans/${g.loan_id}`)}
+                                className="px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
+                              >
+                                View Loan
+                              </button>
+                            </td>
+                          </tr>
+                          {open && (
+                            <tr className="bg-gray-50/70">
+                              <td colSpan="10" className="px-6 pb-4 pt-1">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="text-[11px] uppercase tracking-wide text-gray-400">
+                                      <th className="text-left py-1 font-semibold">
+                                        Payment
+                                      </th>
+                                      <th className="text-left py-1 font-semibold">
+                                        Due Date
+                                      </th>
+                                      <th className="text-center py-1 font-semibold">
+                                        Days Late
+                                      </th>
+                                      <th className="text-right py-1 font-semibold">
+                                        Amount Due
+                                      </th>
+                                      <th className="text-right py-1 font-semibold">
+                                        Balance
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {g.installments.map((s) => {
+                                      const d = parseInt(s.days_late, 10) || 0;
+                                      const total =
+                                        s.total_payments_in_loan ||
+                                        s.total_payments ||
+                                        "?";
+                                      return (
+                                        <tr
+                                          key={s.schedule_id || s.id}
+                                          className="border-t border-gray-200/70"
+                                        >
+                                          <td className="py-1.5 text-gray-700">
+                                            Payment {s.payment_number} of {total}
+                                          </td>
+                                          <td className="py-1.5 text-gray-700">
+                                            {new Date(
+                                              s.due_date,
+                                            ).toLocaleDateString()}
+                                          </td>
+                                          <td className="py-1.5 text-center">
+                                            <span
+                                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${daysBadgeClass(
+                                                d,
+                                              )}`}
+                                            >
+                                              {d}d
+                                            </span>
+                                          </td>
+                                          <td className="py-1.5 text-right text-gray-700">
+                                            {KES(s.amount_due)}
+                                          </td>
+                                          <td className="py-1.5 text-right font-semibold text-red-600">
+                                            {KES(s.balance_due)}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -715,7 +906,7 @@ function Overdue() {
 
       <BulkActionBar
         selectedCount={bulk.count}
-        totalCount={filtered.length}
+        totalCount={filteredLoans}
         onClear={bulk.clear}
       >
         <button
