@@ -18,7 +18,8 @@ function Settings() {
     mpesa_till_number: "",
   });
   const [loanPolicy, setLoanPolicy] = useState({
-    default_interest_rate: "",
+    default_interest_rate: "", // annual %
+    monthly_interest_rate: "", // annual / 12 — display companion, two-way synced
     processing_fee_rate: "",
   });
   const [loading, setLoading] = useState(true);
@@ -47,14 +48,33 @@ function Settings() {
     try {
       const response = await api.get("/settings/loan-policy");
       const d = response.data.data || {};
+      const annual = d.default_interest_rate ?? "";
       setLoanPolicy({
-        default_interest_rate: d.default_interest_rate ?? "",
+        default_interest_rate: annual,
+        monthly_interest_rate: annual === "" ? "" : roundRate(annual / 12),
         processing_fee_rate: d.processing_fee_rate ?? "",
       });
     } catch (err) {
       console.error("Failed to fetch loan policy:", err);
     }
   };
+
+  // Keep annual ⇄ monthly in sync. Whichever field the admin types is kept
+  // exactly; the other is derived (annual = monthly × 12). Round the derived
+  // value for display, trimming trailing zeros.
+  const roundRate = (n) => Math.round(n * 10000) / 10000;
+  const onAnnualRateChange = (v) =>
+    setLoanPolicy((p) => ({
+      ...p,
+      default_interest_rate: v,
+      monthly_interest_rate: v === "" ? "" : roundRate(parseFloat(v) / 12),
+    }));
+  const onMonthlyRateChange = (v) =>
+    setLoanPolicy((p) => ({
+      ...p,
+      monthly_interest_rate: v,
+      default_interest_rate: v === "" ? "" : roundRate(parseFloat(v) * 12),
+    }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -316,7 +336,7 @@ function Settings() {
             The processing fee is deducted from the amount the borrower
             receives — they still repay the full principal plus interest.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Annual Interest Rate (%)
@@ -327,12 +347,7 @@ function Settings() {
                   min="0"
                   step="0.01"
                   value={loanPolicy.default_interest_rate}
-                  onChange={(e) =>
-                    setLoanPolicy({
-                      ...loanPolicy,
-                      default_interest_rate: e.target.value,
-                    })
-                  }
+                  onChange={(e) => onAnnualRateChange(e.target.value)}
                   className="w-full px-3 py-2 pr-9 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -340,7 +355,28 @@ function Settings() {
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Charged per year on the principal (e.g. 50 = 50% p.a.).
+                Charged per year (e.g. 50 = 50% p.a.).
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Monthly Interest Rate (%)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={loanPolicy.monthly_interest_rate}
+                  onChange={(e) => onMonthlyRateChange(e.target.value)}
+                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  %
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Syncs with annual (annual ÷ 12). Edit either one.
               </p>
             </div>
             <div>
