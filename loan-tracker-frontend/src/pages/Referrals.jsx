@@ -9,6 +9,7 @@ import {
   Mail,
 } from "lucide-react";
 import api from "../services/api";
+import PromoCodesSection from "../components/PromoCodesSection";
 
 // Refer & Earn dashboard. Every tenant has a deterministic referral
 // code stamped at signup (routes/tenants.js) and a credit balance
@@ -188,6 +189,9 @@ function Referrals() {
             </div>
           </div>
         </div>
+
+        {/* Promo / campaign codes */}
+        <PromoCodesSection />
 
         {/* Referral history */}
         <div className="bg-white rounded-xl shadow-md p-6">

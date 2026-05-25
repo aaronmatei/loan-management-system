@@ -17,8 +17,10 @@ function CustomerRegister() {
   const widgetAmount = searchParams.get("amount");
   const widgetDuration = searchParams.get("duration");
   const fromWidget = searchParams.get("source") === "widget";
-  // Refer & Earn: ?ref=<lender code> links this customer to that lender.
+  // Refer & Earn: ?ref=<lender code> or ?promo=<campaign code> link this
+  // customer to that lender (promo also tags them for the lender's campaign).
   const ref = searchParams.get("ref");
+  const promo = searchParams.get("promo");
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [customerId, setCustomerId] = useState(null);
@@ -46,13 +48,19 @@ function CustomerRegister() {
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
-  // Greet the customer with the referring lender's name.
+  // Greet the customer with the referring lender's name (promo takes priority).
   useEffect(() => {
-    if (!ref) return;
-    portalApi
-      .get(`/referrals/validate/${ref}`)
-      .then((r) => r.data?.valid && setReferrer(r.data.referrer_name))
-      .catch(() => {});
+    if (promo) {
+      portalApi
+        .get(`/promos/validate/${promo}`)
+        .then((r) => r.data?.valid && setReferrer(r.data.tenant_name))
+        .catch(() => {});
+    } else if (ref) {
+      portalApi
+        .get(`/referrals/validate/${ref}`)
+        .then((r) => r.data?.valid && setReferrer(r.data.referrer_name))
+        .catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -76,6 +84,7 @@ function CustomerRegister() {
         city: form.city || null,
         address: form.address || null,
         ref: ref || null,
+        promo: promo || null,
       });
       if (res.data.action === "login") {
         alert("You already have an account. Please log in.");

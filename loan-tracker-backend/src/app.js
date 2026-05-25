@@ -27,6 +27,7 @@ import analyticsRoutes from "./routes/analytics.js";
 import notificationRoutes from "./routes/notifications.js";
 import tenantRoutes from "./routes/tenants.js";
 import referralRoutes from "./routes/referrals.js";
+import promoRoutes from "./routes/promos.js";
 import mpesaRoutes from "./routes/mpesa.js";
 import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
@@ -113,6 +114,7 @@ app.use("/api/backup", backupRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/referrals", referralRoutes); // /me authed; /validate/:code public
+app.use("/api/promos", promoRoutes); // CRUD authed; /validate/:code public
 app.use("/api/mpesa", mpesaRoutes); // STK push; /callback is PUBLIC (Safaricom)
 
 // 404 handler

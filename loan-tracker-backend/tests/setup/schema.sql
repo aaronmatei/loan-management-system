@@ -243,7 +243,17 @@ CREATE TABLE public.clients (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     tenant_id integer NOT NULL,
     gender character varying(10),
-    date_of_birth date
+    date_of_birth date,
+    signup_promo_code character varying(40)
+);
+
+CREATE TABLE public.promo_codes (
+    id serial PRIMARY KEY,
+    tenant_id integer NOT NULL,
+    code character varying(40) NOT NULL UNIQUE,
+    label character varying(120),
+    is_active boolean DEFAULT true,
+    created_at timestamp without time zone DEFAULT now()
 );
 
 
@@ -878,6 +888,7 @@ CREATE TABLE public.platform_customers (
     city character varying(50),
     county character varying(50),
     address text,
+    signup_promo_code character varying(40),
     is_active boolean DEFAULT true,
     is_blacklisted_platform boolean DEFAULT false,
     blacklist_reason text,

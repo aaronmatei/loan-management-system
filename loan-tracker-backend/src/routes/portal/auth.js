@@ -9,6 +9,7 @@ import { nextClientCode } from "../../utils/clientCode.js";
 import { lfxCode } from "../../utils/customerCode.js";
 import { needsKyc } from "../../utils/kyc.js";
 import referralService from "../../services/referralService.js";
+import { normalizePromo } from "../promos.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -68,8 +69,8 @@ async function autoLinkToTenant(customer, tenantId) {
         `INSERT INTO clients (
            tenant_id, client_code, first_name, last_name, phone_number, id_number,
            email, business_name, business_type, city, county, address,
-           date_of_birth, gender, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active')
+           date_of_birth, gender, signup_promo_code, status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'active')
          RETURNING id`,
         [
           tenantId, clientCode, customer.first_name, customer.last_name,
@@ -77,6 +78,7 @@ async function autoLinkToTenant(customer, tenantId) {
           customer.business_name || null, customer.business_type || null,
           customer.city || null, customer.county || null, customer.address || null,
           customer.date_of_birth || null, customer.gender || null,
+          customer.signup_promo_code || null,
         ],
       )
     ).rows[0].id;
@@ -155,6 +157,7 @@ router.post("/register", async (req, res) => {
       county,
       address,
       ref, // optional Refer & Earn code → links the customer to that lender
+      promo, // optional promo/campaign code → links + tags the client
     } = req.body;
     if (!phone_number || !id_number || !first_name || !last_name) {
       return res
@@ -162,10 +165,26 @@ router.post("/register", async (req, res) => {
         .json({ error: "Name, phone number, and ID number are required" });
     }
     const fp = formatPhone(phone_number);
-    // Resolve a referral code to the referring lender (active tenants only).
-    const referrerTenantId = ref
-      ? (await referralService.findReferrerByCode(ref))?.id ?? null
-      : null;
+    // A promo code OR a referral code attributes the customer to a lender (and
+    // auto-links them on verify). A promo code additionally tags the client.
+    let referrerTenantId = null;
+    let promoCode = null;
+    if (promo) {
+      const pr = await query(
+        `SELECT p.tenant_id, p.code FROM promo_codes p
+           JOIN tenants t ON t.id = p.tenant_id
+          WHERE p.code = $1 AND p.is_active = true AND t.status = 'active'`,
+        [normalizePromo(promo)],
+      );
+      if (pr.rows.length) {
+        referrerTenantId = pr.rows[0].tenant_id;
+        promoCode = pr.rows[0].code;
+      }
+    }
+    if (!referrerTenantId && ref) {
+      referrerTenantId =
+        (await referralService.findReferrerByCode(ref))?.id ?? null;
+    }
 
     const existing = await query(
       "SELECT id, phone_verified, id_number FROM platform_customers WHERE phone_number = $1",
@@ -202,8 +221,9 @@ router.post("/register", async (req, res) => {
                 county = COALESCE($9, county),
                 address = COALESCE($10, address),
                 registration_tenant_id = COALESCE(registration_tenant_id, $11),
+                signup_promo_code = COALESCE(signup_promo_code, $12),
                 updated_at = NOW()
-          WHERE id = $12`,
+          WHERE id = $13`,
         [
           first_name,
           last_name,
@@ -216,6 +236,7 @@ router.post("/register", async (req, res) => {
           county || null,
           address || null,
           referrerTenantId,
+          promoCode,
           customerId,
         ],
       );
@@ -234,8 +255,9 @@ router.post("/register", async (req, res) => {
         `INSERT INTO platform_customers (
            phone_number, id_number, first_name, last_name, email,
            date_of_birth, gender, business_name, business_type,
-           city, county, address, registration_tenant_id, registration_ip
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+           city, county, address, registration_tenant_id, signup_promo_code,
+           registration_ip
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
         [
           fp,
           id_number,
@@ -250,6 +272,7 @@ router.post("/register", async (req, res) => {
           county || null,
           address || null,
           referrerTenantId,
+          promoCode,
           ipOf(req),
         ],
       );
