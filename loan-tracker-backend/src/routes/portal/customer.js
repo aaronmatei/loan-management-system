@@ -1356,6 +1356,7 @@ router.get("/tenant-policy", async (req, res) => {
     const t = await query(
       `SELECT business_name, brand_color,
               COALESCE(default_interest_rate, 50.00) AS default_interest_rate,
+              COALESCE(processing_fee_rate,   0)     AS processing_fee_rate,
               COALESCE(min_loan_amount,       1000)  AS min_amount,
               COALESCE(max_loan_amount,    1000000)  AS max_amount,
               COALESCE(default_loan_duration, 6)     AS default_duration
@@ -1374,6 +1375,7 @@ router.get("/tenant-policy", async (req, res) => {
           default_interest_rate: parseFloat(
             row.default_interest_rate ?? LOAN_POLICY.default_interest_rate,
           ),
+          processing_fee_rate: parseFloat(row.processing_fee_rate ?? 0),
           default_duration: parseInt(row.default_duration ?? 6, 10),
         },
       },
@@ -1460,6 +1462,16 @@ router.post("/applications", async (req, res) => {
     // customer apps remain indistinguishable in the shared queue.
     const loanCode = await nextLoanCode(query, req.currentTenantId);
 
+    // Processing fee snapshot from the tenant's policy — a % of the principal
+    // deducted from what the borrower receives (net disbursed).
+    const feeRow = await query(
+      `SELECT COALESCE(processing_fee_rate, 0) AS rate FROM tenants WHERE id = $1`,
+      [req.currentTenantId],
+    );
+    const processingFeeRate = parseFloat(feeRow.rows[0]?.rate || 0);
+    const processingFee = Math.round(principal * processingFeeRate) / 100;
+    const netDisbursed = Math.round((principal - processingFee) * 100) / 100;
+
     const result = await query(
       `INSERT INTO loans (
          tenant_id, loan_code, client_id, principal_amount, interest_rate,
@@ -1467,12 +1479,14 @@ router.post("/applications", async (req, res) => {
          status, purpose,
          guarantor_name, guarantor_phone, guarantor_id_number,
          collateral_description, late_payment_fee, penalty_rate,
+         processing_fee_rate, processing_fee, net_disbursed_amount,
          application_date, application_source, review_notes,
          submitted_by_customer, platform_customer_id, created_by
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11,$12,$13,500,5.00,
-         NOW()::date,'customer_portal',$14,true,$15,NULL)
+         $14,$15,$16,NOW()::date,'customer_portal',$17,true,$18,NULL)
        RETURNING id, loan_code, status, principal_amount,
-                 total_amount_due, loan_duration_months`,
+                 total_amount_due, loan_duration_months,
+                 processing_fee_rate, processing_fee, net_disbursed_amount`,
       [
         req.currentTenantId,
         loanCode,
@@ -1487,6 +1501,9 @@ router.post("/applications", async (req, res) => {
         guarantor_phone || null,
         guarantor_id_number || null,
         collateral_description || null,
+        processingFeeRate,
+        processingFee,
+        netDisbursed,
         review_notes || null,
         req.platformCustomerId,
       ],
@@ -1669,6 +1686,7 @@ router.get("/calculator-policies", async (req, res) => {
          t.business_name, t.subdomain, t.brand_color, t.logo_url,
          c.client_code,
          COALESCE(t.default_interest_rate, 50.00) AS default_interest_rate,
+         COALESCE(t.processing_fee_rate,   0)     AS processing_fee_rate,
          COALESCE(t.min_loan_amount,       1000)  AS min_amount,
          COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
          24                                       AS max_duration_months,

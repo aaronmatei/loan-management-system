@@ -264,6 +264,17 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     // MAX(suffix)+1 sequence — safe against historic deletions.
     const loanCode = await nextLoanCode(query, wTid);
 
+    // Processing fee snapshot: a % of the principal, deducted from what the
+    // borrower receives (net disbursed). Rate is the tenant's current policy.
+    const feeRow = await query(
+      `SELECT COALESCE(processing_fee_rate, 0) AS rate FROM tenants WHERE id = $1`,
+      [wTid],
+    );
+    const processingFeeRate = parseFloat(feeRow.rows[0]?.rate || 0);
+    const processingFee =
+      Math.round(principal * processingFeeRate) / 100; // principal * rate/100
+    const netDisbursed = Math.round((principal - processingFee) * 100) / 100;
+
     // Create as a PENDING application: no start/end date, no schedule,
     // no capital movement, no notifications until disbursement.
     const loanResult = await query(
@@ -273,9 +284,10 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         status, created_by, purpose,
         guarantor_name, guarantor_phone, guarantor_id_number,
         collateral_description, late_payment_fee, penalty_rate,
+        processing_fee_rate, processing_fee, net_disbursed_amount,
         application_date, application_source, review_notes
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, $15, $16,
-                CURRENT_DATE, $17, $18)
+                $17, $18, $19, CURRENT_DATE, $20, $21)
       RETURNING *`,
       [
         wTid,
@@ -294,6 +306,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         collateral_description || null,
         late_payment_fee || 500,
         penalty_rate || 5.0,
+        processingFeeRate,
+        processingFee,
+        netDisbursed,
         application_source || "walk_in",
         review_notes || null,
       ],
@@ -791,18 +806,32 @@ router.post(
         );
       }
 
-      // Capital pool: principal is now lent out
+      // Capital pool: the cash that actually leaves is the NET disbursed
+      // (principal minus the processing fee the lender retains). Falls back
+      // to principal for loans created before processing fees existed.
       const principal = parseFloat(loan.principal_amount);
+      const netDisbursed =
+        loan.net_disbursed_amount != null
+          ? parseFloat(loan.net_disbursed_amount)
+          : principal;
+      const processingFee = parseFloat(loan.processing_fee || 0);
       await query(
         `UPDATE capital_pool
            SET total_disbursed = total_disbursed + $1, updated_at = NOW()
          WHERE tenant_id = $2`,
-        [principal, loan.tenant_id],
+        [netDisbursed, loan.tenant_id],
       );
       await query(
         `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, description)
          VALUES ($1, 'loan_disbursed', $2, $3, $4)`,
-        [loan.tenant_id, principal, id, `Loan ${loan.loan_code} disbursed`],
+        [
+          loan.tenant_id,
+          netDisbursed,
+          id,
+          processingFee > 0
+            ? `Loan ${loan.loan_code} disbursed (net of KES ${processingFee.toLocaleString()} processing fee)`
+            : `Loan ${loan.loan_code} disbursed`,
+        ],
       );
 
       // Disbursement is the big capital outflow now — warn admins if

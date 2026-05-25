@@ -85,6 +85,7 @@ function ApplyLoan() {
         setLender(row);
         setPolicy({
           default_interest_rate: parseFloat(row.default_interest_rate),
+          processing_fee_rate: parseFloat(row.processing_fee_rate || 0),
           min_amount: parseFloat(row.min_amount),
           max_amount: parseFloat(row.max_amount),
         });
@@ -107,11 +108,17 @@ function ApplyLoan() {
     const annualRate = policy.default_interest_rate;
     const totalInterest = principal * (annualRate / 100 / 12) * months;
     const totalDue = principal + totalInterest;
+    const feeRate = policy.processing_fee_rate || 0;
+    const processingFee = Math.round(principal * feeRate) / 100;
+    const netDisbursed = principal - processingFee;
     return {
       principal,
       annualRate,
       totalInterest,
       totalDue,
+      feeRate,
+      processingFee,
+      netDisbursed,
       monthlyPayment: totalDue / months,
     };
   })();
@@ -318,6 +325,22 @@ function ApplyLoan() {
                     {KES(calc.totalInterest)}
                   </span>
                 </div>
+                {calc.processingFee > 0 && (
+                  <div className="flex justify-between">
+                    <span>Processing Fee ({calc.feeRate}%)</span>
+                    <span className="font-bold text-orange-600">
+                      − {KES(calc.processingFee)}
+                    </span>
+                  </div>
+                )}
+                {calc.processingFee > 0 && (
+                  <div className="flex justify-between bg-white rounded-lg p-3 mt-2">
+                    <span className="font-bold">You'll receive</span>
+                    <span className="font-bold text-navy-900">
+                      {KES(calc.netDisbursed)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-2 border-t border-[var(--brand)]/30">
                   <span className="font-semibold">Total to Repay</span>
                   <span className="font-bold text-[var(--brand)]">
@@ -484,6 +507,22 @@ function ApplyLoan() {
                   {+(calc.annualRate / 12).toFixed(2)}% p.m.
                 </span>
               </div>
+              {calc.processingFee > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Processing Fee ({calc.feeRate}%)</span>
+                    <span className="font-bold text-orange-600">
+                      − {KES(calc.processingFee)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold">You'll receive</span>
+                    <span className="font-bold text-navy-900">
+                      {KES(calc.netDisbursed)}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between border-t pt-2">
                 <span>Total to Repay</span>
                 <span className="font-bold text-[var(--brand)]">

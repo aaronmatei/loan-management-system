@@ -326,6 +326,15 @@ function LoanDetails() {
           <p className="text-2xl font-bold text-gray-800">
             KES {parseFloat(loan.principal_amount).toLocaleString()}
           </p>
+          {parseFloat(loan.processing_fee || 0) > 0 && (
+            <p className="text-xs text-amber-700 mt-2">
+              Less {parseFloat(loan.processing_fee_rate)}% processing fee (KES{" "}
+              {parseFloat(loan.processing_fee).toLocaleString()}) · disbursed KES{" "}
+              {parseFloat(
+                loan.net_disbursed_amount ?? loan.principal_amount,
+              ).toLocaleString()}
+            </p>
+          )}
         </div>
         <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
           <p className="text-sm text-gray-500 uppercase font-semibold mb-2">
