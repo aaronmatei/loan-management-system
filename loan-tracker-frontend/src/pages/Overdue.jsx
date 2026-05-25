@@ -41,6 +41,7 @@ function Overdue() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [defaulting, setDefaulting] = useState(false);
   const [error, setError] = useState("");
 
   // Filter state
@@ -182,6 +183,38 @@ function Overdue() {
       bulk.clear();
     } catch (err) {
       alert("Export failed: " + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Mark the distinct loans behind the selected overdue installments as
+  // defaulted (only active loans are affected; the backend skips the rest).
+  const handleBulkDefault = async () => {
+    const n = selectedLoanIds.length;
+    if (!n) return;
+    if (
+      !window.confirm(
+        `Mark ${n} loan${n !== 1 ? "s" : ""} as defaulted? Their pending installments will be flagged overdue. This can't be auto-undone.`,
+      )
+    )
+      return;
+    setDefaulting(true);
+    try {
+      const res = await api.post("/loans/bulk/default", {
+        loan_ids: selectedLoanIds,
+      });
+      bulk.clear();
+      await fetchOverdueData();
+      const { defaulted, skipped } = res.data;
+      alert(
+        `${defaulted} loan${defaulted !== 1 ? "s" : ""} marked defaulted` +
+          (skipped ? ` · ${skipped} skipped (not active).` : "."),
+      );
+    } catch (err) {
+      alert(
+        "Failed: " + (err.response?.data?.error || err.message),
+      );
+    } finally {
+      setDefaulting(false);
     }
   };
 
@@ -669,6 +702,16 @@ function Overdue() {
           clientIds={selectedClientIds}
           onComplete={bulk.clear}
         />
+
+        <button
+          onClick={handleBulkDefault}
+          disabled={defaulting}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold disabled:opacity-50"
+          title="Mark the selected loans as defaulted"
+        >
+          <AlertTriangle size={15} />
+          {defaulting ? "Marking…" : "Mark Defaulted"}
+        </button>
       </BulkActionBar>
     </div>
   );

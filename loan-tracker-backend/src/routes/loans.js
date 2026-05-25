@@ -1258,6 +1258,61 @@ router.post(
 // ============================================================
 // BULK: export selected loans to Excel
 // ============================================================
+// Bulk-mark loans as defaulted (used by the Overdue page). Only ACTIVE loans
+// are defaulted; completed / already-defaulted ones are skipped. Each defaulted
+// loan's pending installments are flagged overdue, and each is audit-logged.
+router.post(
+  "/bulk/default",
+  authorize("admin", "manager", "loan_officer"),
+  async (req, res) => {
+    try {
+      const { loan_ids } = req.body;
+      if (!Array.isArray(loan_ids) || loan_ids.length === 0) {
+        return res.status(400).json({ error: "No loans selected" });
+      }
+      const tc = tenantClause(req, 1, "tenant_id");
+      const upd = await query(
+        `UPDATE loans
+            SET status = 'defaulted', updated_at = NOW()
+          WHERE id = ANY($1) AND status = 'active'${tc.clause}
+        RETURNING id, loan_code`,
+        [loan_ids, ...tc.params],
+      );
+      const defaultedIds = upd.rows.map((r) => r.id);
+      if (defaultedIds.length) {
+        await query(
+          `UPDATE payment_schedules
+              SET status = 'overdue',
+                  days_late = GREATEST(CURRENT_DATE - due_date::date, 0),
+                  updated_at = NOW()
+            WHERE loan_id = ANY($1) AND status = 'pending'`,
+          [defaultedIds],
+        );
+        for (const r of upd.rows) {
+          await logAudit({
+            user: req.user,
+            action: "status_changed",
+            entityType: "loan",
+            entityId: r.id,
+            entityCode: r.loan_code,
+            description: `Marked loan ${r.loan_code} as defaulted (overdue page)`,
+            newValues: { status: "defaulted" },
+            req,
+          });
+        }
+      }
+      res.json({
+        success: true,
+        defaulted: defaultedIds.length,
+        skipped: loan_ids.length - defaultedIds.length,
+      });
+    } catch (error) {
+      logger.error("Bulk default error:", error);
+      res.status(500).json({ error: "Failed to mark loans as defaulted" });
+    }
+  },
+);
+
 router.post("/bulk/export", async (req, res) => {
   try {
     const { loan_ids } = req.body;
