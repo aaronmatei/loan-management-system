@@ -44,7 +44,9 @@ function Referrals() {
   // browser's origin is the correct share target.
   const baseUrl =
     import.meta.env.VITE_FRONTEND_URL || window.location.origin;
-  const referralLink = `${baseUrl}/signup?ref=${data.referral_code || ""}`;
+  // Invite your CUSTOMERS to the borrower portal — anyone who signs up with
+  // your link is automatically added to your client list.
+  const referralLink = `${baseUrl}/loanfix/portal/register?ref=${data.referral_code || ""}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralLink);
@@ -53,7 +55,7 @@ function Referrals() {
   };
 
   const shareWhatsApp = () => {
-    const text = `Hey! I use LoanFix to manage my lending business and it's amazing. Sign up with my link: ${referralLink}`;
+    const text = `Apply for loans and manage your repayments online with us on LoanFix. Create your free account here: ${referralLink}`;
     window.open(
       `https://wa.me/?text=${encodeURIComponent(text)}`,
       "_blank",
@@ -163,7 +165,7 @@ function Referrals() {
               </div>
               <p className="font-semibold text-sm">Share Your Link</p>
               <p className="text-xs text-gray-500">
-                Send to other lenders via WhatsApp, SMS, or email
+                Send it to your customers via WhatsApp, SMS, or email
               </p>
             </div>
             <div className="text-center">
@@ -172,16 +174,16 @@ function Referrals() {
               </div>
               <p className="font-semibold text-sm">They Sign Up</p>
               <p className="text-xs text-gray-500">
-                They create their LoanFix account using your link
+                Your customer creates a free borrower account
               </p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 mx-auto bg-ocean-100 text-ocean-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
                 3
               </div>
-              <p className="font-semibold text-sm">You Earn</p>
+              <p className="font-semibold text-sm">You Gain a Client</p>
               <p className="text-xs text-gray-500">
-                Get 1 free month when they become active
+                They're linked to you automatically and ready to borrow
               </p>
             </div>
           </div>

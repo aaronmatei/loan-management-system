@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
 import PasswordInput from "../components/PasswordInput";
@@ -17,9 +17,12 @@ function CustomerRegister() {
   const widgetAmount = searchParams.get("amount");
   const widgetDuration = searchParams.get("duration");
   const fromWidget = searchParams.get("source") === "widget";
+  // Refer & Earn: ?ref=<lender code> links this customer to that lender.
+  const ref = searchParams.get("ref");
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [customerId, setCustomerId] = useState(null);
+  const [referrer, setReferrer] = useState(null); // lender name from ?ref
   // OTP is currently disabled server-side; the field shows only if the
   // backend says it's required. TODO(OTP): re-enable when SMS is configured.
   const [requiresOtp, setRequiresOtp] = useState(false);
@@ -43,6 +46,16 @@ function CustomerRegister() {
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
+  // Greet the customer with the referring lender's name.
+  useEffect(() => {
+    if (!ref) return;
+    portalApi
+      .get(`/referrals/validate/${ref}`)
+      .then((r) => r.data?.valid && setReferrer(r.data.referrer_name))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const submitDetails = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -62,6 +75,7 @@ function CustomerRegister() {
         county: form.county || null,
         city: form.city || null,
         address: form.address || null,
+        ref: ref || null,
       });
       if (res.data.action === "login") {
         alert("You already have an account. Please log in.");
@@ -157,6 +171,12 @@ function CustomerRegister() {
           step === 3 ? "max-w-xl" : "max-w-md"
         }`}
       >
+        {referrer && (
+          <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg py-2 px-3">
+            Invited by <strong>{referrer}</strong> — you'll be connected to them
+            automatically when you sign up.
+          </div>
+        )}
         {fromWidget && widgetAmount && (
           <div className="mb-4 bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg py-2 px-3">
             Applying for KES{" "}

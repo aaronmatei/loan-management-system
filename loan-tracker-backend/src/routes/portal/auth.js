@@ -8,6 +8,7 @@ import { validatePassword } from "../../utils/validators.js";
 import { nextClientCode } from "../../utils/clientCode.js";
 import { lfxCode } from "../../utils/customerCode.js";
 import { needsKyc } from "../../utils/kyc.js";
+import referralService from "../../services/referralService.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -33,6 +34,66 @@ const phoneVariants = (formatted) => {
 
 const ipOf = (req) =>
   req.headers["x-forwarded-for"] || req.socket?.remoteAddress || null;
+
+// Referral auto-link: when a customer signs up via a lender's Refer & Earn
+// link (?ref=CODE → that lender's tenant), create (or find) the customer's
+// client at that lender and link them — so the referring lender gains them as
+// a client. Best-effort; never blocks registration.
+async function autoLinkToTenant(customer, tenantId) {
+  const linked = await query(
+    "SELECT 1 FROM customer_tenant_links WHERE platform_customer_id = $1 AND tenant_id = $2",
+    [customer.id, tenantId],
+  );
+  if (linked.rows.length) return;
+
+  let clientId;
+  const ec = await query(
+    `SELECT id, id_number FROM clients
+      WHERE phone_number = ANY($1::text[]) AND tenant_id = $2 LIMIT 1`,
+    [phoneVariants(customer.phone_number), tenantId],
+  );
+  if (ec.rows.length) {
+    // Same phone but a different national ID = different person — don't link.
+    if (
+      ec.rows[0].id_number &&
+      customer.id_number &&
+      ec.rows[0].id_number !== customer.id_number
+    )
+      return;
+    clientId = ec.rows[0].id;
+  } else {
+    const clientCode = await nextClientCode(query, tenantId);
+    clientId = (
+      await query(
+        `INSERT INTO clients (
+           tenant_id, client_code, first_name, last_name, phone_number, id_number,
+           email, business_name, business_type, city, county, address,
+           date_of_birth, gender, status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active')
+         RETURNING id`,
+        [
+          tenantId, clientCode, customer.first_name, customer.last_name,
+          customer.phone_number, customer.id_number, customer.email || null,
+          customer.business_name || null, customer.business_type || null,
+          customer.city || null, customer.county || null, customer.address || null,
+          customer.date_of_birth || null, customer.gender || null,
+        ],
+      )
+    ).rows[0].id;
+  }
+
+  await query(
+    `INSERT INTO customer_tenant_links (platform_customer_id, tenant_id, client_id, status)
+     VALUES ($1,$2,$3,'active') ON CONFLICT DO NOTHING`,
+    [customer.id, tenantId, clientId],
+  );
+  await query(
+    `INSERT INTO customer_activities
+       (platform_customer_id, tenant_id, client_id, activity_type, details)
+     VALUES ($1,$2,$3,'added_tenant_link',$4)`,
+    [customer.id, tenantId, clientId, JSON.stringify({ via: "referral" })],
+  );
+}
 
 // ── phone existence check ──────────────────────────────────────
 router.get("/check-phone/:phone", tenantContext, async (req, res) => {
@@ -93,6 +154,7 @@ router.post("/register", async (req, res) => {
       city,
       county,
       address,
+      ref, // optional Refer & Earn code → links the customer to that lender
     } = req.body;
     if (!phone_number || !id_number || !first_name || !last_name) {
       return res
@@ -100,6 +162,10 @@ router.post("/register", async (req, res) => {
         .json({ error: "Name, phone number, and ID number are required" });
     }
     const fp = formatPhone(phone_number);
+    // Resolve a referral code to the referring lender (active tenants only).
+    const referrerTenantId = ref
+      ? (await referralService.findReferrerByCode(ref))?.id ?? null
+      : null;
 
     const existing = await query(
       "SELECT id, phone_verified, id_number FROM platform_customers WHERE phone_number = $1",
@@ -135,8 +201,9 @@ router.post("/register", async (req, res) => {
                 city = COALESCE($8, city),
                 county = COALESCE($9, county),
                 address = COALESCE($10, address),
+                registration_tenant_id = COALESCE(registration_tenant_id, $11),
                 updated_at = NOW()
-          WHERE id = $11`,
+          WHERE id = $12`,
         [
           first_name,
           last_name,
@@ -148,6 +215,7 @@ router.post("/register", async (req, res) => {
           city || null,
           county || null,
           address || null,
+          referrerTenantId,
           customerId,
         ],
       );
@@ -166,8 +234,8 @@ router.post("/register", async (req, res) => {
         `INSERT INTO platform_customers (
            phone_number, id_number, first_name, last_name, email,
            date_of_birth, gender, business_name, business_type,
-           city, county, address, registration_ip
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+           city, county, address, registration_tenant_id, registration_ip
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
         [
           fp,
           id_number,
@@ -181,6 +249,7 @@ router.post("/register", async (req, res) => {
           city || null,
           county || null,
           address || null,
+          referrerTenantId,
           ipOf(req),
         ],
       );
@@ -249,13 +318,21 @@ router.post("/verify-otp", async (req, res) => {
     );
     const customer = cr.rows[0];
 
-    // Tenant-less registration: no client / customer_tenant_links here.
-    // The customer adds a lender afterwards (add-lender / select-tenant).
     await query(
       `INSERT INTO customer_activities (platform_customer_id, activity_type, ip_address)
        VALUES ($1,'registration',$2)`,
       [customer_id, ipOf(req)],
     );
+
+    // If they signed up via a lender's Refer & Earn link, link them to that
+    // lender now (best-effort — a hiccup must not fail registration).
+    if (customer.registration_tenant_id) {
+      try {
+        await autoLinkToTenant(customer, customer.registration_tenant_id);
+      } catch (err) {
+        logger.error("Referral auto-link failed:", err);
+      }
+    }
 
     const token = jwt.sign(
       {
