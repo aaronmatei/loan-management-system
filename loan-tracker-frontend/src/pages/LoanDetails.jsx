@@ -624,6 +624,65 @@ function LoanDetails() {
                 );
               })}
             </tbody>
+            {(() => {
+              // Roll up the numeric columns; date/status columns get a "—".
+              const sum = (key) =>
+                schedule.reduce(
+                  (acc, s) => acc + parseFloat(s[key] || 0),
+                  0,
+                );
+              const totalAmountDue = sum("amount_due");
+              const totalAmountPaid = sum("amount_paid");
+              const totalInterest = sum("interest_portion");
+              const totalLateFee = schedule.reduce(
+                (acc, s) =>
+                  acc +
+                  (parseFloat(s.penalty_total || 0) > 0
+                    ? parseFloat(s.late_fee || 0)
+                    : 0),
+                0,
+              );
+              const totalPenaltyInterest = sum("penalty_interest");
+              const totalPenaltyTotal = sum("penalty_total");
+              const fmt = (n) =>
+                n > 0
+                  ? `KES ${Number(n).toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}`
+                  : "—";
+              return (
+                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                  <tr>
+                    <td
+                      className="px-6 py-3 font-bold text-gray-800 text-sm"
+                      colSpan={2}
+                    >
+                      TOTALS · {schedule.length}{" "}
+                      payment{schedule.length !== 1 ? "s" : ""}
+                    </td>
+                    <td className="px-6 py-3 font-bold text-gray-800 text-sm">
+                      {fmt(totalAmountDue)}
+                    </td>
+                    <td className="px-6 py-3 font-bold text-green-600 text-sm">
+                      {fmt(totalAmountPaid)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-bold text-emerald-700 text-sm">
+                      {fmt(totalInterest)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm">
+                      {fmt(totalLateFee)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm">
+                      {fmt(totalPenaltyInterest)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-bold text-amber-700 text-sm">
+                      {fmt(totalPenaltyTotal)}
+                    </td>
+                    <td className="px-6 py-3" colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
         </div>
       </div>
