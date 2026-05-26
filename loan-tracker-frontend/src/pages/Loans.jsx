@@ -39,6 +39,7 @@ function Loans() {
   const [filters, setFilters] = useState({
     status: "all",
     refundStatus: "all",
+    overdue: "all", // "all" | "yes" | "no"
   });
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -136,7 +137,7 @@ function Loans() {
   // Reset to the first page whenever the filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filters.status, filters.refundStatus]);
+  }, [searchQuery, filters.status, filters.refundStatus, filters.overdue]);
 
   const fetchLoans = async () => {
     try {
@@ -357,17 +358,26 @@ function Loans() {
       }
     }
 
+    // Overdue filter ('all' disables it)
+    if (filters.overdue === "yes" && !((loan.overdue_count || 0) > 0)) {
+      return false;
+    }
+    if (filters.overdue === "no" && (loan.overdue_count || 0) > 0) {
+      return false;
+    }
+
     return true;
   });
 
   const filtersActive =
     searchQuery.trim() !== "" ||
     filters.status !== "all" ||
-    filters.refundStatus !== "all";
+    filters.refundStatus !== "all" ||
+    filters.overdue !== "all";
 
   const clearFilters = () => {
     setSearchQuery("");
-    setFilters({ status: "all", refundStatus: "all" });
+    setFilters({ status: "all", refundStatus: "all", overdue: "all" });
   };
 
   // Derive `balance` so it's sortable alongside the real columns
@@ -1051,6 +1061,32 @@ function Loans() {
               </select>
             </div>
 
+            {/* Overdue */}
+            <div className="min-w-[180px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Overdue Payments
+              </label>
+              <select
+                value={filters.overdue}
+                onChange={(e) =>
+                  setFilters({ ...filters, overdue: e.target.value })
+                }
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+              >
+                <option value="all">
+                  All ({loans.length})
+                </option>
+                <option value="yes">
+                  Has overdue (
+                  {loans.filter((l) => (l.overdue_count || 0) > 0).length})
+                </option>
+                <option value="no">
+                  No overdue (
+                  {loans.filter((l) => (l.overdue_count || 0) === 0).length})
+                </option>
+              </select>
+            </div>
+
             {/* Clear */}
             {filtersActive && (
               <button
@@ -1159,19 +1195,27 @@ function Loans() {
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${
-                      loan.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : loan.status === "completed"
-                          ? "bg-blue-100 text-blue-700"
-                          : loan.status === "defaulted"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {loan.status}
-                  </span>
+                  <div className="flex-shrink-0 flex flex-col gap-1 items-end">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        loan.status === "active"
+                          ? "bg-green-100 text-green-700"
+                          : loan.status === "completed"
+                            ? "bg-blue-100 text-blue-700"
+                            : loan.status === "defaulted"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {loan.status}
+                    </span>
+                    {(loan.overdue_count || 0) > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                        <AlertTriangle size={10} />
+                        {loan.overdue_count} overdue
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
                   <div>
@@ -1368,19 +1412,30 @@ function Loans() {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                            loan.status === "active"
-                              ? "bg-green-100 text-green-700"
-                              : loan.status === "completed"
-                                ? "bg-blue-100 text-blue-700"
-                                : loan.status === "defaulted"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {loan.status}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-center ${
+                              loan.status === "active"
+                                ? "bg-green-100 text-green-700"
+                                : loan.status === "completed"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : loan.status === "defaulted"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {loan.status}
+                          </span>
+                          {(loan.overdue_count || 0) > 0 && (
+                            <span
+                              className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700"
+                              title={`${loan.overdue_count} overdue installment${loan.overdue_count !== 1 ? "s" : ""} · KES ${Number(loan.overdue_amount || 0).toLocaleString()} (max ${loan.max_days_late}d late)`}
+                            >
+                              <AlertTriangle size={10} />
+                              {loan.overdue_count} overdue
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-center">
                         <span className="text-ocean-600 font-bold">→</span>

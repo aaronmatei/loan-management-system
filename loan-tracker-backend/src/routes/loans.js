@@ -31,21 +31,39 @@ router.use(verifyToken);
 // ============================================================
 router.get("/", async (req, res) => {
   try {
-    const { status, client_id, page = 1, limit = 10000 } = req.query;
+    const { status, client_id, overdue, page = 1, limit = 10000 } = req.query;
     const offset = (page - 1) * limit;
 
+    // Per-loan overdue summary: installments either explicitly 'overdue' or
+    // 'pending' but past due_date with a remaining balance. Joined as a
+    // subquery so loans without any payment schedule still come through.
     let queryText = `
-        SELECT 
+        SELECT
             l.*,
             c.first_name,
             c.last_name,
             c.phone_number,
             c.client_code,
             COALESCE(SUM(t.amount_paid), 0) as total_paid,
-            GREATEST(l.total_amount_due - COALESCE(SUM(t.amount_paid), 0), 0) as balance_due
+            GREATEST(l.total_amount_due - COALESCE(SUM(t.amount_paid), 0), 0) as balance_due,
+            COALESCE(od.overdue_count, 0)::int  AS overdue_count,
+            COALESCE(od.overdue_amount, 0)      AS overdue_amount,
+            COALESCE(od.max_days_late, 0)::int  AS max_days_late
         FROM loans l
         JOIN clients c ON l.client_id = c.id
         LEFT JOIN transactions t ON l.id = t.loan_id AND t.payment_status = 'completed'
+        LEFT JOIN (
+          SELECT
+            loan_id,
+            COUNT(*) AS overdue_count,
+            SUM(amount_due - COALESCE(amount_paid, 0)) AS overdue_amount,
+            MAX(CURRENT_DATE - due_date::date) AS max_days_late
+          FROM payment_schedules
+          WHERE (status = 'overdue'
+                 OR (status = 'pending' AND due_date < CURRENT_DATE))
+            AND amount_due > COALESCE(amount_paid, 0)
+          GROUP BY loan_id
+        ) od ON od.loan_id = l.id
         WHERE 1=1
         `;
     const params = [];
@@ -63,6 +81,12 @@ router.get("/", async (req, res) => {
       params.push(client_id);
     }
 
+    if (overdue === "true") {
+      queryText += ` AND COALESCE(od.overdue_count, 0) > 0`;
+    } else if (overdue === "false") {
+      queryText += ` AND COALESCE(od.overdue_count, 0) = 0`;
+    }
+
     // Tenant scope (no-op for platform admins / pre-migration tokens)
     const lt = tenantClause(req, paramCount, "l.tenant_id");
     if (lt.clause) {
@@ -71,7 +95,8 @@ router.get("/", async (req, res) => {
     }
 
     queryText += `
-      GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code
+      GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code,
+               od.overdue_count, od.overdue_amount, od.max_days_late
       ORDER BY l.created_at DESC
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;
