@@ -1019,26 +1019,27 @@ function Loans() {
       {/* Filter Bar */}
       {!loading && loans.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex flex-wrap items-end gap-4">
-            {/* Search */}
-            <div className="flex-1 min-w-[220px]">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Search
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  <Search size={16}/>
-                </span>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Loan code, client name, or phone..."
-                  className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                />
-              </div>
+          {/* Search stands alone — full width — so the input stays generous
+              even when the row of filters below grows. */}
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Search
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <Search size={16}/>
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Loan code, client name, or phone..."
+                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              />
             </div>
+          </div>
 
+          <div className="flex flex-wrap items-end gap-4">
             {/* Status */}
             <div className="min-w-[180px]">
               <label className="block text-sm font-semibold text-gray-700 mb-1">
