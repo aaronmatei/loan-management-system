@@ -57,6 +57,29 @@ describe("loan processing fee", () => {
     expect(res.status).toBe(400);
   });
 
+  it("lets the new-loan request override the tenant's processing fee rate", async () => {
+    const t = await createTenant();
+    await query("UPDATE tenants SET processing_fee_rate = 5 WHERE id = $1", [t.id]);
+    const admin = await createUser(t.id, { role: "admin" });
+    const client = await createClient(t.id);
+
+    // Tenant default is 5%, but this loan goes in at 2%.
+    const res = await request(app)
+      .post("/api/loans")
+      .set("Authorization", auth(admin))
+      .send({
+        client_id: client.id,
+        principal_amount: 10000,
+        annual_interest_rate: 24,
+        loan_duration_months: 6,
+        processing_fee_rate: 2,
+      });
+    expect(res.status).toBe(201);
+    expect(Number(res.body.data.processing_fee_rate)).toBe(2);
+    expect(Number(res.body.data.processing_fee)).toBe(200);
+    expect(Number(res.body.data.net_disbursed_amount)).toBe(9800);
+  });
+
   it("snapshots the processing fee + net disbursed on a new loan", async () => {
     const t = await createTenant();
     await query("UPDATE tenants SET processing_fee_rate = 5 WHERE id = $1", [t.id]);

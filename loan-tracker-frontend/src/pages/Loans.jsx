@@ -60,7 +60,9 @@ function Loans() {
     client_id: "",
     principal_amount: "",
     annual_interest_rate: "50",
+    monthly_interest_rate: "4.1667", // annual / 12 — display companion, synced
     loan_duration_months: "12",
+    processing_fee_rate: "0",
     start_date: new Date().toISOString().split("T")[0],
     purpose: "",
     guarantor_name: "",
@@ -93,12 +95,32 @@ function Loans() {
       setFormData((p) => ({
         ...p,
         annual_interest_rate: String(policy.default_interest_rate),
+        monthly_interest_rate: String(roundRate(policy.default_interest_rate / 12)),
+        processing_fee_rate: String(policy.processing_fee_rate),
         late_payment_fee: policy.late_payment_fee,
       }));
     } catch {
       /* fall back to the defaults above */
     }
   };
+
+  // Keep annual ⇄ monthly synced. Whichever the staff types is kept exactly;
+  // the other is derived (annual = monthly × 12). Mirrors the Settings page.
+  const roundRate = (n) => Math.round(Number(n) * 10000) / 10000;
+  const onAnnualRateChange = (v) =>
+    setFormData((p) => ({
+      ...p,
+      annual_interest_rate: v,
+      monthly_interest_rate:
+        v === "" ? "" : String(roundRate(parseFloat(v) / 12)),
+    }));
+  const onMonthlyRateChange = (v) =>
+    setFormData((p) => ({
+      ...p,
+      monthly_interest_rate: v,
+      annual_interest_rate:
+        v === "" ? "" : String(roundRate(parseFloat(v) * 12)),
+    }));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -207,8 +229,9 @@ function Loans() {
     const monthlyPayment = months > 0 ? totalAmount / months : 0;
 
     // Processing fee snapshot — mirrors what the backend will store on the
-    // loan: principal × tenant's processing_fee_rate%.
-    const feeRate = parseFloat(loanPolicy.processing_fee_rate) || 0;
+    // loan: principal × the form's processing_fee_rate% (defaults to the
+    // tenant policy on load, but the staff can override per loan).
+    const feeRate = parseFloat(formData.processing_fee_rate) || 0;
     const processingFee = Math.round(principal * feeRate) / 100;
     const netDisbursed = Math.max(0, principal - processingFee);
 
@@ -246,7 +269,11 @@ function Loans() {
         client_id: "",
         principal_amount: "",
         annual_interest_rate: String(loanPolicy.default_interest_rate),
+        monthly_interest_rate: String(
+          roundRate(loanPolicy.default_interest_rate / 12),
+        ),
         loan_duration_months: "12",
+        processing_fee_rate: String(loanPolicy.processing_fee_rate),
         start_date: new Date().toISOString().split("T")[0],
         purpose: "",
         guarantor_name: "",
@@ -625,8 +652,8 @@ function Loans() {
               </div>
             )}
 
-            {/* Amount, Annual Rate, Duration */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Amount, Annual Rate, Monthly Rate, Duration */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Principal Amount (KES) *
@@ -645,21 +672,33 @@ function Loans() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Interest Rate (% per annum) *
+                  Annual Rate (%) *
                 </label>
                 <input
                   type="number"
-                  name="annual_interest_rate"
                   value={formData.annual_interest_rate}
-                  onChange={handleInputChange}
+                  onChange={(e) => onAnnualRateChange(e.target.value)}
                   required
                   min="0"
-                  max="100"
-                  step="0.1"
+                  step="0.01"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Monthly Rate (%) *
+                </label>
+                <input
+                  type="number"
+                  value={formData.monthly_interest_rate}
+                  onChange={(e) => onMonthlyRateChange(e.target.value)}
+                  required
+                  min="0"
+                  step="0.01"
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Monthly rate: {calc.monthlyRate}% (auto-calculated)
+                  Synced with annual rate.
                 </p>
               </div>
               <div>
@@ -679,7 +718,25 @@ function Loans() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Processing Fee Rate (%)
+                </label>
+                <input
+                  type="number"
+                  name="processing_fee_rate"
+                  value={formData.processing_fee_rate}
+                  onChange={handleInputChange}
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Deducted from disbursed amount.
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Start Date *

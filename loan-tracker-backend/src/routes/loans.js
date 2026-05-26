@@ -164,6 +164,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       collateral_description,
       late_payment_fee,
       penalty_rate,
+      processing_fee_rate: bodyProcessingFeeRate,
       application_source,
       review_notes,
     } = req.body;
@@ -266,12 +267,28 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     const loanCode = await nextLoanCode(query, wTid);
 
     // Processing fee snapshot: a % of the principal, deducted from what the
-    // borrower receives (net disbursed). Rate is the tenant's current policy.
-    const feeRow = await query(
-      `SELECT COALESCE(processing_fee_rate, 0) AS rate FROM tenants WHERE id = $1`,
-      [wTid],
-    );
-    const processingFeeRate = parseFloat(feeRow.rows[0]?.rate || 0);
+    // borrower receives (net disbursed). The form may override the tenant's
+    // configured rate per loan; if not, fall back to the tenant policy.
+    let processingFeeRate;
+    if (
+      bodyProcessingFeeRate !== undefined &&
+      bodyProcessingFeeRate !== null &&
+      bodyProcessingFeeRate !== ""
+    ) {
+      const parsed = parseFloat(bodyProcessingFeeRate);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+        return res
+          .status(400)
+          .json({ error: "Processing fee rate must be between 0 and 100" });
+      }
+      processingFeeRate = parsed;
+    } else {
+      const feeRow = await query(
+        `SELECT COALESCE(processing_fee_rate, 0) AS rate FROM tenants WHERE id = $1`,
+        [wTid],
+      );
+      processingFeeRate = parseFloat(feeRow.rows[0]?.rate || 0);
+    }
     const processingFee =
       Math.round(principal * processingFeeRate) / 100; // principal * rate/100
     const netDisbursed = Math.round((principal - processingFee) * 100) / 100;
