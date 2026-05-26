@@ -17,6 +17,7 @@ import {
   Users,
   AlertTriangle,
   XCircle,
+  Wallet,
 } from "lucide-react";
 import api from "../services/api";
 import {
@@ -133,6 +134,7 @@ function Reports() {
     statusDist,
   } = data;
   const snap = snapshot || {
+    outstanding_balance: 0,
     overdue_count: 0,
     overdue_amount: 0,
     overdue_loans: 0,
@@ -200,9 +202,9 @@ function Reports() {
           </div>
         </div>
 
-        {/* KPI cards. 6 tiles = 2 rows of 3 on lg+ — keeps figures legible
-            without forcing one-row truncation. */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+        {/* KPI cards. 7 tiles — 4 across on lg+, wrapping the last three
+            onto a second row. Two-up on mobile so figures stay legible. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
             <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
             <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
@@ -218,6 +220,18 @@ function Reports() {
             <p className="text-xs text-green-100">
               {kpis.payment_count} payments
             </p>
+          </div>
+
+          {/* Outstanding — snapshot (total_due − collected on disbursed
+              loans). Same definition the Dashboard's Outstanding tile uses. */}
+          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-amber-500 to-orange-600">
+            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+              <Wallet size={12} /> Outstanding
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+              {fmt(snap.outstanding_balance)}
+            </p>
+            <p className="text-xs text-white/85">To be collected</p>
           </div>
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
             <p className="text-ocean-100 text-xs uppercase">Interest Earned</p>

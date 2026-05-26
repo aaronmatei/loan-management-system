@@ -236,11 +236,31 @@ class AnalyticsService {
     }));
   }
 
-  // Snapshot of currently-overdue installments + defaulted loans.
-  // Snapshot = present-day state regardless of the date range filter
-  // (just like the Dashboard). Mirrors the Dashboard query in
-  // routes/dashboard.js so the figures match.
+  // Snapshot of outstanding balance + currently-overdue installments +
+  // defaulted loans. Snapshot = present-day state regardless of the
+  // date range filter (just like the Dashboard). Mirrors the Dashboard
+  // query in routes/dashboard.js so the figures match.
   async getOverdueDefaultedSnapshot(tenantId) {
+    // Outstanding = (sum of total_amount_due for disbursed loans)
+    //             − (sum of net collected on those loans)
+    // Same definition the Dashboard uses for the Outstanding KPI.
+    const outstanding = await query(
+      `SELECT
+         COALESCE(SUM(l.total_amount_due), 0)::float                    AS total_due,
+         COALESCE(SUM(COALESCE(p.paid, 0)), 0)::float                   AS total_collected
+       FROM loans l
+       LEFT JOIN (
+         SELECT loan_id,
+                SUM(amount_paid - COALESCE(overpayment_portion, 0)) AS paid
+           FROM transactions
+          WHERE payment_status = 'completed'
+          GROUP BY loan_id
+       ) p ON p.loan_id = l.id
+       WHERE l.tenant_id = $1
+         AND l.status IN ('active', 'completed', 'defaulted')`,
+      [tenantId],
+    );
+
     const overdue = await query(
       `SELECT
          COUNT(*)::int                                                AS overdue_count,
@@ -274,7 +294,10 @@ class AnalyticsService {
       [tenantId],
     );
 
+    const totalDue = parseFloat(outstanding.rows[0].total_due);
+    const totalCollected = parseFloat(outstanding.rows[0].total_collected);
     return {
+      outstanding_balance: Math.max(0, totalDue - totalCollected),
       overdue_count: overdue.rows[0].overdue_count,
       overdue_loans: overdue.rows[0].overdue_loans,
       overdue_amount: parseFloat(overdue.rows[0].overdue_amount),
