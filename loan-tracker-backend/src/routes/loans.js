@@ -1078,14 +1078,19 @@ router.post(
       endObj.setMonth(endObj.getMonth() + months); // last installment
       const endDate = endObj;
 
+      // disbursed_at uses the admin-entered date (so backdated paper
+      // disbursements show their real date in the loans table), not
+      // NOW(). The exact action timestamp is captured separately by
+      // audit_logs anyway.
       const result = await query(
         `UPDATE loans SET
-          status = 'active', disbursed_by = $1, disbursed_at = NOW(),
-          disbursement_method = $2, disbursement_reference = $3,
-          start_date = $4, end_date = $5, updated_at = NOW()
-        WHERE id = $6 AND tenant_id = $7 RETURNING *`,
+          status = 'active', disbursed_by = $1, disbursed_at = $2::timestamp,
+          disbursement_method = $3, disbursement_reference = $4,
+          start_date = $5, end_date = $6, updated_at = NOW()
+        WHERE id = $7 AND tenant_id = $8 RETURNING *`,
         [
           req.user.id,
+          disbDate,
           disbursement_method || "cash",
           disbursement_reference || null,
           effectiveStart,
