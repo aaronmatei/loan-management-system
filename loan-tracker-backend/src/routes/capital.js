@@ -69,10 +69,33 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     );
     const activeLoans = parseInt(activeResult.rows[0].count, 10);
 
-    res.json({
-      success: true,
-      data: buildStatus(poolResult.rows[0], activeLoans),
-    });
+    // total_interest_earned on capital_pool is the gross income kept
+    // (loan interest + processing fees + penalty income). Split out the
+    // two interest-style components — same formulas Reports uses, so
+    // figures agree across pages.
+    const breakdown = await query(
+      `SELECT
+         COALESCE(SUM(
+           (t.amount_paid
+              - COALESCE(t.overpayment_portion, 0)
+              - COALESCE(t.penalty_portion, 0))
+           * (l.total_interest / NULLIF(l.total_amount_due, 0))
+         ), 0)::float                                              AS loan_interest_earned,
+         COALESCE(SUM(COALESCE(t.penalty_portion, 0)), 0)::float   AS fines_collected
+       FROM transactions t
+       JOIN loans l ON t.loan_id = l.id
+       WHERE t.tenant_id = $1
+         AND t.payment_status = 'completed'`,
+      [tid],
+    );
+
+    const status = buildStatus(poolResult.rows[0], activeLoans);
+    status.loan_interest_earned = parseFloat(
+      breakdown.rows[0].loan_interest_earned,
+    );
+    status.fines_collected = parseFloat(breakdown.rows[0].fines_collected);
+
+    res.json({ success: true, data: status });
   } catch (error) {
     logger.error("Get capital status error:", error);
     res.status(500).json({ error: "Failed to fetch capital status" });

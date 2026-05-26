@@ -427,8 +427,10 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+          {/* Stats — Interest is split into loan-interest income and
+              fines (late-payment penalty) income so the lender can see
+              where the revenue is coming from. */}
+          <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Total Disbursed</p>
               <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
@@ -442,9 +444,15 @@ function Dashboard() {
               </p>
             </div>
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <p className="text-xs text-slate-500">Interest Earned</p>
+              <p className="text-xs text-slate-500">Interest from Loans</p>
               <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
-                +{fmtKES(poolStatus.total_interest_earned)}
+                +{fmtKES(poolStatus.loan_interest_earned ?? 0)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
+              <p className="text-xs text-slate-500">Interest from Fines</p>
+              <p className="text-base sm:text-lg font-bold text-amber-600 whitespace-nowrap mt-1">
+                +{fmtKES(poolStatus.fines_collected ?? 0)}
               </p>
             </div>
             {/* Collection Rate — moved here from the KPI strip */}
