@@ -197,9 +197,17 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         penaltyRate: loan.penalty_rate,
       });
       const penaltyPaid = parseFloat(s.penalty_paid || 0);
+      // "Penalty total" is the headline number for what was ever charged
+      // on this installment. The live formula above re-computes against
+      // CURRENT balance, which drops once a payment lands — so a paid
+      // instalment recomputes to 0 even though penalty was charged at the
+      // time, and a partially-paid one recomputes lower than what was
+      // actually billed. Take the max with what's been paid so the
+      // headline never disputes the historical charge.
+      const penaltyTotal = Math.max(computed.penalty_total, penaltyPaid);
       const outstanding = Math.max(
         0,
-        Math.round((computed.penalty_total - penaltyPaid) * 100) / 100,
+        Math.round((penaltyTotal - penaltyPaid) * 100) / 100,
       );
       const paidRatio = due > 0 ? Math.min(1, paid / due) : 0;
       const interest_portion =
@@ -208,6 +216,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         ...s,
         balance_due: Math.round(Math.max(0, bal) * 100) / 100,
         ...computed,
+        penalty_total: penaltyTotal,
         penalty_paid: penaltyPaid,
         penalty_outstanding: outstanding,
         interest_portion,

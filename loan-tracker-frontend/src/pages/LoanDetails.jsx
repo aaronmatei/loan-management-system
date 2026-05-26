@@ -541,13 +541,10 @@ function LoanDetails() {
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
                   Interest
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Late Fee
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Penalty Interest
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                <th
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  title="Late fee + penalty interest actually charged on this installment"
+                >
                   Penalty Total
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
@@ -592,23 +589,6 @@ function LoanDetails() {
                       {parseFloat(item.interest_portion || 0) > 0
                         ? `KES ${parseFloat(item.interest_portion).toLocaleString()}`
                         : "—"}
-                    </td>
-                    <td className="px-6 py-3 text-right text-gray-700">
-                      {item.penalty_total > 0
-                        ? `KES ${parseFloat(item.late_fee || 0).toLocaleString()}`
-                        : "-"}
-                    </td>
-                    <td
-                      className="px-6 py-3 text-right text-gray-700"
-                      title={
-                        item.penalty_total > 0
-                          ? `${item.penalty_rate}% per month × ${item.months_late} month${item.months_late !== 1 ? "s" : ""} on the overdue balance`
-                          : undefined
-                      }
-                    >
-                      {item.penalty_total > 0
-                        ? `KES ${parseFloat(item.penalty_interest || 0).toLocaleString()}`
-                        : "-"}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-amber-700">
                       {parseFloat(item.penalty_total || 0) > 0 ? (
@@ -686,15 +666,6 @@ function LoanDetails() {
               const totalAmountDue = sum("amount_due");
               const totalAmountPaid = sum("amount_paid");
               const totalInterest = sum("interest_portion");
-              const totalLateFee = schedule.reduce(
-                (acc, s) =>
-                  acc +
-                  (parseFloat(s.penalty_total || 0) > 0
-                    ? parseFloat(s.late_fee || 0)
-                    : 0),
-                0,
-              );
-              const totalPenaltyInterest = sum("penalty_interest");
               const totalPenaltyTotal = sum("penalty_total");
               const totalPenaltyPaid = sum("penalty_paid");
               const fmt = (n) =>
@@ -721,12 +692,6 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-emerald-700 text-sm">
                       {fmt(totalInterest)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm">
-                      {fmt(totalLateFee)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm">
-                      {fmt(totalPenaltyInterest)}
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-amber-700 text-sm">
                       {fmt(totalPenaltyTotal)}
