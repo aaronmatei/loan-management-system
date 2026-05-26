@@ -1193,6 +1193,19 @@ function Loans() {
                       <p className="text-xs text-gray-500">
                         {loan.phone_number}
                       </p>
+                      {loan.disbursed_at && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Disbursed{" "}
+                          {new Date(loan.disbursed_at).toLocaleDateString(
+                            "en-KE",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex-shrink-0 flex flex-col gap-1 items-end">
@@ -1303,6 +1316,7 @@ function Loans() {
                   {[
                     ["Loan Code", "loan_code", "left"],
                     ["Client", "first_name", "left"],
+                    ["Disbursed", "disbursed_at", "left"],
                     ["Principal", "principal_amount", "right"],
                     ["Total to Pay", "total_amount_due", "right"],
                     ["Paid", "total_paid", "right"],
@@ -1363,6 +1377,14 @@ function Loans() {
                             {loan.phone_number}
                           </p>
                         </div>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {loan.disbursed_at
+                          ? new Date(loan.disbursed_at).toLocaleDateString(
+                              "en-KE",
+                              { day: "numeric", month: "short", year: "numeric" },
+                            )
+                          : "—"}
                       </td>
                       <td className="px-4 py-4 text-right">
                         <p className="font-semibold text-gray-800 text-sm">
@@ -1449,7 +1471,7 @@ function Loans() {
               <tfoot className="bg-ocean-gradient-soft border-t-2 border-ocean-200">
                 <tr>
                   <td
-                    colSpan="3"
+                    colSpan="4"
                     className="px-4 py-4 font-bold text-gray-800 text-sm"
                   >
                     <span className="inline-flex items-center gap-2"><BarChart3 size={16}/> TOTALS ({filteredLoans.length} loans)</span>
