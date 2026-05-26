@@ -11,6 +11,7 @@ import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { nextLoanCode } from "../utils/clientCode.js";
+import { getLoanStanding } from "../utils/loanEligibility.js";
 import {
   notifyApplicationSubmitted,
   notifyApplicationApproved,
@@ -453,6 +454,24 @@ router.post(
           .json({ error: `Cannot approve loan with status: ${loan.status}` });
       }
 
+      // Re-check borrowing eligibility — the client may have defaulted (or hit
+      // the active-loan cap) since this application was submitted.
+      const apStanding = await getLoanStanding(loan.client_id, loan.tenant_id, {
+        excludeLoanId: loan.id,
+      });
+      if (apStanding.defaulted > 0) {
+        return res.status(400).json({
+          error: "Client has a defaulted loan. Resolve it before approving a new one.",
+          blocker: "defaulted_loans",
+        });
+      }
+      if (apStanding.active >= 3) {
+        return res.status(400).json({
+          error: "Client already has 3 active loans — the maximum allowed.",
+          blocker: "max_active_loans",
+        });
+      }
+
       // Per-tenant capital pool (NOT the global "latest" row).
       const poolCheck = await query(
         `SELECT (initial_capital - total_disbursed + total_collected) AS available
@@ -756,6 +775,25 @@ router.post(
       if (loan.status !== "approved") {
         return res.status(400).json({
           error: `Cannot disburse loan with status: ${loan.status}. Loan must be approved first.`,
+        });
+      }
+
+      // Hard money-out gate: never disburse to a client who now has a
+      // defaulted loan, or who would exceed 3 active loans, even if the
+      // application slipped through before they defaulted.
+      const dbStanding = await getLoanStanding(loan.client_id, loan.tenant_id, {
+        excludeLoanId: loan.id,
+      });
+      if (dbStanding.defaulted > 0) {
+        return res.status(400).json({
+          error: "Client has a defaulted loan. Resolve it before disbursing a new one.",
+          blocker: "defaulted_loans",
+        });
+      }
+      if (dbStanding.active >= 3) {
+        return res.status(400).json({
+          error: "Client already has 3 active loans — the maximum allowed.",
+          blocker: "max_active_loans",
         });
       }
 
