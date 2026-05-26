@@ -398,6 +398,193 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
 });
 
 // ============================================================
+// BULK APPLICATION ACTIONS (from the Applications page)
+//   review   → move pending loans to under_review
+//   approve  → move pending/under_review to approved (eligibility + capital)
+//   reject   → move pending/under_review to rejected (requires reason)
+// Defined BEFORE the /:id/* routes so Express matches "/bulk/review"
+// before "/:id/review" (which would otherwise treat "bulk" as the :id).
+// ============================================================
+async function loadOwnedLoans(req, ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return null;
+  const tc = tenantClause(req, 1, "tenant_id");
+  const r = await query(
+    `SELECT * FROM loans WHERE id = ANY($1)${tc.clause}`,
+    [ids, ...tc.params],
+  );
+  return r.rows;
+}
+
+router.post(
+  "/bulk/review",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { loan_ids } = req.body || {};
+      if (!Array.isArray(loan_ids) || loan_ids.length === 0) {
+        return res.status(400).json({ error: "No loans selected" });
+      }
+      const tc = tenantClause(req, 2, "tenant_id");
+      const r = await query(
+        `UPDATE loans SET status = 'under_review',
+                          reviewed_by = $1, reviewed_at = NOW(),
+                          updated_at = NOW()
+          WHERE id = ANY($2) AND status = 'pending'${tc.clause}
+         RETURNING id, loan_code`,
+        [req.user.id, loan_ids, ...tc.params],
+      );
+      for (const row of r.rows) {
+        await logAudit({
+          user: req.user,
+          action: "application_under_review",
+          entityType: "loan",
+          entityId: row.id,
+          entityCode: row.loan_code,
+          description: `Moved ${row.loan_code} to under review (bulk)`,
+          req,
+        });
+      }
+      res.json({
+        success: true,
+        processed: r.rows.length,
+        skipped: loan_ids.length - r.rows.length,
+      });
+    } catch (error) {
+      logger.error("Bulk review error:", error);
+      res.status(500).json({ error: "Failed to mark loans under review" });
+    }
+  },
+);
+
+router.post(
+  "/bulk/approve",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { loan_ids } = req.body || {};
+      if (!Array.isArray(loan_ids) || loan_ids.length === 0) {
+        return res.status(400).json({ error: "No loans selected" });
+      }
+      const loans = await loadOwnedLoans(req, loan_ids);
+      const processed = [];
+      const skipped = [];
+
+      // Snapshot the pool once and burn it down as we approve — multiple
+      // approvals all draw from the same available figure (capital only
+      // moves at disbursement, but it's still the right gate).
+      const tid = req.user.tenant_id;
+      let available = Infinity;
+      if (tid) {
+        const pr = await query(
+          `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned) AS a
+             FROM capital_pool WHERE tenant_id = $1`,
+          [tid],
+        );
+        if (pr.rows[0]) available = parseFloat(pr.rows[0].a);
+      }
+
+      for (const loan of loans) {
+        if (!["pending", "under_review"].includes(loan.status)) {
+          skipped.push({ id: loan.id, loan_code: loan.loan_code, reason: `status ${loan.status}` });
+          continue;
+        }
+        const standing = await getLoanStanding(loan.client_id, loan.tenant_id, {
+          excludeLoanId: loan.id,
+        });
+        if (standing.defaulted > 0) {
+          skipped.push({ id: loan.id, loan_code: loan.loan_code, reason: "client has a defaulted loan" });
+          continue;
+        }
+        if (standing.active >= 3) {
+          skipped.push({ id: loan.id, loan_code: loan.loan_code, reason: "client at 3-active cap" });
+          continue;
+        }
+        const principal = parseFloat(loan.principal_amount);
+        if (principal > available) {
+          skipped.push({ id: loan.id, loan_code: loan.loan_code, reason: "insufficient capital" });
+          continue;
+        }
+
+        const upd = await query(
+          `UPDATE loans SET status = 'approved',
+                            approved_by = $1, approved_at = NOW(),
+                            updated_at = NOW()
+            WHERE id = $2 RETURNING id, loan_code`,
+          [req.user.id, loan.id],
+        );
+        if (!upd.rows[0]) continue;
+        processed.push(upd.rows[0]);
+        await logAudit({
+          user: req.user,
+          action: "application_approved",
+          entityType: "loan",
+          entityId: loan.id,
+          entityCode: loan.loan_code,
+          description: `Approved ${loan.loan_code} (bulk)`,
+          req,
+        });
+      }
+      res.json({
+        success: true,
+        processed: processed.length,
+        skipped: skipped.length + (loan_ids.length - loans.length),
+        details: skipped,
+      });
+    } catch (error) {
+      logger.error("Bulk approve error:", error);
+      res.status(500).json({ error: "Failed to approve loans" });
+    }
+  },
+);
+
+router.post(
+  "/bulk/reject",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { loan_ids, reason } = req.body || {};
+      if (!Array.isArray(loan_ids) || loan_ids.length === 0) {
+        return res.status(400).json({ error: "No loans selected" });
+      }
+      if (!reason || !String(reason).trim()) {
+        return res.status(400).json({ error: "A rejection reason is required" });
+      }
+      const tc = tenantClause(req, 3, "tenant_id");
+      const r = await query(
+        `UPDATE loans SET status = 'rejected',
+                          rejected_by = $1, rejected_at = NOW(),
+                          rejection_reason = $2,
+                          updated_at = NOW()
+          WHERE id = ANY($3)
+            AND status IN ('pending','under_review')${tc.clause}
+         RETURNING id, loan_code`,
+        [req.user.id, String(reason).trim(), loan_ids, ...tc.params],
+      );
+      for (const row of r.rows) {
+        await logAudit({
+          user: req.user,
+          action: "application_rejected",
+          entityType: "loan",
+          entityId: row.id,
+          entityCode: row.loan_code,
+          description: `Rejected ${row.loan_code} (bulk): ${reason}`,
+          newValues: { reason },
+          req,
+        });
+      }
+      res.json({
+        success: true,
+        processed: r.rows.length,
+        skipped: loan_ids.length - r.rows.length,
+      });
+    } catch (error) {
+      logger.error("Bulk reject error:", error);
+      res.status(500).json({ error: "Failed to reject loans" });
+    }
+  },
+);
+
+// ============================================================
 // APPLICATION WORKFLOW: review → approve/reject → disburse
 // ============================================================
 

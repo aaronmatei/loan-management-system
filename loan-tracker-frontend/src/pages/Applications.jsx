@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
+import { useBulkSelection } from "../hooks/useBulkSelection";
+import BulkActionBar from "../components/BulkActionBar";
 
 function Applications() {
   const navigate = useNavigate();
@@ -41,6 +43,10 @@ function Applications() {
 
   // Which application rows are expanded to reveal their full details.
   const [expanded, setExpanded] = useState(() => new Set());
+
+  // Bulk selection across applications shown by the current filter.
+  const bulk = useBulkSelection(applications);
+  const [bulkRunning, setBulkRunning] = useState(null);
   const toggleExpand = (id) =>
     setExpanded((s) => {
       const next = new Set(s);
@@ -50,7 +56,10 @@ function Applications() {
 
   useEffect(() => {
     setExpanded(new Set()); // collapse all when the filter changes
+    bulk.clear(); // and clear any bulk selection
     fetchData();
+    // bulk.clear is stable via useCallback in the hook, safe to skip dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   const fetchData = async () => {
@@ -171,6 +180,70 @@ function Applications() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ── Bulk actions (Mass review / approve / reject) ──
+  const runBulk = async (task, body, confirmMsg, label) => {
+    const ids = bulk.selectedArray;
+    if (ids.length === 0) return;
+    if (!window.confirm(confirmMsg(ids.length))) return;
+    setBulkRunning(task);
+    try {
+      const res = await api.post(`/loans/bulk/${task}`, {
+        loan_ids: ids,
+        ...body,
+      });
+      const { processed, skipped } = res.data;
+      let msg = `${label} done.\n\n${processed} processed`;
+      if (skipped) msg += ` · ${skipped} skipped`;
+      if (res.data.details?.length) {
+        const reasons = res.data.details
+          .slice(0, 5)
+          .map((d) => `• ${d.loan_code}: ${d.reason}`)
+          .join("\n");
+        msg += `\n\nSkipped reasons:\n${reasons}`;
+        if (res.data.details.length > 5) msg += `\n…and ${res.data.details.length - 5} more`;
+      }
+      alert(msg);
+      bulk.clear();
+      fetchData();
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setBulkRunning(null);
+    }
+  };
+
+  const handleBulkReview = () =>
+    runBulk(
+      "review",
+      {},
+      (n) => `Move ${n} application${n !== 1 ? "s" : ""} to "under review"?`,
+      "Mass review",
+    );
+  const handleBulkApprove = () =>
+    runBulk(
+      "approve",
+      {},
+      (n) => `Approve ${n} application${n !== 1 ? "s" : ""}? Eligibility + capital are re-checked per loan.`,
+      "Mass approve",
+    );
+  const handleBulkReject = () => {
+    const reason = window.prompt(
+      `Reject ${bulk.count} application${bulk.count !== 1 ? "s" : ""}.\nReason (required):`,
+      "",
+    );
+    if (reason == null) return; // cancelled
+    if (!reason.trim()) {
+      alert("A rejection reason is required.");
+      return;
+    }
+    return runBulk(
+      "reject",
+      { reason: reason.trim() },
+      () => "Confirm rejection?", // already confirmed by typing a reason
+      "Mass reject",
+    );
   };
 
   const handleDisburse = async (e) => {
@@ -521,6 +594,15 @@ function Applications() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
                   <tr>
+                    <th className="px-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={bulk.allOnPageSelected}
+                        onChange={bulk.togglePage}
+                        className="w-4 h-4 cursor-pointer"
+                        aria-label="Select all on page"
+                      />
+                    </th>
                     <th className="px-3 py-3 w-10"></th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                       Loan Code
@@ -550,9 +632,18 @@ function Applications() {
                       <React.Fragment key={app.id}>
                         <tr
                           className={`border-b border-gray-100 hover:bg-gray-50 transition ${
-                            open ? "bg-gray-50" : ""
+                            bulk.isSelected(app.id) ? "bg-ocean-50" : open ? "bg-gray-50" : ""
                           }`}
                         >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={bulk.isSelected(app.id)}
+                              onChange={() => bulk.toggle(app.id)}
+                              className="w-4 h-4 cursor-pointer"
+                              aria-label="Select application"
+                            />
+                          </td>
                           <td className="px-3 py-3">
                             <button
                               onClick={() => toggleExpand(app.id)}
@@ -610,7 +701,7 @@ function Applications() {
                         </tr>
                         {open && (
                           <tr className="bg-gray-50/60">
-                            <td colSpan={7} className="px-6 pb-4 pt-1">
+                            <td colSpan={8} className="px-6 pb-4 pt-1">
                               {renderDetails(app)}
                             </td>
                           </tr>
@@ -629,8 +720,20 @@ function Applications() {
               const open = expanded.has(app.id);
               const badge = getStatusBadge(app.status);
               return (
-                <div key={app.id} className="bg-white rounded-xl shadow-md p-4">
+                <div
+                  key={app.id}
+                  className={`bg-white rounded-xl shadow-md p-4 ${
+                    bulk.isSelected(app.id) ? "ring-2 ring-ocean-400" : ""
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
+                    <input
+                      type="checkbox"
+                      checked={bulk.isSelected(app.id)}
+                      onChange={() => bulk.toggle(app.id)}
+                      className="w-5 h-5 mt-1 cursor-pointer flex-shrink-0"
+                      aria-label="Select application"
+                    />
                     <button
                       onClick={() => toggleExpand(app.id)}
                       className="flex items-start gap-2 text-left flex-1 min-w-0"
@@ -678,6 +781,42 @@ function Applications() {
           </div>
         </>
       )}
+
+      <BulkActionBar
+        selectedCount={bulk.count}
+        totalCount={applications.length}
+        onClear={bulk.clear}
+      >
+        <PermissionGate role={["admin", "manager"]}>
+          <button
+            onClick={handleBulkReview}
+            disabled={bulkRunning === "review"}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold disabled:opacity-50"
+            title="Move selected pending applications to under_review"
+          >
+            <Search size={15} />
+            {bulkRunning === "review" ? "Reviewing…" : "Mass Review"}
+          </button>
+          <button
+            onClick={handleBulkApprove}
+            disabled={bulkRunning === "approve"}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold disabled:opacity-50"
+            title="Approve selected pending / under_review applications"
+          >
+            <CheckCircle size={15} />
+            {bulkRunning === "approve" ? "Approving…" : "Mass Approve"}
+          </button>
+          <button
+            onClick={handleBulkReject}
+            disabled={bulkRunning === "reject"}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold disabled:opacity-50"
+            title="Reject selected pending / under_review applications"
+          >
+            <X size={15} />
+            {bulkRunning === "reject" ? "Rejecting…" : "Mass Reject"}
+          </button>
+        </PermissionGate>
+      </BulkActionBar>
 
       {/* Reject modal */}
       {showRejectModal && selectedLoan && (
