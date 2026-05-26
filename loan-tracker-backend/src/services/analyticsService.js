@@ -51,9 +51,17 @@ class AnalyticsService {
       [tenantId, dateFrom || null, dateTo || null],
     );
 
+    // Collected, fines and interest aggregated in two round-trips.
+    //  - total_collected:  amount_paid net of overpayment (refunded)
+    //  - fines_collected:  penalty_portion (late-payment fines income)
+    //  - interest_earned:  loan-interest share of the post-penalty,
+    //                      post-overpayment principal+interest portion.
+    //                      Penalty is fines income, not loan interest,
+    //                      so it must be excluded from the prorated base.
     const collections = await query(
       `SELECT
          COALESCE(SUM(t.amount_paid - COALESCE(t.overpayment_portion, 0)), 0)::float AS total_collected,
+         COALESCE(SUM(COALESCE(t.penalty_portion, 0)), 0)::float                     AS fines_collected,
          COUNT(t.id)::int                                                            AS payment_count
        FROM transactions t
        WHERE t.tenant_id = $1
@@ -63,14 +71,11 @@ class AnalyticsService {
       [tenantId, dateFrom || null, dateTo || null],
     );
 
-    // Interest portion of payments — same allocation formula used by
-    // services/billingService.calculateTenantInterest. Kept here so
-    // this method is self-contained for ad-hoc date ranges (billing's
-    // helper is bound to calendar months). Overpayment is refunded,
-    // so it doesn't earn interest — prorate net amount, not gross.
     const interest = await query(
       `SELECT COALESCE(SUM(
-         (t.amount_paid - COALESCE(t.overpayment_portion, 0))
+         (t.amount_paid
+            - COALESCE(t.overpayment_portion, 0)
+            - COALESCE(t.penalty_portion, 0))
          * (l.total_interest / NULLIF(l.total_amount_due, 0))
        ), 0)::float AS interest_earned
        FROM transactions t
@@ -96,6 +101,7 @@ class AnalyticsService {
       total_interest_expected: parseFloat(k.total_interest_expected) || 0,
       total_portfolio_value: parseFloat(k.total_portfolio_value) || 0,
       total_collected: parseFloat(c.total_collected) || 0,
+      fines_collected: parseFloat(c.fines_collected) || 0,
       payment_count: parseInt(c.payment_count, 10) || 0,
       interest_earned: parseFloat(interest.rows[0].interest_earned) || 0,
       avg_loan_size: totalLoans > 0 ? totalDisbursed / totalLoans : 0,
@@ -157,7 +163,7 @@ class AnalyticsService {
         `SELECT
            TO_CHAR(t.payment_date, 'DD Mon')         AS month,
            t.payment_date                            AS month_sort,
-           COALESCE(SUM(t.amount_paid), 0)::float    AS collected
+           COALESCE(SUM(t.amount_paid - COALESCE(t.overpayment_portion, 0)), 0)::float AS collected
          FROM transactions t
          WHERE t.tenant_id = $1
            AND t.payment_status = 'completed'
@@ -176,7 +182,7 @@ class AnalyticsService {
       `SELECT
          TO_CHAR(date_trunc('month', t.payment_date), 'Mon YYYY') AS month,
          date_trunc('month', t.payment_date)                      AS month_sort,
-         COALESCE(SUM(t.amount_paid), 0)::float                   AS collected
+         COALESCE(SUM(t.amount_paid - COALESCE(t.overpayment_portion, 0)), 0)::float AS collected
        FROM transactions t
        WHERE t.tenant_id = $1
          AND t.payment_status = 'completed'
@@ -192,21 +198,27 @@ class AnalyticsService {
     }));
   }
 
-  // Disbursement trend. Same daily/monthly split as the collection trend.
+  // Disbursement trend. Same daily/monthly split as the collection
+  // trend. Bucketed by `disbursed_at` (not application start_date)
+  // and restricted to status IN (active/completed/defaulted) so a
+  // pending application never inflates the trend — matches the
+  // Dashboard's /dashboard/monthly-trends loansTrend query.
   async getDisbursementTrend(tenantId, months = 6, from = null, to = null) {
     if (from && to) {
       const result = await query(
         `SELECT
-           TO_CHAR(start_date, 'DD Mon')              AS month,
-           start_date                                 AS month_sort,
+           TO_CHAR(disbursed_at, 'DD Mon')            AS month,
+           disbursed_at                               AS month_sort,
            COUNT(*)::int                              AS loan_count,
            COALESCE(SUM(principal_amount), 0)::float  AS disbursed
          FROM loans
          WHERE tenant_id = $1
-           AND start_date >= $2::date
-           AND start_date <= $3::date
-         GROUP BY start_date
-         ORDER BY start_date`,
+           AND status IN ('active', 'completed', 'defaulted')
+           AND disbursed_at IS NOT NULL
+           AND disbursed_at::date >= $2::date
+           AND disbursed_at::date <= $3::date
+         GROUP BY disbursed_at
+         ORDER BY disbursed_at`,
         [tenantId, from, to],
       );
       return result.rows.map((r) => ({
@@ -217,15 +229,17 @@ class AnalyticsService {
     }
     const result = await query(
       `SELECT
-         TO_CHAR(date_trunc('month', start_date), 'Mon YYYY') AS month,
-         date_trunc('month', start_date)                      AS month_sort,
-         COUNT(*)::int                                        AS loan_count,
-         COALESCE(SUM(principal_amount), 0)::float            AS disbursed
+         TO_CHAR(date_trunc('month', disbursed_at), 'Mon YYYY') AS month,
+         date_trunc('month', disbursed_at)                      AS month_sort,
+         COUNT(*)::int                                          AS loan_count,
+         COALESCE(SUM(principal_amount), 0)::float              AS disbursed
        FROM loans
        WHERE tenant_id = $1
-         AND start_date >= date_trunc('month', NOW())
-                          - (INTERVAL '1 month' * $2)
-       GROUP BY date_trunc('month', start_date)
+         AND status IN ('active', 'completed', 'defaulted')
+         AND disbursed_at IS NOT NULL
+         AND disbursed_at >= date_trunc('month', NOW())
+                            - (INTERVAL '1 month' * $2)
+       GROUP BY date_trunc('month', disbursed_at)
        ORDER BY month_sort`,
       [tenantId, months],
     );

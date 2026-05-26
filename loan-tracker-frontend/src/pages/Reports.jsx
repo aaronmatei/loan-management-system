@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   XCircle,
   Wallet,
+  Gavel,
 } from "lucide-react";
 import api from "../services/api";
 import {
@@ -234,11 +235,24 @@ function Reports() {
             <p className="text-xs text-white/85">To be collected</p>
           </div>
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
-            <p className="text-ocean-100 text-xs uppercase">Interest Earned</p>
+            <p className="text-ocean-100 text-xs uppercase">Interest from Loans</p>
             <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
               {fmt(kpis.interest_earned)}
             </p>
-            <p className="text-xs text-ocean-100">profit</p>
+            <p className="text-xs text-ocean-100">loan interest earned</p>
+          </div>
+
+          {/* Fines = SUM(penalty_portion) — late-payment income, kept
+              separate from loan interest so the lender can see how much
+              of their revenue is interest vs penalties. */}
+          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-purple-600 to-fuchsia-700">
+            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+              <Gavel size={12} /> Fines Collected
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+              {fmt(kpis.fines_collected)}
+            </p>
+            <p className="text-xs text-white/85">late-payment penalties</p>
           </div>
           {/* PAR card colour swaps on risk level — same thresholds the
               industry uses to flag deteriorating portfolios. */}
