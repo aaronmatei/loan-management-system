@@ -85,10 +85,16 @@ router.post("/signup", async (req, res) => {
         .json({ error: "This email is already registered" });
     }
 
-    const codeRes = await client.query("SELECT COUNT(*) AS c FROM tenants");
-    const tenantCode = `TNT${String(
-      parseInt(codeRes.rows[0].c, 10) + 1,
-    ).padStart(5, "0")}`;
+    // tenant_code = TNT{N} where N is one more than the highest existing
+    // numeric suffix on a TNT-pattern code. COUNT(*) used to drive this,
+    // but it collides whenever a tenant has been deleted (it can return a
+    // value that already exists).
+    const codeRes = await client.query(
+      `SELECT COALESCE(
+         MAX(CAST(SUBSTRING(tenant_code FROM '^TNT(\\d+)$') AS INTEGER)), 0
+       ) + 1 AS next FROM tenants`,
+    );
+    const tenantCode = `TNT${String(codeRes.rows[0].next).padStart(5, "0")}`;
 
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + 14);
