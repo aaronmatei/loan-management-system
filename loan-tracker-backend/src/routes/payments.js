@@ -173,8 +173,19 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     // Annotate each installment with its late fee + penalty interest, using
     // the same shared formula as the Overdue page (utils/penalty.js). Paid or
     // not-yet-due installments resolve to zero penalty.
+    // Each installment carries a share of the loan's total interest — its
+    // policy share is total_interest / loan_duration_months. The interest
+    // EARNED so far on an installment is that share scaled by how much of
+    // its amount_due has been paid (so partial payments earn proportional
+    // interest; fully-paid installments earn the full share).
+    const monthsCount = parseInt(loan.loan_duration_months, 10) || 1;
+    const interestPerInstallment =
+      parseFloat(loan.total_interest || 0) / monthsCount;
+
     const scheduleWithPenalty = scheduleResult.rows.map((s) => {
-      const bal = parseFloat(s.amount_due) - parseFloat(s.amount_paid || 0);
+      const due = parseFloat(s.amount_due) || 0;
+      const paid = parseFloat(s.amount_paid || 0);
+      const bal = due - paid;
       const daysLate =
         s.status === "paid" ? 0 : parseInt(s.days_late, 10) || 0;
       const computed = computeInstallmentPenalty({
@@ -188,12 +199,16 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         0,
         Math.round((computed.penalty_total - penaltyPaid) * 100) / 100,
       );
+      const paidRatio = due > 0 ? Math.min(1, paid / due) : 0;
+      const interest_portion =
+        Math.round(interestPerInstallment * paidRatio * 100) / 100;
       return {
         ...s,
         balance_due: Math.round(Math.max(0, bal) * 100) / 100,
         ...computed,
         penalty_paid: penaltyPaid,
         penalty_outstanding: outstanding,
+        interest_portion,
       };
     });
 

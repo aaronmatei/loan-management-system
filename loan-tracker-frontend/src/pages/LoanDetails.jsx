@@ -527,6 +527,9 @@ function LoanDetails() {
                   Amount Paid
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  Interest
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
                   Late Fee
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
@@ -566,6 +569,14 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3 font-semibold text-green-600">
                       KES {parseFloat(item.amount_paid || 0).toLocaleString()}
+                    </td>
+                    <td
+                      className="px-6 py-3 text-right text-emerald-700 font-semibold"
+                      title="Interest earned from this installment (policy share × % paid)"
+                    >
+                      {parseFloat(item.interest_portion || 0) > 0
+                        ? `KES ${parseFloat(item.interest_portion).toLocaleString()}`
+                        : "—"}
                     </td>
                     <td className="px-6 py-3 text-right text-gray-700">
                       {item.penalty_total > 0
