@@ -602,17 +602,16 @@ function LoanDetails() {
                         ? `KES ${parseFloat(item.interest_portion).toLocaleString()}`
                         : "—"}
                     </td>
-                    {/* Late Fee + Penalty Interest sub-cells. Once
-                        penalty_paid > 0 we lose the breakdown that was
-                        actually billed (only the headline persists),
-                        so we render "—" instead of the live re-compute
-                        which would no longer sum to the headline. */}
+                    {/* Late Fee + Penalty Interest sub-cells. Backend
+                        prefers the persisted snapshot (taken at the
+                        moment penalty was paid) and falls back to the
+                        live formula for installments that haven't been
+                        charged yet — so these always reconcile with
+                        the Penalty Total headline. */}
                     <td className="px-6 py-3 text-right text-gray-700">
-                      {parseFloat(item.penalty_paid || 0) > 0
-                        ? "—"
-                        : parseFloat(item.penalty_total || 0) > 0
-                          ? `KES ${parseFloat(item.late_fee || 0).toLocaleString()}`
-                          : "-"}
+                      {parseFloat(item.penalty_total || 0) > 0
+                        ? `KES ${parseFloat(item.late_fee || 0).toLocaleString()}`
+                        : "-"}
                     </td>
                     <td
                       className="px-6 py-3 text-right text-gray-700"
@@ -623,11 +622,9 @@ function LoanDetails() {
                           : undefined
                       }
                     >
-                      {parseFloat(item.penalty_paid || 0) > 0
-                        ? "—"
-                        : parseFloat(item.penalty_total || 0) > 0
-                          ? `KES ${parseFloat(item.penalty_interest || 0).toLocaleString()}`
-                          : "-"}
+                      {parseFloat(item.penalty_total || 0) > 0
+                        ? `KES ${parseFloat(item.penalty_interest || 0).toLocaleString()}`
+                        : "-"}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-amber-700">
                       {parseFloat(item.penalty_total || 0) > 0 ? (
@@ -705,15 +702,13 @@ function LoanDetails() {
               const totalAmountDue = sum("amount_due");
               const totalAmountPaid = sum("amount_paid");
               const totalInterest = sum("interest_portion");
-              // Late fee + penalty interest only roll up where they're
-              // still meaningful (penalty hasn't been paid yet); paid-off
-              // installments contributed historically but the breakdown
-              // wasn't persisted, so they don't add to these subtotals.
+              // Roll up late fee + penalty interest only over rows that
+              // actually carry a penalty (skip never-overdue installments
+              // so the totals match the visible "KES X" cells).
               const totalLateFee = schedule.reduce(
                 (acc, s) =>
                   acc +
-                  (parseFloat(s.penalty_paid || 0) === 0 &&
-                  parseFloat(s.penalty_total || 0) > 0
+                  (parseFloat(s.penalty_total || 0) > 0
                     ? parseFloat(s.late_fee || 0)
                     : 0),
                 0,
@@ -721,8 +716,7 @@ function LoanDetails() {
               const totalPenaltyInterest = schedule.reduce(
                 (acc, s) =>
                   acc +
-                  (parseFloat(s.penalty_paid || 0) === 0 &&
-                  parseFloat(s.penalty_total || 0) > 0
+                  (parseFloat(s.penalty_total || 0) > 0
                     ? parseFloat(s.penalty_interest || 0)
                     : 0),
                 0,

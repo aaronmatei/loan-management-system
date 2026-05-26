@@ -840,7 +840,9 @@ CREATE TABLE public.payment_schedules (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     tenant_id integer NOT NULL,
-    penalty_paid numeric(12,2) DEFAULT 0
+    penalty_paid numeric(12,2) DEFAULT 0,
+    late_fee_charged numeric(15,2) DEFAULT 0,
+    penalty_interest_charged numeric(15,2) DEFAULT 0
 );
 
 

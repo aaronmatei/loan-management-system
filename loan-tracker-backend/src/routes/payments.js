@@ -209,6 +209,18 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         0,
         Math.round((penaltyTotal - penaltyPaid) * 100) / 100,
       );
+      // Late-fee / penalty-interest breakdown: prefer the persisted
+      // snapshot taken when penalty was paid (migration 030). Falls
+      // back to the live formula for installments that haven't yet
+      // had penalty charged.
+      const lateFeeCharged = parseFloat(s.late_fee_charged || 0);
+      const penaltyInterestCharged = parseFloat(s.penalty_interest_charged || 0);
+      const lateFee =
+        lateFeeCharged > 0 ? lateFeeCharged : computed.late_fee;
+      const penaltyInterest =
+        penaltyInterestCharged > 0
+          ? penaltyInterestCharged
+          : computed.penalty_interest;
       const paidRatio = due > 0 ? Math.min(1, paid / due) : 0;
       const interest_portion =
         Math.round(interestPerInstallment * paidRatio * 100) / 100;
@@ -216,6 +228,8 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         ...s,
         balance_due: Math.round(Math.max(0, bal) * 100) / 100,
         ...computed,
+        late_fee: lateFee,
+        penalty_interest: penaltyInterest,
         penalty_total: penaltyTotal,
         penalty_paid: penaltyPaid,
         penalty_outstanding: outstanding,

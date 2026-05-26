@@ -145,7 +145,12 @@ export async function recordLoanPayment({
       0,
       Math.round((p.penalty_total - parseFloat(s.penalty_paid)) * 100) / 100,
     );
-    return { schedule_id: s.id, outstanding };
+    return {
+      schedule_id: s.id,
+      outstanding,
+      late_fee: parseFloat(p.late_fee) || 0,
+      penalty_interest: parseFloat(p.penalty_interest) || 0,
+    };
   });
   const totalOutstandingPenalty = penaltyRows.reduce(
     (acc, r) => acc + r.outstanding,
@@ -163,7 +168,9 @@ export async function recordLoanPayment({
   }
 
   // Allocate penalty FIRST, oldest overdue installment first, up to its
-  // own outstanding penalty.
+  // own outstanding penalty. Snapshot the late-fee / penalty-interest
+  // breakdown onto the schedule row so the schedule UI can still show
+  // how the penalty was built up even after the balance changes.
   let penaltyToAllocate = Math.min(actualPaymentApplied, totalOutstandingPenalty);
   let penaltyAllocated = 0;
   for (const row of penaltyRows) {
@@ -172,9 +179,14 @@ export async function recordLoanPayment({
     if (apply > 0) {
       await query(
         `UPDATE payment_schedules
-            SET penalty_paid = COALESCE(penalty_paid, 0) + $1, updated_at = NOW()
-          WHERE id = $2`,
-        [apply, row.schedule_id],
+            SET penalty_paid = COALESCE(penalty_paid, 0) + $1,
+                late_fee_charged =
+                  GREATEST(COALESCE(late_fee_charged, 0), $2),
+                penalty_interest_charged =
+                  GREATEST(COALESCE(penalty_interest_charged, 0), $3),
+                updated_at = NOW()
+          WHERE id = $4`,
+        [apply, row.late_fee, row.penalty_interest, row.schedule_id],
       );
       penaltyAllocated += apply;
       penaltyToAllocate -= apply;
