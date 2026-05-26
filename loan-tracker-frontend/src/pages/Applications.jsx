@@ -20,6 +20,19 @@ import PermissionGate from "../components/PermissionGate";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
 
+// Format a date (Date | YYYY-MM-DD string) as "DD/MM/YYYY". Native
+// <input type="date"> displays in the browser's locale, which may not
+// be dd/mm/yyyy — we use this helper to surface the canonical format
+// next to the input and on read-only date displays.
+const ddmmyyyy = (value) => {
+  if (!value) return "—";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+};
+
 function Applications() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
@@ -1032,6 +1045,9 @@ function Applications() {
                     required
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    = {ddmmyyyy(disburseData.disbursement_date)}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">
@@ -1041,9 +1057,7 @@ function Applications() {
                     {(() => {
                       const d = new Date(disburseData.disbursement_date);
                       d.setMonth(d.getMonth() + 1);
-                      return isNaN(d.getTime())
-                        ? "—"
-                        : d.toLocaleDateString();
+                      return isNaN(d.getTime()) ? "—" : ddmmyyyy(d);
                     })()}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
