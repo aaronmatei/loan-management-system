@@ -63,7 +63,7 @@ function Loans() {
     monthly_interest_rate: "4.1667", // annual / 12 — display companion, synced
     loan_duration_months: "12",
     processing_fee_rate: "0",
-    start_date: new Date().toISOString().split("T")[0],
+    application_date: new Date().toISOString().split("T")[0],
     purpose: "",
     guarantor_name: "",
     guarantor_phone: "",
@@ -274,7 +274,7 @@ function Loans() {
         ),
         loan_duration_months: "12",
         processing_fee_rate: String(loanPolicy.processing_fee_rate),
-        start_date: new Date().toISOString().split("T")[0],
+        application_date: new Date().toISOString().split("T")[0],
         purpose: "",
         guarantor_name: "",
         guarantor_phone: "",
@@ -739,16 +739,20 @@ function Loans() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Start Date *
+                  Application Date *
                 </label>
                 <input
                   type="date"
-                  name="start_date"
-                  value={formData.start_date}
+                  name="application_date"
+                  value={formData.application_date}
                   onChange={handleInputChange}
                   required
+                  max={new Date().toISOString().split("T")[0]}
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Defaults to today; backdate for paper applications.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">

@@ -80,6 +80,42 @@ describe("loan processing fee", () => {
     expect(Number(res.body.data.net_disbursed_amount)).toBe(9800);
   });
 
+  it("honours the application_date sent by the form (admin can backdate)", async () => {
+    const t = await createTenant();
+    const admin = await createUser(t.id, { role: "admin" });
+    const client = await createClient(t.id);
+
+    const past = "2026-04-10";
+    const ok = await request(app)
+      .post("/api/loans")
+      .set("Authorization", auth(admin))
+      .send({
+        client_id: client.id,
+        principal_amount: 5000,
+        annual_interest_rate: 24,
+        loan_duration_months: 6,
+        application_date: past,
+      });
+    expect(ok.status).toBe(201);
+    // pg returns dates as Date objects — format YYYY-MM-DD locally.
+    const d = new Date(ok.body.data.application_date);
+    const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    expect(ymd).toBe(past);
+
+    const future = "2099-01-01";
+    const bad = await request(app)
+      .post("/api/loans")
+      .set("Authorization", auth(admin))
+      .send({
+        client_id: client.id,
+        principal_amount: 5000,
+        annual_interest_rate: 24,
+        loan_duration_months: 6,
+        application_date: future,
+      });
+    expect(bad.status).toBe(400);
+  });
+
   it("snapshots the processing fee + net disbursed on a new loan", async () => {
     const t = await createTenant();
     await query("UPDATE tenants SET processing_fee_rate = 5 WHERE id = $1", [t.id]);

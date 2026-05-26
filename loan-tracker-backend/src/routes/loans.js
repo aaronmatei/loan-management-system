@@ -165,6 +165,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       late_payment_fee,
       penalty_rate,
       processing_fee_rate: bodyProcessingFeeRate,
+      application_date: bodyApplicationDate,
       application_source,
       review_notes,
     } = req.body;
@@ -293,6 +294,24 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       Math.round(principal * processingFeeRate) / 100; // principal * rate/100
     const netDisbursed = Math.round((principal - processingFee) * 100) / 100;
 
+    // Application date: defaults to today; admins may backdate (e.g. capturing
+    // a paper application), but a future date is rejected.
+    let appDate = null;
+    if (bodyApplicationDate) {
+      const d = new Date(bodyApplicationDate);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({ error: "Invalid application_date" });
+      }
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      if (d > todayEnd) {
+        return res
+          .status(400)
+          .json({ error: "Application date cannot be in the future" });
+      }
+      appDate = bodyApplicationDate;
+    }
+
     // Create as a PENDING application: no start/end date, no schedule,
     // no capital movement, no notifications until disbursement.
     const loanResult = await query(
@@ -305,7 +324,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         processing_fee_rate, processing_fee, net_disbursed_amount,
         application_date, application_source, review_notes
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, $15, $16,
-                $17, $18, $19, CURRENT_DATE, $20, $21)
+                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21)
       RETURNING *`,
       [
         wTid,
@@ -329,6 +348,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         netDisbursed,
         application_source || "walk_in",
         review_notes || null,
+        appDate,
       ],
     );
 
