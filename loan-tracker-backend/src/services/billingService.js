@@ -1,5 +1,72 @@
 import { query } from "../config/database.js";
 import logger from "../config/logger.js";
+import { sendEmail } from "./emailService.js";
+import { sendSMS } from "./smsService.js";
+import { createNotification } from "./notificationService.js";
+
+// Notify a tenant that a new platform invoice was issued — in-app (to the
+// tenant's own admins/managers), email (contact_email) and SMS (contact_phone).
+// Best-effort: never throws, so a failed notification can't break billing.
+async function notifyInvoiceGenerated(tenant, invoice) {
+  try {
+    const amount = parseFloat(invoice.total_amount).toLocaleString();
+    const due = invoice.due_date
+      ? new Date(invoice.due_date).toLocaleDateString()
+      : null;
+    const summary = `Invoice ${invoice.invoice_number} for KES ${amount} has been issued${
+      due ? `, due ${due}` : ""
+    }.`;
+
+    // In-app — scoped to THIS tenant's staff (createNotification's `roles`
+    // shortcut isn't tenant-scoped, so resolve the user ids ourselves).
+    const staff = await query(
+      `SELECT id FROM users
+        WHERE tenant_id = $1 AND role IN ('admin','manager') AND is_active = true`,
+      [tenant.id],
+    );
+    for (const u of staff.rows) {
+      await createNotification({
+        userId: u.id,
+        type: "invoice_generated",
+        title: "New platform invoice",
+        message: summary,
+        icon: null, // lucide fallback in the UI (no emoji)
+        link: "/billing",
+        metadata: {
+          invoice_id: invoice.id,
+          invoice_number: invoice.invoice_number,
+        },
+      });
+    }
+
+    if (tenant.contact_email) {
+      const baseLine =
+        parseFloat(invoice.base_fee) > 0
+          ? `Base fee: KES ${parseFloat(invoice.base_fee).toLocaleString()}<br/>`
+          : "";
+      await sendEmail({
+        to: tenant.contact_email,
+        fromName: "LoanFix",
+        subject: `New invoice ${invoice.invoice_number} — KES ${amount}`,
+        html: `<p>Hi ${tenant.business_name},</p>
+               <p>${summary}</p>
+               <p>Interest earned: KES ${parseFloat(invoice.interest_earned).toLocaleString()}<br/>
+               Platform fee (${invoice.fee_percentage}%): KES ${parseFloat(invoice.amount_due).toLocaleString()}<br/>
+               ${baseLine}<strong>Total due: KES ${amount}</strong></p>
+               <p>Log in to your dashboard, open <strong>Billing</strong>, to view and pay.</p>`,
+      });
+    }
+
+    if (tenant.contact_phone) {
+      await sendSMS(
+        tenant.contact_phone,
+        `${tenant.business_name}: ${summary} Log in to Billing to pay.`,
+      );
+    }
+  } catch (err) {
+    logger.error("notifyInvoiceGenerated error:", err);
+  }
+}
 
 // Interest earned by a tenant in a calendar month. Mirrors the
 // principal/interest split convention used in payments.js
@@ -147,6 +214,10 @@ export async function generateInvoice(tenantId, year, month, userId = null) {
   logger.info(
     `Invoice ${invNumber} generated for tenant ${tenantId}: KES ${totalAmount}`,
   );
+
+  // Tell the tenant (in-app + email + SMS). Best-effort, never blocks.
+  await notifyInvoiceGenerated(tenant, result.rows[0]);
+
   return result.rows[0];
 }
 

@@ -20,6 +20,7 @@ import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
 import settingsRoutes from "./routes/settings.js";
+import billingRoutes from "./routes/billing.js";
 import auditRoutes from "./routes/audit.js";
 import userRoutes from "./routes/users.js";
 import backupRoutes from "./routes/backup.js";
@@ -108,6 +109,7 @@ app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/billing", billingRoutes); // tenant's own platform invoices
 app.use("/api/audit", auditRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/backup", backupRoutes);
