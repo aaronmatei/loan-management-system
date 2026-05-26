@@ -149,13 +149,15 @@ router.get("/loan/:loanId/summary", async (req, res) => {
 
     const loan = loanResult.rows[0];
 
-    // "Total paid against amount_due" excludes the penalty_portion that
-    // covers late-payment penalties (penalty is income, not principal).
+    // total_paid    = principal+interest applied to amount_due (drives balance)
+    // total_collected = what the lender actually kept (gross − overpayment)
+    // total_penalty_paid + total_overpayment are surfaced for the UI.
     const paidResult = await query(
       `SELECT
-         COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid,
-         COALESCE(SUM(amount_paid), 0)                                AS total_collected,
-         COALESCE(SUM(COALESCE(penalty_portion, 0)), 0)                AS total_penalty_paid
+         COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)), 0) AS total_paid,
+         COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0)                                 AS total_collected,
+         COALESCE(SUM(COALESCE(penalty_portion, 0)), 0)                                                    AS total_penalty_paid,
+         COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0)                                                AS total_overpayment
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
       [loanId],
@@ -223,6 +225,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const totalPaid = parseFloat(paidResult.rows[0].total_paid);
     const totalCollected = parseFloat(paidResult.rows[0].total_collected);
     const totalPenaltyPaid = parseFloat(paidResult.rows[0].total_penalty_paid);
+    const totalOverpayment = parseFloat(paidResult.rows[0].total_overpayment);
     const totalDue = parseFloat(loan.total_amount_due);
     const overpayment = parseFloat(loan.overpayment_amount || 0);
     const balance = Math.max(0, totalDue - totalPaid);
@@ -263,9 +266,10 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         loan,
         summary: {
           total_due: totalDue,
-          total_paid: totalPaid,           // principal+interest paid (excl. penalty)
-          total_collected: totalCollected, // everything the client paid us (incl. penalty)
+          total_paid: totalPaid,           // principal+interest applied to amount_due
+          total_collected: totalCollected, // kept by the lender (gross − overpayment)
           total_penalty_paid: totalPenaltyPaid,
+          total_overpayment: totalOverpayment,
           balance: balance,
           overpayment: overpayment,
           refund_status: loan.refund_status,

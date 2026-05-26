@@ -104,10 +104,14 @@ export async function recordLoanPayment({
     throw httpError(400, `Cannot record payment on ${loan.status} loan`);
   }
 
-  // "Already paid against amount_due" excludes the penalty_portion of past
-  // transactions — penalties are income, not principal reduction.
+  // "Already paid against amount_due" excludes both the penalty_portion
+  // (income, not principal) AND the overpayment_portion (refunded to the
+  // client, not applied to the balance).
   const paidResult = await query(
-    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid
+    `SELECT COALESCE(
+        SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)),
+        0
+      ) AS total_paid
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
@@ -197,15 +201,17 @@ export async function recordLoanPayment({
   ]);
   const transactionCode = `TXN-${tenantPrefix(tRes.rows[0]?.subdomain)}-${year}-${String(txnCount).padStart(5, "0")}`;
 
-  // Record the transaction (full amount paid by client, with the split
-  // captured via penalty_portion).
+  // Record the transaction. amount_paid is the gross client payment;
+  // penalty_portion + overpayment_portion record what slice went to penalty
+  // and what was overpaid (will be refunded). "Collected" anywhere else =
+  // amount_paid - overpayment_portion.
   const txnResult = await query(
     `INSERT INTO transactions (
         tenant_id, transaction_code, loan_id, client_id, amount_paid,
-        penalty_portion,
+        penalty_portion, overpayment_portion,
         payment_date, payment_method, payment_reference,
         payment_status, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'completed', $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'completed', $11)
       RETURNING *`,
     [
       loan.tenant_id,
@@ -214,6 +220,7 @@ export async function recordLoanPayment({
       loan.client_id,
       paymentAmount,
       penaltyAllocated,
+      overpayment,
       paymentDate,
       paymentMethod,
       paymentReference || null,
@@ -259,10 +266,13 @@ export async function recordLoanPayment({
     }
   }
 
-  // Recalculate totals after this payment. Same exclusion as alreadyPaid —
-  // penalty_portion is income, not principal repayment.
+  // Recalculate totals after this payment. Same exclusions as alreadyPaid:
+  // penalty_portion (income) and overpayment_portion (refunded).
   const newTotalPaidResult = await query(
-    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid
+    `SELECT COALESCE(
+        SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)),
+        0
+      ) AS total_paid
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
@@ -617,10 +627,13 @@ export async function buildReceiptBlock(loanId, tenantId) {
     if (loanRes.rows.length === 0) return null;
     const l = loanRes.rows[0];
 
-    // total_paid is the principal+interest portion (excludes penalty);
-    // mirrors the same exclusion used by routes/payments.js summary.
+    // total_paid is the principal+interest portion applied to amount_due
+    // (excludes penalty AND overpayment). Mirrors routes/payments.js summary.
     const paidRes = await query(
-      `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid
+      `SELECT COALESCE(
+          SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)),
+          0
+        ) AS total_paid
          FROM transactions
         WHERE loan_id = $1 AND payment_status = 'completed'`,
       [loanId],

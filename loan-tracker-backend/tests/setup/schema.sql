@@ -1231,7 +1231,8 @@ CREATE TABLE public.transactions (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     notes text,
     tenant_id integer NOT NULL,
-    penalty_portion numeric(12,2) DEFAULT 0
+    penalty_portion numeric(12,2) DEFAULT 0,
+    overpayment_portion numeric(12,2) DEFAULT 0
 );
 
 

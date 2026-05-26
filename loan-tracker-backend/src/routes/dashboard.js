@@ -38,12 +38,14 @@ router.get("/summary", async (req, res) => {
       ts.params,
     );
 
-    // Get total collected (sum of all payments)
+    // "Total collected" = amount_paid minus any overpayment that's destined
+    // for refund. amount_paid stays as the gross client payment; we only
+    // count what stays with the lender as collected income.
     const paymentsStats = await query(
       `
       SELECT
         COUNT(*) as total_transactions,
-        COALESCE(SUM(amount_paid), 0) as total_collected
+        COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0) as total_collected
       FROM transactions
       WHERE payment_status = 'completed'${ts.clause}
     `,
@@ -332,14 +334,15 @@ router.get("/monthly-trends", async (req, res) => {
       ts.params,
     );
 
-    // Payments by month
+    // Monthly collections — net of any overpayment (refunds), so the
+    // collections graph reflects what the lender actually kept.
     const paymentsTrend = await query(
       `
       SELECT
         TO_CHAR(payment_date, 'YYYY-MM') as month,
         TO_CHAR(payment_date, 'Mon YYYY') as month_label,
         COUNT(*) as count,
-        COALESCE(SUM(amount_paid), 0) as total_amount
+        COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0) as total_amount
       FROM transactions
       WHERE payment_status = 'completed'
         AND payment_date >= CURRENT_DATE - INTERVAL '6 months'${ts.clause}

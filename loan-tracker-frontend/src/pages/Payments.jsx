@@ -200,14 +200,19 @@ function Payments() {
           phone_number: p.phone_number,
           transactions: [],
           count: 0,
-          total_paid: 0,
+          total_paid: 0,        // gross (what the client paid)
+          total_collected: 0,   // amount_paid - overpayment_portion
+          overpayment: 0,       // sum of overpayment_portion
           last_date: p.payment_date,
         };
         map.set(p.loan_id, g);
       }
       g.transactions.push(p);
       g.count += 1;
+      const op = parseFloat(p.overpayment_portion || 0);
       g.total_paid += parseFloat(p.amount_paid || 0);
+      g.total_collected += parseFloat(p.amount_paid || 0) - op;
+      g.overpayment += op;
       if (new Date(p.payment_date) > new Date(g.last_date))
         g.last_date = p.payment_date;
     }
@@ -552,6 +557,20 @@ function Payments() {
                     </p>
                   </div>
                   <div>
+                    <p className="text-xs text-gray-500">Total Collected</p>
+                    <p className="font-bold text-emerald-700">
+                      KES {g.total_collected.toLocaleString()}
+                    </p>
+                  </div>
+                  {g.overpayment > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500">Overpayment</p>
+                      <p className="font-semibold text-amber-700">
+                        KES {g.overpayment.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  <div>
                     <p className="text-xs text-gray-500">Last Payment</p>
                     <p className="font-semibold">
                       {new Date(g.last_date).toLocaleDateString()}
@@ -630,6 +649,8 @@ function Payments() {
                   ["Loan", "loan_code"],
                   ["Payments", "count"],
                   ["Total Paid", "total_paid"],
+                  ["Total Collected", "total_collected"],
+                  ["Overpayment", "overpayment"],
                   ["Last Payment", "last_date"],
                 ].map(([label, key]) => (
                   <SortableHeader
@@ -691,13 +712,25 @@ function Payments() {
                       <td className="px-6 py-4 font-bold text-green-600">
                         KES {g.total_paid.toLocaleString()}
                       </td>
+                      <td className="px-6 py-4 font-bold text-emerald-700">
+                        KES {g.total_collected.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {g.overpayment > 0 ? (
+                          <span className="font-semibold text-amber-700">
+                            KES {g.overpayment.toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-gray-600 text-sm">
                         {new Date(g.last_date).toLocaleDateString()}
                       </td>
                     </tr>
                     {open && (
                       <tr className="bg-gray-50/70">
-                        <td colSpan="5" className="px-8 pb-4 pt-1">
+                        <td colSpan="7" className="px-8 pb-4 pt-1">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="text-[11px] uppercase tracking-wide text-gray-400">
