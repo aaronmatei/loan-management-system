@@ -40,6 +40,8 @@ function Loans() {
     status: "all",
     refundStatus: "all",
     overdue: "all", // "all" | "yes" | "no"
+    disbursedFrom: "",
+    disbursedTo: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -137,7 +139,14 @@ function Loans() {
   // Reset to the first page whenever the filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filters.status, filters.refundStatus, filters.overdue]);
+  }, [
+    searchQuery,
+    filters.status,
+    filters.refundStatus,
+    filters.overdue,
+    filters.disbursedFrom,
+    filters.disbursedTo,
+  ]);
 
   const fetchLoans = async () => {
     try {
@@ -366,6 +375,15 @@ function Loans() {
       return false;
     }
 
+    // Disbursement-date range. Comparing date-only strings (YYYY-MM-DD)
+    // so a time component on disbursed_at doesn't shift the bucket.
+    if (filters.disbursedFrom || filters.disbursedTo) {
+      if (!loan.disbursed_at) return false;
+      const d = new Date(loan.disbursed_at).toISOString().split("T")[0];
+      if (filters.disbursedFrom && d < filters.disbursedFrom) return false;
+      if (filters.disbursedTo && d > filters.disbursedTo) return false;
+    }
+
     return true;
   });
 
@@ -373,11 +391,19 @@ function Loans() {
     searchQuery.trim() !== "" ||
     filters.status !== "all" ||
     filters.refundStatus !== "all" ||
-    filters.overdue !== "all";
+    filters.overdue !== "all" ||
+    filters.disbursedFrom !== "" ||
+    filters.disbursedTo !== "";
 
   const clearFilters = () => {
     setSearchQuery("");
-    setFilters({ status: "all", refundStatus: "all", overdue: "all" });
+    setFilters({
+      status: "all",
+      refundStatus: "all",
+      overdue: "all",
+      disbursedFrom: "",
+      disbursedTo: "",
+    });
   };
 
   // Derive `balance` so it's sortable alongside the real columns
@@ -1087,6 +1113,34 @@ function Loans() {
               </select>
             </div>
 
+            {/* Disbursed-date range */}
+            <div className="min-w-[150px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Disbursed From
+              </label>
+              <input
+                type="date"
+                value={filters.disbursedFrom}
+                onChange={(e) =>
+                  setFilters({ ...filters, disbursedFrom: e.target.value })
+                }
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              />
+            </div>
+            <div className="min-w-[150px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Disbursed To
+              </label>
+              <input
+                type="date"
+                value={filters.disbursedTo}
+                onChange={(e) =>
+                  setFilters({ ...filters, disbursedTo: e.target.value })
+                }
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              />
+            </div>
+
             {/* Clear */}
             {filtersActive && (
               <button
@@ -1239,6 +1293,13 @@ function Loans() {
                     </p>
                   </div>
                   <div>
+                    <p className="text-xs text-gray-500">Interest</p>
+                    <p className="font-bold text-emerald-700">
+                      KES{" "}
+                      {parseFloat(loan.total_interest || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-xs text-gray-500">Total Due</p>
                     <p className="font-bold">
                       KES{" "}
@@ -1318,6 +1379,7 @@ function Loans() {
                     ["Client", "first_name", "left"],
                     ["Disbursed", "disbursed_at", "left"],
                     ["Principal", "principal_amount", "right"],
+                    ["Interest", "total_interest", "right"],
                     ["Total to Pay", "total_amount_due", "right"],
                     ["Paid", "total_paid", "right"],
                     ["Balance", "balance", "right"],
@@ -1390,6 +1452,14 @@ function Loans() {
                         <p className="font-semibold text-gray-800 text-sm">
                           KES{" "}
                           {parseFloat(loan.principal_amount).toLocaleString()}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <p className="font-semibold text-emerald-700 text-sm">
+                          KES{" "}
+                          {parseFloat(
+                            loan.total_interest || 0,
+                          ).toLocaleString()}
                         </p>
                       </td>
                       <td className="px-4 py-4 text-right">
@@ -1482,6 +1552,17 @@ function Loans() {
                       {filteredLoans
                         .reduce(
                           (sum, l) => sum + parseFloat(l.principal_amount || 0),
+                          0,
+                        )
+                        .toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold text-emerald-700 text-sm">
+                      KES{" "}
+                      {filteredLoans
+                        .reduce(
+                          (sum, l) => sum + parseFloat(l.total_interest || 0),
                           0,
                         )
                         .toLocaleString()}
