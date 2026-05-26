@@ -48,10 +48,18 @@ function Loans() {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
+  // Tenant loan policy (set in Settings → Loan Policy). Defaults match the
+  // backend until the real values arrive so the form is usable straight away.
+  const [loanPolicy, setLoanPolicy] = useState({
+    default_interest_rate: 50,
+    processing_fee_rate: 0,
+    late_payment_fee: 500,
+  });
+
   const [formData, setFormData] = useState({
     client_id: "",
     principal_amount: "",
-    annual_interest_rate: "50", // Per annum default 50% (platform default)
+    annual_interest_rate: "50",
     loan_duration_months: "12",
     start_date: new Date().toISOString().split("T")[0],
     purpose: "",
@@ -67,7 +75,30 @@ function Loans() {
     fetchLoans();
     fetchClients();
     fetchPoolStatus();
+    fetchLoanPolicy();
   }, []);
+
+  // Pull the tenant's loan policy and seed the form defaults from it, so a
+  // new application picks up the configured annual rate, late fee, etc.
+  const fetchLoanPolicy = async () => {
+    try {
+      const r = await api.get("/settings/loan-policy");
+      const d = r.data?.data || {};
+      const policy = {
+        default_interest_rate: parseFloat(d.default_interest_rate ?? 50),
+        processing_fee_rate: parseFloat(d.processing_fee_rate ?? 0),
+        late_payment_fee: parseFloat(d.late_payment_fee ?? 500),
+      };
+      setLoanPolicy(policy);
+      setFormData((p) => ({
+        ...p,
+        annual_interest_rate: String(policy.default_interest_rate),
+        late_payment_fee: policy.late_payment_fee,
+      }));
+    } catch {
+      /* fall back to the defaults above */
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -175,11 +206,20 @@ function Loans() {
     const totalAmount = principal + totalInterest;
     const monthlyPayment = months > 0 ? totalAmount / months : 0;
 
+    // Processing fee snapshot — mirrors what the backend will store on the
+    // loan: principal × tenant's processing_fee_rate%.
+    const feeRate = parseFloat(loanPolicy.processing_fee_rate) || 0;
+    const processingFee = Math.round(principal * feeRate) / 100;
+    const netDisbursed = Math.max(0, principal - processingFee);
+
     return {
       monthlyRate: monthlyRate.toFixed(2),
       totalInterest: totalInterest.toFixed(2),
       totalAmount: totalAmount.toFixed(2),
       monthlyPayment: monthlyPayment.toFixed(2),
+      feeRate,
+      processingFee,
+      netDisbursed,
     };
   };
 
@@ -201,11 +241,11 @@ function Loans() {
         `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.`,
       );
 
-      // Reset form
+      // Reset form — defaults come from the tenant's configured loan policy.
       setFormData({
         client_id: "",
         principal_amount: "",
-        annual_interest_rate: "12",
+        annual_interest_rate: String(loanPolicy.default_interest_rate),
         loan_duration_months: "12",
         start_date: new Date().toISOString().split("T")[0],
         purpose: "",
@@ -213,7 +253,7 @@ function Loans() {
         guarantor_phone: "",
         guarantor_id_number: "",
         collateral_description: "",
-        late_payment_fee: 500,
+        late_payment_fee: loanPolicy.late_payment_fee,
         penalty_rate: 5,
       });
       setSelectedClient(null);
@@ -810,6 +850,24 @@ function Loans() {
                     </p>
                   </div>
                 </div>
+                {calc.processingFee > 0 && (
+                  <div className="mt-3 pt-3 border-t border-ocean-200 grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-600">
+                        Processing Fee ({calc.feeRate}%)
+                      </p>
+                      <p className="font-bold text-amber-700">
+                        − KES {parseFloat(calc.processingFee).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">To Disburse</p>
+                      <p className="font-bold text-ocean-700">
+                        KES {parseFloat(calc.netDisbursed).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-3 pt-3 border-t border-ocean-200">
                   <p className="text-sm text-gray-600">
                     Total Repayable:{" "}

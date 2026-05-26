@@ -5,10 +5,9 @@ import logger from "../config/logger.js";
 
 const router = express.Router();
 router.use(verifyToken);
-router.use(authorize("admin"));
 
 // Get company settings
-router.get("/company", async (req, res) => {
+router.get("/company", authorize("admin"), async (req, res) => {
   try {
     // company_settings is a per-tenant singleton.
     const tid = req.user?.tenant_id;
@@ -44,7 +43,7 @@ router.get("/company", async (req, res) => {
 });
 
 // Update company settings
-router.put("/company", async (req, res) => {
+router.put("/company", authorize("admin"), async (req, res) => {
   try {
     const {
       company_name,
@@ -151,7 +150,9 @@ router.put("/company", async (req, res) => {
 //   duration bounds. Drives the staff loan form and the customer
 //   portal calculator/application.
 // ============================================================
-router.get("/loan-policy", async (req, res) => {
+// GET is open to everyone who can create a loan, so the loan form can pre-fill
+// the tenant's annual rate / processing fee / late fee.
+router.get("/loan-policy", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
     const tid = req.user?.tenant_id;
     if (!tid) {
@@ -177,7 +178,7 @@ router.get("/loan-policy", async (req, res) => {
   }
 });
 
-router.put("/loan-policy", async (req, res) => {
+router.put("/loan-policy", authorize("admin"), async (req, res) => {
   try {
     const tid = req.user?.tenant_id;
     if (!tid) {

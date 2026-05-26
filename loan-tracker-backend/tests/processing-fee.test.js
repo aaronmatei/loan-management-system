@@ -32,6 +32,21 @@ describe("loan processing fee", () => {
     expect(Number(row.processing_fee_rate)).toBe(2.5);
   });
 
+  it("lets a loan_officer GET the loan policy (needed by the new-loan form)", async () => {
+    const t = await createTenant();
+    await query(
+      "UPDATE tenants SET default_interest_rate = 36, processing_fee_rate = 4 WHERE id = $1",
+      [t.id],
+    );
+    const officer = await createUser(t.id, { role: "loan_officer" });
+    const res = await request(app)
+      .get("/api/settings/loan-policy")
+      .set("Authorization", auth(officer));
+    expect(res.status).toBe(200);
+    expect(Number(res.body.data.default_interest_rate)).toBe(36);
+    expect(Number(res.body.data.processing_fee_rate)).toBe(4);
+  });
+
   it("rejects an out-of-range processing fee rate", async () => {
     const t = await createTenant();
     const admin = await createUser(t.id, { role: "admin" });
