@@ -341,6 +341,11 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
   doc.moveDown(0.5);
   doc.fontSize(10).fillColor("#000");
   doc.text(`Principal Amount: ${formatCurrency(loan.principal_amount)}`);
+  if (parseFloat(loan.processing_fee || 0) > 0) {
+    doc.text(
+      `Processing Fee: ${formatCurrency(loan.processing_fee)} (${parseFloat(loan.processing_fee_rate)}%)`,
+    );
+  }
   doc.text(`Interest Rate: ${loan.interest_rate}% per month`);
   doc.text(`Duration: ${loan.loan_duration_months} months`);
   doc.text(`Total Interest: ${formatCurrency(loan.total_interest)}`);
@@ -903,9 +908,17 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
 
   const terms = [
     ["Principal Amount:", formatCurrency(loan.principal_amount)],
+    ...(parseFloat(loan.processing_fee || 0) > 0
+      ? [
+          [
+            "Processing Fee:",
+            `${formatCurrency(loan.processing_fee)} (${parseFloat(loan.processing_fee_rate)}%)`,
+          ],
+        ]
+      : []),
     [
       "Interest Rate:",
-      `${(parseFloat(loan.interest_rate) * 12).toFixed(2)}% per annum`,
+      `${parseFloat(loan.interest_rate).toFixed(2)}% per month`,
     ],
     ["Total Interest:", formatCurrency(loan.total_interest)],
     ["Total Amount Repayable:", formatCurrency(loan.total_amount_due)],
@@ -983,7 +996,7 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
     },
     {
       title: "2. INTEREST",
-      content: `Interest shall be calculated at the rate of ${(parseFloat(loan.interest_rate) * 12).toFixed(2)}% per annum on the principal amount. The total interest payable over the loan period is ${formatCurrency(loan.total_interest)}.`,
+      content: `Interest shall be calculated at the rate of ${parseFloat(loan.interest_rate).toFixed(2)}% per month on the principal amount. The total interest payable over the loan period is ${formatCurrency(loan.total_interest)}.`,
     },
     {
       title: "3. PAYMENT METHODS",
