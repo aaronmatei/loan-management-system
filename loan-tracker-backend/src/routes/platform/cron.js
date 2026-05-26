@@ -44,6 +44,14 @@ router.get("/status", (req, res) => {
         description:
           "Mark invoices overdue, auto-suspend / reactivate tenants, daily admin summary",
       },
+      invoice_generation: {
+        enabled:
+          process.env.BILLING_CRON_ENABLED === "true" &&
+          process.env.BILLING_AUTO_GENERATE !== "false",
+        schedule: process.env.BILLING_GENERATE_SCHEDULE || "0 6 1 * *",
+        description:
+          "Auto-generate the previous month's invoices for all billable tenants",
+      },
       backups: {
         enabled: process.env.BACKUP_SCHEDULE_ENABLED === "true",
         schedule: process.env.BACKUP_SCHEDULE_CRON || "0 2 * * *",
@@ -70,6 +78,9 @@ router.post("/trigger", async (req, res) => {
         // covers both — same function, no separate task).
       case "overdue":
         result = await runDailyPaymentNotifications();
+        break;
+      case "generate_invoices":
+        result = await billingCron.runMonthlyInvoiceGeneration();
         break;
       case "tenant_invoices":
         result = { tenant_invoices_overdue: await billingCron.markOverdueInvoices() };
@@ -100,7 +111,7 @@ router.post("/trigger", async (req, res) => {
       default:
         return res.status(400).json({
           error:
-            "Unknown task. Use one of: reminders, overdue, tenant_invoices, suspend, reactivate, summary, reset_demo, referrals, all",
+            "Unknown task. Use one of: reminders, overdue, generate_invoices, tenant_invoices, suspend, reactivate, summary, reset_demo, referrals, all",
         });
     }
     res.json({ success: true, task, result });

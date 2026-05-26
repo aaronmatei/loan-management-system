@@ -25,6 +25,7 @@ import cron from "node-cron";
 import { query } from "../config/database.js";
 import { sendEmail } from "./emailService.js";
 import { logSystemAction } from "./auditService.js";
+import { generateMonthlyInvoices } from "./billingService.js";
 import referralService from "./referralService.js";
 import logger from "../config/logger.js";
 
@@ -358,6 +359,91 @@ export function setupBillingCron() {
   });
 }
 
+// ── Monthly invoice generation ────────────────────────────────────
+// Generates the previous month's invoices for all billable + active
+// tenants (each tenant is notified via billingService). Idempotent —
+// generateInvoice skips any period already invoiced — so a re-run or a
+// month already done manually won't double-bill.
+export async function runMonthlyInvoiceGeneration() {
+  const started = Date.now();
+  try {
+    const results = await generateMonthlyInvoices(null); // system-run
+    logger.info(
+      `💼 Monthly invoices (${results.period}): ${results.success.length} generated, ${results.skipped.length} skipped, ${results.failed.length} failed in ${Date.now() - started}ms`,
+    );
+    try {
+      await logSystemAction({
+        action: "billing_invoices_auto_generated",
+        entityType: "invoice",
+        description: `Auto-generated ${results.success.length} invoice(s) for ${results.period}`,
+        metadata: {
+          period: results.period,
+          generated: results.success.length,
+          skipped: results.skipped.length,
+          failed: results.failed.length,
+        },
+      });
+    } catch (e) {
+      logger.error("audit (auto-generate) error:", e);
+    }
+    await sendInvoiceGenerationSummary(results);
+    return results;
+  } catch (err) {
+    logger.error("runMonthlyInvoiceGeneration error:", err);
+    return { error: err.message };
+  }
+}
+
+// Email platform admins a short summary of the generation run.
+async function sendInvoiceGenerationSummary(results) {
+  try {
+    const admins = await query(
+      `SELECT email FROM users
+        WHERE is_platform_admin = true AND is_active = true`,
+    );
+    const subject = `Monthly invoices generated — ${results.period}`;
+    for (const a of admins.rows) {
+      const res = await sendEmail({
+        to: a.email,
+        fromName: "LoanFix System",
+        subject,
+        html: invoiceGenerationHtml(results),
+      });
+      await query(
+        `INSERT INTO email_logs
+           (tenant_id, recipient_email, subject, message_type, has_attachment, status, provider_response)
+         VALUES (NULL, $1, $2, 'invoice_generation_summary', false, $3, $4)`,
+        [a.email, subject, res?.success ? "sent" : "failed", JSON.stringify(res || {})],
+      );
+    }
+  } catch (err) {
+    logger.error("sendInvoiceGenerationSummary error:", err);
+  }
+}
+
+// ── Monthly invoice-generation cron registration ──────────────────
+// Shares the master BILLING_CRON_ENABLED switch (so enabling billing
+// automation also raises invoices). Opt out with BILLING_AUTO_GENERATE=
+// false. Schedule via BILLING_GENERATE_SCHEDULE (default: 1st @ 06:00).
+export function setupInvoiceGenerationCron() {
+  if (process.env.BILLING_CRON_ENABLED !== "true") return;
+  if (process.env.BILLING_AUTO_GENERATE === "false") {
+    logger.info("💼 Monthly invoice auto-generation DISABLED (BILLING_AUTO_GENERATE=false)");
+    return;
+  }
+  const expr = process.env.BILLING_GENERATE_SCHEDULE || "0 6 1 * *";
+  if (!cron.validate(expr)) {
+    logger.error(`💼 Invalid BILLING_GENERATE_SCHEDULE "${expr}" — not started`);
+    return;
+  }
+  logger.info(`💼 Monthly invoice generation ENABLED: ${expr}`);
+  cron.schedule(expr, () => {
+    runMonthlyInvoiceGeneration().catch((err) =>
+      logger.error("invoice generation cron tick error:", err),
+    );
+  });
+}
+
 // ── HTML templates ────────────────────────────────────────────────
 function invoiceOverdueHtml(inv, tenant, outstanding) {
   return `<html><body style="font-family:Arial,sans-serif;background:#f3f4f6;padding:20px;">
@@ -410,6 +496,35 @@ function reactivationHtml(tenant) {
     </table></body></html>`;
 }
 
+function invoiceGenerationHtml(results) {
+  const list = (arr) =>
+    arr && arr.length
+      ? `<ul style="margin:6px 0;">${arr
+          .map(
+            (x) =>
+              `<li>${x.tenant}${x.invoice_number ? ` — ${x.invoice_number}` : ""}${
+                x.amount != null ? ` (KES ${parseFloat(x.amount).toLocaleString()})` : ""
+              }${x.reason ? ` — ${x.reason}` : ""}${x.error ? ` — ${x.error}` : ""}</li>`,
+          )
+          .join("")}</ul>`
+      : "<p style='color:#6b7280;margin:6px 0;'>None</p>";
+  return `<html><body style="font-family:Arial,sans-serif;background:#f3f4f6;padding:20px;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;margin:0 auto;overflow:hidden;">
+      <tr><td style="background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;padding:30px;text-align:center;">
+        <h1 style="margin:0;">Monthly Invoices Generated</h1>
+        <p style="margin:8px 0 0 0;opacity:.9;">Period: ${results.period}</p>
+      </td></tr>
+      <tr><td style="padding:30px;">
+        <p><strong>${results.success?.length || 0}</strong> generated ·
+           <strong>${results.skipped?.length || 0}</strong> skipped ·
+           <strong>${results.failed?.length || 0}</strong> failed</p>
+        <h3 style="margin-top:20px;">Generated</h3>${list(results.success)}
+        ${results.skipped?.length ? `<h3>Skipped</h3>${list(results.skipped)}` : ""}
+        ${results.failed?.length ? `<h3 style="color:#dc2626;">Failed</h3>${list(results.failed)}` : ""}
+      </td></tr>
+    </table></body></html>`;
+}
+
 function dailySummaryHtml(results, stats) {
   const row = (label, value, color = "") =>
     `<tr><td style="padding:6px 0;">${label}</td><td style="text-align:right;font-weight:bold;${color ? `color:${color};` : ""}">${value}</td></tr>`;
@@ -442,7 +557,9 @@ function dailySummaryHtml(results, stats) {
 
 export default {
   setupBillingCron,
+  setupInvoiceGenerationCron,
   runBillingDailyTasks,
+  runMonthlyInvoiceGeneration,
   markOverdueInvoices,
   autoSuspendTenants,
   autoReactivateTenants,

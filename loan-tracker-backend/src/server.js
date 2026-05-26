@@ -8,7 +8,7 @@ import { connectDB } from "./config/database.js";
 import app from "./app.js";
 import { setupScheduledBackups } from "./services/scheduler.js";
 import { setupPaymentNotifications } from "./services/paymentReminderJob.js";
-import { setupBillingCron } from "./services/billingCronJob.js";
+import { setupBillingCron, setupInvoiceGenerationCron } from "./services/billingCronJob.js";
 import { setupDemoReset } from "./services/demoResetJob.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
@@ -36,5 +36,6 @@ app.listen(PORT, () => {
   setupScheduledBackups();
   setupPaymentNotifications();
   setupBillingCron();
+  setupInvoiceGenerationCron();
   setupDemoReset();
 });
