@@ -163,6 +163,8 @@ function LoanDetails() {
       // Per-transaction overpayment: principal-portion of this payment that
       // went beyond the still-owed balance at the time it was recorded.
       overpayment: parseFloat(txn.receipt?.overpayment_for_this || 0),
+      // Penalty cleared by this specific transaction (penalty-first allocation).
+      penalty_paid: parseFloat(txn.penalty_portion || 0),
       next_payment_amount: fullyPaid ? null : receiptSummary?.next_payment_amount,
       next_payment_date: fullyPaid ? null : receiptSummary?.next_payment_date,
       next_payment_number: fullyPaid ? null : receiptSummary?.next_payment_number,
@@ -501,12 +503,22 @@ function LoanDetails() {
                 (sum, s) => sum + parseFloat(s.penalty_total || 0),
                 0,
               );
-              return totalPenalty > 0 ? (
+              const totalPenaltyPaid = parseFloat(
+                summary.total_penalty_paid || 0,
+              );
+              if (totalPenalty <= 0 && totalPenaltyPaid <= 0) return null;
+              return (
                 <span className="text-amber-700 font-medium">
                   {" "}
                   · KES {totalPenalty.toLocaleString()} penalty accrued
+                  {totalPenaltyPaid > 0 && (
+                    <span className="text-green-700">
+                      {" "}
+                      · KES {totalPenaltyPaid.toLocaleString()} paid
+                    </span>
+                  )}
                 </span>
-              ) : null;
+              );
             })()}
           </p>
         </div>
@@ -537,6 +549,9 @@ function LoanDetails() {
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
                   Penalty Total
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  Penalty Paid
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   Status
@@ -596,9 +611,46 @@ function LoanDetails() {
                         : "-"}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-amber-700">
-                      {item.penalty_total > 0
-                        ? `KES ${parseFloat(item.penalty_total || 0).toLocaleString()}`
-                        : "-"}
+                      {parseFloat(item.penalty_total || 0) > 0 ? (
+                        <>
+                          <div>
+                            KES{" "}
+                            {parseFloat(
+                              item.penalty_total || 0,
+                            ).toLocaleString()}
+                          </div>
+                          {parseFloat(item.penalty_outstanding || 0) > 0 &&
+                            parseFloat(item.penalty_paid || 0) > 0 && (
+                              <div className="text-xs text-red-600 font-normal">
+                                KES{" "}
+                                {parseFloat(
+                                  item.penalty_outstanding,
+                                ).toLocaleString()}{" "}
+                                unpaid
+                              </div>
+                            )}
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-right font-semibold text-green-600">
+                      {parseFloat(item.penalty_paid || 0) > 0 ? (
+                        <>
+                          <div>
+                            KES{" "}
+                            {parseFloat(item.penalty_paid).toLocaleString()}
+                          </div>
+                          {parseFloat(item.penalty_outstanding || 0) === 0 &&
+                            parseFloat(item.penalty_total || 0) > 0 && (
+                              <div className="text-xs text-gray-500 font-normal">
+                                cleared
+                              </div>
+                            )}
+                        </>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className="px-6 py-3">
                       <span
@@ -644,6 +696,7 @@ function LoanDetails() {
               );
               const totalPenaltyInterest = sum("penalty_interest");
               const totalPenaltyTotal = sum("penalty_total");
+              const totalPenaltyPaid = sum("penalty_paid");
               const fmt = (n) =>
                 n > 0
                   ? `KES ${Number(n).toLocaleString(undefined, {
@@ -677,6 +730,9 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-amber-700 text-sm">
                       {fmt(totalPenaltyTotal)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-bold text-green-600 text-sm">
+                      {fmt(totalPenaltyPaid)}
                     </td>
                     <td className="px-6 py-3" colSpan={2}></td>
                   </tr>
@@ -747,7 +803,40 @@ function LoanDetails() {
                       {new Date(txn.payment_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-3 font-bold text-green-600">
-                      KES {parseFloat(txn.amount_paid).toLocaleString()}
+                      <div>
+                        KES {parseFloat(txn.amount_paid).toLocaleString()}
+                      </div>
+                      {(() => {
+                        const penalty = parseFloat(txn.penalty_portion || 0);
+                        const overpay = parseFloat(
+                          txn.receipt?.overpayment_for_this || 0,
+                        );
+                        const towardBalance =
+                          parseFloat(txn.amount_paid || 0) - penalty - overpay;
+                        if (penalty <= 0 && overpay <= 0) return null;
+                        return (
+                          <div className="text-xs font-normal text-gray-500 mt-1 space-y-0.5">
+                            {penalty > 0 && (
+                              <div className="text-amber-700">
+                                Penalty: KES {penalty.toLocaleString()}
+                              </div>
+                            )}
+                            {towardBalance > 0 && (
+                              <div className="text-gray-600">
+                                Balance: KES{" "}
+                                {towardBalance.toLocaleString(undefined, {
+                                  maximumFractionDigits: 2,
+                                })}
+                              </div>
+                            )}
+                            {overpay > 0 && (
+                              <div className="text-ocean-700">
+                                Overpaid: KES {overpay.toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-3">
                       <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">

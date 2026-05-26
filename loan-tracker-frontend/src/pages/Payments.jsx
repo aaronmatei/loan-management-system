@@ -155,9 +155,16 @@ function Payments() {
       );
 
       // Show the receipt modal if the backend returned a receipt block
-      // (added with migration 012 / payments.js update).
+      // (added with migration 012 / payments.js update). Enrich with the
+      // penalty cleared by THIS payment so the receipt summary breaks it down.
       if (txn.receipt) {
-        setReceiptModal({ payment: txn, receipt: txn.receipt });
+        setReceiptModal({
+          payment: txn,
+          receipt: {
+            ...txn.receipt,
+            penalty_paid: parseFloat(txn.penalty_portion || 0),
+          },
+        });
       }
 
       setFormData({

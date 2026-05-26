@@ -298,6 +298,30 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
                     − {money(payment.amount_paid)}
                   </span>
                 </div>
+                {parseFloat(receipt.penalty_paid || 0) > 0 && (
+                  <div className="flex justify-between pl-3 text-xs">
+                    <span className="text-gray-400">↳ Penalty cleared</span>
+                    <span className="text-amber-700">
+                      {money(receipt.penalty_paid)}
+                    </span>
+                  </div>
+                )}
+                {parseFloat(receipt.penalty_paid || 0) > 0 &&
+                  parseFloat(payment.amount_paid || 0) -
+                    parseFloat(receipt.penalty_paid || 0) -
+                    parseFloat(receipt.overpayment || 0) >
+                    0 && (
+                    <div className="flex justify-between pl-3 text-xs">
+                      <span className="text-gray-400">↳ Toward balance</span>
+                      <span className="text-gray-600">
+                        {money(
+                          parseFloat(payment.amount_paid || 0) -
+                            parseFloat(receipt.penalty_paid || 0) -
+                            parseFloat(receipt.overpayment || 0),
+                        )}
+                      </span>
+                    </div>
+                  )}
                 {parseFloat(receipt.overpayment || 0) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Overpaid</span>
