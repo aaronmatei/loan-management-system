@@ -1,53 +1,28 @@
-// Reports & Analytics — the visual dashboard. Pairs with the
-// Exports page (Excel bulk downloads at /exports) which serves the
-// older row-export tiles. This page bundles charts + KPIs and offers
-// PDF / Excel exports of the portfolio summary itself.
+// Reports & Exports — combined page. The KPI block at the top is the
+// historical Reports view; the Excel-download tiles below it absorbed
+// what used to live on the separate Exports page.
 //
-// Data comes from /api/analytics/tenant (one round-trip aggregate
-// powered by services/analyticsService.js). The per-chart endpoints
-// in routes/analytics.js still serve pages/Analytics.jsx separately.
+// KPI data comes from /api/analytics/tenant; row-level exports come
+// from /api/reports/export/{clients,loans,overdue,payments}.
 
 import React, { useState, useEffect } from "react";
 import {
   BarChart3,
   Coins,
-  TrendingUp,
-  Clock,
   FileText,
   Users,
   AlertTriangle,
   XCircle,
   Wallet,
   Gavel,
+  Download,
+  Calendar,
+  Lightbulb,
 } from "lucide-react";
 import api from "../services/api";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
-const COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
-// Compact form ("12.5K", "1.2M") for chart Y-axis ticks only — long
-// shilling figures crowd the gridlines. KPI cards use the full fmt above.
-const fmtK = (n) => {
-  const v = parseFloat(n || 0);
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return `${v.toFixed(0)}`;
-};
 
 // Last calendar day of a YYYY-MM value, as "YYYY-MM-DD".
 const monthEnd = (ym) => {
@@ -63,6 +38,8 @@ const monthLabel = (ym) => {
   });
 };
 
+const today = () => new Date().toISOString().split("T")[0];
+
 function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -74,6 +51,60 @@ function Reports() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [exporting, setExporting] = useState(null);
+
+  // Row-export filter state — each export card has its own range so
+  // they can be configured independently.
+  const [clientsRange, setClientsRange] = useState({ from: "", to: "" });
+  const [loansFilters, setLoansFilters] = useState({
+    status: "all",
+    from: "",
+    to: "",
+  });
+  const [paymentsRange, setPaymentsRange] = useState({ from: "", to: today() });
+  const [rowExporting, setRowExporting] = useState(null);
+
+  const downloadRowExport = async (kind) => {
+    setRowExporting(kind);
+    try {
+      const url = (() => {
+        const qs = new URLSearchParams();
+        if (kind === "clients") {
+          if (clientsRange.from) qs.set("date_from", clientsRange.from);
+          if (clientsRange.to) qs.set("date_to", clientsRange.to);
+          return `/reports/export/clients${qs.toString() ? `?${qs}` : ""}`;
+        }
+        if (kind === "loans") {
+          if (loansFilters.status !== "all") qs.set("status", loansFilters.status);
+          if (loansFilters.from) qs.set("date_from", loansFilters.from);
+          if (loansFilters.to) qs.set("date_to", loansFilters.to);
+          return `/reports/export/loans${qs.toString() ? `?${qs}` : ""}`;
+        }
+        if (kind === "overdue") return "/reports/export/overdue";
+        if (kind === "payments") {
+          if (paymentsRange.from) qs.set("date_from", paymentsRange.from);
+          if (paymentsRange.to) qs.set("date_to", paymentsRange.to);
+          return `/reports/export/payments${qs.toString() ? `?${qs}` : ""}`;
+        }
+      })();
+      const res = await api.get(url, { responseType: "blob" });
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const slug =
+        kind === "loans" && loansFilters.status !== "all"
+          ? `${loansFilters.status}_loans`
+          : kind;
+      a.download = `${slug}_${today()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      alert("Download failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setRowExporting(null);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -133,16 +164,7 @@ function Reports() {
   }
   if (!data) return null;
 
-  const {
-    kpis,
-    par,
-    snapshot,
-    collectionTrend,
-    disbursementTrend,
-    aging,
-    officers,
-    statusDist,
-  } = data;
+  const { kpis, par, snapshot } = data;
   const snap = snapshot || {
     outstanding_balance: 0,
     overdue_count: 0,
@@ -159,12 +181,12 @@ function Reports() {
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-              <BarChart3 size={28} /> Reports &amp; Analytics
+              <BarChart3 size={28} /> Reports &amp; Exports
             </h1>
             <p className="text-gray-600 mt-1">
               {mode === "month"
                 ? `Performance for ${monthLabel(pickedMonth)}`
-                : "Your portfolio performance"}
+                : "Your portfolio performance · download data for analysis"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 items-center">
@@ -312,157 +334,228 @@ function Reports() {
           )}
         </div>
 
-        {/* Charts Row 1 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3 flex items-center gap-2"><Coins size={18} /> Collection Trend</h3>
-            {collectionTrend.length === 0 ? (
-              <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
-                No collections in this window
+        {/* ── Excel exports ────────────────────────────────────── */}
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2 mt-2">
+          <Download size={22} /> Excel Exports
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Clients export — optional join-date window */}
+          <div className="bg-white rounded-xl shadow-md p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  <Users size={18} className="text-ocean-600" /> Clients
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Full client list with totals borrowed and paid.
+                </p>
               </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={collectionTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={fmtK} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v) => fmt(v)} />
-                  <Line
-                    type="monotone"
-                    dataKey="collected"
-                    stroke="#10B981"
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Joined from
+                </label>
+                <input
+                  type="date"
+                  value={clientsRange.from}
+                  onChange={(e) =>
+                    setClientsRange({ ...clientsRange, from: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Joined to
+                </label>
+                <input
+                  type="date"
+                  value={clientsRange.to}
+                  onChange={(e) =>
+                    setClientsRange({ ...clientsRange, to: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => downloadRowExport("clients")}
+              disabled={rowExporting !== null}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+            >
+              <Download size={16} />
+              {rowExporting === "clients" ? "Downloading…" : "Download Clients"}
+            </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3 flex items-center gap-2"><TrendingUp size={18} /> Disbursement Trend</h3>
-            {disbursementTrend.length === 0 ? (
-              <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
-                No disbursements in this window
+          {/* Loans export — status filter + optional disbursement window */}
+          <div className="bg-white rounded-xl shadow-md p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  <Coins size={18} className="text-ocean-600" /> Loans
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Filter by status, narrow by disbursement date.
+                </p>
               </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={disbursementTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={fmtK} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v) => fmt(v)} />
-                  <Bar dataKey="disbursed" fill="#4F46E5" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            </div>
+            <div className="mb-3">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Status
+              </label>
+              <select
+                value={loansFilters.status}
+                onChange={(e) =>
+                  setLoansFilters({ ...loansFilters, status: e.target.value })
+                }
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white text-sm"
+              >
+                <option value="all">All loans</option>
+                <option value="active">Active only</option>
+                <option value="completed">Completed only</option>
+                <option value="defaulted">Defaulted only</option>
+                <option value="overdue">With overdue payments</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Disbursed from
+                </label>
+                <input
+                  type="date"
+                  value={loansFilters.from}
+                  onChange={(e) =>
+                    setLoansFilters({ ...loansFilters, from: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Disbursed to
+                </label>
+                <input
+                  type="date"
+                  value={loansFilters.to}
+                  onChange={(e) =>
+                    setLoansFilters({ ...loansFilters, to: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => downloadRowExport("loans")}
+              disabled={rowExporting !== null}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+            >
+              <Download size={16} />
+              {rowExporting === "loans" ? "Downloading…" : "Download Loans"}
+            </button>
+          </div>
+
+          {/* Payments export — date range */}
+          <div className="bg-white rounded-xl shadow-md p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  <Calendar size={18} className="text-green-600" /> Payments
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Every transaction recorded in a date window.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={paymentsRange.from}
+                  onChange={(e) =>
+                    setPaymentsRange({ ...paymentsRange, from: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={paymentsRange.to}
+                  onChange={(e) =>
+                    setPaymentsRange({ ...paymentsRange, to: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => downloadRowExport("payments")}
+              disabled={rowExporting !== null}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+            >
+              <Download size={16} />
+              {rowExporting === "payments" ? "Downloading…" : "Download Payments"}
+            </button>
+          </div>
+
+          {/* Overdue export — no filters needed */}
+          <div className="bg-white rounded-xl shadow-md p-5 flex flex-col">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-orange-600" />{" "}
+                  Overdue Payments
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Every past-due installment with days late.
+                </p>
+              </div>
+            </div>
+            <div className="flex-1" />
+            <button
+              onClick={() => downloadRowExport("overdue")}
+              disabled={rowExporting !== null}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+            >
+              <Download size={16} />
+              {rowExporting === "overdue" ? "Downloading…" : "Download Overdue"}
+            </button>
           </div>
         </div>
 
-        {/* Charts Row 2 — snapshot panels (today's state). Hidden in
-            specific-month mode since the figures describe right-now, not
-            the historical month the user picked. */}
-        {mode !== "month" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3 flex items-center gap-2"><Clock size={18} /> Aging Analysis</h3>
-            {aging.length === 0 ? (
-              <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
-                No outstanding payments
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={aging} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    type="number"
-                    tickFormatter={fmtK}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="bucket"
-                    tick={{ fontSize: 11 }}
-                    width={80}
-                  />
-                  <Tooltip formatter={(v) => fmt(v)} />
-                  <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
-                    {aging.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={
-                          entry.bucket === "Current"
-                            ? "#10B981"
-                            : entry.bucket === "90+ days"
-                              ? "#EF4444"
-                              : "#F59E0B"
-                        }
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-4">
-            <h3 className="font-bold mb-3 flex items-center gap-2"><BarChart3 size={18} /> Loan Status</h3>
-            {statusDist.length === 0 ? (
-              <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
-                No loans yet
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={statusDist}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={(e) => `${e.status}: ${e.count}`}
-                  >
-                    {statusDist.map((entry, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+        {/* About */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+          <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+            <Lightbulb size={18} /> About reports
+          </h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>
+              • The PDF / Excel buttons at the top export the portfolio summary
+              for the period you've picked above.
+            </li>
+            <li>
+              • The four cards below export raw rows — clients, loans, payments,
+              and overdue installments — for accounting or further analysis.
+            </li>
+            <li>
+              • PDF statements for an individual client or loan live on their
+              respective detail pages.
+            </li>
+            <li>
+              • Exports always reflect current data — regenerate any time.
+            </li>
+          </ul>
         </div>
-        )}
-
-        {/* Loan officer performance — snapshot (all-time per officer),
-            hidden in specific-month mode. */}
-      {mode !== "month" && officers.length > 0 && (
-        <div className="bg-white rounded-xl shadow-md p-4">
-          <h3 className="font-bold mb-3 flex items-center gap-2"><Users size={18} /> Loan Officer Performance</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-2">Officer</th>
-                  <th className="text-right p-2">Loans Created</th>
-                  <th className="text-right p-2">Total Disbursed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {officers.map((o, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="p-2 font-semibold">{o.officer_name}</td>
-                    <td className="text-right p-2">{o.loans_created}</td>
-                    <td className="text-right p-2 font-bold">
-                      {fmt(o.total_disbursed)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

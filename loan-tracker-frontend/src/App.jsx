@@ -50,7 +50,6 @@ import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
 import ClientProfile from "./pages/ClientProfile";
 import Reports from "./pages/Reports";
-import Exports from "./pages/Exports";
 import SMS from "./pages/SMS";
 import Email from "./pages/Email";
 import Settings from "./pages/Settings";
@@ -231,7 +230,8 @@ function App() {
               <Route path="/payments" element={<Payments />} />
               <Route path="/overdue" element={<Overdue />} />
               <Route path="/reports" element={<Reports />} />
-              <Route path="/exports" element={<Exports />} />
+              {/* Exports was folded into Reports; redirect old bookmarks. */}
+              <Route path="/exports" element={<Navigate to="/reports" replace />} />
               <Route path="/sms" element={<SMS />} />
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />

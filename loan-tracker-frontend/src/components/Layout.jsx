@@ -9,7 +9,6 @@ import {
   CreditCard,
   AlertTriangle,
   BarChart3,
-  Download,
   ScrollText,
   MessageSquare,
   Mail,
@@ -66,7 +65,6 @@ const navGroups = [
     variant: "indigo",
     items: [
       { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
-      { path: "/exports", label: "Exports", icon: Download, permission: "reports:view" },
       { path: "/audit", label: "Audit Log", icon: ScrollText, permission: "audit:view" },
     ],
   },

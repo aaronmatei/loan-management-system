@@ -54,14 +54,15 @@ const servePdf = async (res, build, errMsg, logLabel) => {
 // EXCEL EXPORTS
 // ============================================================
 
-// Export all clients to Excel
+// Export all clients to Excel. Optional date_from / date_to narrow
+// the result to clients that joined within that window.
 router.get("/export/clients", async (req, res) => {
   try {
+    const { date_from, date_to } = req.query;
     // Subqueries (not JOINs) so transaction rows don't fan out and
     // inflate total_borrowed.
-    const tc = tenantClause(req, 0, "c.tenant_id");
-    const result = await query(
-      `
+    const params = [];
+    let queryText = `
       SELECT
         c.*,
         (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id)
@@ -74,11 +75,21 @@ router.get("/export/clients", async (req, res) => {
            WHERE l.client_id = c.id
              AND t.payment_status = 'completed') AS total_paid
       FROM clients c
-      WHERE 1=1${tc.clause}
-      ORDER BY c.created_at DESC
-    `,
-      tc.params,
-    );
+      WHERE 1=1`;
+    if (date_from) {
+      params.push(date_from);
+      queryText += ` AND c.created_at::date >= $${params.length}`;
+    }
+    if (date_to) {
+      params.push(date_to);
+      queryText += ` AND c.created_at::date <= $${params.length}`;
+    }
+    const tc = tenantClause(req, params.length, "c.tenant_id");
+    queryText += tc.clause;
+    params.push(...tc.params);
+    queryText += ` ORDER BY c.created_at DESC`;
+
+    const result = await query(queryText, params);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Clients");
@@ -131,10 +142,14 @@ router.get("/export/clients", async (req, res) => {
   }
 });
 
-// Export all loans to Excel
+// Export all loans to Excel. Filters:
+//   - status: active | completed | defaulted | overdue (special-cased to
+//             "any loan with at least one overdue installment" rather
+//             than a literal loan.status value)
+//   - date_from / date_to: narrow to loans disbursed in that window
 router.get("/export/loans", async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, date_from, date_to } = req.query;
     const params = [];
     let queryText = `
       SELECT
@@ -143,7 +158,7 @@ router.get("/export/loans", async (req, res) => {
         l.principal_amount, l.interest_rate, l.loan_duration_months,
         l.total_amount_due, l.total_interest,
         COALESCE(SUM(t.amount_paid), 0) as total_paid,
-        l.status, l.start_date, l.end_date,
+        l.status, l.start_date, l.end_date, l.disbursed_at,
         l.overpayment_amount, l.refund_status
       FROM loans l
       JOIN clients c ON l.client_id = c.id
@@ -151,9 +166,29 @@ router.get("/export/loans", async (req, res) => {
       WHERE 1=1
     `;
 
-    if (status) {
+    if (status === "overdue") {
+      // "Overdue" isn't a literal loan.status — it means any disbursed
+      // loan that has at least one past-due installment with a balance.
+      queryText += ` AND l.status IN ('active', 'defaulted')
+        AND EXISTS (
+          SELECT 1 FROM payment_schedules ps
+          WHERE ps.loan_id = l.id
+            AND (ps.status = 'overdue'
+                 OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE))
+            AND ps.amount_due > COALESCE(ps.amount_paid, 0)
+        )`;
+    } else if (status) {
       params.push(status);
       queryText += ` AND l.status = $${params.length}`;
+    }
+
+    if (date_from) {
+      params.push(date_from);
+      queryText += ` AND l.disbursed_at::date >= $${params.length}`;
+    }
+    if (date_to) {
+      params.push(date_to);
+      queryText += ` AND l.disbursed_at::date <= $${params.length}`;
     }
 
     const tc = tenantClause(req, params.length, "l.tenant_id");
@@ -179,6 +214,7 @@ router.get("/export/loans", async (req, res) => {
       { header: "Total Interest", key: "total_interest", width: 15 },
       { header: "Total Paid", key: "total_paid", width: 15 },
       { header: "Balance", key: "balance", width: 15 },
+      { header: "Disbursed", key: "disbursed_at", width: 15 },
       { header: "Start Date", key: "start_date", width: 15 },
       { header: "End Date", key: "end_date", width: 15 },
       { header: "Status", key: "status", width: 12 },
@@ -205,6 +241,9 @@ router.get("/export/loans", async (req, res) => {
           parseFloat(loan.total_amount_due) - parseFloat(loan.total_paid)
         ).toFixed(2),
         overpayment_amount: parseFloat(loan.overpayment_amount || 0).toFixed(2),
+        disbursed_at: loan.disbursed_at
+          ? new Date(loan.disbursed_at).toLocaleDateString()
+          : "",
         start_date: new Date(loan.start_date).toLocaleDateString(),
         end_date: new Date(loan.end_date).toLocaleDateString(),
       });
