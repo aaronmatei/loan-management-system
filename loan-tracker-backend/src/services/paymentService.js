@@ -31,6 +31,7 @@ import {
 } from "./emailService.js";
 import { buildReceiptPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "./auditService.js";
+import { computeInstallmentPenalty } from "../utils/penalty.js";
 import {
   notifyLargePayment,
   notifyLoanCompleted,
@@ -103,9 +104,10 @@ export async function recordLoanPayment({
     throw httpError(400, `Cannot record payment on ${loan.status} loan`);
   }
 
-  // Calculate total already paid
+  // "Already paid against amount_due" excludes the penalty_portion of past
+  // transactions — penalties are income, not principal reduction.
   const paidResult = await query(
-    `SELECT COALESCE(SUM(amount_paid), 0) as total_paid
+    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
@@ -116,13 +118,71 @@ export async function recordLoanPayment({
   const currentBalance = totalDue - alreadyPaid;
   const paymentAmount = parseFloat(amountPaid);
 
-  // Calculate overpayment
+  // Outstanding penalty across the loan's overdue installments. Penalty
+  // accrues per overdue installment as (late_fee + rate% * balance * months_late)
+  // — see utils/penalty.js — and we now persist what's been paid via
+  // payment_schedules.penalty_paid. Whatever's left must be cleared BEFORE
+  // any payment reduces amount_due.
+  const overduePenaltyResult = await query(
+    `SELECT id, payment_number, amount_due, amount_paid,
+            COALESCE(penalty_paid, 0) AS penalty_paid,
+            (CURRENT_DATE - due_date::date) AS days_late
+       FROM payment_schedules
+      WHERE loan_id = $1
+        AND (status = 'overdue' OR (status = 'pending' AND due_date < CURRENT_DATE))
+        AND amount_due > COALESCE(amount_paid, 0)
+      ORDER BY due_date ASC`,
+    [loanId],
+  );
+  const penaltyRows = overduePenaltyResult.rows.map((s) => {
+    const balance = parseFloat(s.amount_due) - parseFloat(s.amount_paid || 0);
+    const p = computeInstallmentPenalty({
+      balance,
+      daysLate: parseInt(s.days_late, 10) || 0,
+      lateFee: loan.late_payment_fee,
+      penaltyRate: loan.penalty_rate,
+    });
+    const outstanding = Math.max(
+      0,
+      Math.round((p.penalty_total - parseFloat(s.penalty_paid)) * 100) / 100,
+    );
+    return { schedule_id: s.id, outstanding };
+  });
+  const totalOutstandingPenalty = penaltyRows.reduce(
+    (acc, r) => acc + r.outstanding,
+    0,
+  );
+
+  // The borrower owes (principal+interest balance) + (outstanding penalty).
+  // Any excess is overpayment (refunded to the borrower as before).
+  const effectiveOwed = currentBalance + totalOutstandingPenalty;
   let overpayment = 0;
   let actualPaymentApplied = paymentAmount;
-  if (paymentAmount > currentBalance) {
-    overpayment = paymentAmount - currentBalance;
-    actualPaymentApplied = currentBalance;
+  if (paymentAmount > effectiveOwed) {
+    overpayment = paymentAmount - effectiveOwed;
+    actualPaymentApplied = effectiveOwed;
   }
+
+  // Allocate penalty FIRST, oldest overdue installment first, up to its
+  // own outstanding penalty.
+  let penaltyToAllocate = Math.min(actualPaymentApplied, totalOutstandingPenalty);
+  let penaltyAllocated = 0;
+  for (const row of penaltyRows) {
+    if (penaltyToAllocate <= 0) break;
+    const apply = Math.min(penaltyToAllocate, row.outstanding);
+    if (apply > 0) {
+      await query(
+        `UPDATE payment_schedules
+            SET penalty_paid = COALESCE(penalty_paid, 0) + $1, updated_at = NOW()
+          WHERE id = $2`,
+        [apply, row.schedule_id],
+      );
+      penaltyAllocated += apply;
+      penaltyToAllocate -= apply;
+    }
+  }
+  // Whatever's left after penalty is what reduces amount_due.
+  const amountTowardSchedule = actualPaymentApplied - penaltyAllocated;
 
   // Generate transaction code
   const year = new Date().getFullYear();
@@ -137,13 +197,15 @@ export async function recordLoanPayment({
   ]);
   const transactionCode = `TXN-${tenantPrefix(tRes.rows[0]?.subdomain)}-${year}-${String(txnCount).padStart(5, "0")}`;
 
-  // Record the transaction (full amount paid by client)
+  // Record the transaction (full amount paid by client, with the split
+  // captured via penalty_portion).
   const txnResult = await query(
     `INSERT INTO transactions (
         tenant_id, transaction_code, loan_id, client_id, amount_paid,
+        penalty_portion,
         payment_date, payment_method, payment_reference,
         payment_status, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'completed', $9)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'completed', $10)
       RETURNING *`,
     [
       loan.tenant_id,
@@ -151,6 +213,7 @@ export async function recordLoanPayment({
       loanId,
       loan.client_id,
       paymentAmount,
+      penaltyAllocated,
       paymentDate,
       paymentMethod,
       paymentReference || null,
@@ -159,11 +222,11 @@ export async function recordLoanPayment({
   );
   const transaction = txnResult.rows[0];
 
-  // Update payment schedule - mark pending payments as paid
-  let remainingAmount = actualPaymentApplied;
+  // Update payment schedule — only the post-penalty portion reduces amount_due.
+  let remainingAmount = amountTowardSchedule;
   const scheduleResult = await query(
     `SELECT * FROM payment_schedules
-       WHERE loan_id = $1 AND status = 'pending'
+       WHERE loan_id = $1 AND status IN ('pending', 'overdue')
        ORDER BY payment_number ASC`,
     [loanId],
   );
@@ -196,9 +259,10 @@ export async function recordLoanPayment({
     }
   }
 
-  // Recalculate totals after this payment
+  // Recalculate totals after this payment. Same exclusion as alreadyPaid —
+  // penalty_portion is income, not principal repayment.
   const newTotalPaidResult = await query(
-    `SELECT COALESCE(SUM(amount_paid), 0) as total_paid
+    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
@@ -229,7 +293,7 @@ export async function recordLoanPayment({
     await query(
       `UPDATE payment_schedules
          SET status = 'paid', amount_paid = amount_due, updated_at = NOW()
-         WHERE loan_id = $1 AND status = 'pending'`,
+         WHERE loan_id = $1 AND status IN ('pending', 'overdue')`,
       [loanId],
     );
 
@@ -285,13 +349,15 @@ export async function recordLoanPayment({
   // Update capital pool. Split the amount actually applied to the loan
   // (overpayment is refunded, so it is NOT recovered capital) into
   // principal recovery vs interest profit using the loan's ratio.
+  // Only the post-penalty portion goes into this split; penalty itself is
+  // income, recognised straight onto total_interest_earned.
   const loanTotalDue = parseFloat(loan.total_amount_due);
   const principalPercentage =
     loanTotalDue > 0 ? parseFloat(loan.principal_amount) / loanTotalDue : 0;
   const interestPercentage = 1 - principalPercentage;
 
-  const principalPortion = actualPaymentApplied * principalPercentage;
-  const interestPortion = actualPaymentApplied * interestPercentage;
+  const principalPortion = amountTowardSchedule * principalPercentage;
+  const interestPortion = amountTowardSchedule * interestPercentage;
 
   await query(
     `UPDATE capital_pool
@@ -299,7 +365,7 @@ export async function recordLoanPayment({
              total_interest_earned = total_interest_earned + $2,
              updated_at = NOW()
        WHERE tenant_id = $3`,
-    [principalPortion, interestPortion, loan.tenant_id],
+    [principalPortion, interestPortion + penaltyAllocated, loan.tenant_id],
   );
 
   await query(
@@ -569,7 +635,7 @@ export async function buildReceiptBlock(loanId, tenantId) {
     const nextRes = await query(
       `SELECT payment_number, due_date, amount_due, amount_paid
          FROM payment_schedules
-        WHERE loan_id = $1 AND status = 'pending'
+        WHERE loan_id = $1 AND status IN ('pending', 'overdue')
         ORDER BY due_date ASC
         LIMIT 1`,
       [loanId],

@@ -839,7 +839,8 @@ CREATE TABLE public.payment_schedules (
     days_late integer DEFAULT 0,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    tenant_id integer NOT NULL
+    tenant_id integer NOT NULL,
+    penalty_paid numeric(12,2) DEFAULT 0
 );
 
 
@@ -1229,7 +1230,8 @@ CREATE TABLE public.transactions (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     notes text,
-    tenant_id integer NOT NULL
+    tenant_id integer NOT NULL,
+    penalty_portion numeric(12,2) DEFAULT 0
 );
 
 

@@ -138,7 +138,8 @@ function Overdue() {
     0,
   );
   const filteredPenalty = filtered.reduce(
-    (s, p) => s + parseFloat(p.penalty_total || 0),
+    (s, p) =>
+      s + parseFloat(p.penalty_outstanding ?? p.penalty_total ?? 0),
     0,
   );
 
@@ -164,7 +165,7 @@ function Overdue() {
           overdue_count: 0,
           amount_due: 0,
           balance_due: 0,
-          penalty_total: 0,
+          penalty_outstanding: 0,
           days_late: 0,
           oldest_due_date: p.due_date,
         };
@@ -174,7 +175,11 @@ function Overdue() {
       g.overdue_count += 1;
       g.amount_due += parseFloat(p.amount_due || 0);
       g.balance_due += parseFloat(p.balance_due || 0);
-      g.penalty_total += parseFloat(p.penalty_total || 0);
+      // Group-level "Penalty" = sum of what each installment still owes in
+      // penalty (penalty_total − penalty_paid). Shrinks as the borrower pays.
+      g.penalty_outstanding += parseFloat(
+        p.penalty_outstanding ?? p.penalty_total ?? 0,
+      );
       const d = parseInt(p.days_late, 10) || 0;
       if (d > g.days_late) g.days_late = d;
       if (new Date(p.due_date) < new Date(g.oldest_due_date))
@@ -557,7 +562,7 @@ function Overdue() {
                       <div>
                         <p className="text-xs text-gray-500">Penalty</p>
                         <p className="font-semibold text-amber-700">
-                          {KES(g.penalty_total)}
+                          {KES(g.penalty_outstanding)}
                         </p>
                       </div>
                     </div>
@@ -604,7 +609,7 @@ function Overdue() {
                                 </span>
                               </div>
                               <div className="flex justify-end text-[11px] text-amber-700">
-                                + {KES(s.penalty_total)} penalty
+                                + {KES(s.penalty_outstanding ?? s.penalty_total)} penalty
                               </div>
                             </div>
                           );
@@ -656,7 +661,7 @@ function Overdue() {
                         ["Days Late", "days_late", "center"],
                         ["Amount Due", "amount_due", "right"],
                         ["Balance", "balance_due", "right"],
-                        ["Penalty", "penalty_total", "right"],
+                        ["Penalty", "penalty_outstanding", "right"],
                         ["Status", "loan_status", "center"],
                       ].map(([label, key, align], i) => (
                         <SortableHeader
@@ -757,7 +762,7 @@ function Overdue() {
                                 className="font-semibold text-amber-700 text-sm"
                                 title="Late fee per missed payment + penalty interest on the overdue balance"
                               >
-                                {KES(g.penalty_total)}
+                                {KES(g.penalty_outstanding)}
                               </p>
                             </td>
                             <td className="px-4 py-4 text-center">

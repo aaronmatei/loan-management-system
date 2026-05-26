@@ -149,10 +149,14 @@ router.get("/loan/:loanId/summary", async (req, res) => {
 
     const loan = loanResult.rows[0];
 
-    // Get total paid
+    // "Total paid against amount_due" excludes the penalty_portion that
+    // covers late-payment penalties (penalty is income, not principal).
     const paidResult = await query(
-      `SELECT COALESCE(SUM(amount_paid), 0) as total_paid 
-       FROM transactions 
+      `SELECT
+         COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid,
+         COALESCE(SUM(amount_paid), 0)                                AS total_collected,
+         COALESCE(SUM(COALESCE(penalty_portion, 0)), 0)                AS total_penalty_paid
+       FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
       [loanId],
     );
@@ -173,15 +177,23 @@ router.get("/loan/:loanId/summary", async (req, res) => {
       const bal = parseFloat(s.amount_due) - parseFloat(s.amount_paid || 0);
       const daysLate =
         s.status === "paid" ? 0 : parseInt(s.days_late, 10) || 0;
+      const computed = computeInstallmentPenalty({
+        balance: bal,
+        daysLate,
+        lateFee: loan.late_payment_fee,
+        penaltyRate: loan.penalty_rate,
+      });
+      const penaltyPaid = parseFloat(s.penalty_paid || 0);
+      const outstanding = Math.max(
+        0,
+        Math.round((computed.penalty_total - penaltyPaid) * 100) / 100,
+      );
       return {
         ...s,
         balance_due: Math.round(Math.max(0, bal) * 100) / 100,
-        ...computeInstallmentPenalty({
-          balance: bal,
-          daysLate,
-          lateFee: loan.late_payment_fee,
-          penaltyRate: loan.penalty_rate,
-        }),
+        ...computed,
+        penalty_paid: penaltyPaid,
+        penalty_outstanding: outstanding,
       };
     });
 
@@ -194,17 +206,21 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     );
 
     const totalPaid = parseFloat(paidResult.rows[0].total_paid);
+    const totalCollected = parseFloat(paidResult.rows[0].total_collected);
+    const totalPenaltyPaid = parseFloat(paidResult.rows[0].total_penalty_paid);
     const totalDue = parseFloat(loan.total_amount_due);
     const overpayment = parseFloat(loan.overpayment_amount || 0);
     const balance = Math.max(0, totalDue - totalPaid);
 
-    // Annotate each transaction with running balance / % complete.
-    // Transactions arrive DESC by payment_date, so we reverse, fold,
-    // then put them back in DESC order for the response.
+    // Annotate each transaction with running balance / % complete. Running
+    // balance tracks the principal-portion of payments (excludes penalty
+    // because penalty is income, not principal reduction).
     const ascTxns = [...transactionsResult.rows].reverse();
     let running = 0;
     const annotated = ascTxns.map((t) => {
-      running += parseFloat(t.amount_paid || 0);
+      const principalPortion =
+        parseFloat(t.amount_paid || 0) - parseFloat(t.penalty_portion || 0);
+      running += principalPortion;
       const remaining = Math.max(0, totalDue - running);
       return {
         ...t,
@@ -227,7 +243,9 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         loan,
         summary: {
           total_due: totalDue,
-          total_paid: totalPaid,
+          total_paid: totalPaid,           // principal+interest paid (excl. penalty)
+          total_collected: totalCollected, // everything the client paid us (incl. penalty)
+          total_penalty_paid: totalPenaltyPaid,
           balance: balance,
           overpayment: overpayment,
           refund_status: loan.refund_status,

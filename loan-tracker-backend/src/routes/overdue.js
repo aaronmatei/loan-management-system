@@ -87,6 +87,7 @@ router.get("/", async (req, res) => {
         ps.due_date,
         ps.amount_due,
         ps.amount_paid,
+        COALESCE(ps.penalty_paid, 0) AS penalty_paid,
         ps.status,
         (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS balance_due,
         (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS amount_outstanding,
@@ -152,15 +153,22 @@ router.get("/", async (req, res) => {
     const total = parseInt(s.total_overdue_count, 10);
 
     // --- Penalty per installment (shared formula, see utils/penalty.js) ----
-    const rows = result.rows.map((r) => ({
-      ...r,
-      ...computeInstallmentPenalty({
+    // penalty_outstanding subtracts what's already been paid against penalty,
+    // so the figure shrinks as the borrower pays it down.
+    const rows = result.rows.map((r) => {
+      const computed = computeInstallmentPenalty({
         balance: parseFloat(r.balance_due) || 0,
         daysLate: parseInt(r.days_late, 10) || 0,
         lateFee: r.late_payment_fee,
         penaltyRate: r.penalty_rate,
-      }),
-    }));
+      });
+      const paid = parseFloat(r.penalty_paid) || 0;
+      const outstanding = Math.max(
+        0,
+        Math.round((computed.penalty_total - paid) * 100) / 100,
+      );
+      return { ...r, ...computed, penalty_outstanding: outstanding };
+    });
 
     res.json({
       success: true,
