@@ -99,13 +99,22 @@ function Reports() {
   const exportReport = async (format) => {
     setExporting(format);
     try {
-      const res = await api.get(`/analytics/export/${format}`, {
+      // Same params the data fetch uses — exports reflect what's on screen.
+      const params =
+        mode === "month"
+          ? `from=${monthStart(pickedMonth)}&to=${monthEnd(pickedMonth)}`
+          : `months=${months}`;
+      const res = await api.get(`/analytics/export/${format}?${params}`, {
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `portfolio-report.${format === "pdf" ? "pdf" : "xlsx"}`;
+      const periodSlug =
+        mode === "month"
+          ? pickedMonth
+          : `last-${months}-months`;
+      a.download = `portfolio-report-${periodSlug}.${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -203,9 +212,12 @@ function Reports() {
           </div>
         </div>
 
-        {/* KPI cards. 7 tiles — 4 across on lg+, wrapping the last three
-            onto a second row. Two-up on mobile so figures stay legible. */}
+        {/* KPI cards. Period-filtered tiles always show; snapshot tiles
+            (Outstanding / PAR / Overdue / Defaulted) describe today's
+            state, so they're hidden when the user has zoomed into a
+            historical specific month. */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {/* ── Period-filtered (driven by the selected window) ── */}
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
             <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
             <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
@@ -222,18 +234,6 @@ function Reports() {
               {kpis.payment_count} payments
             </p>
           </div>
-
-          {/* Outstanding — snapshot (total_due − collected on disbursed
-              loans). Same definition the Dashboard's Outstanding tile uses. */}
-          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-amber-500 to-orange-600">
-            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
-              <Wallet size={12} /> Outstanding
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
-              {fmt(snap.outstanding_balance)}
-            </p>
-            <p className="text-xs text-white/85">To be collected</p>
-          </div>
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
             <p className="text-ocean-100 text-xs uppercase">Interest from Loans</p>
             <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
@@ -241,10 +241,6 @@ function Reports() {
             </p>
             <p className="text-xs text-ocean-100">loan interest earned</p>
           </div>
-
-          {/* Fines = SUM(penalty_portion) — late-payment income, kept
-              separate from loan interest so the lender can see how much
-              of their revenue is interest vs penalties. */}
           <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-purple-600 to-fuchsia-700">
             <p className="text-white/85 text-xs uppercase flex items-center gap-1">
               <Gavel size={12} /> Fines Collected
@@ -254,51 +250,66 @@ function Reports() {
             </p>
             <p className="text-xs text-white/85">late-payment penalties</p>
           </div>
-          {/* PAR card colour swaps on risk level — same thresholds the
-              industry uses to flag deteriorating portfolios. */}
-          <div
-            className={`rounded-xl shadow-lg p-4 text-white ${
-              parPct > 15
-                ? "bg-gradient-to-br from-red-500 to-rose-600"
-                : parPct > 5
-                  ? "bg-gradient-to-br from-orange-500 to-amber-600"
-                  : "bg-gradient-to-br from-teal-500 to-cyan-600"
-            }`}
-          >
-            <p className="text-white/80 text-xs uppercase">Portfolio at Risk</p>
-            <p className="text-2xl font-bold mt-1">{par.par_percentage}%</p>
-            <p className="text-xs text-white/80">
-              {par.at_risk_count} of {par.total_active} loans
-            </p>
-          </div>
 
-          {/* Overdue — snapshot (today's overdue installments). Same source
-              as the Dashboard's Overdue tile. */}
-          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-orange-500 to-amber-600">
-            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
-              <AlertTriangle size={12} /> Overdue
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
-              {fmt(snap.overdue_amount)}
-            </p>
-            <p className="text-xs text-white/85">
-              {snap.overdue_count} payment{snap.overdue_count !== 1 ? "s" : ""}
-              {snap.overdue_loans > 0 && ` · ${snap.overdue_loans} loans`}
-            </p>
-          </div>
-
-          {/* Defaulted — snapshot (loans currently marked defaulted). */}
-          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-rose-600 to-red-700">
-            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
-              <XCircle size={12} /> Defaulted
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
-              {fmt(snap.defaulted_amount)}
-            </p>
-            <p className="text-xs text-white/85">
-              {snap.defaulted_count} loan{snap.defaulted_count !== 1 ? "s" : ""}
-            </p>
-          </div>
+          {/* ── Snapshot tiles (today's state) — only shown in
+              "Recent months" mode. In specific-month mode they'd be
+              showing today's outstanding for a long-past month, which
+              is misleading. */}
+          {mode !== "month" && (
+            <>
+              <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-amber-500 to-orange-600">
+                <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+                  <Wallet size={12} /> Outstanding
+                </p>
+                <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+                  {fmt(snap.outstanding_balance)}
+                </p>
+                <p className="text-xs text-white/85">To be collected</p>
+              </div>
+              <div
+                className={`rounded-xl shadow-lg p-4 text-white ${
+                  parPct > 15
+                    ? "bg-gradient-to-br from-red-500 to-rose-600"
+                    : parPct > 5
+                      ? "bg-gradient-to-br from-orange-500 to-amber-600"
+                      : "bg-gradient-to-br from-teal-500 to-cyan-600"
+                }`}
+              >
+                <p className="text-white/80 text-xs uppercase">
+                  Portfolio at Risk
+                </p>
+                <p className="text-2xl font-bold mt-1">{par.par_percentage}%</p>
+                <p className="text-xs text-white/80">
+                  {par.at_risk_count} of {par.total_active} loans
+                </p>
+              </div>
+              <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-orange-500 to-amber-600">
+                <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+                  <AlertTriangle size={12} /> Overdue
+                </p>
+                <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+                  {fmt(snap.overdue_amount)}
+                </p>
+                <p className="text-xs text-white/85">
+                  {snap.overdue_count} payment
+                  {snap.overdue_count !== 1 ? "s" : ""}
+                  {snap.overdue_loans > 0 && ` · ${snap.overdue_loans} loans`}
+                </p>
+              </div>
+              <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-rose-600 to-red-700">
+                <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+                  <XCircle size={12} /> Defaulted
+                </p>
+                <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+                  {fmt(snap.defaulted_amount)}
+                </p>
+                <p className="text-xs text-white/85">
+                  {snap.defaulted_count} loan
+                  {snap.defaulted_count !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Charts Row 1 */}
@@ -347,7 +358,10 @@ function Reports() {
           </div>
         </div>
 
-        {/* Charts Row 2 */}
+        {/* Charts Row 2 — snapshot panels (today's state). Hidden in
+            specific-month mode since the figures describe right-now, not
+            the historical month the user picked. */}
+        {mode !== "month" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <div className="bg-white rounded-xl shadow-md p-4">
             <h3 className="font-bold mb-3 flex items-center gap-2"><Clock size={18} /> Aging Analysis</h3>
@@ -418,9 +432,11 @@ function Reports() {
             )}
           </div>
         </div>
+        )}
 
-        {/* Loan officer performance */}
-      {officers.length > 0 && (
+        {/* Loan officer performance — snapshot (all-time per officer),
+            hidden in specific-month mode. */}
+      {mode !== "month" && officers.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-4">
           <h3 className="font-bold mb-3 flex items-center gap-2"><Users size={18} /> Loan Officer Performance</h3>
           <div className="overflow-x-auto">

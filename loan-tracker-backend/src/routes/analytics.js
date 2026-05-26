@@ -10,6 +10,29 @@ import logger from "../config/logger.js";
 const router = express.Router();
 router.use(verifyToken);
 
+// Render the selected period as a human label for PDF/Excel headers.
+//  - "January 2024"               if from/to lines up with a single month
+//  - "12 Jan 2024 – 28 Feb 2024"  for arbitrary ranges
+//  - "Last 6 months"              when only `months` is given
+function buildPeriodLabel({ from, to, months }) {
+  if (from && to) {
+    const f = new Date(from);
+    const t = new Date(to);
+    if (
+      !Number.isNaN(f.getTime()) &&
+      !Number.isNaN(t.getTime()) &&
+      f.getFullYear() === t.getFullYear() &&
+      f.getMonth() === t.getMonth() &&
+      f.getDate() === 1
+    ) {
+      return f.toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+    }
+    const opts = { day: "numeric", month: "short", year: "numeric" };
+    return `${f.toLocaleDateString("en-KE", opts)} – ${t.toLocaleDateString("en-KE", opts)}`;
+  }
+  return `Last ${months} months`;
+}
+
 // ============================================================
 // Monthly revenue trends (last 12 months)
 // Disbursed (from loans) and collected (from transactions) are
@@ -611,10 +634,20 @@ router.get("/export/pdf", async (req, res) => {
       return res.status(400).json({ error: "Tenant context required" });
     }
 
+    const { from, to } = req.query;
+    const months = Math.min(
+      Math.max(parseInt(req.query.months, 10) || 6, 1),
+      24,
+    );
+    const periodLabel = buildPeriodLabel({ from, to, months });
+    const isMonthMode = Boolean(from && to);
+
+    // Snapshot sections (PAR / Aging) only make sense in "recent months"
+    // mode — they describe today's state, not a historical month.
     const [kpis, par, aging] = await Promise.all([
-      analyticsService.getTenantPortfolioKPIs(tid),
-      analyticsService.getPortfolioAtRisk(tid),
-      analyticsService.getAgingAnalysis(tid),
+      analyticsService.getTenantPortfolioKPIs(tid, from, to),
+      isMonthMode ? null : analyticsService.getPortfolioAtRisk(tid),
+      isMonthMode ? null : analyticsService.getAgingAnalysis(tid),
     ]);
 
     const tr = await query(
@@ -623,9 +656,10 @@ router.get("/export/pdf", async (req, res) => {
     );
     const businessName = tr.rows[0]?.business_name || "Portfolio Report";
 
-    const filename = `portfolio-report-${new Date()
-      .toISOString()
-      .split("T")[0]}.pdf`;
+    const periodSlug = isMonthMode
+      ? `${from}_to_${to}`
+      : `last-${months}-months`;
+    const filename = `portfolio-report-${periodSlug}.pdf`;
     const doc = new PDFDocument({ margin: 50 });
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -647,6 +681,7 @@ router.get("/export/pdf", async (req, res) => {
     doc.fontSize(14).fillColor("#666").text("Portfolio Report", {
       align: "center",
     });
+    doc.fontSize(11).fillColor("#444").text(periodLabel, { align: "center" });
     doc.fontSize(10).fillColor("#999").text(
       `Generated: ${new Date().toLocaleString("en-KE")}`,
       { align: "center" },
@@ -665,38 +700,41 @@ router.get("/export/pdf", async (req, res) => {
     doc.text(`Unique Borrowers: ${kpis.unique_borrowers}`);
     doc.text(`Total Disbursed: ${fmtKES(kpis.total_disbursed)}`);
     doc.text(`Total Collected: ${fmtKES(kpis.total_collected)}`);
-    doc.text(`Interest Earned: ${fmtKES(kpis.interest_earned)}`);
+    doc.text(`Interest from Loans: ${fmtKES(kpis.interest_earned)}`);
+    doc.text(`Fines Collected: ${fmtKES(kpis.fines_collected)}`);
     doc.text(`Average Loan Size: ${fmtKES(kpis.avg_loan_size)}`);
     doc.moveDown(1.5);
 
-    // ── PAR ──
-    doc.fontSize(14).fillColor("#000").text("Portfolio at Risk (PAR)", {
-      underline: true,
-    });
-    doc.moveDown(0.5);
-    doc.fontSize(11).fillColor("#333");
-    doc.text(`Total Outstanding: ${fmtKES(par.total_outstanding)}`);
-    doc.text(`At-Risk Amount: ${fmtKES(par.par_amount)}`);
-    doc.text(`PAR Percentage: ${par.par_percentage}%`);
-    doc.text(
-      `At-Risk Loans: ${par.at_risk_count} of ${par.total_active} active`,
-    );
-    doc.moveDown(1.5);
-
-    // ── Aging ──
-    doc.fontSize(14).fillColor("#000").text("Aging Analysis", {
-      underline: true,
-    });
-    doc.moveDown(0.5);
-    doc.fontSize(11).fillColor("#333");
-    if (aging.length === 0) {
-      doc.fillColor("#999").text("No outstanding payments.");
-    } else {
-      aging.forEach((a) => {
-        doc.fillColor("#333").text(
-          `${a.bucket}: ${a.count} payments — ${fmtKES(a.amount)}`,
-        );
+    if (!isMonthMode && par) {
+      // ── PAR ──
+      doc.fontSize(14).fillColor("#000").text("Portfolio at Risk (PAR)", {
+        underline: true,
       });
+      doc.moveDown(0.5);
+      doc.fontSize(11).fillColor("#333");
+      doc.text(`Total Outstanding: ${fmtKES(par.total_outstanding)}`);
+      doc.text(`At-Risk Amount: ${fmtKES(par.par_amount)}`);
+      doc.text(`PAR Percentage: ${par.par_percentage}%`);
+      doc.text(
+        `At-Risk Loans: ${par.at_risk_count} of ${par.total_active} active`,
+      );
+      doc.moveDown(1.5);
+
+      // ── Aging ──
+      doc.fontSize(14).fillColor("#000").text("Aging Analysis", {
+        underline: true,
+      });
+      doc.moveDown(0.5);
+      doc.fontSize(11).fillColor("#333");
+      if (!aging || aging.length === 0) {
+        doc.fillColor("#999").text("No outstanding payments.");
+      } else {
+        aging.forEach((a) => {
+          doc.fillColor("#333").text(
+            `${a.bucket}: ${a.count} payments — ${fmtKES(a.amount)}`,
+          );
+        });
+      }
     }
 
     doc.end();
@@ -722,12 +760,28 @@ router.get("/export/excel", async (req, res) => {
       return res.status(400).json({ error: "Tenant context required" });
     }
 
+    const { from, to } = req.query;
+    const months = Math.min(
+      Math.max(parseInt(req.query.months, 10) || 6, 1),
+      24,
+    );
+    const periodLabel = buildPeriodLabel({ from, to, months });
+    const isMonthMode = Boolean(from && to);
+
     const [kpis, par, aging] = await Promise.all([
-      analyticsService.getTenantPortfolioKPIs(tid),
-      analyticsService.getPortfolioAtRisk(tid),
-      analyticsService.getAgingAnalysis(tid),
+      analyticsService.getTenantPortfolioKPIs(tid, from, to),
+      isMonthMode ? null : analyticsService.getPortfolioAtRisk(tid),
+      isMonthMode ? null : analyticsService.getAgingAnalysis(tid),
     ]);
 
+    // Loans detail. In month mode, restrict to loans disbursed within
+    // the window so the sheet reflects ONLY the selected period.
+    const loanFilters = isMonthMode
+      ? `AND l.status IN ('active','completed','defaulted')
+         AND l.disbursed_at IS NOT NULL
+         AND l.disbursed_at::date >= $2::date
+         AND l.disbursed_at::date <= $3::date`
+      : "";
     const loans = await query(
       `SELECT
          l.loan_code,
@@ -742,8 +796,9 @@ router.get("/export/excel", async (req, res) => {
          GROUP BY loan_id
        ) p ON p.loan_id = l.id
        WHERE l.tenant_id = $1
+         ${loanFilters}
        ORDER BY l.start_date DESC NULLS LAST`,
-      [tid],
+      isMonthMode ? [tid, from, to] : [tid],
     );
 
     const workbook = new ExcelJS.Workbook();
@@ -752,6 +807,7 @@ router.get("/export/excel", async (req, res) => {
     const summary = workbook.addWorksheet("Summary");
     summary.columns = [{ width: 32 }, { width: 22 }];
     summary.addRow(["Portfolio Report", ""]);
+    summary.addRow(["Period", periodLabel]);
     summary.addRow(["Generated", new Date().toLocaleString("en-KE")]);
     summary.addRow([]);
     summary.addRow(["KPI", "Value"]);
@@ -761,23 +817,25 @@ router.get("/export/excel", async (req, res) => {
     summary.addRow(["Unique Borrowers", kpis.unique_borrowers]);
     summary.addRow(["Total Disbursed (KES)", kpis.total_disbursed]);
     summary.addRow(["Total Collected (KES)", kpis.total_collected]);
-    summary.addRow(["Interest Earned (KES)", kpis.interest_earned]);
+    summary.addRow(["Interest from Loans (KES)", kpis.interest_earned]);
+    summary.addRow(["Fines Collected (KES)", kpis.fines_collected]);
     summary.addRow(["Average Loan Size (KES)", kpis.avg_loan_size]);
-    summary.addRow([]);
-    summary.addRow(["Portfolio at Risk", ""]);
-    summary.addRow(["Total Outstanding (KES)", par.total_outstanding]);
-    summary.addRow(["At-Risk Amount (KES)", par.par_amount]);
-    summary.addRow(["PAR %", `${par.par_percentage}%`]);
-    summary.addRow([
-      "At-Risk / Active Loans",
-      `${par.at_risk_count} / ${par.total_active}`,
-    ]);
-    summary.addRow([]);
-    summary.addRow(["Aging Bucket", "Amount Outstanding (KES)"]);
-    aging.forEach((a) => summary.addRow([a.bucket, a.amount]));
+    if (!isMonthMode && par) {
+      summary.addRow([]);
+      summary.addRow(["Portfolio at Risk", ""]);
+      summary.addRow(["Total Outstanding (KES)", par.total_outstanding]);
+      summary.addRow(["At-Risk Amount (KES)", par.par_amount]);
+      summary.addRow(["PAR %", `${par.par_percentage}%`]);
+      summary.addRow([
+        "At-Risk / Active Loans",
+        `${par.at_risk_count} / ${par.total_active}`,
+      ]);
+      summary.addRow([]);
+      summary.addRow(["Aging Bucket", "Amount Outstanding (KES)"]);
+      (aging || []).forEach((a) => summary.addRow([a.bucket, a.amount]));
+    }
     summary.getRow(1).font = { bold: true, size: 14 };
-    summary.getRow(4).font = { bold: true };
-    summary.getRow(12).font = { bold: true };
+    summary.getRow(5).font = { bold: true };
 
     // ── Loans detail ──
     const loansSheet = workbook.addWorksheet("Loans");
@@ -815,9 +873,10 @@ router.get("/export/excel", async (req, res) => {
       });
     });
 
-    const filename = `portfolio-report-${new Date()
-      .toISOString()
-      .split("T")[0]}.xlsx`;
+    const periodSlug = isMonthMode
+      ? `${from}_to_${to}`
+      : `last-${months}-months`;
+    const filename = `portfolio-report-${periodSlug}.xlsx`;
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
