@@ -24,18 +24,28 @@ class AnalyticsService {
   // Portfolio overview KPIs. dateFrom/dateTo are optional ISO date
   // strings that constrain BOTH the loan-start window and the
   // payment-date window.
+  //
+  // Match the Dashboard's source-of-truth methodology so figures
+  // never disagree between pages:
+  //  - "Disbursed" counts only loans in (active/completed/defaulted);
+  //    pending applications are NOT money out yet.
+  //  - "Collected" excludes overpayment_portion (those are refunds,
+  //    not income).
+  //  - "Interest earned" prorates the post-refund payment amount,
+  //    not the gross.
   async getTenantPortfolioKPIs(tenantId, dateFrom, dateTo) {
     const loans = await query(
       `SELECT
-         COUNT(DISTINCT l.id)::int                                   AS total_loans,
+         COUNT(DISTINCT l.id)::int                                         AS total_loans,
          COUNT(DISTINCT CASE WHEN l.status='active' THEN l.id END)::int    AS active_loans,
          COUNT(DISTINCT CASE WHEN l.status='completed' THEN l.id END)::int AS completed_loans,
-         COUNT(DISTINCT l.client_id)::int                            AS unique_borrowers,
-         COALESCE(SUM(l.principal_amount), 0)                        AS total_disbursed,
-         COALESCE(SUM(l.total_interest), 0)                          AS total_interest_expected,
-         COALESCE(SUM(l.total_amount_due), 0)                        AS total_portfolio_value
+         COUNT(DISTINCT l.client_id)::int                                  AS unique_borrowers,
+         COALESCE(SUM(l.principal_amount), 0)                              AS total_disbursed,
+         COALESCE(SUM(l.total_interest), 0)                                AS total_interest_expected,
+         COALESCE(SUM(l.total_amount_due), 0)                              AS total_portfolio_value
        FROM loans l
        WHERE l.tenant_id = $1
+         AND l.status IN ('active', 'completed', 'defaulted')
          AND ($2::date IS NULL OR l.start_date >= $2)
          AND ($3::date IS NULL OR l.start_date <= $3)`,
       [tenantId, dateFrom || null, dateTo || null],
@@ -43,8 +53,8 @@ class AnalyticsService {
 
     const collections = await query(
       `SELECT
-         COALESCE(SUM(t.amount_paid), 0)::float AS total_collected,
-         COUNT(t.id)::int                       AS payment_count
+         COALESCE(SUM(t.amount_paid - COALESCE(t.overpayment_portion, 0)), 0)::float AS total_collected,
+         COUNT(t.id)::int                                                            AS payment_count
        FROM transactions t
        WHERE t.tenant_id = $1
          AND t.payment_status = 'completed'
@@ -56,10 +66,12 @@ class AnalyticsService {
     // Interest portion of payments — same allocation formula used by
     // services/billingService.calculateTenantInterest. Kept here so
     // this method is self-contained for ad-hoc date ranges (billing's
-    // helper is bound to calendar months).
+    // helper is bound to calendar months). Overpayment is refunded,
+    // so it doesn't earn interest — prorate net amount, not gross.
     const interest = await query(
       `SELECT COALESCE(SUM(
-         t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due, 0))
+         (t.amount_paid - COALESCE(t.overpayment_portion, 0))
+         * (l.total_interest / NULLIF(l.total_amount_due, 0))
        ), 0)::float AS interest_earned
        FROM transactions t
        JOIN loans l ON t.loan_id = l.id
@@ -222,6 +234,54 @@ class AnalyticsService {
       loan_count: parseInt(r.loan_count, 10),
       disbursed: parseFloat(r.disbursed),
     }));
+  }
+
+  // Snapshot of currently-overdue installments + defaulted loans.
+  // Snapshot = present-day state regardless of the date range filter
+  // (just like the Dashboard). Mirrors the Dashboard query in
+  // routes/dashboard.js so the figures match.
+  async getOverdueDefaultedSnapshot(tenantId) {
+    const overdue = await query(
+      `SELECT
+         COUNT(*)::int                                                AS overdue_count,
+         COUNT(DISTINCT ps.loan_id)::int                              AS overdue_loans,
+         COALESCE(SUM(ps.amount_due - COALESCE(ps.amount_paid, 0)), 0)::float AS overdue_amount
+       FROM payment_schedules ps
+       JOIN loans l ON ps.loan_id = l.id
+       WHERE l.tenant_id = $1
+         AND (
+           ps.status = 'overdue'
+           OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
+         )
+         AND ps.amount_due > COALESCE(ps.amount_paid, 0)`,
+      [tenantId],
+    );
+
+    const defaulted = await query(
+      `SELECT
+         COUNT(*)::int                                                          AS defaulted_count,
+         COALESCE(SUM(total_amount_due - COALESCE(p.paid, 0)), 0)::float        AS defaulted_amount,
+         COALESCE(SUM(principal_amount), 0)::float                              AS defaulted_principal
+       FROM loans l
+       LEFT JOIN (
+         SELECT loan_id,
+                SUM(amount_paid - COALESCE(overpayment_portion, 0)) AS paid
+           FROM transactions
+          WHERE payment_status = 'completed'
+          GROUP BY loan_id
+       ) p ON p.loan_id = l.id
+       WHERE l.tenant_id = $1 AND l.status = 'defaulted'`,
+      [tenantId],
+    );
+
+    return {
+      overdue_count: overdue.rows[0].overdue_count,
+      overdue_loans: overdue.rows[0].overdue_loans,
+      overdue_amount: parseFloat(overdue.rows[0].overdue_amount),
+      defaulted_count: defaulted.rows[0].defaulted_count,
+      defaulted_amount: parseFloat(defaulted.rows[0].defaulted_amount),
+      defaulted_principal: parseFloat(defaulted.rows[0].defaulted_principal),
+    };
   }
 
   // Aging buckets: payments still owed, grouped by days past due.

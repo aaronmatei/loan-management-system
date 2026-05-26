@@ -15,6 +15,8 @@ import {
   Clock,
   FileText,
   Users,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import api from "../services/api";
 import {
@@ -123,12 +125,20 @@ function Reports() {
   const {
     kpis,
     par,
+    snapshot,
     collectionTrend,
     disbursementTrend,
     aging,
     officers,
     statusDist,
   } = data;
+  const snap = snapshot || {
+    overdue_count: 0,
+    overdue_amount: 0,
+    overdue_loans: 0,
+    defaulted_count: 0,
+    defaulted_amount: 0,
+  };
   const parPct = parseFloat(par.par_percentage);
 
   return (
@@ -190,8 +200,9 @@ function Reports() {
           </div>
         </div>
 
-        {/* KPI cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {/* KPI cards. 6 tiles = 2 rows of 3 on lg+ — keeps figures legible
+            without forcing one-row truncation. */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
             <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
             <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
@@ -230,6 +241,34 @@ function Reports() {
             <p className="text-2xl font-bold mt-1">{par.par_percentage}%</p>
             <p className="text-xs text-white/80">
               {par.at_risk_count} of {par.total_active} loans
+            </p>
+          </div>
+
+          {/* Overdue — snapshot (today's overdue installments). Same source
+              as the Dashboard's Overdue tile. */}
+          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-orange-500 to-amber-600">
+            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+              <AlertTriangle size={12} /> Overdue
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+              {fmt(snap.overdue_amount)}
+            </p>
+            <p className="text-xs text-white/85">
+              {snap.overdue_count} payment{snap.overdue_count !== 1 ? "s" : ""}
+              {snap.overdue_loans > 0 && ` · ${snap.overdue_loans} loans`}
+            </p>
+          </div>
+
+          {/* Defaulted — snapshot (loans currently marked defaulted). */}
+          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-rose-600 to-red-700">
+            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+              <XCircle size={12} /> Defaulted
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+              {fmt(snap.defaulted_amount)}
+            </p>
+            <p className="text-xs text-white/85">
+              {snap.defaulted_count} loan{snap.defaulted_count !== 1 ? "s" : ""}
             </p>
           </div>
         </div>

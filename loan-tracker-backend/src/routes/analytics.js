@@ -376,6 +376,7 @@ router.get("/tenant", async (req, res) => {
     const [
       kpis,
       par,
+      snapshot,
       collectionTrend,
       disbursementTrend,
       aging,
@@ -384,6 +385,7 @@ router.get("/tenant", async (req, res) => {
     ] = await Promise.all([
       analyticsService.getTenantPortfolioKPIs(tid, from, to),
       analyticsService.getPortfolioAtRisk(tid),
+      analyticsService.getOverdueDefaultedSnapshot(tid),
       analyticsService.getCollectionTrend(tid, months, from, to),
       analyticsService.getDisbursementTrend(tid, months, from, to),
       analyticsService.getAgingAnalysis(tid),
@@ -396,6 +398,7 @@ router.get("/tenant", async (req, res) => {
       data: {
         kpis,
         par,
+        snapshot,
         collectionTrend,
         disbursementTrend,
         aging,
