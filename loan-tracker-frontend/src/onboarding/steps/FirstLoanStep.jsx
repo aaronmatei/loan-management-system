@@ -9,25 +9,43 @@ import { Coins } from "lucide-react";
 // loan application" honestly; after onboarding the tenant will see it
 // in their Applications queue and run it through the workflow.
 function FirstLoanStep({ data, createdClient, onNext, onBack }) {
+  const roundRate = (n) => Math.round(Number(n) * 10000) / 10000;
+  const initialAnnual = data.default_interest_rate ?? 50;
+
   const [form, setForm] = useState({
     principal_amount: 50000,
     loan_duration_months: data.default_duration_months || 6,
-    annual_interest_rate: data.default_interest_rate || 50,
+    annual_interest_rate: initialAnnual,
+    monthly_interest_rate: roundRate(initialAnnual / 12),
+    processing_fee_rate: data.processing_fee_rate ?? 0,
     purpose: "Business expansion",
   });
   const [saving, setSaving] = useState(false);
+
+  // Annual ⇄ monthly: typing either updates the other (annual = monthly × 12).
+  const onAnnual = (v) =>
+    setForm((p) => ({
+      ...p,
+      annual_interest_rate: v,
+      monthly_interest_rate: v === "" ? "" : roundRate(parseFloat(v) / 12),
+    }));
+  const onMonthly = (v) =>
+    setForm((p) => ({
+      ...p,
+      monthly_interest_rate: v,
+      annual_interest_rate: v === "" ? "" : roundRate(parseFloat(v) * 12),
+    }));
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      // Send only the fields the real backend accepts. It computes
-      // loan_code, totals, monthly rate, dates itself.
       await api.post("/loans", {
         client_id: createdClient.id,
         principal_amount: form.principal_amount,
-        annual_interest_rate: form.annual_interest_rate,
+        annual_interest_rate: parseFloat(form.annual_interest_rate) || 0,
         loan_duration_months: form.loan_duration_months,
+        processing_fee_rate: parseFloat(form.processing_fee_rate) || 0,
         purpose: form.purpose,
         application_source: "onboarding_wizard",
       });
@@ -40,11 +58,14 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
   };
 
   // Local preview only — backend will store/compute these itself.
-  const interest =
-    form.principal_amount *
-    (form.annual_interest_rate / 100 / 12) *
-    form.loan_duration_months;
-  const total = form.principal_amount + interest;
+  const principal = parseFloat(form.principal_amount) || 0;
+  const annual = parseFloat(form.annual_interest_rate) || 0;
+  const months = parseInt(form.loan_duration_months, 10) || 0;
+  const feeRate = parseFloat(form.processing_fee_rate) || 0;
+  const interest = principal * (annual / 100 / 12) * months;
+  const total = principal + interest;
+  const processingFee = Math.round((principal * feeRate) / 100 * 100) / 100;
+  const netDisbursed = Math.max(0, principal - processingFee);
 
   const fld =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
@@ -53,7 +74,9 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
     <div className="max-w-2xl mx-auto px-4">
       <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
-          <div className="flex justify-center mb-3"><Coins size={48} className="text-ocean-500" /></div>
+          <div className="flex justify-center mb-3">
+            <Coins size={48} className="text-ocean-500" />
+          </div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
             Submit First Loan Application
           </h2>
@@ -67,7 +90,9 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
         </div>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold mb-1">Amount (KES) *</label>
+            <label className="block text-sm font-semibold mb-1">
+              Amount (KES) *
+            </label>
             <input
               type="number"
               value={form.principal_amount}
@@ -81,9 +106,44 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
               className={fld}
             />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold mb-1">Duration *</label>
+              <label className="block text-sm font-semibold mb-1">
+                Annual Rate (%) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.annual_interest_rate}
+                onChange={(e) => onAnnual(e.target.value)}
+                required
+                className={fld}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">
+                Monthly Rate (%) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.monthly_interest_rate}
+                onChange={(e) => onMonthly(e.target.value)}
+                required
+                className={fld}
+              />
+              <p className="text-xs text-gray-500 mt-1">Synced with annual.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold mb-1">
+                Duration *
+              </label>
               <select
                 value={form.loan_duration_months}
                 onChange={(e) =>
@@ -95,26 +155,33 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
                 className={`${fld} bg-white`}
               >
                 {[1, 3, 6, 12, 18, 24].map((m) => (
-                  <option key={m} value={m}>{m} months</option>
+                  <option key={m} value={m}>
+                    {m} months
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1">Rate (% p.a.)</label>
+              <label className="block text-sm font-semibold mb-1">
+                Processing Fee Rate (%)
+              </label>
               <input
                 type="number"
-                step="0.5"
-                value={form.annual_interest_rate}
+                step="0.01"
+                min="0"
+                max="100"
+                value={form.processing_fee_rate}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    annual_interest_rate: parseFloat(e.target.value) || 0,
-                  })
+                  setForm({ ...form, processing_fee_rate: e.target.value })
                 }
                 className={fld}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Deducted from disbursed amount.
+              </p>
             </div>
           </div>
+
           <div>
             <label className="block text-sm font-semibold mb-1">Purpose</label>
             <input
@@ -141,6 +208,22 @@ function FirstLoanStep({ data, createdClient, onNext, onBack }) {
                 {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             </div>
+            {feeRate > 0 && (
+              <>
+                <div className="flex justify-between mt-2 pt-2 border-t border-ocean-200">
+                  <span>Processing Fee ({feeRate}%)</span>
+                  <span className="font-bold text-amber-700">
+                    − KES {processingFee.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>To Disburse</span>
+                  <span className="font-bold text-ocean-700">
+                    KES {netDisbursed.toLocaleString()}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex gap-2 pt-4">
