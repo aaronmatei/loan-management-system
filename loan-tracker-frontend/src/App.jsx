@@ -54,6 +54,7 @@ import SMS from "./pages/SMS";
 import Email from "./pages/Email";
 import Settings from "./pages/Settings";
 import Billing from "./pages/Billing";
+import Automation from "./pages/Automation";
 import AuditLog from "./pages/AuditLog";
 import UserManagement from "./pages/UserManagement";
 import Backup from "./pages/Backup";
@@ -226,6 +227,7 @@ function App() {
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/billing" element={<Billing />} />
+              <Route path="/automation" element={<Automation />} />
               <Route path="/white-label" element={<WhiteLabelSettings />} />
               <Route path="/embed" element={<EmbedSettings />} />
               <Route path="/audit" element={<AuditLog />} />

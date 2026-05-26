@@ -20,6 +20,7 @@ import {
   Database,
   Settings,
   Receipt,
+  Zap,
   ChevronRight,
   LogOut,
   X,
@@ -76,6 +77,7 @@ const navGroups = [
     items: [
       { path: "/sms", label: "SMS", icon: MessageSquare, permission: "sms:send" },
       { path: "/email", label: "Email", icon: Mail, permission: "email:send" },
+      { path: "/automation", label: "Automation", icon: Zap, roles: ["admin", "manager"] },
     ],
   },
   {

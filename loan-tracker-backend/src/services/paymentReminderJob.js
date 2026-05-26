@@ -19,17 +19,24 @@ import notificationDispatcher from "./notificationDispatcher.js";
 import { syncAllCustomers } from "./customerNotificationService.js";
 import logger from "../config/logger.js";
 
-/** Daily scan + dispatch. Exported for manual/test invocation. */
-export async function runDailyPaymentNotifications() {
+/**
+ * Daily scan + dispatch. Exported for manual/test invocation.
+ * @param {number|null} tenantId  scope to a single tenant (tenant-admin
+ *   "run now"); null = every active tenant (the global cron).
+ */
+export async function runDailyPaymentNotifications(tenantId = null) {
   const started = Date.now();
   const summary = { reminders: 0, overdues: 0, errors: 0 };
 
   // Tenants with their cadence settings + the email/sms pref for the
   // events we're about to consider firing. Filter to status='active'
-  // so suspended tenants don't bother their customers.
+  // so suspended tenants don't bother their customers. When tenantId is
+  // given, scope to just that tenant.
   const tenants = await query(
     `SELECT id, reminder_days_before, overdue_reminder_frequency_days
-       FROM tenants WHERE status = 'active'`,
+       FROM tenants
+      WHERE status = 'active' AND ($1::int IS NULL OR id = $1)`,
+    [tenantId],
   );
 
   for (const t of tenants.rows) {
@@ -42,9 +49,13 @@ export async function runDailyPaymentNotifications() {
     }
   }
 
-  // Generate in-app customer notifications (payments, decisions, overdue and
-  // due-soon reminders) for every customer.
-  await syncAllCustomers();
+  // The platform-wide in-app customer sync only runs on the global tick;
+  // a single-tenant "run now" sticks to that tenant's SMS/email dispatch.
+  if (tenantId == null) {
+    // Generate in-app customer notifications (payments, decisions, overdue
+    // and due-soon reminders) for every customer.
+    await syncAllCustomers();
+  }
 
   logger.info(
     `📨 Daily payment notifications: ${summary.reminders} reminders, ${summary.overdues} overdues, ${summary.errors} errors in ${Date.now() - started}ms`,
