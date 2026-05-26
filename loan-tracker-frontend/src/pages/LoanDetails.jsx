@@ -160,6 +160,9 @@ function LoanDetails() {
       remaining_balance: remainingAfter,
       completion_percentage: txn.receipt?.completion_percentage_after_this,
       is_fully_paid: fullyPaid,
+      // Per-transaction overpayment: principal-portion of this payment that
+      // went beyond the still-owed balance at the time it was recorded.
+      overpayment: parseFloat(txn.receipt?.overpayment_for_this || 0),
       next_payment_amount: fullyPaid ? null : receiptSummary?.next_payment_amount,
       next_payment_date: fullyPaid ? null : receiptSummary?.next_payment_date,
       next_payment_number: fullyPaid ? null : receiptSummary?.next_payment_number,

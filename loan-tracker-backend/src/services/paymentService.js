@@ -617,12 +617,10 @@ export async function buildReceiptBlock(loanId, tenantId) {
     if (loanRes.rows.length === 0) return null;
     const l = loanRes.rows[0];
 
-    // total_paid is derived from completed transactions — `loans` has no
-    // amount_paid column (the old SELECT referenced one that doesn't
-    // exist, so this block silently returned null on every call). Mirrors
-    // the SUM used throughout payments.js / portal customer queries.
+    // total_paid is the principal+interest portion (excludes penalty);
+    // mirrors the same exclusion used by routes/payments.js summary.
     const paidRes = await query(
-      `SELECT COALESCE(SUM(amount_paid), 0) AS total_paid
+      `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0)), 0) AS total_paid
          FROM transactions
         WHERE loan_id = $1 AND payment_status = 'completed'`,
       [loanId],
@@ -631,6 +629,7 @@ export async function buildReceiptBlock(loanId, tenantId) {
     const totalDue = parseFloat(l.total_amount_due);
     const totalPaid = parseFloat(paidRes.rows[0].total_paid || 0);
     const remaining = Math.max(0, totalDue - totalPaid);
+    const overpayment = parseFloat(l.overpayment_amount || 0);
 
     const nextRes = await query(
       `SELECT payment_number, due_date, amount_due, amount_paid
@@ -659,6 +658,7 @@ export async function buildReceiptBlock(loanId, tenantId) {
       total_amount_due: totalDue,
       total_paid: totalPaid,
       remaining_balance: remaining,
+      overpayment,
       is_fully_paid: remaining === 0,
       next_payment_number: next?.payment_number || null,
       next_payment_amount: nextAmount,

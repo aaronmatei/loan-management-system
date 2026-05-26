@@ -298,6 +298,14 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
                     − {money(payment.amount_paid)}
                   </span>
                 </div>
+                {parseFloat(receipt.overpayment || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Overpaid</span>
+                    <span className="font-semibold text-amber-700">
+                      + {money(receipt.overpayment)}
+                    </span>
+                  </div>
+                )}
                 <div className="border-t border-gray-200 my-2" />
                 <div className="flex justify-between items-baseline">
                   <span className="text-gray-600 font-medium">

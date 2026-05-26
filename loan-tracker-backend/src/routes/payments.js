@@ -213,14 +213,18 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const balance = Math.max(0, totalDue - totalPaid);
 
     // Annotate each transaction with running balance / % complete. Running
-    // balance tracks the principal-portion of payments (excludes penalty
-    // because penalty is income, not principal reduction).
+    // balance tracks the principal-portion applied to amount_due (penalty
+    // is income, not principal reduction). Anything beyond the still-owed
+    // balance is recorded as the overpayment from THIS transaction.
     const ascTxns = [...transactionsResult.rows].reverse();
     let running = 0;
     const annotated = ascTxns.map((t) => {
-      const principalPortion =
+      const principalToward =
         parseFloat(t.amount_paid || 0) - parseFloat(t.penalty_portion || 0);
-      running += principalPortion;
+      const owedBefore = Math.max(0, totalDue - running);
+      const principalApplied = Math.min(principalToward, owedBefore);
+      const overpaidThis = Math.max(0, principalToward - principalApplied);
+      running += principalApplied;
       const remaining = Math.max(0, totalDue - running);
       return {
         ...t,
@@ -229,6 +233,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
           remaining_balance_after_this: remaining,
           completion_percentage_after_this:
             totalDue > 0 ? ((running / totalDue) * 100).toFixed(1) : "0",
+          overpayment_for_this: Math.round(overpaidThis * 100) / 100,
         },
       };
     });
