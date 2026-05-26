@@ -4,17 +4,28 @@ import { KENYA_COUNTIES } from "../../utils/counties";
 import { BUSINESS_TYPES } from "../../utils/businessTypes";
 import { User, Shuffle } from "lucide-react";
 
+// Mirrors the fields on the staff Clients "Add New Client" form so the
+// onboarding first client is captured with the same shape as everything
+// created later.
 function FirstClientStep({ onNext, onBack, setCreatedClient }) {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
     phone_number: "",
-    id_number: "",
     email: "",
-    county: "Nairobi",
+    id_number: "",
+    business_name: "",
     business_type: "",
+    address: "",
+    city: "",
+    county: "Nairobi",
+    date_of_birth: "",
+    gender: "",
   });
   const [saving, setSaving] = useState(false);
+
+  const setField = (k) => (e) =>
+    setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -35,20 +46,27 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
       first_name: "Mary",
       last_name: "Wanjiku",
       phone_number: "0712345678",
-      id_number: "12345678",
       email: "mary.wanjiku@example.com",
-      county: "Nairobi",
+      id_number: "12345678",
+      business_name: "Mary's Salon",
       business_type: "Small Shop",
+      address: "Ngong Road",
+      city: "Nairobi",
+      county: "Nairobi",
+      date_of_birth: "1990-04-15",
+      gender: "female",
     });
 
   const fld =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
-    <div className="max-w-2xl mx-auto px-4">
+    <div className="max-w-3xl mx-auto px-4">
       <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
-          <div className="flex justify-center mb-3"><User size={48} className="text-ocean-500" /></div>
+          <div className="flex justify-center mb-3">
+            <User size={48} className="text-ocean-500" />
+          </div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
             Add Your First Client
           </h2>
@@ -64,89 +82,128 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
           <Shuffle size={14} /> Fill with Sample Data (Mary Wanjiku)
         </button>
         <form onSubmit={submit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-semibold mb-1">First Name *</label>
-              <input
-                value={form.first_name}
-                onChange={(e) =>
-                  setForm({ ...form, first_name: e.target.value })
-                }
-                required
-                className={fld}
-              />
+              <input value={form.first_name} onChange={setField("first_name")} required className={fld} />
             </div>
             <div>
               <label className="block text-sm font-semibold mb-1">Last Name *</label>
+              <input value={form.last_name} onChange={setField("last_name")} required className={fld} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold mb-1">Phone Number *</label>
               <input
-                value={form.last_name}
-                onChange={(e) =>
-                  setForm({ ...form, last_name: e.target.value })
-                }
+                type="tel"
+                value={form.phone_number}
+                onChange={setField("phone_number")}
                 required
+                placeholder="0712345678"
+                className={fld}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={setField("email")}
+                placeholder="mary@example.com"
                 className={fld}
               />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1">Phone Number *</label>
-            <input
-              type="tel"
-              value={form.phone_number}
-              onChange={(e) =>
-                setForm({ ...form, phone_number: e.target.value })
-              }
-              required
-              placeholder="0712345678"
-              className={fld}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1">ID Number *</label>
-            <input
-              value={form.id_number}
-              onChange={(e) =>
-                setForm({ ...form, id_number: e.target.value })
-              }
-              required
-              placeholder="12345678"
-              className={fld}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold mb-1">County</label>
+              <label className="block text-sm font-semibold mb-1">ID Number *</label>
+              <input
+                value={form.id_number}
+                onChange={setField("id_number")}
+                required
+                placeholder="12345678"
+                className={fld}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">Date of Birth</label>
+              <input
+                type="date"
+                value={form.date_of_birth}
+                onChange={setField("date_of_birth")}
+                className={fld}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold mb-1">Gender</label>
               <select
-                value={form.county}
-                onChange={(e) => setForm({ ...form, county: e.target.value })}
+                value={form.gender}
+                onChange={setField("gender")}
                 className={`${fld} bg-white`}
               >
-                {KENYA_COUNTIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+                <option value="">Select…</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1">
-                Business Type
-              </label>
+              <label className="block text-sm font-semibold mb-1">Business Type</label>
               <select
                 value={form.business_type}
-                onChange={(e) =>
-                  setForm({ ...form, business_type: e.target.value })
-                }
+                onChange={setField("business_type")}
                 className={`${fld} bg-white`}
               >
                 <option value="">Select type…</option>
                 {BUSINESS_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-1">Business Name</label>
+            <input
+              value={form.business_name}
+              onChange={setField("business_name")}
+              placeholder="(optional)"
+              className={fld}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-semibold mb-1">Address</label>
+              <input
+                value={form.address}
+                onChange={setField("address")}
+                placeholder="Street, building, etc."
+                className={fld}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">City</label>
+              <input
+                value={form.city}
+                onChange={setField("city")}
+                placeholder="Nairobi"
+                className={fld}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-1">County</label>
+            <select
+              value={form.county}
+              onChange={setField("county")}
+              className={`${fld} bg-white`}
+            >
+              {KENYA_COUNTIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-2 pt-4">
             <button

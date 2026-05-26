@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { Gift, Building2, User, Lock, Phone, Rocket } from "lucide-react";
+import { Gift, Building2, User, Lock, Phone, Rocket, Eye, EyeOff } from "lucide-react";
 import api from "../services/api";
 
 function Signup() {
@@ -9,6 +9,8 @@ function Signup() {
   const refCode = searchParams.get("ref");
   const [submitting, setSubmitting] = useState(false);
   const [subdomainStatus, setSubdomainStatus] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   // Populated by /api/referrals/validate/:code — null until we know
   // the code is real. Render-gates the "Referred by X" banner.
   const [referralInfo, setReferralInfo] = useState(null);
@@ -287,27 +289,47 @@ function Signup() {
                     <label className="block text-sm font-semibold mb-1">
                       Password *
                     </label>
-                    <input
-                      type="password"
-                      value={formData.admin_password}
-                      onChange={set("admin_password")}
-                      required
-                      minLength="12"
-                      placeholder="Min 12 chars, 1 upper, 1 number, 1 symbol"
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={formData.admin_password}
+                        onChange={set("admin_password")}
+                        required
+                        minLength="12"
+                        placeholder="Min 12 chars, 1 upper, 1 number, 1 symbol"
+                        className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((s) => !s)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1">
                       Confirm Password *
                     </label>
-                    <input
-                      type="password"
-                      value={formData.confirm_password}
-                      onChange={set("confirm_password")}
-                      required
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showConfirm ? "text" : "password"}
+                        value={formData.confirm_password}
+                        onChange={set("confirm_password")}
+                        required
+                        className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm((s) => !s)}
+                        aria-label={showConfirm ? "Hide password" : "Show password"}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                      >
+                        {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
