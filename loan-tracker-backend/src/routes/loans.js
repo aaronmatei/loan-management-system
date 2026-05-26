@@ -1,12 +1,6 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
-import { sendSMS, templates } from "../services/smsService.js";
-import {
-  sendEmail,
-  templates as emailTemplates,
-  getCompanySettings,
-} from "../services/emailService.js";
 import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
@@ -398,7 +392,27 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       const ci = await query("SELECT * FROM clients WHERE id = $1", [
         client_id,
       ]);
-      if (ci.rows[0]) await notifyApplicationSubmitted(loan, ci.rows[0]);
+      if (ci.rows[0]) {
+        // Staff bell (in-app notification)
+        await notifyApplicationSubmitted(loan, ci.rows[0]);
+        // Customer ack — SMS + Email via the central dispatcher so it
+        // lands in sms_logs / email_logs alongside every other lifecycle
+        // event (tenant prefs gate each channel).
+        notificationDispatcher
+          .notify("application_submitted", {
+            tenantId: loan.tenant_id,
+            customer: { ...ci.rows[0], client_id: ci.rows[0].id },
+            data: {
+              loan_id: loan.id,
+              loan_code: loan.loan_code,
+              amount: loan.principal_amount,
+              duration_months: loan.loan_duration_months,
+            },
+          })
+          .catch((err) =>
+            logger.error("notify(application_submitted) error:", err),
+          );
+      }
     } catch (err) {
       logger.error("notifyApplicationSubmitted error:", err);
     }
@@ -957,28 +971,30 @@ router.post(
         req,
       });
 
-      // Notify the client directly (SMS/email each gated by their *_ENABLED
-      // flag) — ask them to accept or decline in the portal.
+      // Customer SMS + Email via the central dispatcher so it lands in
+      // sms_logs / email_logs and respects the tenant's per-event toggle.
       try {
         const meta = await query(
-          `SELECT phone_number, first_name, email FROM clients WHERE id = $1`,
+          `SELECT phone_number, first_name, last_name, email FROM clients WHERE id = $1`,
           [loan.client_id],
         );
         const c = meta.rows[0];
         if (c) {
-          const msg = `Hi ${c.first_name}, your loan application ${loan.loan_code} has a new offer of KES ${amount.toLocaleString()}. Log in to accept or decline.`;
-          if (c.phone_number) {
-            sendSMS(c.phone_number, msg).catch((e) =>
-              logger.error("counter-offer SMS error:", e),
+          notificationDispatcher
+            .notify("counter_offered", {
+              tenantId: loan.tenant_id,
+              customer: { ...c, client_id: loan.client_id },
+              data: {
+                loan_id: loan.id,
+                loan_code: loan.loan_code,
+                offered_amount: amount,
+                requested_amount: loan.principal_amount,
+                note: note || null,
+              },
+            })
+            .catch((e) =>
+              logger.error("notify(counter_offered) error:", e),
             );
-          }
-          if (c.email) {
-            sendEmail({
-              to: c.email,
-              subject: `New loan offer — ${loan.loan_code}`,
-              html: `<p>Hi ${c.first_name},</p><p>${msg}</p>`,
-            }).catch((e) => logger.error("counter-offer email error:", e));
-          }
         }
       } catch (err) {
         logger.error("Counter-offer notification error:", err);
@@ -1152,89 +1168,44 @@ router.post(
         logger.error("notifyCapitalLow (disburse) error:", err);
       }
 
-      // Loan-approved SMS (relocated here from loan creation).
-      if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+      // Customer SMS + Email via the central dispatcher. Both channels
+      // are gated by the tenant's notify_disbursed_{sms,email} prefs
+      // and logged with message_type='loan_approved'. The loan-agreement
+      // PDF is attached to the email so the customer gets the contract
+      // alongside the disbursement notice.
+      (async () => {
         try {
           const c = await query(
-            "SELECT phone_number, first_name FROM clients WHERE id = $1",
+            "SELECT phone_number, first_name, last_name, email FROM clients WHERE id = $1",
             [loan.client_id],
           );
-          if (c.rows[0]?.phone_number) {
-            const smsMessage = templates.loanApproved(
-              c.rows[0].first_name,
-              principal,
-              loan.loan_code,
-            );
-            sendSMS(c.rows[0].phone_number, smsMessage).then((smsResult) => {
-              query(
-                `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
-                 VALUES ($1, $2, $3, $4, 'loan_approved', $5, $6, $7)`,
-                [
-                  loan.client_id,
-                  id,
-                  c.rows[0].phone_number,
-                  smsMessage,
-                  smsResult.success ? "sent" : "failed",
-                  JSON.stringify(smsResult),
-                  req.user.id,
-                ],
-              ).catch((err) => logger.error("SMS log error:", err));
-            });
-          }
-        } catch (err) {
-          logger.error("Disbursement SMS error:", err);
-        }
-      }
-
-      // Loan-approved email + agreement PDF (relocated here).
-      if (
-        process.env.EMAIL_ENABLED === "true" &&
-        process.env.EMAIL_AUTO_CONFIRMATIONS === "true"
-      ) {
-        (async () => {
-          try {
-            const c = await query(
-              "SELECT email, first_name FROM clients WHERE id = $1",
-              [loan.client_id],
-            );
-            const recipient = c.rows[0];
-            if (recipient?.email) {
-              const company = await getCompanySettings();
-              const template = emailTemplates.loanApproved({
-                clientName: recipient.first_name,
-                loanCode: loan.loan_code,
-                principalAmount: loan.principal_amount,
-                totalDue: loan.total_amount_due,
-                duration: loan.loan_duration_months,
-                company,
-              });
+          const cust = c.rows[0];
+          if (!cust) return;
+          let attachments;
+          if (cust.email) {
+            try {
               const { buffer, filename } = await buildLoanAgreementPdf(id);
-              const emailResult = await sendEmail({
-                to: recipient.email,
-                subject: template.subject,
-                html: template.html,
-                attachments: [{ filename, content: buffer }],
-              });
-              await query(
-                `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, has_attachment, attachment_name, status, provider_response, sent_by)
-                 VALUES ($1, $2, $3, $4, 'loan_agreement', true, $5, $6, $7, $8)`,
-                [
-                  loan.client_id,
-                  id,
-                  recipient.email,
-                  template.subject,
-                  filename,
-                  emailResult.success ? "sent" : "failed",
-                  JSON.stringify(emailResult),
-                  req.user.id,
-                ],
-              );
+              attachments = [{ filename, content: buffer }];
+            } catch (pdfErr) {
+              logger.error("Loan-agreement PDF build error:", pdfErr);
             }
-          } catch (err) {
-            logger.error("Disbursement email error:", err);
           }
-        })();
-      }
+          await notificationDispatcher.notify("loan_disbursed", {
+            tenantId: loan.tenant_id,
+            customer: { ...cust, client_id: loan.client_id },
+            data: {
+              loan_id: loan.id,
+              loan_code: loan.loan_code,
+              amount: principal,
+              total_amount_due: loan.total_amount_due,
+              duration_months: loan.loan_duration_months,
+            },
+            attachments,
+          });
+        } catch (err) {
+          logger.error("Disbursement notification error:", err);
+        }
+      })();
 
       await logAudit({
         user: req.user,

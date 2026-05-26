@@ -169,17 +169,27 @@ function Email() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedLogs = sortedLogs.slice(startIndex, endIndex);
 
-  // Filter counts for dropdowns
+  // Filter counts for dropdowns. Covers every message_type the
+  // notificationDispatcher writes plus the manual "statement" /
+  // "loan_agreement" / "custom" buckets used elsewhere. "loan_approved"
+  // is the legacy bucket for disbursement (kept consistent with SMS).
+  const countByType = (t) =>
+    logs.filter((l) => l.message_type === t).length;
   const typeCounts = {
     all: logs.length,
-    payment_received: logs.filter((l) => l.message_type === "payment_received")
-      .length,
-    overdue_reminder: logs.filter((l) => l.message_type === "overdue_reminder")
-      .length,
-    statement: logs.filter((l) => l.message_type === "statement").length,
-    loan_agreement: logs.filter((l) => l.message_type === "loan_agreement")
-      .length,
-    custom: logs.filter((l) => l.message_type === "custom").length,
+    application_submitted: countByType("application_submitted"),
+    application_under_review: countByType("application_under_review"),
+    application_approved: countByType("application_approved"),
+    application_rejected: countByType("application_rejected"),
+    counter_offered: countByType("counter_offered"),
+    loan_approved: countByType("loan_approved"),
+    payment_received: countByType("payment_received"),
+    reminder: countByType("reminder"),
+    overdue_reminder: countByType("overdue_reminder"),
+    loan_completed: countByType("loan_completed"),
+    statement: countByType("statement"),
+    loan_agreement: countByType("loan_agreement"),
+    custom: countByType("custom"),
   };
 
   const statusCounts = {
@@ -309,11 +319,35 @@ function Email() {
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({typeCounts.all})</option>
+              <option value="application_submitted">
+                Application Submitted ({typeCounts.application_submitted})
+              </option>
+              <option value="application_under_review">
+                Under Review ({typeCounts.application_under_review})
+              </option>
+              <option value="application_approved">
+                Approved ({typeCounts.application_approved})
+              </option>
+              <option value="application_rejected">
+                Rejected ({typeCounts.application_rejected})
+              </option>
+              <option value="counter_offered">
+                Counter Offered ({typeCounts.counter_offered})
+              </option>
+              <option value="loan_approved">
+                Disbursed ({typeCounts.loan_approved})
+              </option>
               <option value="payment_received">
                 Payment Received ({typeCounts.payment_received})
               </option>
+              <option value="reminder">
+                Payment Reminder ({typeCounts.reminder})
+              </option>
               <option value="overdue_reminder">
                 Overdue Reminder ({typeCounts.overdue_reminder})
+              </option>
+              <option value="loan_completed">
+                Loan Completed ({typeCounts.loan_completed})
               </option>
               <option value="statement">
                 Statement ({typeCounts.statement})

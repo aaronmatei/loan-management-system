@@ -26,6 +26,7 @@ const PREF_COLUMNS = {
   application_under_review: ["notify_under_review_sms",            "notify_under_review_email"],
   application_approved:     ["notify_approved_sms",                "notify_approved_email"],
   application_rejected:     ["notify_rejected_sms",                "notify_rejected_email"],
+  counter_offered:          ["notify_counter_offered_sms",         "notify_counter_offered_email"],
   loan_disbursed:           ["notify_disbursed_sms",               "notify_disbursed_email"],
   payment_received:         ["notify_payment_sms",                 "notify_payment_email"],
   payment_reminder:         ["notify_reminder_sms",                "notify_reminder_email"],
@@ -41,6 +42,7 @@ const MESSAGE_TYPE = {
   application_under_review: "application_under_review",
   application_approved: "application_approved",
   application_rejected: "application_rejected",
+  counter_offered: "counter_offered",
   loan_disbursed: "loan_approved",
   payment_received: "payment_received",
   payment_reminder: "reminder",
@@ -61,7 +63,7 @@ const MESSAGE_TYPE = {
 export async function notify(eventType, ctx) {
   const result = { skipped: [] };
   try {
-    const { tenantId, customer = {}, data = {} } = ctx || {};
+    const { tenantId, customer = {}, data = {}, attachments } = ctx || {};
     if (!PREF_COLUMNS[eventType]) {
       logger.warn(`notify: unknown eventType ${eventType}`);
       return { error: "unknown event" };
@@ -137,6 +139,7 @@ export async function notify(eventType, ctx) {
           subject: built.subject,
           html: built.html,
           fromName,
+          attachments: Array.isArray(attachments) ? attachments : undefined,
         });
         await logEmail({
           tenantId,
@@ -146,6 +149,10 @@ export async function notify(eventType, ctx) {
           subject: built.subject,
           messageType: MESSAGE_TYPE[eventType],
           providerResult: r,
+          attachment:
+            Array.isArray(attachments) && attachments[0]
+              ? attachments[0].filename
+              : null,
         });
         result.email = r;
       }
@@ -173,6 +180,8 @@ function renderSms(eventType, { tenant, customer, data }) {
       return smsTemplates.applicationApproved(name, data.amount, data.loan_code, biz);
     case "application_rejected":
       return smsTemplates.applicationRejected(name, data.loan_code, biz, data.reason);
+    case "counter_offered":
+      return smsTemplates.counterOffered(name, data.offered_amount, data.loan_code, biz);
     case "loan_disbursed":
       return smsTemplates.loanApproved(name, data.amount, data.loan_code);
     case "payment_received":
@@ -222,6 +231,15 @@ function renderEmail(eventType, { tenant, customer, data, company }) {
         clientName: name,
         loanCode: data.loan_code,
         reason: data.reason,
+        company,
+      });
+    case "counter_offered":
+      return emailTemplates.counterOffered({
+        clientName: name,
+        offeredAmount: data.offered_amount,
+        requestedAmount: data.requested_amount,
+        loanCode: data.loan_code,
+        note: data.note,
         company,
       });
     case "loan_disbursed":
@@ -303,13 +321,22 @@ async function logSms({ tenantId, clientId, loanId, phone, message, messageType,
   }
 }
 
-async function logEmail({ tenantId, clientId, loanId, recipient, subject, messageType, providerResult }) {
+async function logEmail({
+  tenantId,
+  clientId,
+  loanId,
+  recipient,
+  subject,
+  messageType,
+  providerResult,
+  attachment,
+}) {
   try {
     await query(
       `INSERT INTO email_logs (
          tenant_id, client_id, loan_id, recipient_email, subject,
-         message_type, has_attachment, status, provider_response
-       ) VALUES ($1,$2,$3,$4,$5,$6,false,$7,$8)`,
+         message_type, has_attachment, attachment_name, status, provider_response
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         tenantId,
         clientId,
@@ -317,6 +344,8 @@ async function logEmail({ tenantId, clientId, loanId, recipient, subject, messag
         recipient,
         subject,
         messageType,
+        Boolean(attachment),
+        attachment || null,
         providerResult?.success ? "sent" : "failed",
         JSON.stringify(providerResult || {}),
       ],

@@ -1167,6 +1167,8 @@ CREATE TABLE public.tenants (
     notify_approved_email boolean DEFAULT true,
     notify_rejected_sms boolean DEFAULT true,
     notify_rejected_email boolean DEFAULT true,
+    notify_counter_offered_sms boolean DEFAULT true,
+    notify_counter_offered_email boolean DEFAULT true,
     notify_disbursed_sms boolean DEFAULT true,
     notify_disbursed_email boolean DEFAULT true,
     notify_payment_sms boolean DEFAULT true,

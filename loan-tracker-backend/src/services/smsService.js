@@ -112,6 +112,9 @@ export const templates = {
   applicationRejected: (clientName, loanCode, businessName, reason) =>
     `Hi ${clientName}, your loan application ${loanCode} at ${businessName || process.env.COMPANY_NAME} could not be approved.${reason ? ` Reason: ${reason}.` : ""} You may re-apply in the future.`,
 
+  counterOffered: (clientName, offeredAmount, loanCode, businessName) =>
+    `Hi ${clientName}, your loan application ${loanCode} at ${businessName || process.env.COMPANY_NAME} has a new offer of KES ${parseFloat(offeredAmount).toLocaleString()}. Log in to accept or decline.`,
+
   loanCompleted: (clientName, loanCode) =>
     `Congratulations ${clientName}! 🎉 Your loan ${loanCode} has been fully repaid. Thank you for your timely payments. You can now apply for a new loan. - ${process.env.COMPANY_NAME}`,
 

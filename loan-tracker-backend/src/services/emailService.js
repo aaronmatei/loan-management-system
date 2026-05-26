@@ -572,6 +572,36 @@ export const templates = {
       `,
     }),
   }),
+
+  counterOffered: ({
+    clientName,
+    offeredAmount,
+    requestedAmount,
+    loanCode,
+    note,
+    company,
+  }) => ({
+    subject: `New loan offer — ${loanCode}`,
+    html: baseLayout({
+      accent: "linear-gradient(135deg, #0ea5e9, #0284c7)",
+      contentBg: "#f0f9ff",
+      border: "#bae6fd",
+      title: "New loan offer",
+      subtitle: "Please review and respond",
+      company,
+      body: `
+        <p>Hi <strong>${clientName}</strong>,</p>
+        <p>${company.name} has reviewed your loan application <strong>${loanCode}</strong> and prepared a new offer for you.</p>
+        <div class="info-box" style="border-left-color:#0284c7;background:#e0f2fe;">
+          <p style="margin:0 0 6px 0;"><strong style="color:#075985;">Offered amount:</strong> <span style="color:#0c4a6e;font-weight:bold;">KES ${parseFloat(offeredAmount).toLocaleString()}</span></p>
+          ${requestedAmount ? `<p style="margin:0;"><strong style="color:#075985;">You requested:</strong> KES ${parseFloat(requestedAmount).toLocaleString()}</p>` : ""}
+        </div>
+        ${note ? `<p><strong>Note from the lender:</strong> ${note}</p>` : ""}
+        <p>Log in to your account to accept or decline this offer.</p>
+        <p class="muted">If you have questions about this offer, please reach out to us before responding.</p>
+      `,
+    }),
+  }),
 };
 
 export default {

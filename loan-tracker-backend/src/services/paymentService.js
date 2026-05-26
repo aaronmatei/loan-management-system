@@ -23,12 +23,7 @@
 
 import { query } from "../config/database.js";
 import { tenantPrefix } from "../utils/clientCode.js";
-import { sendSMS, templates } from "./smsService.js";
-import {
-  sendEmail,
-  templates as emailTemplates,
-  getCompanySettings,
-} from "./emailService.js";
+import notificationDispatcher from "./notificationDispatcher.js";
 import { buildReceiptPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "./auditService.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
@@ -312,48 +307,9 @@ export async function recordLoanPayment({
       logger.info(`💰 Overpayment of KES ${newOverpayment} - refund pending`);
     }
 
-    // Loan-completion SMS. Same guard as the payment-received hook so
-    // both behave consistently; sendSMS() no-ops unless SMS_ENABLED.
-    if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
-      try {
-        const completionClient = await query(
-          "SELECT phone_number, first_name FROM clients WHERE id = $1",
-          [loan.client_id],
-        );
-
-        if (completionClient.rows[0]?.phone_number) {
-          const clientName = completionClient.rows[0].first_name;
-          const phoneNumber = completionClient.rows[0].phone_number;
-          const isOverpaid = newOverpayment > 0;
-          const completionMessage = isOverpaid
-            ? templates.loanCompletedWithOverpayment(
-                clientName,
-                loan.loan_code,
-                newOverpayment,
-              )
-            : templates.loanCompleted(clientName, loan.loan_code);
-
-          const smsResult = await sendSMS(phoneNumber, completionMessage);
-          await query(
-            `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              loan.client_id,
-              loanId,
-              phoneNumber,
-              completionMessage,
-              isOverpaid ? "loan_completed_overpayment" : "loan_completed",
-              smsResult.success ? "sent" : "failed",
-              JSON.stringify(smsResult),
-              actorUserId,
-            ],
-          );
-          logger.info(`✓ Loan completion SMS logged for ${loan.loan_code}`);
-        }
-      } catch (err) {
-        logger.error("Loan completion SMS error:", err);
-      }
-    }
+    // Loan-completion notification is handled below in one unified
+    // dispatcher block alongside payment_received — keeps SMS + Email
+    // logging consistent and gated by tenant prefs.
   }
 
   // Update capital pool. Split the amount actually applied to the loan
@@ -390,159 +346,67 @@ export async function recordLoanPayment({
     ],
   );
 
-  // Auto payment-confirmation SMS. Always logged (consistent with the
-  // manual Send endpoints); sendSMS() itself no-ops when SMS_ENABLED
-  // is not 'true', so a real message only goes out when enabled.
-  if (process.env.SMS_AUTO_CONFIRMATIONS === "true") {
+  // Customer SMS + Email via the central dispatcher. Gated by the
+  // tenant's notify_payment_{sms,email} prefs and logged to
+  // sms_logs / email_logs. The transaction receipt PDF is attached to
+  // the email so customers get the receipt alongside the notice.
+  // If this payment closed the loan, fire loan_completed straight
+  // after, chained so it always lands AFTER the receipt.
+  (async () => {
     try {
-      const clientResult = await query(
-        "SELECT phone_number, first_name FROM clients WHERE id = $1",
+      const c = await query(
+        "SELECT phone_number, first_name, last_name, email FROM clients WHERE id = $1",
         [loan.client_id],
       );
-      if (clientResult.rows[0]?.phone_number) {
-        const newBalance = totalDue - newTotalPaid;
-        const smsMessage = templates.paymentReceived(
-          clientResult.rows[0].first_name,
-          paymentAmount,
-          loan.loan_code,
-          newBalance,
-        );
+      const cust = c.rows[0];
+      if (!cust) return;
+      const newBalance = totalDue - newTotalPaid;
 
-        // Fire-and-forget; do not block the payment response
-        sendSMS(clientResult.rows[0].phone_number, smsMessage).then(
-          (smsResult) => {
-            query(
-              `INSERT INTO sms_logs (client_id, loan_id, phone_number, message, message_type, status, provider_response, sent_by)
-                 VALUES ($1, $2, $3, $4, 'payment_received', $5, $6, $7)`,
-              [
-                loan.client_id,
-                loanId,
-                clientResult.rows[0].phone_number,
-                smsMessage,
-                smsResult.success ? "sent" : "failed",
-                JSON.stringify(smsResult),
-                actorUserId,
-              ],
-            ).catch((err) => logger.error("SMS log error:", err));
+      // Receipt PDF — only worth building if there's an email recipient.
+      let attachments;
+      if (cust.email) {
+        try {
+          const { buffer, filename } = await buildReceiptPdf(transaction.id);
+          attachments = [{ filename, content: buffer }];
+        } catch (pdfErr) {
+          logger.error("Receipt PDF build error:", pdfErr);
+        }
+      }
+
+      await notificationDispatcher.notify("payment_received", {
+        tenantId: loan.tenant_id,
+        customer: { ...cust, client_id: loan.client_id },
+        data: {
+          loan_id: loanId,
+          loan_code: loan.loan_code,
+          amount: paymentAmount,
+          balance: newBalance,
+          transaction_code: transactionCode,
+          payment_method: paymentMethod,
+          payment_date: paymentDate,
+        },
+        attachments,
+      });
+
+      if (isFullyPaid) {
+        await notificationDispatcher.notify("loan_completed", {
+          tenantId: loan.tenant_id,
+          customer: { ...cust, client_id: loan.client_id },
+          data: {
+            loan_id: loanId,
+            loan_code: loan.loan_code,
+            total_paid: newTotalPaid,
+            principal_amount: loan.principal_amount,
+            total_interest: loan.total_interest,
+            overpayment_amount: newOverpayment,
           },
-        );
+        });
+        logger.info(`✓ Loan completion notification sent for ${loan.loan_code}`);
       }
     } catch (err) {
-      logger.error("Auto SMS error:", err);
+      logger.error("Payment notification error:", err);
     }
-  }
-
-  // Auto payment-confirmation email with the receipt PDF attached.
-  // Mirrors the SMS hook above; sendEmail() itself no-ops unless
-  // EMAIL_ENABLED is 'true'. Fire-and-forget so the caller is not blocked.
-  if (
-    process.env.EMAIL_ENABLED === "true" &&
-    process.env.EMAIL_AUTO_CONFIRMATIONS === "true"
-  ) {
-    (async () => {
-      try {
-        const clientResult = await query(
-          "SELECT email, first_name FROM clients WHERE id = $1",
-          [loan.client_id],
-        );
-        const recipient = clientResult.rows[0];
-        if (recipient?.email) {
-          const newBalance = totalDue - newTotalPaid;
-          const company = await getCompanySettings();
-          const template = emailTemplates.paymentReceived({
-            clientName: recipient.first_name,
-            amount: paymentAmount,
-            loanCode: loan.loan_code,
-            balance: newBalance,
-            transactionCode,
-            paymentMethod: paymentMethod,
-            paymentDate: paymentDate,
-            company,
-          });
-
-          const { buffer, filename } = await buildReceiptPdf(transaction.id);
-
-          const emailResult = await sendEmail({
-            to: recipient.email,
-            subject: template.subject,
-            html: template.html,
-            attachments: [{ filename, content: buffer }],
-          });
-
-          await query(
-            `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, has_attachment, attachment_name, status, provider_response, sent_by)
-               VALUES ($1, $2, $3, $4, 'payment_received', true, $5, $6, $7, $8)`,
-            [
-              loan.client_id,
-              loanId,
-              recipient.email,
-              template.subject,
-              filename,
-              emailResult.success ? "sent" : "failed",
-              JSON.stringify(emailResult),
-              actorUserId,
-            ],
-          );
-
-          // If this payment also completed the loan, follow the receipt
-          // with the celebratory completion email. Chained here (not via
-          // setTimeout) so it always lands AFTER the receipt.
-          if (isFullyPaid) {
-            const completionTemplate =
-              newOverpayment > 0
-                ? emailTemplates.loanCompletedWithOverpayment({
-                    clientName: recipient.first_name,
-                    loanCode: loan.loan_code,
-                    totalPaid: newTotalPaid,
-                    overpaymentAmount: newOverpayment,
-                    principalAmount: loan.principal_amount,
-                    totalInterest: loan.total_interest,
-                    company,
-                  })
-                : emailTemplates.loanCompleted({
-                    clientName: recipient.first_name,
-                    loanCode: loan.loan_code,
-                    totalPaid: newTotalPaid,
-                    principalAmount: loan.principal_amount,
-                    totalInterest: loan.total_interest,
-                    company,
-                  });
-
-            const completionResult = await sendEmail({
-              to: recipient.email,
-              subject: completionTemplate.subject,
-              html: completionTemplate.html,
-            });
-
-            await query(
-              `INSERT INTO email_logs (client_id, loan_id, recipient_email, subject, message_type, status, provider_response, sent_by)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-              [
-                loan.client_id,
-                loanId,
-                recipient.email,
-                completionTemplate.subject,
-                newOverpayment > 0
-                  ? "loan_completed_overpayment"
-                  : "loan_completed",
-                completionResult.success ? "sent" : "failed",
-                JSON.stringify(completionResult),
-                actorUserId,
-              ],
-            );
-
-            if (completionResult.success) {
-              logger.info(
-                `✓ Loan completion email sent for ${loan.loan_code}`,
-              );
-            }
-          }
-        }
-      } catch (err) {
-        logger.error("Auto email error:", err);
-      }
-    })();
-  }
+  })();
 
   await logAudit({
     user: actor,
