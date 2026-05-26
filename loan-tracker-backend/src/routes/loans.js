@@ -511,7 +511,7 @@ router.post(
 
       // Per-tenant capital pool (NOT the global "latest" row).
       const poolCheck = await query(
-        `SELECT (initial_capital - total_disbursed + total_collected) AS available
+        `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned) AS available
          FROM capital_pool WHERE tenant_id = $1`,
         [loan.tenant_id],
       );
@@ -893,26 +893,30 @@ router.post(
       // (principal minus the processing fee the lender retains). Falls back
       // to principal for loans created before processing fees existed.
       const principal = parseFloat(loan.principal_amount);
-      const netDisbursed =
-        loan.net_disbursed_amount != null
-          ? parseFloat(loan.net_disbursed_amount)
-          : principal;
       const processingFee = parseFloat(loan.processing_fee || 0);
+      // Record the full principal as disbursed (the borrower owes it back)
+      // and immediately recognise the processing fee as income on the pool.
+      // The pool's actual cash position is computed by buildStatus as
+      // initial - disbursed + collected + interest_earned, so the retained
+      // fee correctly offsets the principal outflow without leaving
+      // outstanding_principal negative once the loan is fully repaid.
       await query(
         `UPDATE capital_pool
-           SET total_disbursed = total_disbursed + $1, updated_at = NOW()
-         WHERE tenant_id = $2`,
-        [netDisbursed, loan.tenant_id],
+           SET total_disbursed = total_disbursed + $1,
+               total_interest_earned = total_interest_earned + $2,
+               updated_at = NOW()
+         WHERE tenant_id = $3`,
+        [principal, processingFee, loan.tenant_id],
       );
       await query(
         `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, description)
          VALUES ($1, 'loan_disbursed', $2, $3, $4)`,
         [
           loan.tenant_id,
-          netDisbursed,
+          principal,
           id,
           processingFee > 0
-            ? `Loan ${loan.loan_code} disbursed (net of KES ${processingFee.toLocaleString()} processing fee)`
+            ? `Loan ${loan.loan_code} disbursed (KES ${processingFee.toLocaleString()} processing fee retained as income)`
             : `Loan ${loan.loan_code} disbursed`,
         ],
       );
@@ -922,7 +926,7 @@ router.post(
       try {
         const cp = await query(
           `SELECT initial_capital,
-                  (initial_capital - total_disbursed + total_collected) AS available
+                  (initial_capital - total_disbursed + total_collected + total_interest_earned) AS available
            FROM capital_pool WHERE tenant_id = $1`,
           [loan.tenant_id],
         );

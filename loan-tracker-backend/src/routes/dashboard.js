@@ -18,7 +18,8 @@ router.get("/summary", async (req, res) => {
     const ts = tenantClause(req, 0);
     const tsL = tenantClause(req, 0, "l.tenant_id");
 
-    // Get all loans aggregates
+    // Get all loans aggregates — DISBURSED only (active/completed/defaulted);
+    // applications still in the queue don't count as portfolio or money out.
     const loansStats = await query(
       `
       SELECT
@@ -32,7 +33,7 @@ router.get("/summary", async (req, res) => {
         COALESCE(SUM(CASE WHEN refund_status = 'pending' THEN overpayment_amount ELSE 0 END), 0) as total_overpayment,
         COUNT(CASE WHEN refund_status = 'pending' THEN 1 END) as pending_refunds
       FROM loans
-      WHERE 1=1${ts.clause}
+      WHERE status IN ('active', 'completed', 'defaulted')${ts.clause}
     `,
       ts.params,
     );
@@ -311,17 +312,21 @@ router.get("/monthly-trends", async (req, res) => {
   try {
     const ts = tenantClause(req, 0);
 
-    // Loans by month
+    // Loans by month — DISBURSED only, bucketed by disbursement date (not
+    // application date). Applications that never made it out the door
+    // aren't part of the lending portfolio.
     const loansTrend = await query(
       `
       SELECT
-        TO_CHAR(created_at, 'YYYY-MM') as month,
-        TO_CHAR(created_at, 'Mon YYYY') as month_label,
+        TO_CHAR(disbursed_at, 'YYYY-MM') as month,
+        TO_CHAR(disbursed_at, 'Mon YYYY') as month_label,
         COUNT(*) as count,
         COALESCE(SUM(principal_amount), 0) as total_amount
       FROM loans
-      WHERE created_at >= CURRENT_DATE - INTERVAL '6 months'${ts.clause}
-      GROUP BY TO_CHAR(created_at, 'YYYY-MM'), TO_CHAR(created_at, 'Mon YYYY')
+      WHERE status IN ('active', 'completed', 'defaulted')
+        AND disbursed_at IS NOT NULL
+        AND disbursed_at >= CURRENT_DATE - INTERVAL '6 months'${ts.clause}
+      GROUP BY TO_CHAR(disbursed_at, 'YYYY-MM'), TO_CHAR(disbursed_at, 'Mon YYYY')
       ORDER BY month ASC
     `,
       ts.params,

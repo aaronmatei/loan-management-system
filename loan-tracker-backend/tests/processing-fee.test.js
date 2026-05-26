@@ -138,7 +138,7 @@ describe("loan processing fee", () => {
     expect(Number(loan.net_disbursed_amount)).toBe(9500);
   });
 
-  it("disburses NET of the processing fee to the capital pool", async () => {
+  it("records full principal as disbursed and the fee as interest earned", async () => {
     const t = await createTenant();
     await query("UPDATE tenants SET processing_fee_rate = 5 WHERE id = $1", [t.id]);
     await query(
@@ -170,8 +170,14 @@ describe("loan processing fee", () => {
     expect(disb.status).toBe(200);
 
     const pool = (
-      await query("SELECT total_disbursed FROM capital_pool WHERE tenant_id = $1", [t.id])
+      await query(
+        "SELECT total_disbursed, total_interest_earned FROM capital_pool WHERE tenant_id = $1",
+        [t.id],
+      )
     ).rows[0];
-    expect(Number(pool.total_disbursed)).toBe(9500); // net, not the full 10,000
+    // Full principal is recorded as disbursed (what the borrower owes back).
+    expect(Number(pool.total_disbursed)).toBe(10000);
+    // The 5% processing fee is recognised as income at disbursement.
+    expect(Number(pool.total_interest_earned)).toBe(500);
   });
 });

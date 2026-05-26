@@ -22,8 +22,12 @@ function buildStatus(pool, activeLoans) {
   const collected = parseFloat(pool.total_collected);
   const interest = parseFloat(pool.total_interest_earned);
 
+  // total_disbursed records the principal lent (what borrowers owe), and
+  // total_interest_earned holds both repayment-interest and any processing
+  // fees retained at disbursement. Available cash = initial − principal out
+  // + principal back + fees/interest earned (kept in the pool).
   const outstandingPrincipal = disbursed - collected;
-  const availablePool = initial - disbursed + collected;
+  const availablePool = initial - disbursed + collected + interest;
   const totalPoolValue = initial + interest;
   const utilizationRate =
     initial > 0 ? (outstandingPrincipal / initial) * 100 : 0;
@@ -111,7 +115,8 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
     const initial = parseFloat(pool.initial_capital);
     const disbursed = parseFloat(pool.total_disbursed);
     const collected = parseFloat(pool.total_collected);
-    const availablePool = initial - disbursed + collected;
+    const interest = parseFloat(pool.total_interest_earned);
+    const availablePool = initial - disbursed + collected + interest;
 
     if (type === "withdraw" && value > availablePool) {
       return res.status(400).json({

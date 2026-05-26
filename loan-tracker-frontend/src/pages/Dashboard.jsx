@@ -393,9 +393,9 @@ function Dashboard() {
             <div>
               <p className="text-sm text-slate-500">Available Capital</p>
               <p className="text-3xl lg:text-4xl font-extrabold text-navy-900 leading-none mt-1">
-                KES {fmtAxis(poolStatus.available_pool)}
+                {fmtKES(poolStatus.available_pool)}
                 <span className="text-sm font-medium text-slate-400 ml-2">
-                  of KES {fmtAxis(poolStatus.initial_capital)}
+                  of {fmtKES(poolStatus.initial_capital)}
                 </span>
               </p>
             </div>
@@ -432,7 +432,7 @@ function Dashboard() {
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Total Disbursed</p>
               <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
-                KES {fmtAxis(poolStatus.total_disbursed)}
+                {fmtKES(poolStatus.total_disbursed)}
               </p>
             </div>
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
