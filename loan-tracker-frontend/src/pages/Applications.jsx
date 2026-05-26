@@ -987,6 +987,11 @@ function Applications() {
                 {selectedLoan.last_name}
                 <br />
                 <strong>Phone:</strong> {selectedLoan.phone_number}
+                <br />
+                <strong>Applied on:</strong>{" "}
+                {ddmmyyyy(
+                  selectedLoan.application_date || selectedLoan.created_at,
+                )}
               </div>
             </div>
             <form onSubmit={handleDisburse} className="space-y-4">
