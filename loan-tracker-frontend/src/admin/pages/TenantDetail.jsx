@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
-import { AlertTriangle, BarChart3, Phone, Users, Gem } from "lucide-react";
+import { AlertTriangle, BarChart3, Phone, Users, Gem, Percent } from "lucide-react";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
 
@@ -11,14 +11,41 @@ function TenantDetail() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [feeInput, setFeeInput] = useState("");
+  const [savingFee, setSavingFee] = useState(false);
 
   useEffect(() => {
     platformApi
       .get(`/platform/admin/tenants/${id}`)
-      .then((r) => setData(r.data.data))
+      .then((r) => {
+        setData(r.data.data);
+        setFeeInput(r.data.data?.tenant?.billing_fee_percentage ?? "");
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  const saveFee = async () => {
+    const pct = parseFloat(feeInput);
+    if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+      alert("Enter a fee percentage between 0 and 100");
+      return;
+    }
+    setSavingFee(true);
+    try {
+      await platformApi.put(`/platform/admin/tenants/${id}/billing-fee`, {
+        billing_fee_percentage: pct,
+      });
+      const r = await platformApi.get(`/platform/admin/tenants/${id}`);
+      setData(r.data.data);
+      setFeeInput(r.data.data?.tenant?.billing_fee_percentage ?? "");
+      alert("Platform fee updated");
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to update fee");
+    } finally {
+      setSavingFee(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -153,6 +180,56 @@ function TenantDetail() {
                 {tenant.plan || "—"}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
+          <h3 className="font-bold mb-1 flex items-center gap-2">
+            <Percent size={18} /> Platform Fee
+          </h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Charged on this lender's interest earned each billing cycle.
+            Default is 5%.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Interest-earned fee (%)
+              </label>
+              <div className="relative w-40">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={feeInput}
+                  onChange={(e) => setFeeInput(e.target.value)}
+                  className="w-full px-3 py-2 pr-8 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  %
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={saveFee}
+              disabled={
+                savingFee ||
+                String(feeInput) ===
+                  String(tenant.billing_fee_percentage ?? "")
+              }
+              className="px-5 py-2 bg-ocean-600 hover:bg-ocean-700 text-white font-semibold rounded-lg text-sm disabled:opacity-50"
+            >
+              {savingFee ? "Saving…" : "Save Fee"}
+            </button>
+            <p className="text-xs text-gray-500">
+              Current:{" "}
+              <strong>{tenant.billing_fee_percentage ?? 5}%</strong> of interest
+              earned
+              {parseFloat(tenant.billing_base_fee) > 0
+                ? ` + KES ${parseFloat(tenant.billing_base_fee).toLocaleString()} base`
+                : ""}
+            </p>
           </div>
         </div>
 

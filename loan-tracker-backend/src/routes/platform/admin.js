@@ -255,6 +255,63 @@ router.put("/tenants/:id/status", async (req, res) => {
   }
 });
 
+// Update a tenant's platform billing fee — the % of interest earned (and
+// optional flat base fee) the platform charges this lender. Drives invoice
+// generation (billingService reads billing_fee_percentage / billing_base_fee).
+router.put("/tenants/:id/billing-fee", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { billing_fee_percentage, billing_base_fee } = req.body || {};
+
+    const num = (v) =>
+      v === undefined || v === null || v === "" ? null : Number(v);
+    const pct = num(billing_fee_percentage);
+    const base = num(billing_base_fee);
+
+    if (pct !== null && (Number.isNaN(pct) || pct < 0 || pct > 100)) {
+      return res
+        .status(400)
+        .json({ error: "Fee percentage must be between 0 and 100" });
+    }
+    if (base !== null && (Number.isNaN(base) || base < 0)) {
+      return res.status(400).json({ error: "Base fee must be 0 or more" });
+    }
+    if (pct === null && base === null) {
+      return res.status(400).json({ error: "Nothing to update" });
+    }
+
+    const result = await query(
+      `UPDATE tenants
+         SET billing_fee_percentage = COALESCE($1, billing_fee_percentage),
+             billing_base_fee       = COALESCE($2, billing_base_fee),
+             updated_at = NOW()
+       WHERE id = $3 RETURNING *`,
+      [pct, base, id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    logger.info(
+      `Platform admin ${req.user.email} set tenant ${id} billing fee -> ${
+        pct ?? "(unchanged)"
+      }%`,
+    );
+    await logTenantAction(req.user, "billing_fee_updated", result.rows[0], req, {
+      metadata: { billing_fee_percentage: pct, billing_base_fee: base },
+    });
+
+    res.json({
+      success: true,
+      message: "Billing fee updated",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    logger.error("Update tenant billing fee error:", error);
+    res.status(500).json({ error: "Failed to update billing fee" });
+  }
+});
+
 // Platform-wide analytics
 router.get("/stats", async (req, res) => {
   try {
