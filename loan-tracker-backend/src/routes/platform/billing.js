@@ -274,4 +274,86 @@ router.get("/summary", async (req, res) => {
   }
 });
 
+// ============================================================
+// COMMUNICATION COSTS
+//   Per-tenant tally of sent SMS + emails over a date range (created_at).
+//   Failed messages are excluded; platform-level emails with no tenant_id
+//   (daily summary, invoice run summary) are also excluded. Rates are
+//   fixed at 1 KES per SMS and 1 KES per email.
+// ============================================================
+const SMS_KES = 1;
+const EMAIL_KES = 1;
+
+router.get("/communication-costs", async (req, res) => {
+  try {
+    // Default window: 1st of current month → today (inclusive).
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const ymd = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const from = req.query.from || ymd(firstOfMonth);
+    const to = req.query.to || ymd(today);
+
+    const params = [from, to];
+    const where = `
+      status = 'sent'
+      AND tenant_id IS NOT NULL
+      AND created_at::date BETWEEN $1::date AND $2::date
+    `;
+
+    const tenants = await query(
+      `
+      SELECT
+        t.id AS tenant_id,
+        t.business_name,
+        COALESCE(s.sms_count, 0)::int   AS sms_count,
+        COALESCE(e.email_count, 0)::int AS email_count
+      FROM tenants t
+      LEFT JOIN (
+        SELECT tenant_id, COUNT(*) AS sms_count
+          FROM sms_logs
+         WHERE ${where}
+         GROUP BY tenant_id
+      ) s ON s.tenant_id = t.id
+      LEFT JOIN (
+        SELECT tenant_id, COUNT(*) AS email_count
+          FROM email_logs
+         WHERE ${where}
+         GROUP BY tenant_id
+      ) e ON e.tenant_id = t.id
+      WHERE COALESCE(s.sms_count, 0) + COALESCE(e.email_count, 0) > 0
+      ORDER BY (COALESCE(s.sms_count, 0) + COALESCE(e.email_count, 0)) DESC
+      `,
+      params,
+    );
+
+    const rows = tenants.rows.map((r) => {
+      const total_kes = r.sms_count * SMS_KES + r.email_count * EMAIL_KES;
+      return { ...r, total_kes };
+    });
+
+    const totals = rows.reduce(
+      (acc, r) => ({
+        sms_count: acc.sms_count + r.sms_count,
+        email_count: acc.email_count + r.email_count,
+        total_kes: acc.total_kes + r.total_kes,
+      }),
+      { sms_count: 0, email_count: 0, total_kes: 0 },
+    );
+
+    res.json({
+      success: true,
+      data: {
+        period: { from, to },
+        rates: { sms_kes: SMS_KES, email_kes: EMAIL_KES },
+        totals,
+        tenants: rows,
+      },
+    });
+  } catch (error) {
+    logger.error("Communication costs error:", error);
+    res.status(500).json({ error: "Failed to fetch communication costs" });
+  }
+});
+
 export default router;

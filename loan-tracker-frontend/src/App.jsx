@@ -30,6 +30,7 @@ import PlatformTenants from "./admin/pages/Tenants";
 import PlatformTenantDetail from "./admin/pages/TenantDetail";
 import PlatformBilling from "./admin/pages/Billing";
 import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
+import PlatformCommunicationCosts from "./admin/pages/CommunicationCosts";
 import LandingHome from "./landing/pages/Home";
 import OnboardingWizard from "./onboarding/OnboardingWizard";
 import WhiteLabelSettings from "./pages/WhiteLabelSettings";
@@ -165,6 +166,14 @@ function App() {
               element={
                 <PlatformAdminRoute>
                   <PlatformInvoiceDetail />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
+              path="/admin/communication-costs"
+              element={
+                <PlatformAdminRoute>
+                  <PlatformCommunicationCosts />
                 </PlatformAdminRoute>
               }
             />

@@ -2852,3 +2852,31 @@ CREATE TABLE IF NOT EXISTS public.customer_notifications (
 CREATE INDEX IF NOT EXISTS idx_cust_notif_customer
     ON public.customer_notifications (platform_customer_id, created_at DESC);
 
+
+-- Auto-fill tenant_id on sms_logs / email_logs from the row's linked loan or
+-- client, so per-tenant communication-cost reporting is accurate even when a
+-- writer forgets tenant_id (matches migration 025).
+CREATE OR REPLACE FUNCTION public.fill_log_tenant_id()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.tenant_id IS NULL THEN
+    IF NEW.loan_id IS NOT NULL THEN
+      SELECT l.tenant_id INTO NEW.tenant_id FROM public.loans l WHERE l.id = NEW.loan_id;
+    END IF;
+    IF NEW.tenant_id IS NULL AND NEW.client_id IS NOT NULL THEN
+      SELECT c.tenant_id INTO NEW.tenant_id FROM public.clients c WHERE c.id = NEW.client_id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS sms_logs_fill_tenant ON public.sms_logs;
+CREATE TRIGGER sms_logs_fill_tenant
+  BEFORE INSERT ON public.sms_logs
+  FOR EACH ROW EXECUTE FUNCTION public.fill_log_tenant_id();
+
+DROP TRIGGER IF EXISTS email_logs_fill_tenant ON public.email_logs;
+CREATE TRIGGER email_logs_fill_tenant
+  BEFORE INSERT ON public.email_logs
+  FOR EACH ROW EXECUTE FUNCTION public.fill_log_tenant_id();

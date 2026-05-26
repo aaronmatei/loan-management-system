@@ -10,6 +10,7 @@ import {
   Crown,
   LogOut,
   Globe,
+  MessageSquare,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 
@@ -17,6 +18,7 @@ const MENU = [
   { path: "/admin/dashboard", label: "Overview", icon: LayoutDashboard, variant: "ocean" },
   { path: "/admin/tenants", label: "Tenants", icon: Building2, variant: "indigo" },
   { path: "/admin/billing", label: "Billing", icon: Wallet, variant: "emerald" },
+  { path: "/admin/communication-costs", label: "Comms Costs", icon: MessageSquare, variant: "indigo" },
   { path: "/admin/reports", label: "Analytics", icon: TrendingUp, variant: "teal" },
   { path: "/admin/cron", label: "Cron Jobs", icon: Clock, variant: "amber" },
   { path: "/admin/audit", label: "Audit Log", icon: ScrollText, variant: "rose" },
