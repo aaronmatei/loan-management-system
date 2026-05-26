@@ -36,23 +36,54 @@ const COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
-const fmtK = (n) => `${(parseFloat(n || 0) / 1000).toFixed(1)}K`;
+// Compact form ("12.5K", "1.2M") for chart Y-axis ticks only — long
+// shilling figures crowd the gridlines. KPI cards use the full fmt above.
+const fmtK = (n) => {
+  const v = parseFloat(n || 0);
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+  return `${v.toFixed(0)}`;
+};
+
+// Last calendar day of a YYYY-MM value, as "YYYY-MM-DD".
+const monthEnd = (ym) => {
+  const [y, m] = ym.split("-").map((s) => parseInt(s, 10));
+  return new Date(y, m, 0).toISOString().split("T")[0];
+};
+const monthStart = (ym) => `${ym}-01`;
+const monthLabel = (ym) => {
+  const [y, m] = ym.split("-").map((s) => parseInt(s, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString("en-KE", {
+    month: "long",
+    year: "numeric",
+  });
+};
 
 function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // "recent" → rolling last-N months; "month" → a single calendar month.
+  const [mode, setMode] = useState("recent");
   const [months, setMonths] = useState(6);
+  const [pickedMonth, setPickedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [exporting, setExporting] = useState(null);
 
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [months]);
+  }, [mode, months, pickedMonth]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/analytics/tenant?months=${months}`);
+      const params =
+        mode === "month"
+          ? `from=${monthStart(pickedMonth)}&to=${monthEnd(pickedMonth)}`
+          : `months=${months}`;
+      const res = await api.get(`/analytics/tenant?${params}`);
       setData(res.data.data);
     } catch (err) {
       console.error("Failed to load analytics:", err);
@@ -108,18 +139,40 @@ function Reports() {
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
               <BarChart3 size={28} /> Reports &amp; Analytics
             </h1>
-            <p className="text-gray-600 mt-1">Your portfolio performance</p>
+            <p className="text-gray-600 mt-1">
+              {mode === "month"
+                ? `Performance for ${monthLabel(pickedMonth)}`
+                : "Your portfolio performance"}
+            </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <select
-              value={months}
-              onChange={(e) => setMonths(parseInt(e.target.value, 10))}
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
               className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
+              title="Time range mode"
             >
-              <option value={3}>Last 3 months</option>
-              <option value={6}>Last 6 months</option>
-              <option value={12}>Last 12 months</option>
+              <option value="recent">Recent months</option>
+              <option value="month">Specific month</option>
             </select>
+            {mode === "recent" ? (
+              <select
+                value={months}
+                onChange={(e) => setMonths(parseInt(e.target.value, 10))}
+                className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
+              >
+                <option value={3}>Last 3 months</option>
+                <option value={6}>Last 6 months</option>
+                <option value={12}>Last 12 months</option>
+              </select>
+            ) : (
+              <input
+                type="month"
+                value={pickedMonth}
+                onChange={(e) => setPickedMonth(e.target.value)}
+                className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
+              />
+            )}
             <button
               onClick={() => exportReport("pdf")}
               disabled={exporting !== null}
@@ -141,19 +194,25 @@ function Reports() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
             <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
-            <p className="text-2xl font-bold mt-1">{fmtK(kpis.total_disbursed)}</p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+              {fmt(kpis.total_disbursed)}
+            </p>
             <p className="text-xs text-ocean-100">{kpis.total_loans} loans</p>
           </div>
           <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
             <p className="text-green-100 text-xs uppercase">Collected</p>
-            <p className="text-2xl font-bold mt-1">{fmtK(kpis.total_collected)}</p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+              {fmt(kpis.total_collected)}
+            </p>
             <p className="text-xs text-green-100">
               {kpis.payment_count} payments
             </p>
           </div>
           <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
             <p className="text-ocean-100 text-xs uppercase">Interest Earned</p>
-            <p className="text-2xl font-bold mt-1">{fmtK(kpis.interest_earned)}</p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+              {fmt(kpis.interest_earned)}
+            </p>
             <p className="text-xs text-ocean-100">profit</p>
           </div>
           {/* PAR card colour swaps on risk level — same thresholds the

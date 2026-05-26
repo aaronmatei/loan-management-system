@@ -384,8 +384,8 @@ router.get("/tenant", async (req, res) => {
     ] = await Promise.all([
       analyticsService.getTenantPortfolioKPIs(tid, from, to),
       analyticsService.getPortfolioAtRisk(tid),
-      analyticsService.getCollectionTrend(tid, months),
-      analyticsService.getDisbursementTrend(tid, months),
+      analyticsService.getCollectionTrend(tid, months, from, to),
+      analyticsService.getDisbursementTrend(tid, months, from, to),
       analyticsService.getAgingAnalysis(tid),
       analyticsService.getLoanOfficerPerformance(tid),
       analyticsService.getLoanStatusDistribution(tid),

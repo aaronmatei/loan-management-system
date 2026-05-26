@@ -136,8 +136,30 @@ class AnalyticsService {
     };
   }
 
-  // Monthly collection trend over the last N months.
-  async getCollectionTrend(tenantId, months = 6) {
+  // Collection trend. When `from`/`to` is supplied the series is DAILY
+  // within that range (so a "specific month" view shows day-by-day
+  // collections); otherwise it's monthly over the last N months.
+  async getCollectionTrend(tenantId, months = 6, from = null, to = null) {
+    if (from && to) {
+      const result = await query(
+        `SELECT
+           TO_CHAR(t.payment_date, 'DD Mon')         AS month,
+           t.payment_date                            AS month_sort,
+           COALESCE(SUM(t.amount_paid), 0)::float    AS collected
+         FROM transactions t
+         WHERE t.tenant_id = $1
+           AND t.payment_status = 'completed'
+           AND t.payment_date >= $2::date
+           AND t.payment_date <= $3::date
+         GROUP BY t.payment_date
+         ORDER BY t.payment_date`,
+        [tenantId, from, to],
+      );
+      return result.rows.map((r) => ({
+        month: r.month,
+        collected: parseFloat(r.collected),
+      }));
+    }
     const result = await query(
       `SELECT
          TO_CHAR(date_trunc('month', t.payment_date), 'Mon YYYY') AS month,
@@ -158,8 +180,29 @@ class AnalyticsService {
     }));
   }
 
-  // Monthly disbursement trend over the last N months.
-  async getDisbursementTrend(tenantId, months = 6) {
+  // Disbursement trend. Same daily/monthly split as the collection trend.
+  async getDisbursementTrend(tenantId, months = 6, from = null, to = null) {
+    if (from && to) {
+      const result = await query(
+        `SELECT
+           TO_CHAR(start_date, 'DD Mon')              AS month,
+           start_date                                 AS month_sort,
+           COUNT(*)::int                              AS loan_count,
+           COALESCE(SUM(principal_amount), 0)::float  AS disbursed
+         FROM loans
+         WHERE tenant_id = $1
+           AND start_date >= $2::date
+           AND start_date <= $3::date
+         GROUP BY start_date
+         ORDER BY start_date`,
+        [tenantId, from, to],
+      );
+      return result.rows.map((r) => ({
+        month: r.month,
+        loan_count: parseInt(r.loan_count, 10),
+        disbursed: parseFloat(r.disbursed),
+      }));
+    }
     const result = await query(
       `SELECT
          TO_CHAR(date_trunc('month', start_date), 'Mon YYYY') AS month,
