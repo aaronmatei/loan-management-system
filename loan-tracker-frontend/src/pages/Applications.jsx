@@ -32,7 +32,6 @@ function Applications() {
     disbursement_method: "mpesa",
     disbursement_reference: "",
     disbursement_date: new Date().toISOString().split("T")[0],
-    start_date: new Date().toISOString().split("T")[0],
   });
   const [submitting, setSubmitting] = useState(false);
   const [showCounterModal, setShowCounterModal] = useState(false);
@@ -897,20 +896,20 @@ function Applications() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">
-                    Loan Start Date *
+                    First Repayment Date
                   </label>
-                  <input
-                    type="date"
-                    value={disburseData.start_date}
-                    onChange={(e) =>
-                      setDisburseData({
-                        ...disburseData,
-                        start_date: e.target.value,
-                      })
-                    }
-                    required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                  />
+                  <div className="w-full px-3 py-2 border-2 border-gray-100 bg-gray-50 rounded-lg text-gray-700">
+                    {(() => {
+                      const d = new Date(disburseData.disbursement_date);
+                      d.setMonth(d.getMonth() + 1);
+                      return isNaN(d.getTime())
+                        ? "—"
+                        : d.toLocaleDateString();
+                    })()}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-set to 1 month after disbursement.
+                  </p>
                 </div>
               </div>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">

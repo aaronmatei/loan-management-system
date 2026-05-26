@@ -1440,6 +1440,29 @@ router.post("/applications", async (req, res) => {
       });
     }
 
+    // Credit eligibility with THIS lender (mirrors the staff loans route):
+    // a defaulted loan blocks new borrowing, and a client may hold at most
+    // 3 active loans at a time with one lender.
+    const standing = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'defaulted') AS defaulted,
+         COUNT(*) FILTER (WHERE status = 'active')    AS active
+       FROM loans WHERE client_id = $1 AND tenant_id = $2`,
+      [req.currentClientId, req.currentTenantId],
+    );
+    if (parseInt(standing.rows[0].defaulted, 10) > 0) {
+      return res.status(400).json({
+        error:
+          "You have a defaulted loan with this lender. Please clear it before applying for a new loan.",
+      });
+    }
+    if (parseInt(standing.rows[0].active, 10) >= 3) {
+      return res.status(400).json({
+        error:
+          "You already have 3 active loans with this lender — the maximum allowed.",
+      });
+    }
+
     const pending = await query(
       `SELECT COUNT(*) AS count FROM loans
        WHERE client_id = $1 AND tenant_id = $2

@@ -759,14 +759,21 @@ router.post(
         });
       }
 
-      const effectiveStart =
-        start_date ||
-        disbursement_date ||
-        new Date().toISOString().split("T")[0];
-      const endDate = new Date(effectiveStart);
-      endDate.setMonth(
-        endDate.getMonth() + parseInt(loan.loan_duration_months, 10),
-      );
+      // The loan starts — and the first repayment falls due — exactly one
+      // month after disbursement, so a loan can never be paid on the day it
+      // is disbursed. The schedule is anchored to the disbursement date, so
+      // any start_date sent by the client is ignored.
+      const months = parseInt(loan.loan_duration_months, 10);
+      const disbDate =
+        disbursement_date || new Date().toISOString().split("T")[0];
+
+      const startObj = new Date(disbDate);
+      startObj.setMonth(startObj.getMonth() + 1); // first installment
+      const effectiveStart = startObj.toISOString().split("T")[0];
+
+      const endObj = new Date(disbDate);
+      endObj.setMonth(endObj.getMonth() + months); // last installment
+      const endDate = endObj;
 
       const result = await query(
         `UPDATE loans SET
@@ -786,11 +793,12 @@ router.post(
       );
       const active = result.rows[0];
 
-      // Payment schedule (created at disbursement, not application)
-      const months = parseInt(loan.loan_duration_months, 10);
+      // Payment schedule (created at disbursement, not application). Anchored
+      // to the disbursement date: installment i falls due i months after
+      // disbursement, so the first (i=1) lands on the start date above.
       const monthlyPayment = parseFloat(loan.total_amount_due) / months;
       for (let i = 1; i <= months; i++) {
-        const dueDate = new Date(effectiveStart);
+        const dueDate = new Date(disbDate);
         dueDate.setMonth(dueDate.getMonth() + i);
         await query(
           `INSERT INTO payment_schedules (
