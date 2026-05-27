@@ -159,12 +159,17 @@ export async function recordLoanPayment({
 
   // The borrower owes (principal+interest balance) + (outstanding penalty).
   // Any excess is overpayment (refunded to the borrower as before).
+  // Cents-level noise from prorated penalty/interest math can leave a
+  // tiny positive diff (e.g. 0.01) that's not really an overpayment —
+  // anything under 1 KES is treated as zero so we don't trigger pending
+  // refunds for rounding dust.
   const effectiveOwed = currentBalance + totalOutstandingPenalty;
   let overpayment = 0;
   let actualPaymentApplied = paymentAmount;
-  if (paymentAmount > effectiveOwed) {
-    overpayment = paymentAmount - effectiveOwed;
-    actualPaymentApplied = effectiveOwed;
+  const rawExcess = Math.round((paymentAmount - effectiveOwed) * 100) / 100;
+  if (rawExcess >= 1) {
+    overpayment = rawExcess;
+    actualPaymentApplied = paymentAmount - overpayment;
   }
 
   // Allocate penalty FIRST, oldest overdue installment first, up to its
@@ -273,20 +278,28 @@ export async function recordLoanPayment({
     }
   }
 
-  // Recalculate totals after this payment. Same exclusions as alreadyPaid:
-  // penalty_portion (income) and overpayment_portion (refunded).
-  const newTotalPaidResult = await query(
-    `SELECT COALESCE(
-        SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)),
-        0
-      ) AS total_paid
+  // Recalculate totals after this payment. Two figures roll up from
+  // the transactions table:
+  //  - total_paid  excludes penalty_portion (income) AND
+  //                overpayment_portion (refundable), so it can never
+  //                exceed total_amount_due. Drives isFullyPaid.
+  //  - total_overpayment = SUM(overpayment_portion). Must be computed
+  //                separately — total_paid already excluded it, so
+  //                "max(total_paid − total_due, 0)" is ALWAYS 0 and
+  //                won't surface the real overpayment.
+  const newTotalsResult = await query(
+    `SELECT
+        COALESCE(SUM(
+          amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)
+        ), 0)                                              AS total_paid,
+        COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0) AS total_overpayment
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
   );
 
-  const newTotalPaid = parseFloat(newTotalPaidResult.rows[0].total_paid);
-  const newOverpayment = Math.max(0, newTotalPaid - totalDue);
+  const newTotalPaid = parseFloat(newTotalsResult.rows[0].total_paid);
+  const newOverpayment = parseFloat(newTotalsResult.rows[0].total_overpayment);
   const isFullyPaid = newTotalPaid >= totalDue;
 
   // Update loan status based on actual amounts
