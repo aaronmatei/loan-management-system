@@ -234,43 +234,57 @@ function Reports() {
           </div>
         </div>
 
-        {/* KPI cards. Period-filtered tiles always show; snapshot tiles
+        {/* KPI cards — frosted-glass pastel style matching the Capital
+            Pool card on the Dashboard. Each card keeps its brand-colour
+            identity via a soft pastel gradient + translucent border +
+            backdrop blur, with dark text reading against the light wash.
+            Period-filtered tiles always show; snapshot tiles
             (Outstanding / PAR / Overdue / Defaulted) describe today's
             state, so they're hidden when the user has zoomed into a
             historical specific month. */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {/* ── Period-filtered (driven by the selected window) ── */}
-          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
-            <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+          <div className="rounded-2xl shadow-sm border border-white/60 p-4 bg-gradient-to-br from-ocean-100/70 via-white/55 to-blue-100/60 backdrop-blur-md">
+            <p className="text-ocean-700 text-xs uppercase font-semibold tracking-wide">
+              Total Disbursed
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-ocean-900 break-words">
               {fmt(kpis.total_disbursed)}
             </p>
-            <p className="text-xs text-ocean-100">{kpis.total_loans} loans</p>
+            <p className="text-xs text-ocean-600 mt-0.5">
+              {kpis.total_loans} loans
+            </p>
           </div>
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-green-100 text-xs uppercase">Collected</p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+          <div className="rounded-2xl shadow-sm border border-white/60 p-4 bg-gradient-to-br from-emerald-100/70 via-white/55 to-green-100/60 backdrop-blur-md">
+            <p className="text-emerald-700 text-xs uppercase font-semibold tracking-wide">
+              Collected
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-emerald-900 break-words">
               {fmt(kpis.total_collected)}
             </p>
-            <p className="text-xs text-green-100">
+            <p className="text-xs text-emerald-600 mt-0.5">
               {kpis.payment_count} payments
             </p>
           </div>
-          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
-            <p className="text-ocean-100 text-xs uppercase">Interest from Loans</p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+          <div className="rounded-2xl shadow-sm border border-white/60 p-4 bg-gradient-to-br from-sky-100/70 via-white/55 to-cyan-100/60 backdrop-blur-md">
+            <p className="text-sky-700 text-xs uppercase font-semibold tracking-wide">
+              Interest from Loans
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-sky-900 break-words">
               {fmt(kpis.interest_earned)}
             </p>
-            <p className="text-xs text-ocean-100">loan interest earned</p>
+            <p className="text-xs text-sky-600 mt-0.5">loan interest earned</p>
           </div>
-          <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-purple-600 to-fuchsia-700">
-            <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+          <div className="rounded-2xl shadow-sm border border-white/60 p-4 bg-gradient-to-br from-fuchsia-100/70 via-white/55 to-purple-100/60 backdrop-blur-md">
+            <p className="text-fuchsia-700 text-xs uppercase font-semibold tracking-wide flex items-center gap-1">
               <Gavel size={12} /> Fines Collected
             </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-purple-900 break-words">
               {fmt(kpis.fines_collected)}
             </p>
-            <p className="text-xs text-white/85">late-payment penalties</p>
+            <p className="text-xs text-fuchsia-600 mt-0.5">
+              late-payment penalties
+            </p>
           </div>
 
           {/* ── Snapshot tiles (today's state) — only shown in
@@ -279,53 +293,79 @@ function Reports() {
               is misleading. */}
           {mode !== "month" && (
             <>
-              <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-amber-500 to-orange-600">
-                <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+              <div className="rounded-2xl shadow-sm border border-white/60 p-4 bg-gradient-to-br from-amber-100/70 via-white/55 to-orange-100/60 backdrop-blur-md">
+                <p className="text-amber-700 text-xs uppercase font-semibold tracking-wide flex items-center gap-1">
                   <Wallet size={12} /> Outstanding
                 </p>
-                <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+                <p className="text-xl lg:text-2xl font-bold mt-1 text-amber-900 break-words">
                   {fmt(snap.outstanding_balance)}
                 </p>
-                <p className="text-xs text-white/85">To be collected</p>
+                <p className="text-xs text-amber-600 mt-0.5">To be collected</p>
               </div>
               <div
-                className={`rounded-xl shadow-lg p-4 text-white ${
+                className={`rounded-2xl shadow-sm border border-white/60 p-4 backdrop-blur-md ${
                   parPct > 15
-                    ? "bg-gradient-to-br from-red-500 to-rose-600"
+                    ? "bg-gradient-to-br from-rose-100/70 via-white/55 to-red-100/60"
                     : parPct > 5
-                      ? "bg-gradient-to-br from-orange-500 to-amber-600"
-                      : "bg-gradient-to-br from-teal-500 to-cyan-600"
+                      ? "bg-gradient-to-br from-orange-100/70 via-white/55 to-amber-100/60"
+                      : "bg-gradient-to-br from-teal-100/70 via-white/55 to-cyan-100/60"
                 }`}
               >
-                <p className="text-white/80 text-xs uppercase">
+                <p
+                  className={`text-xs uppercase font-semibold tracking-wide ${
+                    parPct > 15
+                      ? "text-rose-700"
+                      : parPct > 5
+                        ? "text-orange-700"
+                        : "text-teal-700"
+                  }`}
+                >
                   Portfolio at Risk
                 </p>
-                <p className="text-2xl font-bold mt-1">{par.par_percentage}%</p>
-                <p className="text-xs text-white/80">
+                <p
+                  className={`text-2xl font-bold mt-1 ${
+                    parPct > 15
+                      ? "text-rose-900"
+                      : parPct > 5
+                        ? "text-orange-900"
+                        : "text-teal-900"
+                  }`}
+                >
+                  {par.par_percentage}%
+                </p>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    parPct > 15
+                      ? "text-rose-600"
+                      : parPct > 5
+                        ? "text-orange-600"
+                        : "text-teal-600"
+                  }`}
+                >
                   {par.at_risk_count} of {par.total_active} loans
                 </p>
               </div>
-              <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-orange-500 to-amber-600">
-                <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+              <div className="rounded-2xl shadow-sm border border-white/60 p-4 bg-gradient-to-br from-orange-100/70 via-white/55 to-amber-100/60 backdrop-blur-md">
+                <p className="text-orange-700 text-xs uppercase font-semibold tracking-wide flex items-center gap-1">
                   <AlertTriangle size={12} /> Overdue
                 </p>
-                <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+                <p className="text-xl lg:text-2xl font-bold mt-1 text-orange-900 break-words">
                   {fmt(snap.overdue_amount)}
                 </p>
-                <p className="text-xs text-white/85">
+                <p className="text-xs text-orange-600 mt-0.5">
                   {snap.overdue_count} payment
                   {snap.overdue_count !== 1 ? "s" : ""}
                   {snap.overdue_loans > 0 && ` · ${snap.overdue_loans} loans`}
                 </p>
               </div>
-              <div className="rounded-xl shadow-lg p-4 text-white bg-gradient-to-br from-rose-600 to-red-700">
-                <p className="text-white/85 text-xs uppercase flex items-center gap-1">
+              <div className="rounded-2xl shadow-sm border border-white/60 p-4 bg-gradient-to-br from-rose-100/70 via-white/55 to-red-100/60 backdrop-blur-md">
+                <p className="text-rose-700 text-xs uppercase font-semibold tracking-wide flex items-center gap-1">
                   <XCircle size={12} /> Defaulted
                 </p>
-                <p className="text-xl lg:text-2xl font-bold mt-1 break-words">
+                <p className="text-xl lg:text-2xl font-bold mt-1 text-rose-900 break-words">
                   {fmt(snap.defaulted_amount)}
                 </p>
-                <p className="text-xs text-white/85">
+                <p className="text-xs text-rose-600 mt-0.5">
                   {snap.defaulted_count} loan
                   {snap.defaulted_count !== 1 ? "s" : ""}
                 </p>
