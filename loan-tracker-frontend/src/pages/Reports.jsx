@@ -239,6 +239,88 @@ function Reports() {
           </div>
         </div>
 
+        {/* Portfolio Performance hero — investor-view summary of the
+            selected window: how much capital was deployed vs how much
+            income came back. Returns = loan-interest income + late-fee
+            (fines) income; ROI = returns ÷ invested. Both figures are
+            already period-filtered on the KPI side. */}
+        {(() => {
+          const invested = parseFloat(kpis.total_disbursed) || 0;
+          const returns =
+            (parseFloat(kpis.interest_earned) || 0) +
+            (parseFloat(kpis.fines_collected) || 0);
+          const roiPct =
+            invested > 0 ? ((returns / invested) * 100).toFixed(1) : "0.0";
+          const periodSubtitle =
+            mode === "month"
+              ? monthLabel(pickedMonth)
+              : `Last ${months} months`;
+          return (
+            <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-6 mb-6 bg-gradient-to-br from-ocean-100/70 via-white/55 to-indigo-100/60 backdrop-blur-md">
+              {/* Soft auroras behind the frosted glass, matching the
+                  Capital Pool card on the Dashboard. */}
+              <div className="pointer-events-none absolute -top-20 -right-12 w-64 h-64 rounded-full bg-ocean-300/30 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-indigo-300/25 blur-3xl" />
+
+              <div className="relative flex items-start justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-ocean-400 to-indigo-500 flex items-center justify-center shadow-sm">
+                    <TrendingUp size={22} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-navy-900">
+                      Portfolio Performance
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      {periodSubtitle} · capital out vs income back
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
+                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
+                    Amount Invested
+                  </p>
+                  <p className="text-2xl lg:text-3xl font-extrabold text-navy-900 mt-1 break-words">
+                    {fmt(invested)}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {kpis.total_loans} loan
+                    {kpis.total_loans !== 1 ? "s" : ""} disbursed
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
+                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
+                    Returns Gained
+                  </p>
+                  <p className="text-2xl lg:text-3xl font-extrabold text-emerald-700 mt-1 break-words">
+                    +{fmt(returns)}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Interest {fmt(kpis.interest_earned)} · Fines{" "}
+                    {fmt(kpis.fines_collected)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
+                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
+                    ROI
+                  </p>
+                  <p className="text-2xl lg:text-3xl font-extrabold text-ocean-700 mt-1">
+                    {roiPct}%
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    of invested capital
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* KPI cards — clean white tile with a tinted icon-square in the
             top-left, brand-coloured icon inside. Identity comes from the
             icon, not the card body, so the row reads calmly. Period-
