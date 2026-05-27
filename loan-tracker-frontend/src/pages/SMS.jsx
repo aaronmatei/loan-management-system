@@ -163,10 +163,8 @@ function SMS() {
   const paginatedLogs = sortedLogs.slice(startIndex, endIndex);
 
   // Filter counts for dropdowns. Covers every message_type the
-  // notificationDispatcher writes, plus the legacy "loan_approved"
-  // (used historically for disbursement) so old rows still bucket
-  // correctly. "custom" catches anything sent through the manual
-  // Send-SMS form.
+  // notificationDispatcher writes. "custom" catches anything sent
+  // through the manual Send-SMS form.
   const countByType = (t) =>
     logs.filter((l) => l.message_type === t).length;
   const typeCounts = {
@@ -176,7 +174,7 @@ function SMS() {
     application_approved: countByType("application_approved"),
     application_rejected: countByType("application_rejected"),
     counter_offered: countByType("counter_offered"),
-    loan_approved: countByType("loan_approved"),
+    loan_disbursed: countByType("loan_disbursed"),
     payment_received: countByType("payment_received"),
     reminder: countByType("reminder"),
     overdue_reminder: countByType("overdue_reminder"),
@@ -326,8 +324,8 @@ function SMS() {
               <option value="counter_offered">
                 Counter Offered ({typeCounts.counter_offered})
               </option>
-              <option value="loan_approved">
-                Disbursed ({typeCounts.loan_approved})
+              <option value="loan_disbursed">
+                Disbursed ({typeCounts.loan_disbursed})
               </option>
               <option value="payment_received">
                 Payment Received ({typeCounts.payment_received})

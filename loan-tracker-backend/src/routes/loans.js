@@ -1175,7 +1175,7 @@ router.post(
 
       // Customer SMS + Email via the central dispatcher. Both channels
       // are gated by the tenant's notify_disbursed_{sms,email} prefs
-      // and logged with message_type='loan_approved'. The loan-agreement
+      // and logged with message_type='loan_disbursed'. The loan-agreement
       // PDF is attached to the email so the customer gets the contract
       // alongside the disbursement notice.
       (async () => {

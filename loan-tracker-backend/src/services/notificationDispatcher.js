@@ -35,15 +35,17 @@ const PREF_COLUMNS = {
 };
 
 // sms_logs.message_type / email_logs.message_type for each event.
-// Kept consistent with the strings the legacy inline call sites used
-// (e.g. disbursement has historically logged as 'loan_approved').
+// Historically disbursement logged as 'loan_approved' which got
+// confused with the application_approved bucket — the two are now
+// distinct ('loan_disbursed' vs 'application_approved'). Existing
+// 'loan_approved' rows are migrated in lockstep with this change.
 const MESSAGE_TYPE = {
   application_submitted: "application_submitted",
   application_under_review: "application_under_review",
   application_approved: "application_approved",
   application_rejected: "application_rejected",
   counter_offered: "counter_offered",
-  loan_disbursed: "loan_approved",
+  loan_disbursed: "loan_disbursed",
   payment_received: "payment_received",
   payment_reminder: "reminder",
   payment_overdue: "overdue_reminder",

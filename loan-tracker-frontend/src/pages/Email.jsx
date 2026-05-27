@@ -171,8 +171,7 @@ function Email() {
 
   // Filter counts for dropdowns. Covers every message_type the
   // notificationDispatcher writes plus the manual "statement" /
-  // "loan_agreement" / "custom" buckets used elsewhere. "loan_approved"
-  // is the legacy bucket for disbursement (kept consistent with SMS).
+  // "loan_agreement" / "custom" buckets used elsewhere.
   const countByType = (t) =>
     logs.filter((l) => l.message_type === t).length;
   const typeCounts = {
@@ -182,7 +181,7 @@ function Email() {
     application_approved: countByType("application_approved"),
     application_rejected: countByType("application_rejected"),
     counter_offered: countByType("counter_offered"),
-    loan_approved: countByType("loan_approved"),
+    loan_disbursed: countByType("loan_disbursed"),
     payment_received: countByType("payment_received"),
     reminder: countByType("reminder"),
     overdue_reminder: countByType("overdue_reminder"),
@@ -334,8 +333,8 @@ function Email() {
               <option value="counter_offered">
                 Counter Offered ({typeCounts.counter_offered})
               </option>
-              <option value="loan_approved">
-                Disbursed ({typeCounts.loan_approved})
+              <option value="loan_disbursed">
+                Disbursed ({typeCounts.loan_disbursed})
               </option>
               <option value="payment_received">
                 Payment Received ({typeCounts.payment_received})
