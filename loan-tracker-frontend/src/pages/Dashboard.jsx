@@ -529,7 +529,7 @@ function Dashboard() {
                 +{fmtKES(metrics.income_this_month || 0)}
               </p>
               <p className="text-[10px] text-slate-500 mt-1">
-                interest + fines
+                interest + fines + fees
               </p>
             </div>
             <div

@@ -287,7 +287,14 @@ router.get("/summary", async (req, res) => {
 
     const expensesData = expenseStats.rows[0];
     const expensesThisMonth = parseFloat(expensesData.total_this_month);
-    const incomeThisMonthVal = parseFloat(incomeThisMonth.rows[0]?.income || 0);
+    // Income = interest portion of payments + penalties (fines) +
+    // processing fees retained at disbursement. Processing fees are
+    // booked on the capital pool at the moment a loan is disbursed,
+    // so they're part of the period's earned income alongside the
+    // interest/fines collected from payments in the same window.
+    const processingFeesPeriod = parseFloat(loansData.processing_fees || 0);
+    const incomeFromPayments = parseFloat(incomeThisMonth.rows[0]?.income || 0);
+    const incomeThisMonthVal = incomeFromPayments + processingFeesPeriod;
     const netProfitThisMonth = incomeThisMonthVal - expensesThisMonth;
 
     res.json({
