@@ -18,6 +18,10 @@ import {
   Trash2,
   AlertTriangle,
   X,
+  HandCoins,
+  RotateCcw,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import api from "../services/api";
 import PaymentReceipt from "../components/PaymentReceipt";
@@ -56,9 +60,102 @@ function LoanDetails() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Waivers (commit 2 of the waiver feature).
+  const [waivers, setWaivers] = useState([]);
+  const [waiversLoading, setWaiversLoading] = useState(false);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [waiverForm, setWaiverForm] = useState({
+    type: "penalty",
+    amount: "",
+    reason: "",
+    notes: "",
+  });
+  const [savingWaiver, setSavingWaiver] = useState(false);
+  const [waiverError, setWaiverError] = useState("");
+  // Reverse-waiver confirmation modal.
+  const [reversingWaiver, setReversingWaiver] = useState(null);
+  const [reversalReason, setReversalReason] = useState("");
+  const [reversingBusy, setReversingBusy] = useState(false);
+
+  const currentUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  })();
+  const isAdminRole = currentUser?.role === "admin";
+
   useEffect(() => {
     fetchLoanDetails();
+    fetchWaivers();
   }, [id]);
+
+  const fetchWaivers = async () => {
+    setWaiversLoading(true);
+    try {
+      const r = await api.get(`/loans/${id}/waivers`);
+      setWaivers(r.data.data || []);
+    } catch (err) {
+      console.error("Failed to load waivers:", err);
+    } finally {
+      setWaiversLoading(false);
+    }
+  };
+
+  const openWaiverModal = () => {
+    setWaiverForm({ type: "penalty", amount: "", reason: "", notes: "" });
+    setWaiverError("");
+    setShowWaiverModal(true);
+  };
+
+  const handleSubmitWaiver = async (e) => {
+    e.preventDefault();
+    if (!waiverForm.reason.trim()) {
+      setWaiverError("Please give a reason for the waiver.");
+      return;
+    }
+    if (!waiverForm.amount || parseFloat(waiverForm.amount) <= 0) {
+      setWaiverError("Amount must be greater than zero.");
+      return;
+    }
+    setSavingWaiver(true);
+    setWaiverError("");
+    try {
+      await api.post(`/loans/${id}/waivers`, {
+        ...waiverForm,
+        amount: parseFloat(waiverForm.amount),
+      });
+      setShowWaiverModal(false);
+      // Refresh both the loan summary (balance changes if admin
+      // auto-approved) and the waivers list.
+      fetchLoanDetails();
+      fetchWaivers();
+    } catch (err) {
+      setWaiverError(err.response?.data?.error || "Failed to record waiver");
+    } finally {
+      setSavingWaiver(false);
+    }
+  };
+
+  const handleReverseWaiver = async () => {
+    if (!reversingWaiver) return;
+    if (!reversalReason.trim()) return;
+    setReversingBusy(true);
+    try {
+      await api.post(`/waivers/${reversingWaiver.id}/reverse`, {
+        reversal_reason: reversalReason.trim(),
+      });
+      setReversingWaiver(null);
+      setReversalReason("");
+      fetchLoanDetails();
+      fetchWaivers();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to reverse waiver");
+    } finally {
+      setReversingBusy(false);
+    }
+  };
 
   const fetchLoanDetails = async () => {
     try {
@@ -422,6 +519,25 @@ function LoanDetails() {
               className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
             >
               <Trash2 size={16} /> Delete
+            </button>
+          </PermissionGate>
+        )}
+        {/* Waiver — admin records directly, others request approval.
+            Only meaningful on disbursed loans with an outstanding
+            balance. */}
+        {["active", "defaulted", "suspended"].includes(loan.status) && (
+          <PermissionGate role={["admin", "manager", "loan_officer"]}>
+            <button
+              onClick={openWaiverModal}
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
+              title={
+                isAdminRole
+                  ? "Record a waiver (applies immediately)"
+                  : "Request a waiver (admin must approve)"
+              }
+            >
+              <HandCoins size={16} />
+              {isAdminRole ? "Waive Loan" : "Request Waiver"}
             </button>
           </PermissionGate>
         )}
@@ -829,9 +945,11 @@ function LoanDetails() {
                         className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
                           item.status === "paid"
                             ? "bg-green-100 text-green-700"
-                            : item.status === "overdue"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-yellow-100 text-yellow-700"
+                            : item.status === "waived"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : item.status === "overdue"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-yellow-100 text-yellow-700"
                         }`}
                       >
                         {item.status}
@@ -1141,6 +1259,139 @@ function LoanDetails() {
           </div>
         )}
       </div>
+
+      {/* ── Waivers history ─────────────────────────────────────── */}
+      {waivers.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md overflow-hidden mt-6">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <HandCoins size={20} /> Waivers
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {waivers.length} record{waivers.length !== 1 ? "s" : ""} ·
+              total approved:{" "}
+              <span className="font-semibold text-emerald-700">
+                KES{" "}
+                {waivers
+                  .filter((w) => w.status === "approved")
+                  .reduce((s, w) => s + parseFloat(w.amount || 0), 0)
+                  .toLocaleString()}
+              </span>
+            </p>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {waivers.map((w) => {
+              const statusPill = {
+                pending: {
+                  bg: "bg-amber-100",
+                  text: "text-amber-800",
+                  icon: <Clock size={12} />,
+                  label: "Pending admin",
+                },
+                approved: {
+                  bg: "bg-emerald-100",
+                  text: "text-emerald-800",
+                  icon: <CheckCircle size={12} />,
+                  label: "Approved",
+                },
+                rejected: {
+                  bg: "bg-rose-100",
+                  text: "text-rose-800",
+                  icon: <XCircle size={12} />,
+                  label: "Rejected",
+                },
+                reversed: {
+                  bg: "bg-gray-200",
+                  text: "text-gray-700",
+                  icon: <RotateCcw size={12} />,
+                  label: "Reversed",
+                },
+              }[w.status] || {};
+              return (
+                <div key={w.id} className="p-5 hover:bg-gray-50/60">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-bold text-emerald-700 text-lg">
+                          − KES{" "}
+                          {parseFloat(w.amount).toLocaleString()}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
+                          {w.type}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${statusPill.bg} ${statusPill.text}`}
+                        >
+                          {statusPill.icon} {statusPill.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        <strong>Reason:</strong> {w.reason}
+                      </p>
+                      {w.notes && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {w.notes}
+                        </p>
+                      )}
+                      <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                        <p>
+                          Requested by{" "}
+                          <strong>{w.requested_by_name || "—"}</strong>{" "}
+                          on{" "}
+                          {new Date(w.requested_at).toLocaleString("en-KE")}
+                        </p>
+                        {w.status === "approved" && (
+                          <p className="text-emerald-700">
+                            Approved by{" "}
+                            <strong>{w.approved_by_name || "—"}</strong>{" "}
+                            on{" "}
+                            {new Date(w.approved_at).toLocaleString("en-KE")}
+                          </p>
+                        )}
+                        {w.status === "rejected" && (
+                          <p className="text-rose-700">
+                            Rejected by{" "}
+                            <strong>{w.rejected_by_name || "—"}</strong>{" "}
+                            on{" "}
+                            {new Date(w.rejected_at).toLocaleString("en-KE")}
+                            {w.rejection_reason &&
+                              ` — ${w.rejection_reason}`}
+                          </p>
+                        )}
+                        {w.status === "reversed" && (
+                          <p className="text-gray-600">
+                            Reversed by{" "}
+                            <strong>{w.reversed_by_name || "—"}</strong>{" "}
+                            on{" "}
+                            {new Date(w.reversed_at).toLocaleString("en-KE")}
+                            {w.reversal_reason &&
+                              ` — ${w.reversal_reason}`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {w.status === "approved" && (
+                      <PermissionGate role="admin">
+                        <button
+                          onClick={() => {
+                            setReversingWaiver(w);
+                            setReversalReason("");
+                          }}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-sm font-semibold inline-flex items-center gap-1 transition shrink-0"
+                          title="Reverse this waiver"
+                        >
+                          <RotateCcw size={14} /> Reverse
+                        </button>
+                      </PermissionGate>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Status Update Modal */}
       {showStatusModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1806,6 +2057,205 @@ function LoanDetails() {
               >
                 <Trash2 size={16} />
                 {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Waiver Request / Record Modal */}
+      {showWaiverModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-xl w-full my-8">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <HandCoins size={22} className="text-emerald-700" />
+                  {isAdminRole ? "Waive Loan" : "Request Waiver"}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {loan.loan_code} ·{" "}
+                  <span className="font-semibold">
+                    {loan.first_name} {loan.last_name}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowWaiverModal(false)}
+                disabled={savingWaiver}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div
+              className={`border rounded-lg p-3 mb-4 text-sm flex items-start gap-2 ${
+                isAdminRole
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-amber-50 border-amber-200 text-amber-900"
+              }`}
+            >
+              {isAdminRole ? (
+                <CheckCircle size={16} className="flex-shrink-0 mt-0.5" />
+              ) : (
+                <Clock size={16} className="flex-shrink-0 mt-0.5" />
+              )}
+              <span>
+                {isAdminRole
+                  ? "As an admin, this waiver applies immediately. The borrower will be notified."
+                  : "This sends a request to the admin. The waiver only takes effect once they approve it."}
+              </span>
+            </div>
+
+            {waiverError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-4 text-sm">
+                {waiverError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitWaiver} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Type *
+                  </label>
+                  <select
+                    value={waiverForm.type}
+                    onChange={(e) =>
+                      setWaiverForm({ ...waiverForm, type: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white"
+                  >
+                    <option value="penalty">Penalty (late fees + interest on overdue)</option>
+                    <option value="interest">Interest (forgive remaining interest)</option>
+                    <option value="principal">Principal (forgive part of capital)</option>
+                    <option value="mixed">Mixed / combined</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Amount (KES) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    value={waiverForm.amount}
+                    onChange={(e) =>
+                      setWaiverForm({
+                        ...waiverForm,
+                        amount: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. 500"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Reason *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={waiverForm.reason}
+                  onChange={(e) =>
+                    setWaiverForm({ ...waiverForm, reason: e.target.value })
+                  }
+                  placeholder="e.g. Goodwill — first late payment"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  rows="2"
+                  value={waiverForm.notes}
+                  onChange={(e) =>
+                    setWaiverForm({ ...waiverForm, notes: e.target.value })
+                  }
+                  placeholder="Anything internal you'd like to capture…"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowWaiverModal(false)}
+                  disabled={savingWaiver}
+                  className="px-5 py-2 bg-gray-500 text-white font-semibold rounded-lg disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingWaiver}
+                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  <HandCoins size={16} />
+                  {savingWaiver
+                    ? "Saving…"
+                    : isAdminRole
+                      ? "Apply waiver"
+                      : "Send request"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reverse Waiver Confirmation */}
+      {reversingWaiver && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+              <RotateCcw size={20} className="text-rose-700" />
+              Reverse waiver?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Restores{" "}
+              <strong className="text-rose-700">
+                KES {parseFloat(reversingWaiver.amount).toLocaleString()}
+              </strong>{" "}
+              back onto this loan's outstanding balance. The borrower
+              will be notified.
+            </p>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Reason for reversal *
+            </label>
+            <textarea
+              rows="2"
+              value={reversalReason}
+              onChange={(e) => setReversalReason(e.target.value)}
+              placeholder="e.g. Borrower paid in cash — recorded waiver in error"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-rose-500 focus:outline-none mb-4"
+              required
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setReversingWaiver(null);
+                  setReversalReason("");
+                }}
+                disabled={reversingBusy}
+                className="px-5 py-2 bg-gray-500 text-white rounded-lg disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReverseWaiver}
+                disabled={reversingBusy || !reversalReason.trim()}
+                className="px-5 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                <RotateCcw size={16} />
+                {reversingBusy ? "Reversing…" : "Reverse waiver"}
               </button>
             </div>
           </div>

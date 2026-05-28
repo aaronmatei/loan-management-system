@@ -23,6 +23,7 @@ import {
   ChevronRight,
   LogOut,
   X,
+  HandCoins,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -56,6 +57,7 @@ const navGroups = [
       // badgeKey lets renderItem read the live count (overdueCount) without
       // baking a number into the static config.
       { path: "/overdue", label: "Overdue", icon: AlertTriangle, permission: "overdue:view", badgeKey: "overdue" },
+      { path: "/waivers", label: "Waivers", icon: HandCoins, roles: ["admin"], badgeKey: "pendingWaivers" },
     ],
   },
   {
@@ -115,6 +117,7 @@ function Layout({ children }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [overdueCount, setOverdueCount] = useState(0);
+  const [pendingWaivers, setPendingWaivers] = useState(0);
 
   // Overdue badge — best-effort, ignore failures (preserved feature)
   useEffect(() => {
@@ -123,6 +126,27 @@ function Layout({ children }) {
       .get("/dashboard/summary")
       .then((res) => {
         if (mounted) setOverdueCount(res.data.data?.overdue_count || 0);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Pending-waivers badge — admin only. Tenant-scoped on the backend.
+  useEffect(() => {
+    let mounted = true;
+    let user = null;
+    try {
+      user = JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      /* ignore */
+    }
+    if (user?.role !== "admin") return;
+    api
+      .get("/waivers/pending")
+      .then((res) => {
+        if (mounted) setPendingWaivers(res.data.data?.length || 0);
       })
       .catch(() => {});
     return () => {
@@ -229,7 +253,11 @@ function Layout({ children }) {
   const renderItem = (item, indent = false, variant = "ocean") => {
     const active = isActive(item.path, item.exact);
     const badge =
-      item.badgeKey === "overdue" ? overdueCount : item.badge ?? 0;
+      item.badgeKey === "overdue"
+        ? overdueCount
+        : item.badgeKey === "pendingWaivers"
+          ? pendingWaivers
+          : item.badge ?? 0;
     const Icon = item.icon;
     return (
       <li key={item.path}>
