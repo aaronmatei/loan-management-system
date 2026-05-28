@@ -1182,6 +1182,7 @@ router.post(
         );
         if (cp.rows[0]) {
           await notifyCapitalLow(
+            loan.tenant_id,
             cp.rows[0].available,
             cp.rows[0].initial_capital,
           );

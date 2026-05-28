@@ -9,6 +9,10 @@ import logger from "../config/logger.js";
  * @param {number}   [userId]   notify this exact user
  * @param {string[]} [roles]    OR notify every active user with one of
  *                              these roles (e.g. ['admin','manager'])
+ * @param {number}   [tenantId] REQUIRED when `roles` is used — limits
+ *                              the role fan-out to staff of one tenant.
+ *                              Without it the role lookup would surface
+ *                              admins of every tenant on the platform.
  */
 export const createNotification = async ({
   userId = null,
@@ -19,15 +23,27 @@ export const createNotification = async ({
   link = null,
   metadata = null,
   roles = null,
+  tenantId = null,
 }) => {
   try {
     let userIds = [];
     if (userId) {
       userIds = [userId];
     } else if (roles && roles.length > 0) {
+      // Safety net: refuse role-based fan-out without a tenant. We'd
+      // rather drop the notification than leak it cross-tenant.
+      if (!tenantId) {
+        logger.error(
+          `createNotification: roles=${JSON.stringify(
+            roles,
+          )} called without tenantId — dropping to avoid cross-tenant leak`,
+        );
+        return;
+      }
       const result = await query(
-        `SELECT id FROM users WHERE role = ANY($1) AND is_active = true`,
-        [roles],
+        `SELECT id FROM users
+          WHERE role = ANY($1) AND is_active = true AND tenant_id = $2`,
+        [roles, tenantId],
       );
       userIds = result.rows.map((r) => r.id);
     }
@@ -56,6 +72,7 @@ export const createNotification = async ({
 
 export const notifyApplicationSubmitted = async (loan, client) => {
   await createNotification({
+    tenantId: loan.tenant_id,
     roles: ["admin", "manager"],
     type: "application_submitted",
     title: "New Loan Application",
@@ -104,6 +121,7 @@ export const notifyLargePayment = async (
 ) => {
   if (parseFloat(transaction.amount_paid) < threshold) return;
   await createNotification({
+    tenantId: loan.tenant_id,
     roles: ["admin", "manager"],
     type: "large_payment",
     title: "Large Payment Received 💰",
@@ -122,6 +140,7 @@ export const notifyLargePayment = async (
 
 export const notifyLoanCompleted = async (loan, client) => {
   await createNotification({
+    tenantId: loan.tenant_id,
     roles: ["admin", "manager"],
     type: "loan_completed",
     title: "Loan Fully Repaid! 🎉",
@@ -132,13 +151,14 @@ export const notifyLoanCompleted = async (loan, client) => {
   });
 };
 
-export const notifyCapitalLow = async (available, total) => {
+export const notifyCapitalLow = async (tenantId, available, total) => {
   const avail = parseFloat(available);
   const tot = parseFloat(total);
   if (!(tot > 0)) return;
   const percentage = (avail / tot) * 100;
   if (percentage > 20) return; // only when under 20%
   await createNotification({
+    tenantId,
     roles: ["admin"],
     type: "capital_low",
     title: "Capital Pool Low ⚠️",
@@ -153,6 +173,7 @@ export const notifyCapitalLow = async (available, total) => {
 
 export const notifyRefundPending = async (loan, client) => {
   await createNotification({
+    tenantId: loan.tenant_id,
     roles: ["admin", "manager"],
     type: "refund_pending",
     title: "Refund Action Required 💵",

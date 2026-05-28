@@ -198,7 +198,7 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
           parseFloat(u.initial_capital) -
           parseFloat(u.total_disbursed) +
           parseFloat(u.total_collected);
-        await notifyCapitalLow(avail, u.initial_capital);
+        await notifyCapitalLow(tid, avail, u.initial_capital);
       }
     } catch (err) {
       logger.error("notifyCapitalLow (adjust) error:", err);
