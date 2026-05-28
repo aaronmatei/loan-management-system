@@ -348,7 +348,11 @@ router.get("/kpis", async (req, res) => {
       SELECT
         (SELECT COUNT(*) FROM clients WHERE status = 'active'${c}) AS active_clients,
         (SELECT COUNT(*) FROM loans WHERE status = 'active'${c}) AS active_loans,
-        (SELECT COALESCE(SUM(principal_amount), 0) FROM loans WHERE status = 'active'${c}) AS active_portfolio,
+        -- "Active portfolio" matches the Dashboard's definition:
+        -- total receivable (principal + interest) of currently-active
+        -- loans. Used to be SUM(principal_amount) which understated the
+        -- book by the interest portion and disagreed with the Dashboard.
+        (SELECT COALESCE(SUM(total_amount_due), 0) FROM loans WHERE status = 'active'${c}) AS active_portfolio,
 
         (SELECT COALESCE(SUM(amount_paid), 0) FROM transactions
           WHERE payment_status = 'completed'

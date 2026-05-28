@@ -29,6 +29,11 @@ router.get("/summary", async (req, res) => {
         COUNT(CASE WHEN status = 'defaulted' THEN 1 END) as defaulted_loans,
         COALESCE(SUM(principal_amount), 0) as total_principal,
         COALESCE(SUM(total_amount_due), 0) as total_amount_due,
+        -- "Active portfolio" = receivable book on currently-active loans
+        -- only. The headline "Total Portfolio" tile uses this so completed
+        -- loans (which are no longer part of the active book) don't
+        -- inflate it; the dashboard and Analytics page now agree.
+        COALESCE(SUM(CASE WHEN status = 'active' THEN total_amount_due ELSE 0 END), 0) as active_portfolio,
         COALESCE(SUM(total_interest), 0) as total_interest,
         COALESCE(SUM(CASE WHEN refund_status = 'pending' THEN overpayment_amount ELSE 0 END), 0) as total_overpayment,
         COUNT(CASE WHEN refund_status = 'pending' THEN 1 END) as pending_refunds
@@ -219,6 +224,7 @@ router.get("/summary", async (req, res) => {
         // Money metrics
         total_principal: parseFloat(loansData.total_principal),
         total_amount_due: totalDue,
+        active_portfolio: parseFloat(loansData.active_portfolio),
         total_interest: parseFloat(loansData.total_interest),
         total_collected: totalCollected,
         outstanding_balance: outstanding,

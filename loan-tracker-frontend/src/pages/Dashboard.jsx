@@ -649,7 +649,9 @@ function Dashboard() {
 
       {/* ── KPI strip: one tidy set of distinct KPIs, no duplicates ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
-        {/* Total Portfolio */}
+        {/* Total Portfolio — active receivable book (principal + interest
+            for currently-active loans). Matches Analytics' "Active
+            Portfolio" so the two pages don't disagree. */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
@@ -658,10 +660,12 @@ function Dashboard() {
             <IconTile icon={Wallet} variant="ocean" size={40} />
           </div>
           <p className="text-2xl font-bold text-navy-900 mt-2">
-            {fmtKES(metrics.total_amount_due)}
+            {fmtKES(
+              metrics.active_portfolio ?? metrics.total_amount_due,
+            )}
           </p>
           <p className="text-xs text-slate-500 mt-1">
-            {metrics.total_loans} loans • {metrics.active_loans} active
+            {metrics.active_loans} active • {metrics.total_loans} total
           </p>
         </div>
 
