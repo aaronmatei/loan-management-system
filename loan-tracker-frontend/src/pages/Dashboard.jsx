@@ -619,6 +619,82 @@ function Dashboard() {
         </div>
       )}
 
+      {/* ── KPI strip: one tidy set of distinct KPIs, no duplicates ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+        {/* Total Portfolio — active receivable book (principal + interest
+            for currently-active loans). Matches Analytics' "Active
+            Portfolio" so the two pages don't disagree. */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Total Portfolio
+            </p>
+            <IconTile icon={Wallet} variant="ocean" size={40} />
+          </div>
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {fmtKES(
+              metrics.active_portfolio ?? metrics.total_amount_due,
+            )}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            {metrics.active_loans} active • {metrics.total_loans} total
+          </p>
+        </div>
+
+        {/* Outstanding */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Outstanding
+            </p>
+            <IconTile icon={Coins} variant="amber" size={40} />
+          </div>
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {fmtKES(metrics.outstanding_balance)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">To be collected</p>
+        </div>
+
+        {/* Overdue → keeps the navigation to the dedicated overdue page */}
+        <button
+          onClick={() => navigate("/overdue")}
+          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-rose-200 hover:shadow transition"
+        >
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Overdue
+            </p>
+            <IconTile icon={AlertTriangle} variant="rose" size={40} />
+          </div>
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {Number(metrics.overdue_count || 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            {fmtKES(metrics.overdue_amount)}
+            {metrics.overdue_loans > 0 && ` • ${metrics.overdue_loans} loans`}
+          </p>
+        </button>
+
+        {/* Pending Refunds — always shown; neutral "None pending" at zero */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Pending Refunds
+            </p>
+            <IconTile icon={RotateCcw} variant="ocean" size={40} />
+          </div>
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {Number(metrics.pending_refunds || 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            {Number(metrics.pending_refunds) > 0
+              ? `${fmtKES(metrics.total_overpayment)} to refund`
+              : "None pending"}
+          </p>
+        </div>
+
+      </div>
+
       {/* ── Insights row: trend chart + portfolio donut ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Chart 1 — Collections vs Disbursements (last 6 months) */}
@@ -744,82 +820,6 @@ function Dashboard() {
             </ResponsiveContainer>
           )}
         </div>
-      </div>
-
-      {/* ── KPI strip: one tidy set of distinct KPIs, no duplicates ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
-        {/* Total Portfolio — active receivable book (principal + interest
-            for currently-active loans). Matches Analytics' "Active
-            Portfolio" so the two pages don't disagree. */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Total Portfolio
-            </p>
-            <IconTile icon={Wallet} variant="ocean" size={40} />
-          </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
-            {fmtKES(
-              metrics.active_portfolio ?? metrics.total_amount_due,
-            )}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {metrics.active_loans} active • {metrics.total_loans} total
-          </p>
-        </div>
-
-        {/* Outstanding */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Outstanding
-            </p>
-            <IconTile icon={Coins} variant="amber" size={40} />
-          </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
-            {fmtKES(metrics.outstanding_balance)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">To be collected</p>
-        </div>
-
-        {/* Overdue → keeps the navigation to the dedicated overdue page */}
-        <button
-          onClick={() => navigate("/overdue")}
-          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-rose-200 hover:shadow transition"
-        >
-          <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Overdue
-            </p>
-            <IconTile icon={AlertTriangle} variant="rose" size={40} />
-          </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
-            {Number(metrics.overdue_count || 0).toLocaleString()}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {fmtKES(metrics.overdue_amount)}
-            {metrics.overdue_loans > 0 && ` • ${metrics.overdue_loans} loans`}
-          </p>
-        </button>
-
-        {/* Pending Refunds — always shown; neutral "None pending" at zero */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Pending Refunds
-            </p>
-            <IconTile icon={RotateCcw} variant="ocean" size={40} />
-          </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
-            {Number(metrics.pending_refunds || 0).toLocaleString()}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {Number(metrics.pending_refunds) > 0
-              ? `${fmtKES(metrics.total_overpayment)} to refund`
-              : "None pending"}
-          </p>
-        </div>
-
       </div>
 
       {/* ── Distribution charts: age, loan size, payment method ─────── */}
