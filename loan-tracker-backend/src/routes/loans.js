@@ -454,6 +454,18 @@ async function loadOwnedLoans(req, ids) {
   return r.rows;
 }
 
+// Single-query client lookup for the bulk endpoints — avoids the
+// per-loan N+1 the single-endpoint pattern would imply if copied as-is.
+async function loadClientsById(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return new Map();
+  const r = await query(
+    `SELECT id, first_name, last_name, phone_number, email
+       FROM clients WHERE id = ANY($1)`,
+    [ids],
+  );
+  return new Map(r.rows.map((c) => [c.id, c]));
+}
+
 router.post(
   "/bulk/review",
   authorize("admin", "manager"),
@@ -469,19 +481,32 @@ router.post(
                           reviewed_by = $1, reviewed_at = NOW(),
                           updated_at = NOW()
           WHERE id = ANY($2) AND status = 'pending'${tc.clause}
-         RETURNING id, loan_code`,
+         RETURNING *`,
         [req.user.id, loan_ids, ...tc.params],
       );
-      for (const row of r.rows) {
+      // Pre-load clients once for the customer-side dispatcher fan-out.
+      const clientIds = [...new Set(r.rows.map((l) => l.client_id))];
+      const clientById = await loadClientsById(clientIds);
+      for (const loan of r.rows) {
         await logAudit({
           user: req.user,
           action: "application_under_review",
           entityType: "loan",
-          entityId: row.id,
-          entityCode: row.loan_code,
-          description: `Moved ${row.loan_code} to under review (bulk)`,
+          entityId: loan.id,
+          entityCode: loan.loan_code,
+          description: `Moved ${loan.loan_code} to under review (bulk)`,
           req,
         });
+        const c = clientById.get(loan.client_id);
+        if (c) {
+          notificationDispatcher
+            .notify("application_under_review", {
+              tenantId: loan.tenant_id,
+              customer: { ...c, client_id: loan.client_id },
+              data: { loan_id: loan.id, loan_code: loan.loan_code },
+            })
+            .catch((err) => logger.error("bulk review notify error:", err));
+        }
       }
       res.json({
         success: true,
@@ -507,6 +532,12 @@ router.post(
       const loans = await loadOwnedLoans(req, loan_ids);
       const processed = [];
       const skipped = [];
+
+      // Pre-load clients once for the in-app + customer dispatcher
+      // notifications that fire after each successful approval.
+      const clientById = await loadClientsById([
+        ...new Set((loans || []).map((l) => l.client_id)),
+      ]);
 
       // Snapshot the pool once and burn it down as we approve — multiple
       // approvals all draw from the same available figure (capital only
@@ -562,6 +593,27 @@ router.post(
           description: `Approved ${loan.loan_code} (bulk)`,
           req,
         });
+        // In-app for the loan officer who created the application.
+        if (loan.created_by) {
+          await notifyApplicationApproved(loan, loan.created_by);
+        }
+        // Customer SMS + Email via the dispatcher.
+        const c = clientById.get(loan.client_id);
+        if (c) {
+          notificationDispatcher
+            .notify("application_approved", {
+              tenantId: loan.tenant_id,
+              customer: { ...c, client_id: loan.client_id },
+              data: {
+                loan_id: loan.id,
+                loan_code: loan.loan_code,
+                amount: loan.principal_amount,
+                duration_months: loan.loan_duration_months,
+                interest_rate: loan.interest_rate,
+              },
+            })
+            .catch((err) => logger.error("bulk approve notify error:", err));
+        }
       }
       res.json({
         success: true,
@@ -589,6 +641,7 @@ router.post(
         return res.status(400).json({ error: "A rejection reason is required" });
       }
       const tc = tenantClause(req, 3, "tenant_id");
+      const cleanReason = String(reason).trim();
       const r = await query(
         `UPDATE loans SET status = 'rejected',
                           rejected_by = $1, rejected_at = NOW(),
@@ -596,20 +649,40 @@ router.post(
                           updated_at = NOW()
           WHERE id = ANY($3)
             AND status IN ('pending','under_review')${tc.clause}
-         RETURNING id, loan_code`,
-        [req.user.id, String(reason).trim(), loan_ids, ...tc.params],
+         RETURNING *`,
+        [req.user.id, cleanReason, loan_ids, ...tc.params],
       );
-      for (const row of r.rows) {
+      const clientById = await loadClientsById([
+        ...new Set(r.rows.map((l) => l.client_id)),
+      ]);
+      for (const loan of r.rows) {
         await logAudit({
           user: req.user,
           action: "application_rejected",
           entityType: "loan",
-          entityId: row.id,
-          entityCode: row.loan_code,
-          description: `Rejected ${row.loan_code} (bulk): ${reason}`,
-          newValues: { reason },
+          entityId: loan.id,
+          entityCode: loan.loan_code,
+          description: `Rejected ${loan.loan_code} (bulk): ${cleanReason}`,
+          newValues: { reason: cleanReason },
           req,
         });
+        if (loan.created_by) {
+          await notifyApplicationRejected(loan, loan.created_by, cleanReason);
+        }
+        const c = clientById.get(loan.client_id);
+        if (c) {
+          notificationDispatcher
+            .notify("application_rejected", {
+              tenantId: loan.tenant_id,
+              customer: { ...c, client_id: loan.client_id },
+              data: {
+                loan_id: loan.id,
+                loan_code: loan.loan_code,
+                reason: cleanReason,
+              },
+            })
+            .catch((err) => logger.error("bulk reject notify error:", err));
+        }
       }
       res.json({
         success: true,
