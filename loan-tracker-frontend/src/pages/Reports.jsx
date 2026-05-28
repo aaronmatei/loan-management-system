@@ -39,6 +39,11 @@ import {
   ComposedChart,
 } from "recharts";
 import api from "../services/api";
+import PeriodNavigator, {
+  periodToRange,
+  periodLabel,
+  usePersistentPeriod,
+} from "../components/PeriodNavigator";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -68,13 +73,10 @@ const today = () => new Date().toISOString().split("T")[0];
 function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  // "recent" → rolling last-N months; "month" → a single calendar month.
-  const [mode, setMode] = useState("recent");
-  const [months, setMonths] = useState(6);
-  const [pickedMonth, setPickedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
+  // Unified time control — Month or Year, persisted across pages.
+  const [period, setPeriod] = usePersistentPeriod();
+  // Some legacy code paths (snapshot tiles, exports) check this string.
+  const mode = period.mode === "year" ? "year" : "month";
   const [exporting, setExporting] = useState(null);
 
   // Row-export filter state — each export card has its own range so
@@ -134,16 +136,21 @@ function Reports() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, months, pickedMonth]);
+  }, [period.mode, period.value]);
+
+  // Build the from/to/months query string from the current period.
+  // Year mode sends from/to spanning Jan 1 → Dec 31; month mode sends
+  // from/to spanning the first/last day. Backend infers daily vs
+  // monthly chart granularity from the window width.
+  const buildQuery = () => {
+    const { from, to } = periodToRange(period);
+    return `from=${from}&to=${to}`;
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const params =
-        mode === "month"
-          ? `from=${monthStart(pickedMonth)}&to=${monthEnd(pickedMonth)}`
-          : `months=${months}`;
-      const res = await api.get(`/analytics/tenant?${params}`);
+      const res = await api.get(`/analytics/tenant?${buildQuery()}`);
       setData(res.data.data);
     } catch (err) {
       console.error("Failed to load analytics:", err);
@@ -155,22 +162,14 @@ function Reports() {
   const exportReport = async (format) => {
     setExporting(format);
     try {
-      // Same params the data fetch uses — exports reflect what's on screen.
-      const params =
-        mode === "month"
-          ? `from=${monthStart(pickedMonth)}&to=${monthEnd(pickedMonth)}`
-          : `months=${months}`;
-      const res = await api.get(`/analytics/export/${format}?${params}`, {
-        responseType: "blob",
-      });
+      const res = await api.get(
+        `/analytics/export/${format}?${buildQuery()}`,
+        { responseType: "blob" },
+      );
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = url;
-      const periodSlug =
-        mode === "month"
-          ? pickedMonth
-          : `last-${months}-months`;
-      a.download = `portfolio-report-${periodSlug}.${format === "pdf" ? "pdf" : "xlsx"}`;
+      a.download = `portfolio-report-${period.value}.${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -190,6 +189,16 @@ function Reports() {
   if (!data) return null;
 
   const { kpis, par, snapshot, expenseStats, cashFlow } = data;
+
+  // Snapshot tiles (Outstanding / PAR / Overdue / Defaulted) only
+  // make sense for the current period — they describe today's state,
+  // not a historical one. Hide them when the picker points at a past
+  // month/year.
+  const onCurrentPeriod =
+    period.mode === "year"
+      ? parseInt(period.value, 10) === new Date().getFullYear()
+      : period.value ===
+        `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
   const incomeWindow =
     (parseFloat(kpis.interest_earned) || 0) +
@@ -214,39 +223,11 @@ function Reports() {
               <BarChart3 size={28} /> Reports &amp; Exports
             </h1>
             <p className="text-gray-600 mt-1">
-              {mode === "month"
-                ? `Performance for ${monthLabel(pickedMonth)}`
-                : "Your portfolio performance · download data for analysis"}
+              Performance for {periodLabel(period)} · download data for analysis
             </p>
           </div>
           <div className="flex flex-wrap gap-2 items-center">
-            <select
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
-              title="Time range mode"
-            >
-              <option value="recent">Recent months</option>
-              <option value="month">Specific month</option>
-            </select>
-            {mode === "recent" ? (
-              <select
-                value={months}
-                onChange={(e) => setMonths(parseInt(e.target.value, 10))}
-                className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
-              >
-                <option value={3}>Last 3 months</option>
-                <option value={6}>Last 6 months</option>
-                <option value={12}>Last 12 months</option>
-              </select>
-            ) : (
-              <input
-                type="month"
-                value={pickedMonth}
-                onChange={(e) => setPickedMonth(e.target.value)}
-                className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
-              />
-            )}
+            <PeriodNavigator value={period} onChange={setPeriod} />
             <button
               onClick={() => exportReport("pdf")}
               disabled={exporting !== null}
@@ -276,10 +257,7 @@ function Reports() {
             (parseFloat(kpis.fines_collected) || 0);
           const roiPct =
             invested > 0 ? ((returns / invested) * 100).toFixed(1) : "0.0";
-          const periodSubtitle =
-            mode === "month"
-              ? monthLabel(pickedMonth)
-              : `Last ${months} months`;
+          const periodSubtitle = periodLabel(period);
           return (
             <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-6 mb-6 bg-gradient-to-br from-ocean-100/70 via-white/55 to-indigo-100/60 backdrop-blur-md">
               {/* Soft auroras behind the frosted glass, matching the
@@ -413,7 +391,7 @@ function Reports() {
               "Recent months" mode. In specific-month mode they'd be
               showing today's outstanding for a long-past month, which
               is misleading. */}
-          {mode !== "month" && (
+          {onCurrentPeriod && (
             <>
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">

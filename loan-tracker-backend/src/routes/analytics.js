@@ -480,12 +480,13 @@ router.get("/platform/export/pdf", async (req, res) => {
     if (!req.user?.is_platform_admin) {
       return res.status(403).json({ error: "Platform admin only" });
     }
+    const { from, to } = req.query;
     const months = Math.min(
       Math.max(parseInt(req.query.months, 10) || 6, 1),
       24,
     );
     const [kpis, revenueTrend, leaderboard] = await Promise.all([
-      analyticsService.getPlatformKPIs(),
+      analyticsService.getPlatformKPIs(from, to),
       analyticsService.getPlatformRevenueTrend(months),
       analyticsService.getTenantLeaderboard(),
     ]);
@@ -558,12 +559,13 @@ router.get("/platform/export/excel", async (req, res) => {
     if (!req.user?.is_platform_admin) {
       return res.status(403).json({ error: "Platform admin only" });
     }
+    const { from, to } = req.query;
     const months = Math.min(
       Math.max(parseInt(req.query.months, 10) || 6, 1),
       24,
     );
     const [kpis, revenueTrend, leaderboard] = await Promise.all([
-      analyticsService.getPlatformKPIs(),
+      analyticsService.getPlatformKPIs(from, to),
       analyticsService.getPlatformRevenueTrend(months),
       analyticsService.getTenantLeaderboard(),
     ]);
