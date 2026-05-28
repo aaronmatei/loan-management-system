@@ -429,9 +429,15 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Stats — Interest is split into loan-interest income and
-              fines (late-payment penalty) income so the lender can see
-              where the revenue is coming from. */}
+          {/* Stats — split visually into two rows:
+                Row 1 (5 cards): the cash story — what went out, what
+                  came back, what was earned, how much we're collecting.
+                Row 2 (3 cards): this-month P&L — Expenses, Net Profit,
+                  with a small "Live · This month" pill on the left so the
+                  reader knows the time window. Expenses + Net Profit
+                  used to live in the KPI strip below; moving them in
+                  here puts the cash-out / bottom-line story right next
+                  to the cash-in story they relate to. */}
           <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Total Disbursed</p>
@@ -457,7 +463,6 @@ function Dashboard() {
                 +{fmtKES(poolStatus.fines_collected ?? 0)}
               </p>
             </div>
-            {/* Collection Rate — moved here from the KPI strip */}
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Collection Rate</p>
               <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
@@ -471,6 +476,85 @@ function Dashboard() {
                   }}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* This-month P&L row — same frosted-glass language as the
+              cash stats above, with brand-coloured accents so they read
+              as "the bottom-line companion" rather than separate KPIs.
+              An inline live-pill marks the time window. */}
+          <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm flex items-center gap-3 col-span-2 lg:col-span-1">
+              <div className="w-9 h-9 rounded-xl bg-white/80 flex items-center justify-center flex-shrink-0">
+                <ArrowUpDown size={16} className="text-ocean-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                  This month
+                </p>
+                <p className="text-xs text-slate-700 leading-tight">
+                  P&amp;L · live
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate("/expenses")}
+              className="text-left rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm hover:bg-white/70 hover:border-amber-200 transition"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs text-slate-500">Expenses</p>
+                <Receipt size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+              </div>
+              <p className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap mt-1">
+                −{fmtKES(metrics.expenses_this_month || 0)}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                last: {fmtKES(metrics.expenses_last_month || 0)}
+              </p>
+            </button>
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs text-slate-500">Income</p>
+                <TrendingUp size={14} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+              </div>
+              <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
+                +{fmtKES(metrics.income_this_month || 0)}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                interest + fines
+              </p>
+            </div>
+            <div
+              className={`rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm ${
+                (metrics.net_profit_this_month || 0) >= 0
+                  ? "ring-1 ring-emerald-200"
+                  : "ring-1 ring-rose-200"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs text-slate-500">Net Profit</p>
+                <ArrowUpDown
+                  size={14}
+                  className={`${
+                    (metrics.net_profit_this_month || 0) >= 0
+                      ? "text-emerald-600"
+                      : "text-rose-600"
+                  } mt-0.5 flex-shrink-0`}
+                />
+              </div>
+              <p
+                className={`text-base sm:text-lg font-bold whitespace-nowrap mt-1 ${
+                  (metrics.net_profit_this_month || 0) >= 0
+                    ? "text-emerald-700"
+                    : "text-rose-700"
+                }`}
+              >
+                {(metrics.net_profit_this_month || 0) >= 0 ? "+" : ""}
+                {fmtKES(metrics.net_profit_this_month || 0)}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                income − expenses
+              </p>
             </div>
           </div>
         </div>
@@ -650,7 +734,7 @@ function Dashboard() {
       </div>
 
       {/* ── KPI strip: one tidy set of distinct KPIs, no duplicates ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
         {/* Total Portfolio — active receivable book (principal + interest
             for currently-active loans). Matches Analytics' "Active
             Portfolio" so the two pages don't disagree. */}
@@ -723,57 +807,6 @@ function Dashboard() {
           </p>
         </div>
 
-        {/* Expenses this month — cash out side of the books. Links to
-            the Expenses & Billing page when clicked. */}
-        <button
-          onClick={() => navigate("/expenses")}
-          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-amber-200 hover:shadow transition"
-        >
-          <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Expenses (Month)
-            </p>
-            <IconTile icon={Receipt} variant="amber" size={40} />
-          </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
-            {fmtKES(metrics.expenses_this_month || 0)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            last: {fmtKES(metrics.expenses_last_month || 0)}
-          </p>
-        </button>
-
-        {/* Net Profit this month — Income (interest + fines) − Expenses.
-            Coloured by sign so the lender knows at a glance whether the
-            month is in the black or the red. */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Net Profit (Month)
-            </p>
-            <IconTile
-              icon={ArrowUpDown}
-              variant={
-                (metrics.net_profit_this_month || 0) >= 0 ? "emerald" : "rose"
-              }
-              size={40}
-            />
-          </div>
-          <p
-            className={`text-2xl font-bold mt-2 ${
-              (metrics.net_profit_this_month || 0) >= 0
-                ? "text-emerald-600"
-                : "text-rose-600"
-            }`}
-          >
-            {(metrics.net_profit_this_month || 0) >= 0 ? "+" : ""}
-            {fmtKES(metrics.net_profit_this_month || 0)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            income {fmtKES(metrics.income_this_month || 0)} − expenses{" "}
-            {fmtKES(metrics.expenses_this_month || 0)}
-          </p>
-        </div>
       </div>
 
       {/* ── Distribution charts: age, loan size, payment method ─────── */}
