@@ -84,10 +84,70 @@ function Expenses() {
     is_recurring: false,
     recurrence_period: "monthly",
   });
+  // Pulled from /api/billing/summary when the user picks the Platform
+  // Billing category — drives the auto-fill amount + helper banner.
+  const [billingSummary, setBillingSummary] = useState(null);
 
   useEffect(() => {
     fetchAll();
   }, []);
+
+  // Convenience: id of the Platform Billing category for this tenant
+  // (seeded by migration). null when categories haven't loaded yet.
+  const platformBillingCatId =
+    categories.find((c) => c.name === "Platform Billing")?.id ?? null;
+  const isPlatformBilling =
+    !!platformBillingCatId &&
+    parseInt(form.category_id, 10) === platformBillingCatId;
+
+  // Whenever the user picks "Platform Billing" in the Add modal, pull
+  // the live outstanding total from the billing summary and pre-fill
+  // the amount + description. Won't overwrite a manual edit afterwards
+  // (we only prefill while the field is still empty / matches the
+  // previously-fetched amount).
+  useEffect(() => {
+    if (!showForm || editing) return;
+    if (!isPlatformBilling) {
+      setBillingSummary(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get("/billing/summary")
+      .then((r) => {
+        if (cancelled) return;
+        const s = r.data?.data;
+        setBillingSummary(s);
+        const outstanding = parseFloat(s?.outstanding || 0);
+        if (outstanding > 0) {
+          setForm((f) => {
+            // Don't trample a value the user typed themselves.
+            const prefilledOk =
+              f.amount === "" ||
+              parseFloat(f.amount) === 0 ||
+              parseFloat(f.amount) === parseFloat(billingSummary?.outstanding || 0);
+            return prefilledOk
+              ? {
+                  ...f,
+                  amount: outstanding.toFixed(2),
+                  description:
+                    f.description ||
+                    `Settling ${s.due_count + (s.overdue_count || 0)} outstanding LoanFix invoice${
+                      s.due_count + (s.overdue_count || 0) === 1 ? "" : "s"
+                    }`,
+                  is_recurring: true,
+                  recurrence_period: "monthly",
+                }
+              : f;
+          });
+        }
+      })
+      .catch((e) => console.error("Failed to load billing summary:", e));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlatformBilling, showForm, editing]);
 
   const fetchAll = async ({ silent = false } = {}) => {
     try {
@@ -722,6 +782,58 @@ function Expenses() {
               </div>
             )}
 
+            {/* Platform Billing helper — appears only when the user
+                picks the Platform Billing category. Explains that
+                invoices auto-import and shows the live outstanding so
+                the amount field's pre-fill isn't a mystery. */}
+            {isPlatformBilling && !editing && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm">
+                <div className="flex items-start gap-2">
+                  <Receipt
+                    size={16}
+                    className="text-amber-700 flex-shrink-0 mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-900">
+                      LoanFix invoices auto-import
+                    </p>
+                    <p className="text-amber-800 mt-0.5 text-xs leading-relaxed">
+                      Each invoice the platform raises already lands here as a
+                      read-only "Auto" row. Use this form only to record a
+                      lump payment against your outstanding balance.
+                    </p>
+                    {billingSummary && (
+                      <p className="text-xs text-amber-900 mt-2">
+                        Currently owed:{" "}
+                        <strong className="font-bold">
+                          {fmt(billingSummary.outstanding)}
+                        </strong>
+                        {" "}across{" "}
+                        <strong className="font-bold">
+                          {billingSummary.due_count +
+                            (billingSummary.overdue_count || 0)}
+                        </strong>{" "}
+                        invoice
+                        {billingSummary.due_count +
+                          (billingSummary.overdue_count || 0) ===
+                        1
+                          ? ""
+                          : "s"}{" "}
+                        ·{" "}
+                        <button
+                          type="button"
+                          onClick={() => navigate("/billing")}
+                          className="underline font-semibold hover:text-amber-950"
+                        >
+                          settle on the Billing page →
+                        </button>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
@@ -762,6 +874,12 @@ function Expenses() {
                     placeholder="e.g. 5000"
                     className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
                   />
+                  {isPlatformBilling && billingSummary && (
+                    <p className="text-xs text-amber-700 mt-1">
+                      Auto-filled from your outstanding balance — adjust if
+                      you're paying a different amount.
+                    </p>
+                  )}
                 </div>
               </div>
 
