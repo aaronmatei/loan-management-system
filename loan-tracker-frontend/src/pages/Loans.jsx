@@ -53,10 +53,12 @@ function Loans() {
 
   // Tenant loan policy (set in Settings → Loan Policy). Defaults match the
   // backend until the real values arrive so the form is usable straight away.
+  // late_payment_fee starts at 0 — not every lender charges one. The form
+  // exposes a toggle that, when flipped on, makes the field editable.
   const [loanPolicy, setLoanPolicy] = useState({
     default_interest_rate: 50,
     processing_fee_rate: 0,
-    late_payment_fee: 500,
+    late_payment_fee: 0,
   });
 
   const [formData, setFormData] = useState({
@@ -72,7 +74,8 @@ function Loans() {
     guarantor_phone: "",
     guarantor_id_number: "",
     collateral_description: "",
-    late_payment_fee: 500,
+    late_fee_enabled: false,
+    late_payment_fee: 0,
     penalty_rate: 5,
   });
 
@@ -92,7 +95,7 @@ function Loans() {
       const policy = {
         default_interest_rate: parseFloat(d.default_interest_rate ?? 50),
         processing_fee_rate: parseFloat(d.processing_fee_rate ?? 0),
-        late_payment_fee: parseFloat(d.late_payment_fee ?? 500),
+        late_payment_fee: parseFloat(d.late_payment_fee ?? 0),
       };
       setLoanPolicy(policy);
       setFormData((p) => ({
@@ -100,6 +103,9 @@ function Loans() {
         annual_interest_rate: String(policy.default_interest_rate),
         monthly_interest_rate: String(roundRate(policy.default_interest_rate / 12)),
         processing_fee_rate: String(policy.processing_fee_rate),
+        // Toggle stays OFF on load — staff opts in per loan. The
+        // policy value just pre-fills what the input shows the
+        // moment they turn the toggle on.
         late_payment_fee: policy.late_payment_fee,
       }));
     } catch {
@@ -269,7 +275,16 @@ function Loans() {
     setSuccess("");
 
     try {
-      const response = await api.post("/loans", formData);
+      // Late fee only counts when the toggle is on. If it's off we
+      // send 0 so the backend doesn't accidentally pick up a stale
+      // value the user never opted into.
+      const submitData = {
+        ...formData,
+        late_payment_fee: formData.late_fee_enabled
+          ? parseFloat(formData.late_payment_fee) || 0
+          : 0,
+      };
+      const response = await api.post("/loans", submitData);
       setSuccess(
         `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.`,
       );
@@ -290,6 +305,7 @@ function Loans() {
         guarantor_phone: "",
         guarantor_id_number: "",
         collateral_description: "",
+        late_fee_enabled: false,
         late_payment_fee: loanPolicy.late_payment_fee,
         penalty_rate: 5,
       });
@@ -877,17 +893,62 @@ function Loans() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Late Payment Fee (KES)
-                  </label>
+                  {/* Late payment fee is opt-in per loan — not every lender
+                      charges one. The toggle gates whether the input is
+                      live; off keeps it at 0 regardless of what's typed. */}
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-semibold text-gray-700">
+                      Late Payment Fee (KES)
+                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={formData.late_fee_enabled}
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          late_fee_enabled: !formData.late_fee_enabled,
+                        })
+                      }
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
+                        formData.late_fee_enabled
+                          ? "bg-ocean-600"
+                          : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                          formData.late_fee_enabled
+                            ? "translate-x-5"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
                   <input
                     type="number"
                     name="late_payment_fee"
-                    value={formData.late_payment_fee ?? 500}
+                    value={
+                      formData.late_fee_enabled
+                        ? formData.late_payment_fee
+                        : 0
+                    }
                     onChange={handleInputChange}
-                    placeholder="500"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    disabled={!formData.late_fee_enabled}
+                    min="0"
+                    step="50"
+                    placeholder="e.g. 500"
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                      formData.late_fee_enabled
+                        ? "border-gray-200 focus:border-ocean-500"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    }`}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.late_fee_enabled
+                      ? "Flat fee charged once an installment becomes overdue."
+                      : "No late fee on this loan."}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
