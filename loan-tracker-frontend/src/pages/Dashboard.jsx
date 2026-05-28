@@ -340,8 +340,7 @@ function Dashboard() {
           </h1>
           <p className="text-gray-600 mt-2">
             Welcome back,{" "}
-            <span className="font-semibold">{user?.first_name}</span>! Showing{" "}
-            <span className="font-semibold">{periodLabel(period)}</span>.
+            <span className="font-semibold">{user?.first_name}</span>!
           </p>
         </div>
         <PeriodNavigator value={period} onChange={setPeriod} />
@@ -488,6 +487,59 @@ function Dashboard() {
 
         </div>
       )}
+
+      {/* ── Period heading + cash row — mirrors the row inside Capital
+          Pool, but scoped to the picked period (and visually outside
+          the lifetime Capital Pool block so the two never feel like
+          the same numbers). */}
+      <div className="flex items-baseline justify-between mb-2">
+        <p className="text-sm text-slate-600">
+          Showing{" "}
+          <span className="font-semibold text-navy-900">
+            {periodLabel(period)}
+          </span>
+        </p>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+          <p className="text-xs text-slate-500">Total Disbursed</p>
+          <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+            {fmtKES(metrics.total_principal || 0)}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+          <p className="text-xs text-slate-500">Total Collected</p>
+          <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+            {fmtKES(metrics.total_collected || 0)}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+          <p className="text-xs text-slate-500">Interest from Loans</p>
+          <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
+            +{fmtKES(metrics.interest_collected ?? 0)}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+          <p className="text-xs text-slate-500">Interest from Fines</p>
+          <p className="text-base sm:text-lg font-bold text-amber-600 whitespace-nowrap mt-1">
+            +{fmtKES(metrics.fines_collected ?? 0)}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+          <p className="text-xs text-slate-500">Collection Rate</p>
+          <p className="text-base sm:text-lg font-bold text-navy-900 mt-1">
+            {(metrics.collection_rate || 0).toFixed(1)}%
+          </p>
+          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="bg-ocean-500 h-1.5 rounded-full transition-all"
+              style={{
+                width: `${Math.min(metrics.collection_rate || 0, 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* ── P&L row — scoped to the picked period. Lives outside the
           Capital Pool card (which holds lifetime cash figures) so the

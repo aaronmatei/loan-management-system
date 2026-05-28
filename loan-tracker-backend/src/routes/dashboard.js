@@ -264,17 +264,18 @@ router.get("/summary", async (req, res) => {
       [...periodParams, ...tsP.params],
     );
 
-    // Income (interest portion + fines) within the period — defaults
-    // to the current calendar month when no period supplied.
-    const incomeThisMonth = await query(
+    // Income components within the period — split so the Dashboard
+    // can show "Interest from Loans" and "Interest from Fines" as
+    // separate period-scoped tiles.
+    const incomeBreakdown = await query(
       `SELECT
          COALESCE(SUM(
            (t.amount_paid
               - COALESCE(t.overpayment_portion, 0)
               - COALESCE(t.penalty_portion, 0))
            * (l.total_interest / NULLIF(l.total_amount_due, 0))
-           + COALESCE(t.penalty_portion, 0)
-         ), 0)::float AS income
+         ), 0)::float AS interest_collected,
+         COALESCE(SUM(COALESCE(t.penalty_portion, 0)), 0)::float AS fines_collected
        FROM transactions t
        JOIN loans l ON l.id = t.loan_id
        WHERE t.payment_status = 'completed'
@@ -292,8 +293,14 @@ router.get("/summary", async (req, res) => {
     // booked on the capital pool at the moment a loan is disbursed,
     // so they're part of the period's earned income alongside the
     // interest/fines collected from payments in the same window.
+    const interestCollected = parseFloat(
+      incomeBreakdown.rows[0]?.interest_collected || 0,
+    );
+    const finesCollected = parseFloat(
+      incomeBreakdown.rows[0]?.fines_collected || 0,
+    );
     const processingFeesPeriod = parseFloat(loansData.processing_fees || 0);
-    const incomeFromPayments = parseFloat(incomeThisMonth.rows[0]?.income || 0);
+    const incomeFromPayments = interestCollected + finesCollected;
     const incomeThisMonthVal = incomeFromPayments + processingFeesPeriod;
     const netProfitThisMonth = incomeThisMonthVal - expensesThisMonth;
 
@@ -339,6 +346,8 @@ router.get("/summary", async (req, res) => {
         expenses_this_month: expensesThisMonth,
         expenses_last_month: parseFloat(expensesData.total_last_month),
         income_this_month: incomeThisMonthVal,
+        interest_collected: interestCollected,
+        fines_collected: finesCollected,
         net_profit_this_month: netProfitThisMonth,
 
         // Distribution data for the dashboard charts
