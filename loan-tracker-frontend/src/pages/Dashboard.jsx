@@ -442,12 +442,9 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Stats — split visually into two rows:
-                Row 1 (5 cards): the cash story — what went out, what
-                  came back, what was earned, how much we're collecting.
-                Row 2 (4 cards): period P&L — Expenses, Processing fees,
-                  Income, Net Profit. Period scope follows the picker at
-                  the top of the page. */}
+          {/* Cash story row — what went out, what came back, what was
+              earned, how much we're collecting. Period P&L lives in
+              its own row below the Capital Pool card. */}
           <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Total Disbursed</p>
@@ -489,84 +486,93 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* P&L row — same frosted-glass language as the cash stats
-              above, scoped to the selected period. Expenses · Processing
-              fees · Income · Net Profit. */}
-          <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-            <button
-              onClick={() => navigate("/expenses")}
-              className="text-left rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm hover:bg-white/70 hover:border-amber-200 transition"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs text-slate-500">Expenses</p>
-                <Receipt size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
-              </div>
-              <p className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap mt-1">
-                −{fmtKES(metrics.expenses_this_month || 0)}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                last: {fmtKES(metrics.expenses_last_month || 0)}
-              </p>
-            </button>
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs text-slate-500">Processing Fees</p>
-                <Banknote size={14} className="text-ocean-600 mt-0.5 flex-shrink-0" />
-              </div>
-              <p className="text-base sm:text-lg font-bold text-ocean-700 whitespace-nowrap mt-1">
-                +{fmtKES(metrics.processing_fees || 0)}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                retained at disbursement
-              </p>
-            </div>
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs text-slate-500">Income</p>
-                <TrendingUp size={14} className="text-emerald-600 mt-0.5 flex-shrink-0" />
-              </div>
-              <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
-                +{fmtKES(metrics.income_this_month || 0)}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                interest + fines + fees
-              </p>
-            </div>
-            <div
-              className={`rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm ${
-                (metrics.net_profit_this_month || 0) >= 0
-                  ? "ring-1 ring-emerald-200"
-                  : "ring-1 ring-rose-200"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs text-slate-500">Net Profit</p>
-                <ArrowUpDown
-                  size={14}
-                  className={`${
-                    (metrics.net_profit_this_month || 0) >= 0
-                      ? "text-emerald-600"
-                      : "text-rose-600"
-                  } mt-0.5 flex-shrink-0`}
-                />
-              </div>
-              <p
-                className={`text-base sm:text-lg font-bold whitespace-nowrap mt-1 ${
-                  (metrics.net_profit_this_month || 0) >= 0
-                    ? "text-emerald-700"
-                    : "text-rose-700"
-                }`}
-              >
-                {(metrics.net_profit_this_month || 0) >= 0 ? "+" : ""}
-                {fmtKES(metrics.net_profit_this_month || 0)}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                income − expenses
-              </p>
-            </div>
-          </div>
         </div>
       )}
+
+      {/* ── P&L row — scoped to the picked period. Lives outside the
+          Capital Pool card (which holds lifetime cash figures) so the
+          period-dependent numbers visually pivot with the selector. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <button
+          onClick={() => navigate("/expenses")}
+          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-amber-200 hover:shadow transition"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Expenses
+            </p>
+            <Receipt size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+          </div>
+          <p className="text-2xl font-bold text-amber-700 mt-2">
+            −{fmtKES(metrics.expenses_this_month || 0)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            last: {fmtKES(metrics.expenses_last_month || 0)}
+          </p>
+        </button>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Processing Fees
+            </p>
+            <Banknote size={16} className="text-ocean-600 mt-0.5 flex-shrink-0" />
+          </div>
+          <p className="text-2xl font-bold text-ocean-700 mt-2">
+            +{fmtKES(metrics.processing_fees || 0)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            retained at disbursement
+          </p>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Income
+            </p>
+            <TrendingUp size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+          </div>
+          <p className="text-2xl font-bold text-emerald-600 mt-2">
+            +{fmtKES(metrics.income_this_month || 0)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            interest + fines + fees
+          </p>
+        </div>
+        <div
+          className={`bg-white rounded-2xl shadow-sm border border-slate-100 p-5 ${
+            (metrics.net_profit_this_month || 0) >= 0
+              ? "ring-1 ring-emerald-200"
+              : "ring-1 ring-rose-200"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Net Profit
+            </p>
+            <ArrowUpDown
+              size={16}
+              className={`${
+                (metrics.net_profit_this_month || 0) >= 0
+                  ? "text-emerald-600"
+                  : "text-rose-600"
+              } mt-0.5 flex-shrink-0`}
+            />
+          </div>
+          <p
+            className={`text-2xl font-bold mt-2 ${
+              (metrics.net_profit_this_month || 0) >= 0
+                ? "text-emerald-700"
+                : "text-rose-700"
+            }`}
+          >
+            {(metrics.net_profit_this_month || 0) >= 0 ? "+" : ""}
+            {fmtKES(metrics.net_profit_this_month || 0)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            income − expenses
+          </p>
+        </div>
+      </div>
 
       {/* Top-up capital modal */}
       {showTopUp && (
