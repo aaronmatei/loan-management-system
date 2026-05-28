@@ -2108,6 +2108,105 @@ function LoanDetails() {
               </span>
             </div>
 
+            {/* Loan summary at a glance — so the admin/manager can
+                size the waiver without leaving the modal. Each "use"
+                link pre-fills the Amount field. */}
+            {(() => {
+              const principal = parseFloat(loan.principal_amount || 0);
+              const totalDue = parseFloat(loan.total_amount_due || 0);
+              const totalInterest = parseFloat(loan.total_interest || 0);
+              const paid = parseFloat(summary?.total_paid || 0);
+              const balance = parseFloat(summary?.balance || 0);
+              // Interest already credited (sum of per-installment
+              // interest_portion the backend exposes on each row).
+              const interestPaid = (schedule || []).reduce(
+                (acc, s) => acc + parseFloat(s.interest_portion || 0),
+                0,
+              );
+              const interestRemaining = Math.max(
+                0,
+                totalInterest - interestPaid,
+              );
+              const penaltyOutstanding = (schedule || []).reduce(
+                (acc, s) => acc + parseFloat(s.penalty_outstanding || 0),
+                0,
+              );
+              const penaltyPaid = parseFloat(summary?.total_penalty_paid || 0);
+              const fill = (value) =>
+                setWaiverForm((p) => ({
+                  ...p,
+                  amount: value > 0 ? value.toFixed(2) : "",
+                }));
+              const Row = ({
+                label,
+                value,
+                color = "text-gray-900",
+                fillAmount,
+                fillLabel,
+              }) => (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-500">{label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${color}`}>
+                      KES {value.toLocaleString()}
+                    </span>
+                    {fillAmount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => fill(fillAmount)}
+                        className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-medium uppercase tracking-wider"
+                        title={`Use ${fillLabel || "this"} as the waiver amount`}
+                      >
+                        use
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+              return (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-1">
+                    Loan snapshot
+                  </p>
+                  <Row label="Principal" value={principal} />
+                  <Row label="Total to pay" value={totalDue} />
+                  <Row
+                    label="Paid"
+                    value={paid}
+                    color="text-emerald-700"
+                  />
+                  <Row
+                    label="Remaining balance"
+                    value={balance}
+                    color="text-orange-700"
+                    fillAmount={balance}
+                    fillLabel="the full remaining balance"
+                  />
+                  <Row
+                    label="Interest remaining"
+                    value={interestRemaining}
+                    color="text-sky-700"
+                    fillAmount={interestRemaining}
+                    fillLabel="the interest portion"
+                  />
+                  <Row
+                    label="Penalty outstanding"
+                    value={penaltyOutstanding}
+                    color="text-rose-700"
+                    fillAmount={penaltyOutstanding}
+                    fillLabel="the outstanding penalty"
+                  />
+                  {penaltyPaid > 0 && (
+                    <Row
+                      label="Penalty paid"
+                      value={penaltyPaid}
+                      color="text-gray-700"
+                    />
+                  )}
+                </div>
+              );
+            })()}
+
             {waiverError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-4 text-sm">
                 {waiverError}
