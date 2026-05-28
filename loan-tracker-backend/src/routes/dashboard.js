@@ -335,7 +335,10 @@ router.get("/summary", async (req, res) => {
     });
   } catch (error) {
     logger.error("Dashboard summary error:", error);
-    res.status(500).json({ error: "Failed to fetch dashboard data" });
+    res.status(500).json({
+      error: "Failed to fetch dashboard data",
+      debug: error?.message,
+    });
   }
 });
 
