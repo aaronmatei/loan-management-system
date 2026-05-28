@@ -23,11 +23,31 @@ import {
   TrendingUp,
   Clock,
   Eye,
+  Receipt,
+  ArrowUpDown,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  Line,
+  ComposedChart,
+} from "recharts";
 import api from "../services/api";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+const fmtK = (n) => {
+  const v = parseFloat(n) || 0;
+  if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (Math.abs(v) >= 1e3) return `${Math.round(v / 1e3)}K`;
+  return `${v}`;
+};
 
 // Last calendar day of a YYYY-MM value, as "YYYY-MM-DD".
 const monthEnd = (ym) => {
@@ -169,7 +189,12 @@ function Reports() {
   }
   if (!data) return null;
 
-  const { kpis, par, snapshot } = data;
+  const { kpis, par, snapshot, expenseStats, cashFlow } = data;
+  const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
+  const incomeWindow =
+    (parseFloat(kpis.interest_earned) || 0) +
+    (parseFloat(kpis.fines_collected) || 0);
+  const netProfitWindow = incomeWindow - expensesWindow;
   const snap = snapshot || {
     outstanding_balance: 0,
     overdue_count: 0,
@@ -466,7 +491,123 @@ function Reports() {
               </div>
             </>
           )}
+
+          {/* Expenses + Net Profit for the selected window — period-
+              filtered, so they live with the other period tiles. */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+              <Receipt size={20} className="text-amber-700" />
+            </div>
+            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+              Expenses
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
+              {fmt(expensesWindow)}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {expenseStats?.count_in_window || 0} entries
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
+                netProfitWindow >= 0 ? "bg-emerald-50" : "bg-rose-50"
+              }`}
+            >
+              <ArrowUpDown
+                size={20}
+                className={
+                  netProfitWindow >= 0 ? "text-emerald-600" : "text-rose-600"
+                }
+              />
+            </div>
+            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+              Net Profit
+            </p>
+            <p
+              className={`text-xl lg:text-2xl font-bold mt-1 break-words ${
+                netProfitWindow >= 0 ? "text-emerald-700" : "text-rose-700"
+              }`}
+            >
+              {netProfitWindow >= 0 ? "+" : ""}
+              {fmt(netProfitWindow)}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">income − expenses</p>
+          </div>
         </div>
+
+        {/* ── Income vs Expenses monthly trend ──────────────────── */}
+        {Array.isArray(cashFlow) && cashFlow.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <ArrowUpDown size={18} className="text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">
+                  Income vs Expenses
+                </h3>
+                <p className="text-xs text-gray-500">
+                  What's coming in (interest + fines) versus going out
+                  (operating expenses), month by month.
+                </p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={cashFlow}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#eef2f6"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tickFormatter={fmtK}
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={50}
+                />
+                <Tooltip
+                  formatter={(v, n) => [fmt(v), n]}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Bar
+                  dataKey="income"
+                  name="Income"
+                  fill="#10b981"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Bar
+                  dataKey="expenses"
+                  name="Expenses"
+                  fill="#d97706"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="net"
+                  name="Net"
+                  stroke="#0086cc"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: "#0086cc" }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         {/* ── Excel exports ────────────────────────────────────── */}
         <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2 mt-2">

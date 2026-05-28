@@ -16,6 +16,8 @@ import {
   ClipboardList,
   Banknote,
   X,
+  Receipt,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -648,7 +650,7 @@ function Dashboard() {
       </div>
 
       {/* ── KPI strip: one tidy set of distinct KPIs, no duplicates ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         {/* Total Portfolio — active receivable book (principal + interest
             for currently-active loans). Matches Analytics' "Active
             Portfolio" so the two pages don't disagree. */}
@@ -718,6 +720,58 @@ function Dashboard() {
             {Number(metrics.pending_refunds) > 0
               ? `${fmtKES(metrics.total_overpayment)} to refund`
               : "None pending"}
+          </p>
+        </div>
+
+        {/* Expenses this month — cash out side of the books. Links to
+            the Expenses & Billing page when clicked. */}
+        <button
+          onClick={() => navigate("/expenses")}
+          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-amber-200 hover:shadow transition"
+        >
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Expenses (Month)
+            </p>
+            <IconTile icon={Receipt} variant="amber" size={40} />
+          </div>
+          <p className="text-2xl font-bold text-navy-900 mt-2">
+            {fmtKES(metrics.expenses_this_month || 0)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            last: {fmtKES(metrics.expenses_last_month || 0)}
+          </p>
+        </button>
+
+        {/* Net Profit this month — Income (interest + fines) − Expenses.
+            Coloured by sign so the lender knows at a glance whether the
+            month is in the black or the red. */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-start justify-between">
+            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              Net Profit (Month)
+            </p>
+            <IconTile
+              icon={ArrowUpDown}
+              variant={
+                (metrics.net_profit_this_month || 0) >= 0 ? "emerald" : "rose"
+              }
+              size={40}
+            />
+          </div>
+          <p
+            className={`text-2xl font-bold mt-2 ${
+              (metrics.net_profit_this_month || 0) >= 0
+                ? "text-emerald-600"
+                : "text-rose-600"
+            }`}
+          >
+            {(metrics.net_profit_this_month || 0) >= 0 ? "+" : ""}
+            {fmtKES(metrics.net_profit_this_month || 0)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            income {fmtKES(metrics.income_this_month || 0)} − expenses{" "}
+            {fmtKES(metrics.expenses_this_month || 0)}
           </p>
         </div>
       </div>

@@ -409,6 +409,8 @@ router.get("/tenant", async (req, res) => {
       aging,
       officers,
       statusDist,
+      expenseStats,
+      cashFlow,
     ] = await Promise.all([
       analyticsService.getTenantPortfolioKPIs(tid, from, to),
       analyticsService.getPortfolioAtRisk(tid),
@@ -418,6 +420,8 @@ router.get("/tenant", async (req, res) => {
       analyticsService.getAgingAnalysis(tid),
       analyticsService.getLoanOfficerPerformance(tid),
       analyticsService.getLoanStatusDistribution(tid),
+      analyticsService.getExpenseStats(tid, from, to),
+      analyticsService.getIncomeVsExpensesTrend(tid, months),
     ]);
 
     res.json({
@@ -431,6 +435,8 @@ router.get("/tenant", async (req, res) => {
         aging,
         officers,
         statusDist,
+        expenseStats,
+        cashFlow,
       },
     });
   } catch (error) {

@@ -212,6 +212,50 @@ router.get("/summary", async (req, res) => {
     const collectionRate =
       totalDue > 0 ? ((totalCollected / totalDue) * 100).toFixed(1) : 0;
 
+    // Expenses roll-up — this-month, last-month, total — straight from
+    // the new expenses table. Drives the Dashboard's Expenses tile +
+    // the Net Profit calc.
+    const expenseStats = await query(
+      `SELECT
+         COALESCE(SUM(amount), 0)::float AS total_all,
+         COALESCE(SUM(amount) FILTER (
+           WHERE date_trunc('month', expense_date) = date_trunc('month', CURRENT_DATE)
+         ), 0)::float AS total_this_month,
+         COALESCE(SUM(amount) FILTER (
+           WHERE date_trunc('month', expense_date) =
+                 date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+         ), 0)::float AS total_last_month
+       FROM expenses
+       WHERE 1=1${ts.clause}`,
+      ts.params,
+    );
+
+    // Income components (this month) for the Net Profit calc —
+    // interest portion + fines (penalty_portion) — restricted to
+    // the current calendar month.
+    const tsT = tenantClause(req, 0, "t.tenant_id");
+    const incomeThisMonth = await query(
+      `SELECT
+         COALESCE(SUM(
+           (t.amount_paid
+              - COALESCE(t.overpayment_portion, 0)
+              - COALESCE(t.penalty_portion, 0))
+           * (l.total_interest / NULLIF(l.total_amount_due, 0))
+           + COALESCE(t.penalty_portion, 0)
+         ), 0)::float AS income
+       FROM transactions t
+       JOIN loans l ON l.id = t.loan_id
+       WHERE t.payment_status = 'completed'
+         AND date_trunc('month', t.payment_date) = date_trunc('month', CURRENT_DATE)
+         ${tsT.clause}`,
+      tsT.params,
+    );
+
+    const expensesData = expenseStats.rows[0];
+    const expensesThisMonth = parseFloat(expensesData.total_this_month);
+    const incomeThisMonthVal = parseFloat(incomeThisMonth.rows[0]?.income || 0);
+    const netProfitThisMonth = incomeThisMonthVal - expensesThisMonth;
+
     res.json({
       success: true,
       data: {
@@ -247,6 +291,13 @@ router.get("/summary", async (req, res) => {
         upcoming_amount: parseFloat(upcomingData.upcoming_amount),
         pending_refunds: parseInt(loansData.pending_refunds),
         total_overpayment: parseFloat(loansData.total_overpayment),
+
+        // Expenses + Net Profit (cash-out side of the books)
+        expenses_total: parseFloat(expensesData.total_all),
+        expenses_this_month: expensesThisMonth,
+        expenses_last_month: parseFloat(expensesData.total_last_month),
+        income_this_month: incomeThisMonthVal,
+        net_profit_this_month: netProfitThisMonth,
 
         // Distribution data for the dashboard charts
         loan_size_buckets: sizeBuckets.rows,

@@ -154,6 +154,86 @@ class AnalyticsService {
     };
   }
 
+  // Expense roll-ups for a date window — total + this-month + last-month.
+  // dateFrom/dateTo are inclusive YYYY-MM-DD strings; both null means
+  // all-time. Used by the Reports & Dashboard surfaces.
+  async getExpenseStats(tenantId, dateFrom = null, dateTo = null) {
+    const r = await query(
+      `SELECT
+         COALESCE(SUM(amount), 0)::float AS total_in_window,
+         COALESCE(SUM(amount) FILTER (
+           WHERE date_trunc('month', expense_date) = date_trunc('month', CURRENT_DATE)
+         ), 0)::float AS total_this_month,
+         COALESCE(SUM(amount) FILTER (
+           WHERE date_trunc('month', expense_date) =
+                 date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+         ), 0)::float AS total_last_month,
+         COUNT(*)::int AS count_in_window
+       FROM expenses
+       WHERE tenant_id = $1
+         AND ($2::date IS NULL OR expense_date >= $2)
+         AND ($3::date IS NULL OR expense_date <= $3)`,
+      [tenantId, dateFrom, dateTo],
+    );
+    return r.rows[0];
+  }
+
+  // Income vs Expenses monthly trend — what the cash-flow chart on
+  // Reports needs in one shot. Income = interest portion of payments
+  // + penalty (fines) portion (same formulas the KPIs use). Expenses
+  // = SUM(amount) from the expenses ledger. Both bucketed by their
+  // respective dates, joined to a months series so empty months still
+  // render as zero.
+  async getIncomeVsExpensesTrend(tenantId, months = 6) {
+    const r = await query(
+      `WITH months AS (
+         SELECT generate_series(
+           date_trunc('month', CURRENT_DATE) - (INTERVAL '1 month' * ($2 - 1)),
+           date_trunc('month', CURRENT_DATE),
+           '1 month'::interval
+         ) AS m
+       ),
+       income AS (
+         SELECT
+           date_trunc('month', t.payment_date) AS m,
+           COALESCE(SUM(
+             (t.amount_paid
+                - COALESCE(t.overpayment_portion, 0)
+                - COALESCE(t.penalty_portion, 0))
+             * (l.total_interest / NULLIF(l.total_amount_due, 0))
+             + COALESCE(t.penalty_portion, 0)
+           ), 0)::float AS amount
+         FROM transactions t
+         JOIN loans l ON l.id = t.loan_id
+         WHERE t.tenant_id = $1 AND t.payment_status = 'completed'
+         GROUP BY 1
+       ),
+       outflow AS (
+         SELECT date_trunc('month', expense_date) AS m,
+                COALESCE(SUM(amount), 0)::float AS amount
+         FROM expenses
+         WHERE tenant_id = $1
+         GROUP BY 1
+       )
+       SELECT
+         TO_CHAR(months.m, 'Mon YYYY') AS month,
+         COALESCE(income.amount, 0)    AS income,
+         COALESCE(outflow.amount, 0)   AS expenses,
+         COALESCE(income.amount, 0) - COALESCE(outflow.amount, 0) AS net
+       FROM months
+       LEFT JOIN income  ON income.m  = months.m
+       LEFT JOIN outflow ON outflow.m = months.m
+       ORDER BY months.m`,
+      [tenantId, months],
+    );
+    return r.rows.map((x) => ({
+      month: x.month,
+      income: parseFloat(x.income) || 0,
+      expenses: parseFloat(x.expenses) || 0,
+      net: parseFloat(x.net) || 0,
+    }));
+  }
+
   // Collection trend. When `from`/`to` is supplied the series is DAILY
   // within that range (so a "specific month" view shows day-by-day
   // collections); otherwise it's monthly over the last N months.
