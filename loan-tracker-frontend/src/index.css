@@ -13,6 +13,9 @@
    brand_color and must NOT use these tokens.
    ============================================================ */
 @theme {
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
   --color-ocean-50: #eff9ff;
   --color-ocean-100: #def2ff;
   --color-ocean-200: #b6e7ff;
@@ -55,7 +58,14 @@
 
 body {
   background-color: #f9fafb;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  /* Tabular figures — every digit takes the same width, so KES amounts
+     line up cleanly down columns and the number doesn't shift when the
+     last digit changes. Equivalent to font-variant-numeric: tabular-nums
+     but specified via feature settings so it survives mixed fonts. */
+  font-feature-settings: "tnum" 1, "cv11" 1;
+  font-variant-numeric: tabular-nums;
   margin: 0;
 }
 
