@@ -25,6 +25,7 @@ import {
   Tag,
   ChevronRight,
   Settings as SettingsIcon,
+  Link2,
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
@@ -591,12 +592,20 @@ function Expenses() {
                       {ymd(e.expense_date)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="inline-flex items-center gap-2">
+                      <div className="inline-flex items-center gap-2 flex-wrap">
                         <Tag size={14} className="text-stone-400" />
                         <span className="text-sm font-medium text-stone-900">
                           {e.category_name || "—"}
                         </span>
-                        {e.is_recurring && (
+                        {e.invoice_id && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-200 text-stone-700"
+                            title="Auto-imported from Platform Billing"
+                          >
+                            <Link2 size={10} /> Auto
+                          </span>
+                        )}
+                        {e.is_recurring && !e.invoice_id && (
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800"
                             title={`Recurring · ${e.recurrence_period || "monthly"}`}
@@ -628,24 +637,38 @@ function Expenses() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <PermissionGate role={["admin", "manager"]}>
+                        {e.invoice_id ? (
+                          // Auto-synced from Platform Billing — send the user
+                          // to the Billing page where they can actually settle it.
                           <button
-                            onClick={() => openEdit(e)}
-                            className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-600 hover:text-amber-700 transition"
-                            title="Edit"
+                            onClick={() => navigate("/billing")}
+                            className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition"
+                            title="Open the underlying invoice on Billing"
                           >
-                            <Pencil size={14} />
+                            <Link2 size={14} />
                           </button>
-                        </PermissionGate>
-                        <PermissionGate role="admin">
-                          <button
-                            onClick={() => setShowDeleteId(e.id)}
-                            className="p-1.5 rounded-lg hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition"
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </PermissionGate>
+                        ) : (
+                          <>
+                            <PermissionGate role={["admin", "manager"]}>
+                              <button
+                                onClick={() => openEdit(e)}
+                                className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-600 hover:text-amber-700 transition"
+                                title="Edit"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            </PermissionGate>
+                            <PermissionGate role="admin">
+                              <button
+                                onClick={() => setShowDeleteId(e.id)}
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition"
+                                title="Delete"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </PermissionGate>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

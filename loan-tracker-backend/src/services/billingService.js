@@ -71,6 +71,57 @@ async function notifyInvoiceGenerated(tenant, invoice) {
 // Interest earned by a tenant in a calendar month. Mirrors the
 // principal/interest split convention used in payments.js
 // (interest_portion = payment * total_interest / total_amount_due).
+/**
+ * Mirror a Platform Billing invoice into the tenant's expense ledger.
+ * Idempotent via the (tenant_id, invoice_id) unique index — re-running
+ * for the same invoice updates the row instead of duplicating it.
+ *
+ * Called by generateInvoice (post-INSERT) and by markInvoicePaid (to
+ * refresh the description so it reflects the new status). The backfill
+ * for historic invoices lives in migration 033.
+ */
+export async function syncInvoiceToExpense(tenantId, invoice) {
+  if (!invoice || !invoice.id) return;
+  // Skip zero-amount invoices — the expenses table CHECK (amount > 0)
+  // would reject them and they have no economic effect anyway.
+  const amt = parseFloat(invoice.total_amount || invoice.amount_due || 0);
+  if (!Number.isFinite(amt) || amt <= 0) return;
+  const cat = await query(
+    `SELECT id FROM expense_categories
+      WHERE tenant_id = $1 AND name = 'Platform Billing'
+      LIMIT 1`,
+    [tenantId],
+  );
+  if (cat.rows.length === 0) return; // category seed missed this tenant — nothing to do
+  const description = `LoanFix invoice ${invoice.invoice_number} · ${
+    invoice.status || "pending"
+  }`;
+  await query(
+    `INSERT INTO expenses (
+       tenant_id, category_id, amount, description, expense_date,
+       payment_method, reference, is_recurring, recurrence_period,
+       recorded_by, invoice_id
+     )
+     VALUES ($1, $2, $3, $4, $5::date, NULL, $6, true, 'monthly', NULL, $7)
+     ON CONFLICT (tenant_id, invoice_id) WHERE invoice_id IS NOT NULL
+       DO UPDATE SET
+         amount       = EXCLUDED.amount,
+         description  = EXCLUDED.description,
+         expense_date = EXCLUDED.expense_date,
+         reference    = EXCLUDED.reference,
+         updated_at   = NOW()`,
+    [
+      tenantId,
+      cat.rows[0].id,
+      invoice.total_amount || invoice.amount_due,
+      description,
+      invoice.issued_date || invoice.created_at,
+      invoice.invoice_number,
+      invoice.id,
+    ],
+  );
+}
+
 export async function calculateTenantInterest(tenantId, year, month) {
   const startDate = new Date(year, month - 1, 1);
   // Day 0 of next month = last day of target month.
@@ -211,6 +262,17 @@ export async function generateInvoice(tenantId, year, month, userId = null) {
     [tenantId],
   );
 
+  // Mirror this invoice into the tenant's Expenses ledger under
+  // "Platform Billing" so they see it alongside other operating
+  // expenses. Idempotent via the (tenant_id, invoice_id) unique index.
+  try {
+    await syncInvoiceToExpense(tenantId, result.rows[0]);
+  } catch (err) {
+    // Don't fail the invoice flow if the mirror write hiccups — the
+    // backfill query in migration 033 will catch up any stragglers.
+    logger.error("syncInvoiceToExpense error:", err);
+  }
+
   logger.info(
     `Invoice ${invNumber} generated for tenant ${tenantId}: KES ${totalAmount}`,
   );
@@ -347,6 +409,14 @@ export async function markInvoicePaid(invoiceId, paymentData, userId) {
       userId,
     ],
   );
+
+  // Refresh the mirror expense row so its description reflects the
+  // new status (pending → partial → paid).
+  try {
+    await syncInvoiceToExpense(invoice.tenant_id, updated.rows[0]);
+  } catch (err) {
+    logger.error("syncInvoiceToExpense (markPaid) error:", err);
+  }
 
   return updated.rows[0];
 }

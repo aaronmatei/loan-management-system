@@ -133,13 +133,18 @@ router.get("/", async (req, res) => {
       `SELECT e.id, e.amount, e.description, e.expense_date,
               e.payment_method, e.reference, e.is_recurring,
               e.recurrence_period, e.created_at, e.updated_at,
+              e.invoice_id,
               c.id   AS category_id,
               c.name AS category_name,
               c.icon AS category_icon,
-              u.first_name || ' ' || u.last_name AS recorded_by_name
+              u.first_name || ' ' || u.last_name AS recorded_by_name,
+              i.invoice_number AS invoice_number,
+              i.status         AS invoice_status,
+              i.amount_paid    AS invoice_amount_paid
          FROM expenses e
          LEFT JOIN expense_categories c ON c.id = e.category_id
          LEFT JOIN users u              ON u.id = e.recorded_by
+         LEFT JOIN invoices i           ON i.id = e.invoice_id
          ${where}
          ORDER BY e.expense_date DESC, e.id DESC`,
       params,
@@ -279,6 +284,16 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
     }
     const existing = ex.rows[0];
 
+    // Auto-synced Platform Billing rows mirror an invoice — editing
+    // them here would diverge from the source of truth. Tenants change
+    // these by paying the invoice on the Billing page.
+    if (existing.invoice_id) {
+      return res.status(400).json({
+        error:
+          "This expense was auto-imported from a Platform Billing invoice. Edit the invoice on the Billing page instead.",
+      });
+    }
+
     const {
       category_id,
       amount,
@@ -362,6 +377,12 @@ router.delete("/:id", authorize("admin"), async (req, res) => {
     );
     if (ex.rows.length === 0) {
       return res.status(404).json({ error: "Expense not found" });
+    }
+    if (ex.rows[0].invoice_id) {
+      return res.status(400).json({
+        error:
+          "This expense mirrors a Platform Billing invoice and can't be deleted from here. Delete the underlying invoice instead.",
+      });
     }
     await query(`DELETE FROM expenses WHERE id = $1 AND tenant_id = $2`, [
       id,

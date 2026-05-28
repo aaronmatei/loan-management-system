@@ -2917,6 +2917,11 @@ CREATE TABLE public.expenses (
   is_recurring      boolean NOT NULL DEFAULT false,
   recurrence_period varchar(20),
   recorded_by       integer REFERENCES public.users(id) ON DELETE SET NULL,
+  invoice_id        integer REFERENCES public.invoices(id) ON DELETE SET NULL,
   created_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX uniq_expenses_invoice
+  ON public.expenses (tenant_id, invoice_id)
+  WHERE invoice_id IS NOT NULL;
