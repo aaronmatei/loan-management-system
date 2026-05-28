@@ -32,9 +32,8 @@ router.get("/summary", async (req, res) => {
     // = $1).
     const periodParams = hasPeriod ? [from, to] : [];
     const off = periodParams.length;
-    const ts = tenantClause(req, 0);
-    const tsL = tenantClause(req, 0, "l.tenant_id");
     const tsP = tenantClause(req, off);
+    const tsLP = tenantClause(req, off, "l.tenant_id");
     const tsTP = tenantClause(req, off, "t.tenant_id");
 
     // SQL fragments — empty strings when no period, so the existing
@@ -83,20 +82,25 @@ router.get("/summary", async (req, res) => {
       [...periodParams, ...tsP.params],
     );
 
-    // Get clients count
+    // Clients onboarded within the period (registration window).
+    const clientsCreatedWithin = hasPeriod
+      ? ` AND created_at::date BETWEEN $1 AND $2`
+      : "";
     const clientsStats = await query(
       `
       SELECT
         COUNT(*) as total_clients,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_clients
       FROM clients
-      WHERE 1=1${ts.clause}
+      WHERE 1=1${clientsCreatedWithin}${tsP.clause}
     `,
-      ts.params,
+      [...periodParams, ...tsP.params],
     );
 
-    // Get overdue payments (covers both freshly past-due 'pending'
-    // installments and those already promoted to 'overdue')
+    // Overdue snapshot AT THE END of the period: due_date ≤ to and the
+    // installment is still unpaid as of now. (We have no historical
+    // payment-state table, so this approximates "was overdue then".)
+    const dueByEnd = hasPeriod ? `$2::date` : `CURRENT_DATE`;
     const overdueStats = await query(
       `
       SELECT
@@ -106,16 +110,12 @@ router.get("/summary", async (req, res) => {
         COALESCE(SUM(ps.amount_due - COALESCE(ps.amount_paid, 0)), 0) as overdue_amount
       FROM payment_schedules ps
       JOIN loans l ON ps.loan_id = l.id
-      WHERE (
-              ps.status = 'overdue'
-              OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
-            )
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsL.clause}
+      WHERE ps.due_date < ${dueByEnd}
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLP.clause}
     `,
-      tsL.params,
+      [...periodParams, ...tsLP.params],
     );
 
-    // Top 5 most overdue payments with client info
     const mostOverdue = await query(
       `
       SELECT
@@ -124,7 +124,7 @@ router.get("/summary", async (req, res) => {
         ps.payment_number,
         ps.due_date,
         (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS amount_outstanding,
-        (CURRENT_DATE - ps.due_date::date) AS days_late,
+        (${dueByEnd} - ps.due_date::date) AS days_late,
         l.loan_code,
         c.first_name,
         c.last_name,
@@ -132,18 +132,17 @@ router.get("/summary", async (req, res) => {
       FROM payment_schedules ps
       JOIN loans l ON ps.loan_id = l.id
       JOIN clients c ON l.client_id = c.id
-      WHERE (
-              ps.status = 'overdue'
-              OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
-            )
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsL.clause}
+      WHERE ps.due_date < ${dueByEnd}
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLP.clause}
       ORDER BY days_late DESC
       LIMIT 5
     `,
-      tsL.params,
+      [...periodParams, ...tsLP.params],
     );
 
-    // Get upcoming payments (next 7 days)
+    // Upcoming = installments whose due date falls inside the period
+    // and are still unpaid. (No period → next 7 days from today, as
+    // the original tile behavior.)
     const upcomingStats = await query(
       `
       SELECT
@@ -151,17 +150,15 @@ router.get("/summary", async (req, res) => {
         COALESCE(SUM(amount_due - COALESCE(amount_paid, 0)), 0) as upcoming_amount
       FROM payment_schedules
       WHERE status = 'pending'
-        AND due_date >= CURRENT_DATE
-        AND due_date <= CURRENT_DATE + INTERVAL '7 days'${ts.clause}
+        AND ${hasPeriod
+          ? "due_date BETWEEN $1 AND $2"
+          : "due_date >= CURRENT_DATE AND due_date <= CURRENT_DATE + INTERVAL '7 days'"}
+        AND amount_due > COALESCE(amount_paid, 0)${tsP.clause}
     `,
-      ts.params,
+      [...periodParams, ...tsP.params],
     );
 
-    // ── Distribution data for the dashboard charts ───────────────
-    // Loan-size histogram. Counts/sums cast to numbers (::int / ::float)
-    // so they arrive as numbers, not strings (avoids the empty-chart bug).
-    // Buckets are labelled here but re-ordered on the client (don't rely
-    // on SQL ordering — the labels would sort alphabetically).
+    // ── Distributions — all scoped to loans/payments inside the window
     const sizeBuckets = await query(
       `
       SELECT
@@ -176,13 +173,12 @@ router.get("/summary", async (req, res) => {
         COUNT(*)::int AS count,
         COALESCE(SUM(principal_amount), 0)::float AS total
       FROM loans
-      WHERE status IN ('active', 'completed', 'defaulted')${ts.clause}
+      WHERE status IN ('active', 'completed', 'defaulted')${disbWithin}${tsP.clause}
       GROUP BY bucket
     `,
-      ts.params,
+      [...periodParams, ...tsP.params],
     );
 
-    // Payment-method split (completed transactions only) for the donut.
     const methodSplit = await query(
       `
       SELECT
@@ -190,16 +186,13 @@ router.get("/summary", async (req, res) => {
         COUNT(*)::int AS count,
         COALESCE(SUM(amount_paid), 0)::float AS total
       FROM transactions
-      WHERE payment_status = 'completed'${ts.clause}
+      WHERE payment_status = 'completed'${txnWithin}${tsP.clause}
       GROUP BY 1
       ORDER BY 2 DESC
     `,
-      ts.params,
+      [...periodParams, ...tsP.params],
     );
 
-    // Loan distribution by borrower age × status. Age comes from the
-    // client's date_of_birth (migration 018); rows without a DOB are
-    // ignored. Buckets are re-ordered on the client. Counts cast ::int.
     const ageDistribution = await query(
       `
       SELECT
@@ -219,11 +212,13 @@ router.get("/summary", async (req, res) => {
         FROM loans l
         JOIN clients c ON l.client_id = c.id
         WHERE c.date_of_birth IS NOT NULL
-          AND l.status IN ('active', 'completed', 'defaulted')${tsL.clause}
+          AND l.status IN ('active', 'completed', 'defaulted')
+          ${hasPeriod ? `AND l.disbursed_at::date BETWEEN $1 AND $2` : ``}
+          ${tsLP.clause}
       ) sub
       GROUP BY bucket
     `,
-      tsL.params,
+      [...periodParams, ...tsLP.params],
     );
 
     const loansData = loansStats.rows[0];
@@ -346,10 +341,20 @@ router.get("/summary", async (req, res) => {
 // ============================================================
 router.get("/recent-activities", async (req, res) => {
   try {
-    const tsL = tenantClause(req, 0, "l.tenant_id");
-    const tsT = tenantClause(req, 0, "t.tenant_id");
+    const { from, to } = req.query;
+    const hasPeriod = !!(from && to);
+    const periodParams = hasPeriod ? [from, to] : [];
+    const off = periodParams.length;
+    const tsL = tenantClause(req, off, "l.tenant_id");
+    const tsT = tenantClause(req, off, "t.tenant_id");
 
-    // Recent loans (last 5)
+    const loanCreatedWithin = hasPeriod
+      ? ` AND l.created_at::date BETWEEN $1 AND $2`
+      : "";
+    const txnDateWithin = hasPeriod
+      ? ` AND t.payment_date::date BETWEEN $1 AND $2`
+      : "";
+
     const recentLoans = await query(
       `
       SELECT
@@ -357,14 +362,13 @@ router.get("/recent-activities", async (req, res) => {
         c.first_name, c.last_name, c.phone_number
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      WHERE 1=1${tsL.clause}
+      WHERE 1=1${loanCreatedWithin}${tsL.clause}
       ORDER BY l.created_at DESC
       LIMIT 5
     `,
-      tsL.params,
+      [...periodParams, ...tsL.params],
     );
 
-    // Recent payments (last 5)
     const recentPayments = await query(
       `
       SELECT
@@ -374,11 +378,11 @@ router.get("/recent-activities", async (req, res) => {
       FROM transactions t
       JOIN clients c ON t.client_id = c.id
       JOIN loans l ON t.loan_id = l.id
-      WHERE t.payment_status = 'completed'${tsT.clause}
+      WHERE t.payment_status = 'completed'${txnDateWithin}${tsT.clause}
       ORDER BY t.payment_date DESC, t.created_at DESC
       LIMIT 5
     `,
-      tsT.params,
+      [...periodParams, ...tsT.params],
     );
 
     res.json({
@@ -395,48 +399,70 @@ router.get("/recent-activities", async (req, res) => {
 });
 
 // ============================================================
-// GET MONTHLY TRENDS (last 6 months)
+// GET TREND CHART DATA
+// When a period is provided:
+//   - month mode  (≤ 31 days): daily buckets within the period
+//   - year mode   (> 31 days): monthly buckets within the period
+// When no period is provided: previous behavior — last 6 calendar months.
 // ============================================================
 router.get("/monthly-trends", async (req, res) => {
   try {
-    const ts = tenantClause(req, 0);
+    const { from, to } = req.query;
+    const hasPeriod = !!(from && to);
+    const periodParams = hasPeriod ? [from, to] : [];
+    const off = periodParams.length;
+    const ts = tenantClause(req, off);
 
-    // Loans by month — DISBURSED only, bucketed by disbursement date (not
-    // application date). Applications that never made it out the door
-    // aren't part of the lending portfolio.
+    // Detect granularity: ≤ 31 days → day buckets, otherwise → month.
+    const dayDiff = hasPeriod
+      ? Math.round(
+          (new Date(to).getTime() - new Date(from).getTime()) / 86_400_000,
+        )
+      : null;
+    const useDay = hasPeriod && dayDiff !== null && dayDiff <= 31;
+
+    const trunc = useDay ? "day" : "month";
+    const labelFmt = useDay ? "Mon DD" : "Mon YYYY";
+    const keyFmt = useDay ? "YYYY-MM-DD" : "YYYY-MM";
+
+    const loanRange = hasPeriod
+      ? `AND disbursed_at::date BETWEEN $1 AND $2`
+      : `AND disbursed_at >= CURRENT_DATE - INTERVAL '6 months'`;
+    const txnRange = hasPeriod
+      ? `AND payment_date::date BETWEEN $1 AND $2`
+      : `AND payment_date >= CURRENT_DATE - INTERVAL '6 months'`;
+
     const loansTrend = await query(
       `
       SELECT
-        TO_CHAR(disbursed_at, 'YYYY-MM') as month,
-        TO_CHAR(disbursed_at, 'Mon YYYY') as month_label,
+        TO_CHAR(DATE_TRUNC('${trunc}', disbursed_at), '${keyFmt}') as month,
+        TO_CHAR(DATE_TRUNC('${trunc}', disbursed_at), '${labelFmt}') as month_label,
         COUNT(*) as count,
         COALESCE(SUM(principal_amount), 0) as total_amount
       FROM loans
       WHERE status IN ('active', 'completed', 'defaulted')
         AND disbursed_at IS NOT NULL
-        AND disbursed_at >= CURRENT_DATE - INTERVAL '6 months'${ts.clause}
-      GROUP BY TO_CHAR(disbursed_at, 'YYYY-MM'), TO_CHAR(disbursed_at, 'Mon YYYY')
-      ORDER BY month ASC
+        ${loanRange}${ts.clause}
+      GROUP BY 1, 2
+      ORDER BY 1 ASC
     `,
-      ts.params,
+      [...periodParams, ...ts.params],
     );
 
-    // Monthly collections — net of any overpayment (refunds), so the
-    // collections graph reflects what the lender actually kept.
     const paymentsTrend = await query(
       `
       SELECT
-        TO_CHAR(payment_date, 'YYYY-MM') as month,
-        TO_CHAR(payment_date, 'Mon YYYY') as month_label,
+        TO_CHAR(DATE_TRUNC('${trunc}', payment_date), '${keyFmt}') as month,
+        TO_CHAR(DATE_TRUNC('${trunc}', payment_date), '${labelFmt}') as month_label,
         COUNT(*) as count,
         COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0) as total_amount
       FROM transactions
       WHERE payment_status = 'completed'
-        AND payment_date >= CURRENT_DATE - INTERVAL '6 months'${ts.clause}
-      GROUP BY TO_CHAR(payment_date, 'YYYY-MM'), TO_CHAR(payment_date, 'Mon YYYY')
-      ORDER BY month ASC
+        ${txnRange}${ts.clause}
+      GROUP BY 1, 2
+      ORDER BY 1 ASC
     `,
-      ts.params,
+      [...periodParams, ...ts.params],
     );
 
     res.json({

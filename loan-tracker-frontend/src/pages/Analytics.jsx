@@ -9,6 +9,11 @@ import {
   Lightbulb,
 } from "lucide-react";
 import api from "../services/api";
+import PeriodNavigator, {
+  periodToRange,
+  periodLabel,
+  usePersistentPeriod,
+} from "../components/PeriodNavigator";
 import {
   LineChart,
   Line,
@@ -40,6 +45,7 @@ const COLORS = [
 
 function Analytics() {
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = usePersistentPeriod();
   const [data, setData] = useState({
     kpis: null,
     revenueTrends: [],
@@ -53,11 +59,16 @@ function Analytics() {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period.mode, period.value]);
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
+      const { from, to } = periodToRange(period);
+      const q = from && to ? `from=${from}&to=${to}` : "";
+      const qs = q ? `?${q}` : "";
+      const qsAmp = q ? `&${q}` : "";
       const [
         kpis,
         revenueTrends,
@@ -68,14 +79,14 @@ function Analytics() {
         defaultTrend,
         methods,
       ] = await Promise.all([
-        api.get("/analytics/kpis"),
-        api.get("/analytics/revenue-trends"),
-        api.get("/analytics/portfolio-breakdown"),
-        api.get("/analytics/top-clients?metric=borrowed&limit=10"),
-        api.get("/analytics/geographic"),
-        api.get("/analytics/loan-distribution"),
-        api.get("/analytics/default-trend"),
-        api.get("/analytics/payment-methods"),
+        api.get(`/analytics/kpis${qs}`),
+        api.get(`/analytics/revenue-trends${qs}`),
+        api.get(`/analytics/portfolio-breakdown${qs}`),
+        api.get(`/analytics/top-clients?metric=borrowed&limit=10${qsAmp}`),
+        api.get(`/analytics/geographic${qs}`),
+        api.get(`/analytics/loan-distribution${qs}`),
+        api.get(`/analytics/default-trend${qs}`),
+        api.get(`/analytics/payment-methods${qs}`),
       ]);
       setData({
         kpis: kpis.data.data,
@@ -131,13 +142,17 @@ function Analytics() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="mb-6 lg:mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <BarChart3 size={28} /> Analytics
-        </h1>
-        <p className="text-sm lg:text-base text-gray-600 mt-1">
-          Business insights and trends
-        </p>
+      <div className="mb-6 lg:mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <BarChart3 size={28} /> Analytics
+          </h1>
+          <p className="text-sm lg:text-base text-gray-600 mt-1">
+            Insights for{" "}
+            <span className="font-semibold">{periodLabel(period)}</span>
+          </p>
+        </div>
+        <PeriodNavigator value={period} onChange={setPeriod} />
       </div>
 
       {/* KPI Cards */}
@@ -152,14 +167,14 @@ function Analytics() {
           </p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4 lg:p-6">
-          <p className="text-green-100 text-xs uppercase">Collections (30d)</p>
+          <p className="text-green-100 text-xs uppercase">Collections</p>
           <p className="text-xl lg:text-2xl font-bold mt-2">
             {formatKES(data.kpis?.collections_30d)}
           </p>
-          <p className="text-xs text-green-200 mt-1">last 30 days</p>
+          <p className="text-xs text-green-200 mt-1">in {periodLabel(period)}</p>
         </div>
         <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4 lg:p-6">
-          <p className="text-ocean-100 text-xs uppercase">New Loans (30d)</p>
+          <p className="text-ocean-100 text-xs uppercase">New Loans</p>
           <p className="text-xl lg:text-2xl font-bold mt-2">
             {data.kpis?.new_loans_30d || 0}
           </p>
@@ -181,7 +196,7 @@ function Analytics() {
       {/* Revenue Trends */}
       <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <TrendingUp size={22} /> Revenue Trends (Last 12 Months)
+          <TrendingUp size={22} /> Revenue Trends ({periodLabel(period)})
         </h2>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={data.revenueTrends}>
@@ -523,7 +538,7 @@ function Analytics() {
           </div>
           <div>
             <p className="text-ocean-800">
-              <strong>New clients (30d):</strong>{" "}
+              <strong>New clients:</strong>{" "}
               {data.kpis?.new_clients_30d}
             </p>
             <p className="text-ocean-800 mt-1">

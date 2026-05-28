@@ -10,6 +10,38 @@ import logger from "../config/logger.js";
 const router = express.Router();
 router.use(verifyToken);
 
+// ── Period helper. Reads ?from=YYYY-MM-DD&to=YYYY-MM-DD off the
+// request and returns the SQL fragments most charts need:
+//   periodParams  — [from, to] when present, else []
+//   off           — number of leading positional params (0 or 2)
+//   loanDisb(col) — ` AND <col>::date BETWEEN $1 AND $2`  (or "")
+//   txn(col)      — same shape but framed as a payment-date window
+//   created(col)  — same shape for created_at columns
+//   trunc         — `day` if window ≤ 31 days, else `month`
+//   labelFmt/keyFmt — TO_CHAR formats matching trunc
+function parsePeriod(req) {
+  const { from, to } = req.query;
+  const hasPeriod = !!(from && to);
+  const dayDiff = hasPeriod
+    ? Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000)
+    : null;
+  const trunc = hasPeriod && dayDiff <= 31 ? "day" : "month";
+  return {
+    hasPeriod,
+    periodParams: hasPeriod ? [from, to] : [],
+    off: hasPeriod ? 2 : 0,
+    loanDisb: (col = "disbursed_at") =>
+      hasPeriod ? ` AND ${col}::date BETWEEN $1 AND $2` : "",
+    txn: (col = "payment_date") =>
+      hasPeriod ? ` AND ${col}::date BETWEEN $1 AND $2` : "",
+    created: (col = "created_at") =>
+      hasPeriod ? ` AND ${col}::date BETWEEN $1 AND $2` : "",
+    trunc,
+    labelFmt: trunc === "day" ? "Mon DD" : "Mon YYYY",
+    keyFmt: trunc === "day" ? "YYYY-MM-DD" : "YYYY-MM",
+  };
+}
+
 // Render the selected period as a human label for PDF/Excel headers.
 //  - "January 2024"               if from/to lines up with a single month
 //  - "12 Jan 2024 – 28 Feb 2024"  for arbitrary ranges
@@ -42,45 +74,58 @@ function buildPeriodLabel({ from, to, months }) {
 // ============================================================
 router.get("/revenue-trends", async (req, res) => {
   try {
-    const t = tenantClause(req, 0);
+    const p = parsePeriod(req);
+    const t = tenantClause(req, p.off);
+    // Bucket axis = day buckets across the window when ≤ 31d, else
+    // monthly. When no period given, fall back to the original
+    // last-12-months series.
+    const seriesStart = p.hasPeriod
+      ? `DATE_TRUNC('${p.trunc}', $1::date)`
+      : `DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months')`;
+    const seriesEnd = p.hasPeriod
+      ? `DATE_TRUNC('${p.trunc}', $2::date)`
+      : `DATE_TRUNC('month', CURRENT_DATE)`;
+    const step = `'1 ${p.trunc}'::interval`;
+    const disbRange = p.hasPeriod
+      ? `AND start_date::date BETWEEN $1 AND $2`
+      : "";
+    const collRange = p.hasPeriod
+      ? `AND payment_date::date BETWEEN $1 AND $2`
+      : "";
     const result = await query(
       `
-      WITH months AS (
-        SELECT generate_series(
-          DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months'),
-          DATE_TRUNC('month', CURRENT_DATE),
-          '1 month'::interval
-        ) AS month
+      WITH buckets AS (
+        SELECT generate_series(${seriesStart}, ${seriesEnd}, ${step}) AS bucket
       ),
       disb AS (
-        SELECT DATE_TRUNC('month', start_date) AS m,
+        SELECT DATE_TRUNC('${p.trunc}', start_date) AS m,
                SUM(principal_amount) AS disbursed,
                COUNT(*) AS new_loans
         FROM loans
-        WHERE 1=1${t.clause}
+        WHERE 1=1 ${disbRange}${t.clause}
         GROUP BY 1
       ),
       coll AS (
-        SELECT DATE_TRUNC('month', payment_date) AS m,
+        SELECT DATE_TRUNC('${p.trunc}', payment_date) AS m,
                SUM(amount_paid) AS collected,
                COUNT(*) AS txns
         FROM transactions
-        WHERE payment_status = 'completed'${t.clause}
+        WHERE payment_status = 'completed' ${collRange}${t.clause}
         GROUP BY 1
       )
       SELECT
-        TO_CHAR(m.month, 'Mon YYYY') AS label,
-        m.month AS date,
+        TO_CHAR(b.bucket, '${p.labelFmt}') AS label,
+        b.bucket AS date,
         COALESCE(d.disbursed, 0) AS disbursed,
         COALESCE(c.collected, 0) AS collected,
         COALESCE(d.new_loans, 0) AS new_loans,
         COALESCE(c.txns, 0) AS transactions_count
-      FROM months m
-      LEFT JOIN disb d ON d.m = m.month
-      LEFT JOIN coll c ON c.m = m.month
-      ORDER BY m.month ASC
+      FROM buckets b
+      LEFT JOIN disb d ON d.m = b.bucket
+      LEFT JOIN coll c ON c.m = b.bucket
+      ORDER BY b.bucket ASC
     `,
-      t.params,
+      [...p.periodParams, ...t.params],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -94,18 +139,19 @@ router.get("/revenue-trends", async (req, res) => {
 // ============================================================
 router.get("/portfolio-breakdown", async (req, res) => {
   try {
-    const t = tenantClause(req, 0);
+    const p = parsePeriod(req);
+    const t = tenantClause(req, p.off);
     const result = await query(
       `
       SELECT status,
              COUNT(*)::int AS count,
              COALESCE(SUM(principal_amount), 0) AS total_value
       FROM loans
-      WHERE 1=1${t.clause}
+      WHERE 1=1${p.loanDisb("start_date")}${t.clause}
       GROUP BY status
       ORDER BY count DESC
     `,
-      t.params,
+      [...p.periodParams, ...t.params],
     );
     const total = result.rows.reduce(
       (sum, row) => sum + parseInt(row.count, 10),
@@ -133,6 +179,7 @@ router.get("/portfolio-breakdown", async (req, res) => {
 router.get("/top-clients", async (req, res) => {
   try {
     const { metric = "borrowed", limit = 10 } = req.query;
+    const p = parsePeriod(req);
 
     // Whitelist — never interpolate raw input into SQL
     const orderBy =
@@ -143,24 +190,37 @@ router.get("/top-clients", async (req, res) => {
           : "total_borrowed";
     const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
-    const tc = tenantClause(req, 1, "c.tenant_id");
+    // Param order: [limit, from?, to?, ...tenant]
+    const limitPos = 1;
+    const periodOff = limitPos + p.periodParams.length;
+    const tc = tenantClause(req, periodOff, "c.tenant_id");
+
+    // Period predicates inside the correlated subqueries — placeholders
+    // for from/to land at $2 and $3 when present.
+    const loanPeriod = p.hasPeriod
+      ? `AND l.start_date::date BETWEEN $2 AND $3`
+      : "";
+    const txnPeriod = p.hasPeriod
+      ? `AND t.payment_date::date BETWEEN $2 AND $3`
+      : "";
+
     const result = await query(
       `SELECT
         c.id, c.first_name, c.last_name, c.client_code, c.phone_number,
-        (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id)
+        (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id ${loanPeriod})
           AS loan_count,
         (SELECT COALESCE(SUM(l.principal_amount), 0)
-           FROM loans l WHERE l.client_id = c.id) AS total_borrowed,
+           FROM loans l WHERE l.client_id = c.id ${loanPeriod}) AS total_borrowed,
         (SELECT COALESCE(SUM(t.amount_paid), 0)
            FROM transactions t
            JOIN loans l ON t.loan_id = l.id
            WHERE l.client_id = c.id
-             AND t.payment_status = 'completed') AS total_paid
+             AND t.payment_status = 'completed' ${txnPeriod}) AS total_paid
       FROM clients c
-      WHERE (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id) > 0${tc.clause}
+      WHERE (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id ${loanPeriod}) > 0${tc.clause}
       ORDER BY ${orderBy} DESC
       LIMIT $1`,
-      [safeLimit, ...tc.params],
+      [safeLimit, ...p.periodParams, ...tc.params],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -174,7 +234,13 @@ router.get("/top-clients", async (req, res) => {
 // ============================================================
 router.get("/geographic", async (req, res) => {
   try {
-    const tc = tenantClause(req, 0, "c.tenant_id");
+    const p = parsePeriod(req);
+    const tc = tenantClause(req, p.off, "c.tenant_id");
+    // Period scopes loan rows in the LEFT JOIN; client rows still
+    // appear even if they had no loans in the window.
+    const loanJoinPeriod = p.hasPeriod
+      ? ` AND l.start_date::date BETWEEN $1 AND $2`
+      : "";
     const result = await query(
       `
       SELECT
@@ -183,14 +249,14 @@ router.get("/geographic", async (req, res) => {
         COUNT(DISTINCT l.id) AS loan_count,
         COALESCE(SUM(l.principal_amount), 0) AS total_disbursed
       FROM clients c
-      LEFT JOIN loans l ON c.id = l.client_id
+      LEFT JOIN loans l ON c.id = l.client_id${loanJoinPeriod}
       WHERE 1=1${tc.clause}
       GROUP BY c.county
       HAVING COUNT(DISTINCT c.id) > 0
       ORDER BY client_count DESC
       LIMIT 15
     `,
-      tc.params,
+      [...p.periodParams, ...tc.params],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -204,7 +270,8 @@ router.get("/geographic", async (req, res) => {
 // ============================================================
 router.get("/loan-distribution", async (req, res) => {
   try {
-    const t = tenantClause(req, 0);
+    const p = parsePeriod(req);
+    const t = tenantClause(req, p.off);
     const result = await query(
       `
       SELECT
@@ -231,11 +298,11 @@ router.get("/loan-distribution", async (req, res) => {
         COUNT(*) AS count,
         COALESCE(SUM(principal_amount), 0) AS total_value
       FROM loans
-      WHERE 1=1${t.clause}
+      WHERE 1=1${p.loanDisb("start_date")}${t.clause}
       GROUP BY range, sort_order
       ORDER BY sort_order
     `,
-      t.params,
+      [...p.periodParams, ...t.params],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -253,32 +320,35 @@ router.get("/loan-distribution", async (req, res) => {
 // ============================================================
 router.get("/default-trend", async (req, res) => {
   try {
-    const t = tenantClause(req, 0, "l.tenant_id");
+    const p = parsePeriod(req);
+    const t = tenantClause(req, p.off, "l.tenant_id");
+    const seriesStart = p.hasPeriod
+      ? `DATE_TRUNC('${p.trunc}', $1::date)`
+      : `DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months')`;
+    const seriesEnd = p.hasPeriod
+      ? `DATE_TRUNC('${p.trunc}', $2::date)`
+      : `DATE_TRUNC('month', CURRENT_DATE)`;
     const result = await query(
       `
-      WITH months AS (
-        SELECT generate_series(
-          DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months'),
-          DATE_TRUNC('month', CURRENT_DATE),
-          '1 month'::interval
-        ) AS month
+      WITH buckets AS (
+        SELECT generate_series(${seriesStart}, ${seriesEnd}, '1 ${p.trunc}'::interval) AS bucket
       )
       SELECT
-        TO_CHAR(m.month, 'Mon YYYY') AS label,
+        TO_CHAR(b.bucket, '${p.labelFmt}') AS label,
         COUNT(CASE
-          WHEN DATE_TRUNC('month', l.start_date) <= m.month
+          WHEN DATE_TRUNC('${p.trunc}', l.start_date) <= b.bucket
            AND l.status IN ('active', 'completed', 'defaulted')
           THEN l.id END) AS total_loans,
         COUNT(CASE
-          WHEN DATE_TRUNC('month', l.start_date) <= m.month
+          WHEN DATE_TRUNC('${p.trunc}', l.start_date) <= b.bucket
            AND l.status = 'defaulted'
           THEN l.id END) AS defaulted_loans
-      FROM months m
-      LEFT JOIN loans l ON DATE_TRUNC('month', l.start_date) <= m.month${t.clause}
-      GROUP BY m.month
-      ORDER BY m.month ASC
+      FROM buckets b
+      LEFT JOIN loans l ON DATE_TRUNC('${p.trunc}', l.start_date) <= b.bucket${t.clause}
+      GROUP BY b.bucket
+      ORDER BY b.bucket ASC
     `,
-      t.params,
+      [...p.periodParams, ...t.params],
     );
     const data = result.rows.map((row) => ({
       ...row,
@@ -303,18 +373,19 @@ router.get("/default-trend", async (req, res) => {
 // ============================================================
 router.get("/payment-methods", async (req, res) => {
   try {
-    const t = tenantClause(req, 0);
+    const p = parsePeriod(req);
+    const t = tenantClause(req, p.off);
     const result = await query(
       `
       SELECT payment_method,
              COUNT(*)::int AS count,
              COALESCE(SUM(amount_paid), 0) AS total_amount
       FROM transactions
-      WHERE payment_status = 'completed'${t.clause}
+      WHERE payment_status = 'completed'${p.txn()}${t.clause}
       GROUP BY payment_method
       ORDER BY count DESC
     `,
-      t.params,
+      [...p.periodParams, ...t.params],
     );
     const total = result.rows.reduce(
       (sum, row) => sum + parseInt(row.count, 10),
@@ -341,37 +412,53 @@ router.get("/kpis", async (req, res) => {
   try {
     // interest_rate stores the MONTHLY rate as a percent, so annual
     // % = interest_rate * 12 (the spec's *12*100 was a 100x bug).
-    const k = tenantClause(req, 0);
+    //
+    // Period-scoped KPIs:
+    //   Snapshot KPIs (active_*, total_defaulted, overdue_*, avg_*)
+    //   freeze on loans whose start_date ≤ to with their CURRENT status.
+    //   The "_30d" tiles are reused for the period window — labels on
+    //   the frontend now read "this period" instead of "30 days".
+    const p = parsePeriod(req);
+    const k = tenantClause(req, p.off);
     const c = k.clause;
+    // Snapshot-up-to-end clauses
+    const dispBy = p.hasPeriod ? ` AND start_date::date <= $2` : "";
+    const createdBy = p.hasPeriod ? ` AND created_at::date <= $2` : "";
+    // Activity-within clauses
+    const startWithin = p.hasPeriod
+      ? ` AND start_date::date BETWEEN $1 AND $2`
+      : ` AND start_date >= CURRENT_DATE - INTERVAL '30 days'`;
+    const payWithin = p.hasPeriod
+      ? ` AND payment_date::date BETWEEN $1 AND $2`
+      : ` AND payment_date >= CURRENT_DATE - INTERVAL '30 days'`;
+    const createdWithin = p.hasPeriod
+      ? ` AND created_at::date BETWEEN $1 AND $2`
+      : ` AND created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+
     const kpis = await query(
       `
       SELECT
-        (SELECT COUNT(*) FROM clients WHERE status = 'active'${c}) AS active_clients,
-        (SELECT COUNT(*) FROM loans WHERE status = 'active'${c}) AS active_loans,
-        -- "Active portfolio" matches the Dashboard's definition:
-        -- total receivable (principal + interest) of currently-active
-        -- loans. Used to be SUM(principal_amount) which understated the
-        -- book by the interest portion and disagreed with the Dashboard.
-        (SELECT COALESCE(SUM(total_amount_due), 0) FROM loans WHERE status = 'active'${c}) AS active_portfolio,
+        (SELECT COUNT(*) FROM clients WHERE status = 'active'${createdBy}${c}) AS active_clients,
+        (SELECT COUNT(*) FROM loans WHERE status = 'active'${dispBy}${c}) AS active_loans,
+        (SELECT COALESCE(SUM(total_amount_due), 0) FROM loans WHERE status = 'active'${dispBy}${c}) AS active_portfolio,
 
         (SELECT COALESCE(SUM(amount_paid), 0) FROM transactions
-          WHERE payment_status = 'completed'
-            AND payment_date >= CURRENT_DATE - INTERVAL '30 days'${c}) AS collections_30d,
+          WHERE payment_status = 'completed'${payWithin}${c}) AS collections_30d,
         (SELECT COALESCE(SUM(principal_amount), 0) FROM loans
-          WHERE start_date >= CURRENT_DATE - INTERVAL '30 days'${c}) AS disbursements_30d,
+          WHERE 1=1${startWithin}${c}) AS disbursements_30d,
 
-        (SELECT COUNT(*) FROM loans WHERE status = 'defaulted'${c}) AS total_defaulted,
+        (SELECT COUNT(*) FROM loans WHERE status = 'defaulted'${dispBy}${c}) AS total_defaulted,
         (SELECT COUNT(*) FROM payment_schedules WHERE status = 'overdue'${c}) AS overdue_count,
         (SELECT COALESCE(SUM(amount_due - COALESCE(amount_paid, 0)), 0)
           FROM payment_schedules WHERE status = 'overdue'${c}) AS total_overdue_amount,
 
-        (SELECT COUNT(*) FROM clients WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'${c}) AS new_clients_30d,
-        (SELECT COUNT(*) FROM loans WHERE start_date >= CURRENT_DATE - INTERVAL '30 days'${c}) AS new_loans_30d,
+        (SELECT COUNT(*) FROM clients WHERE 1=1${createdWithin}${c}) AS new_clients_30d,
+        (SELECT COUNT(*) FROM loans WHERE 1=1${startWithin}${c}) AS new_loans_30d,
 
-        (SELECT COALESCE(AVG(principal_amount), 0) FROM loans WHERE status = 'active'${c}) AS avg_loan_size,
-        (SELECT COALESCE(AVG(interest_rate * 12), 0) FROM loans WHERE status = 'active'${c}) AS avg_interest_rate
+        (SELECT COALESCE(AVG(principal_amount), 0) FROM loans WHERE status = 'active'${dispBy}${c}) AS avg_loan_size,
+        (SELECT COALESCE(AVG(interest_rate * 12), 0) FROM loans WHERE status = 'active'${dispBy}${c}) AS avg_interest_rate
     `,
-      k.params,
+      [...p.periodParams, ...k.params],
     );
     res.json({ success: true, data: kpis.rows[0] });
   } catch (error) {

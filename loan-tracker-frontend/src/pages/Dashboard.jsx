@@ -147,8 +147,8 @@ function Dashboard() {
       const q = from && to ? `?from=${from}&to=${to}` : "";
       const [summaryRes, activitiesRes, trendsRes] = await Promise.all([
         api.get(`/dashboard/summary${q}`),
-        api.get("/dashboard/recent-activities"),
-        api.get("/dashboard/monthly-trends"),
+        api.get(`/dashboard/recent-activities${q}`),
+        api.get(`/dashboard/monthly-trends${q}`),
       ]);
 
       setMetrics(summaryRes.data.data);
@@ -167,7 +167,7 @@ function Dashboard() {
       // same endpoint the Analytics page uses. Best-effort — never breaks
       // the dashboard.
       try {
-        const pbRes = await api.get("/analytics/portfolio-breakdown");
+        const pbRes = await api.get(`/analytics/portfolio-breakdown${q}`);
         setPortfolioBreakdown(pbRes.data.data || []);
       } catch (pbErr) {
         console.error("Failed to fetch portfolio breakdown:", pbErr);
