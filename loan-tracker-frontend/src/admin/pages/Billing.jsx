@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
+import MonthNavigator from "../components/MonthNavigator";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
 import { Coins, RotateCcw, ClipboardList, Clock, CheckCircle, AlertTriangle } from "lucide-react";
@@ -203,27 +204,13 @@ function BillingDashboard() {
             </button>
           ))}
 
-          {/* Month picker — pulls invoices for the chosen billing period. */}
-          <div className="flex items-center gap-2 ml-auto bg-white rounded-lg border border-gray-200 px-3 py-1.5">
-            <label className="text-xs font-semibold text-gray-600 uppercase">
-              Month
-            </label>
-            <input
-              type="month"
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}
-              className="text-sm focus:outline-none bg-transparent"
-            />
-            {monthFilter && (
-              <button
-                onClick={() => setMonthFilter("")}
-                className="text-xs text-gray-500 hover:text-gray-800 underline"
-                title="Show all months"
-              >
-                clear
-              </button>
-            )}
-          </div>
+          {/* Month picker with prev/next arrows — pulls invoices for
+              the chosen billing period. */}
+          <MonthNavigator
+            value={monthFilter}
+            onChange={setMonthFilter}
+            className="ml-auto"
+          />
         </div>
 
         {periodLabel && (

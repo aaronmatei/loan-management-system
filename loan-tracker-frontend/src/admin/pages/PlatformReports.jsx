@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from "react";
 import PlatformLayout from "../components/PlatformLayout";
+import MonthNavigator from "../components/MonthNavigator";
 import platformApi from "../services/platformApi";
 import {
   LineChart,
@@ -22,22 +23,50 @@ const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 const fmtK = (n) => `${(parseFloat(n || 0) / 1000).toFixed(1)}K`;
 
+// Last calendar day of a YYYY-MM value, as YYYY-MM-DD.
+const monthEnd = (ym) => {
+  const [y, m] = ym.split("-").map((s) => parseInt(s, 10));
+  return new Date(y, m, 0).toISOString().split("T")[0];
+};
+const monthStart = (ym) => `${ym}-01`;
+const monthLabel = (ym) => {
+  const [y, m] = ym.split("-").map((s) => parseInt(s, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString("en-KE", {
+    month: "long",
+    year: "numeric",
+  });
+};
+
 function PlatformReports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // mode = "recent" → rolling last-N months, "month" → single calendar month.
+  const [mode, setMode] = useState("recent");
   const [months, setMonths] = useState(6);
+  const [pickedMonth, setPickedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
 
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [months]);
+  }, [mode, months, pickedMonth]);
 
   const [downloading, setDownloading] = useState("");
+
+  // Build the analytics query string from current mode.
+  const buildQuery = () =>
+    mode === "month"
+      ? `from=${monthStart(pickedMonth)}&to=${monthEnd(pickedMonth)}`
+      : `months=${months}`;
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await platformApi.get(`/analytics/platform?months=${months}`);
+      const res = await platformApi.get(
+        `/analytics/platform?${buildQuery()}`,
+      );
       setData(res.data.data);
     } catch (err) {
       console.error("Failed to load platform analytics:", err);
@@ -47,17 +76,21 @@ function PlatformReports() {
   };
 
   // Download the platform report as a PDF or Excel file.
-  const download = async (fmt) => {
-    setDownloading(fmt);
+  const download = async (format) => {
+    setDownloading(format);
     try {
       const res = await platformApi.get(
-        `/analytics/platform/export/${fmt}?months=${months}`,
+        `/analytics/platform/export/${format}?${buildQuery()}`,
         { responseType: "blob" },
       );
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `platform-report.${fmt === "pdf" ? "pdf" : "xlsx"}`;
+      const slug =
+        mode === "month" ? pickedMonth : `last-${months}-months`;
+      a.download = `platform-report-${slug}.${
+        format === "pdf" ? "pdf" : "xlsx"
+      }`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -87,19 +120,38 @@ function PlatformReports() {
               <BarChart3 size={28} className="text-gray-700" /> Platform Analytics
             </h1>
             <p className="text-gray-600 mt-1">
-              LoanFix performance across all tenants
+              {mode === "month"
+                ? `Performance for ${monthLabel(pickedMonth)}`
+                : "LoanFix performance across all tenants"}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <select
-              value={months}
-              onChange={(e) => setMonths(parseInt(e.target.value, 10))}
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
               className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
+              title="Time range mode"
             >
-              <option value={3}>Last 3 months</option>
-              <option value={6}>Last 6 months</option>
-              <option value={12}>Last 12 months</option>
+              <option value="recent">Recent months</option>
+              <option value="month">Specific month</option>
             </select>
+            {mode === "recent" ? (
+              <select
+                value={months}
+                onChange={(e) => setMonths(parseInt(e.target.value, 10))}
+                className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white text-sm"
+              >
+                <option value={3}>Last 3 months</option>
+                <option value={6}>Last 6 months</option>
+                <option value={12}>Last 12 months</option>
+              </select>
+            ) : (
+              <MonthNavigator
+                value={pickedMonth}
+                onChange={(v) => v && setPickedMonth(v)}
+                clearable={false}
+              />
+            )}
             <button
               onClick={() => download("pdf")}
               disabled={!!downloading}
