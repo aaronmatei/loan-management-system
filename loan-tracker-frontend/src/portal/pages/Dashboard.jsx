@@ -147,7 +147,7 @@ function CustomerDashboard() {
     { label: "Outstanding", value: KES(stats.outstanding), icon: Wallet },
     {
       label: "On-time Rate",
-      value: `${stats.on_time_rate}%`,
+      value: stats.on_time_rate == null ? "—" : `${stats.on_time_rate}%`,
       icon: Percent,
     },
   ];

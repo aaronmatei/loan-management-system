@@ -690,10 +690,15 @@ router.get("/analytics", async (req, res) => {
     }));
 
     const totalPayments = behavior.on_time + behavior.late;
+    // Same correction as the staff /credit-profile route — denominator
+    // includes still-overdue installments so a borrower with overdue
+    // unpaid schedules can't score 100%. Null when nothing is due yet.
+    const dueByNow =
+      behavior.on_time + behavior.late + behavior.missed;
     const onTimeRate =
-      totalPayments > 0
-        ? parseFloat(((behavior.on_time / totalPayments) * 100).toFixed(1))
-        : 100;
+      dueByNow > 0
+        ? parseFloat(((behavior.on_time / dueByNow) * 100).toFixed(1))
+        : null;
 
     const metrics = {
       defaulted_loans_count: loanAgg.defaulted_loans,

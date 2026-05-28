@@ -671,7 +671,9 @@ function Loans() {
                     <p className="text-sm text-gray-600 mt-1">
                       {clientCreditProfile.summary.total_loans_count} loans
                       total •{" "}
-                      {clientCreditProfile.summary.on_time_rate.toFixed(0)}%
+                      {clientCreditProfile.summary.on_time_rate == null
+                        ? "—"
+                        : `${clientCreditProfile.summary.on_time_rate.toFixed(0)}%`}{" "}
                       on-time rate
                     </p>
 

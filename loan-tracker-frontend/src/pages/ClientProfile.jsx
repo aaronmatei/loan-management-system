@@ -399,7 +399,7 @@ function ClientProfile() {
         />
         <Card
           title="On-Time Rate"
-          value={`${summary.on_time_rate}%`}
+          value={summary.on_time_rate == null ? "—" : `${summary.on_time_rate}%`}
           icon={<Clock size={14} className="inline mr-1 text-gray-400" />}
           color="green"
         />

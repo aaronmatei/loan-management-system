@@ -242,10 +242,17 @@ router.get("/:id/credit-profile", async (req, res) => {
     const late = parseInt(behavior.late, 10);
     const missed = parseInt(behavior.missed, 10);
     const totalPayments = onTime + late;
+    // On-time rate = on-time / installments that should have been paid
+    // by now (paid on-time + paid late + still-overdue). Excluding
+    // missed installments would give 100% to a borrower who hasn't paid
+    // anything but already has overdue installments, which is wrong.
+    // Returns null when the borrower has no due-yet installments —
+    // frontends render that as "—" rather than a vacuous 100%.
+    const dueByNow = onTime + late + missed;
     const onTimeRate =
-      totalPayments > 0
-        ? parseFloat(((onTime / totalPayments) * 100).toFixed(1))
-        : 100;
+      dueByNow > 0
+        ? parseFloat(((onTime / dueByNow) * 100).toFixed(1))
+        : null;
     const overdueCount = missed;
     const overdueAmount = parseFloat(behavior.overdue_amount);
 
