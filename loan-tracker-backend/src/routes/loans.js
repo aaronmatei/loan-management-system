@@ -1012,22 +1012,299 @@ router.post(
   },
 );
 
+// Shared disbursement core. Caller guarantees loan.status === 'approved'
+// and that standing + capital gates have already passed. Returns the
+// updated active loan row, or throws a tagged Error with .clientMessage
+// for callers to surface.
+async function performDisburse(req, loan, opts) {
+  const {
+    disbursement_method,
+    disbursement_reference,
+    disbursement_date,
+    start_date,
+  } = opts || {};
+
+  const months = parseInt(loan.loan_duration_months, 10);
+  const disbDate =
+    disbursement_date || new Date().toISOString().split("T")[0];
+
+  let effectiveStart;
+  if (start_date) {
+    const sd = new Date(start_date);
+    if (Number.isNaN(sd.getTime())) {
+      const e = new Error("Invalid start_date");
+      e.clientMessage = "Invalid start_date";
+      throw e;
+    }
+    if (new Date(start_date) < new Date(disbDate)) {
+      const e = new Error("start before disb");
+      e.clientMessage = "Start date cannot be before the disbursement date.";
+      throw e;
+    }
+    effectiveStart = new Date(start_date).toISOString().split("T")[0];
+  } else {
+    const startObj = new Date(disbDate);
+    startObj.setMonth(startObj.getMonth() + 1);
+    effectiveStart = startObj.toISOString().split("T")[0];
+  }
+
+  const endObj = new Date(effectiveStart);
+  endObj.setMonth(endObj.getMonth() + months - 1);
+
+  const result = await query(
+    `UPDATE loans SET
+      status = 'active', disbursed_by = $1, disbursed_at = $2::timestamp,
+      disbursement_method = $3, disbursement_reference = $4,
+      start_date = $5, end_date = $6, updated_at = NOW()
+    WHERE id = $7 AND tenant_id = $8 RETURNING *`,
+    [
+      req.user.id,
+      disbDate,
+      disbursement_method || "cash",
+      disbursement_reference || null,
+      effectiveStart,
+      endObj.toISOString().split("T")[0],
+      loan.id,
+      loan.tenant_id,
+    ],
+  );
+  const active = result.rows[0];
+
+  // Payment schedule anchored on effectiveStart.
+  const monthlyPayment = parseFloat(loan.total_amount_due) / months;
+  const scheduleAnchor = new Date(effectiveStart);
+  for (let i = 1; i <= months; i++) {
+    const dueDate = new Date(scheduleAnchor);
+    dueDate.setMonth(dueDate.getMonth() + (i - 1));
+    await query(
+      `INSERT INTO payment_schedules (
+        tenant_id, loan_id, payment_number, due_date, amount_due, status
+      ) VALUES ($1, $2, $3, $4, $5, 'pending')`,
+      [
+        loan.tenant_id,
+        loan.id,
+        i,
+        dueDate.toISOString().split("T")[0],
+        monthlyPayment.toFixed(2),
+      ],
+    );
+  }
+
+  // Capital pool — debit principal, credit processing fee as income.
+  const principal = parseFloat(loan.principal_amount);
+  const processingFee = parseFloat(loan.processing_fee || 0);
+  await query(
+    `UPDATE capital_pool
+       SET total_disbursed = total_disbursed + $1,
+           total_interest_earned = total_interest_earned + $2,
+           updated_at = NOW()
+     WHERE tenant_id = $3`,
+    [principal, processingFee, loan.tenant_id],
+  );
+  await query(
+    `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, description)
+     VALUES ($1, 'loan_disbursed', $2, $3, $4)`,
+    [
+      loan.tenant_id,
+      principal,
+      loan.id,
+      processingFee > 0
+        ? `Loan ${loan.loan_code} disbursed (KES ${processingFee.toLocaleString()} processing fee retained as income)`
+        : `Loan ${loan.loan_code} disbursed`,
+    ],
+  );
+
+  // Capital-low bell — fire and forget.
+  (async () => {
+    try {
+      const cp = await query(
+        `SELECT initial_capital,
+                (initial_capital - total_disbursed + total_collected + total_interest_earned) AS available
+         FROM capital_pool WHERE tenant_id = $1`,
+        [loan.tenant_id],
+      );
+      if (cp.rows[0]) {
+        await notifyCapitalLow(
+          loan.tenant_id,
+          cp.rows[0].available,
+          cp.rows[0].initial_capital,
+        );
+      }
+    } catch (err) {
+      logger.error("notifyCapitalLow (disburse) error:", err);
+    }
+  })();
+
+  // Customer SMS + Email — fire and forget so the response isn't held
+  // up while the agreement PDF renders.
+  (async () => {
+    try {
+      const c = await query(
+        "SELECT phone_number, first_name, last_name, email FROM clients WHERE id = $1",
+        [loan.client_id],
+      );
+      const cust = c.rows[0];
+      if (!cust) return;
+      let attachments;
+      if (cust.email) {
+        try {
+          const { buffer, filename } = await buildLoanAgreementPdf(loan.id);
+          attachments = [{ filename, content: buffer }];
+        } catch (pdfErr) {
+          logger.error("Loan-agreement PDF build error:", pdfErr);
+        }
+      }
+      await notificationDispatcher.notify("loan_disbursed", {
+        tenantId: loan.tenant_id,
+        customer: { ...cust, client_id: loan.client_id },
+        data: {
+          loan_id: loan.id,
+          loan_code: loan.loan_code,
+          amount: principal,
+          total_amount_due: loan.total_amount_due,
+          duration_months: loan.loan_duration_months,
+        },
+        attachments,
+      });
+    } catch (err) {
+      logger.error("Disbursement notification error:", err);
+    }
+  })();
+
+  await logAudit({
+    user: req.user,
+    action: "loan_disbursed",
+    entityType: "loan",
+    entityId: loan.id,
+    entityCode: loan.loan_code,
+    description: `Disbursed loan: KES ${principal.toLocaleString()} via ${
+      disbursement_method || "cash"
+    }`,
+    newValues: { disbursement_method, disbursement_reference },
+    req,
+  });
+  logger.info(
+    `✓ Loan ${loan.loan_code} disbursed: KES ${principal.toLocaleString()}`,
+  );
+  return active;
+}
+
+// Mass disburse — per-loan options come in via `items`: each row has
+// its own id, method, reference, disbursement_date, start_date. Per-loan
+// status, standing, and capital gates are re-checked. Capital is burned
+// down across the batch so two big loans can't both pass the gate when
+// the pool only covers one.
+//
+// Declared BEFORE "/:id/disburse" so Express routes "/bulk/disburse"
+// here instead of treating "bulk" as the :id (same pattern as the other
+// bulk endpoints near the top of this file).
+router.post(
+  "/bulk/disburse",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const { items } = req.body || {};
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "No loans selected" });
+      }
+      const ids = items.map((i) => i?.id).filter(Boolean);
+      if (ids.length === 0) {
+        return res.status(400).json({ error: "No loan ids provided" });
+      }
+      const loans = await loadOwnedLoans(req, ids);
+      const byId = new Map((loans || []).map((l) => [l.id, l]));
+
+      const tid = req.user.tenant_id;
+      let available = Infinity;
+      if (tid) {
+        const pr = await query(
+          `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned) AS a
+             FROM capital_pool WHERE tenant_id = $1`,
+          [tid],
+        );
+        if (pr.rows[0]) available = parseFloat(pr.rows[0].a);
+      }
+
+      const processed = [];
+      const skipped = [];
+
+      for (const item of items) {
+        const loan = byId.get(item?.id);
+        if (!loan) {
+          skipped.push({ id: item?.id, reason: "not found" });
+          continue;
+        }
+        if (loan.status !== "approved") {
+          skipped.push({
+            id: loan.id,
+            loan_code: loan.loan_code,
+            reason: `status ${loan.status}`,
+          });
+          continue;
+        }
+        const standing = await getLoanStanding(loan.client_id, loan.tenant_id, {
+          excludeLoanId: loan.id,
+        });
+        if (standing.defaulted > 0) {
+          skipped.push({
+            id: loan.id,
+            loan_code: loan.loan_code,
+            reason: "client has a defaulted loan",
+          });
+          continue;
+        }
+        if (standing.active >= 3) {
+          skipped.push({
+            id: loan.id,
+            loan_code: loan.loan_code,
+            reason: "client at 3-active cap",
+          });
+          continue;
+        }
+        const principal = parseFloat(loan.principal_amount);
+        if (principal > available) {
+          skipped.push({
+            id: loan.id,
+            loan_code: loan.loan_code,
+            reason: "insufficient capital",
+          });
+          continue;
+        }
+        try {
+          const active = await performDisburse(req, loan, item);
+          processed.push({ id: active.id, loan_code: active.loan_code });
+          available -= principal;
+        } catch (err) {
+          skipped.push({
+            id: loan.id,
+            loan_code: loan.loan_code,
+            reason: err?.clientMessage || err?.message || "failed",
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        processed: processed.length,
+        skipped: skipped.length,
+        details: skipped,
+      });
+    } catch (error) {
+      logger.error("Bulk disburse error:", error);
+      res.status(500).json({ error: "Failed to disburse loans" });
+    }
+  },
+);
+
 // Disburse — money goes out: loan becomes active, schedule is
-// generated, capital pool is debited, and the loan-approved SMS +
-// agreement-PDF email fire HERE (relocated from loan creation).
+// generated, capital pool is debited, and the loan-disbursed SMS +
+// agreement-PDF email fire HERE.
 router.post(
   "/:id/disburse",
   authorize("admin", "manager"),
   async (req, res) => {
     try {
       const { id } = req.params;
-      const {
-        disbursement_method,
-        disbursement_reference,
-        disbursement_date,
-        start_date,
-      } = req.body || {};
-
       const dbT = tenantClause(req, 1);
       const loanCheck = await query(
         `SELECT * FROM loans WHERE id = $1${dbT.clause}`,
@@ -1043,9 +1320,6 @@ router.post(
         });
       }
 
-      // Hard money-out gate: never disburse to a client who now has a
-      // defaulted loan, or who would exceed 3 active loans, even if the
-      // application slipped through before they defaulted.
       const dbStanding = await getLoanStanding(loan.client_id, loan.tenant_id, {
         excludeLoanId: loan.id,
       });
@@ -1062,196 +1336,16 @@ router.post(
         });
       }
 
-      // First repayment defaults to one month after disbursement (so a
-      // loan can't be paid on the day it's disbursed), but the admin
-      // may override start_date in the modal — for example, granting a
-      // longer grace period. Constraint: start_date must be ≥ disbursement
-      // date. End date is N − 1 months after the resolved start date.
-      const months = parseInt(loan.loan_duration_months, 10);
-      const disbDate =
-        disbursement_date || new Date().toISOString().split("T")[0];
-
-      let effectiveStart;
-      if (start_date) {
-        const sd = new Date(start_date);
-        if (Number.isNaN(sd.getTime())) {
-          return res.status(400).json({ error: "Invalid start_date" });
-        }
-        if (new Date(start_date) < new Date(disbDate)) {
-          return res.status(400).json({
-            error: "Start date cannot be before the disbursement date.",
-          });
-        }
-        effectiveStart = new Date(start_date).toISOString().split("T")[0];
-      } else {
-        const startObj = new Date(disbDate);
-        startObj.setMonth(startObj.getMonth() + 1);
-        effectiveStart = startObj.toISOString().split("T")[0];
-      }
-
-      const endObj = new Date(effectiveStart);
-      endObj.setMonth(endObj.getMonth() + months - 1);
-      const endDate = endObj;
-
-      // disbursed_at uses the admin-entered date (so backdated paper
-      // disbursements show their real date in the loans table), not
-      // NOW(). The exact action timestamp is captured separately by
-      // audit_logs anyway.
-      const result = await query(
-        `UPDATE loans SET
-          status = 'active', disbursed_by = $1, disbursed_at = $2::timestamp,
-          disbursement_method = $3, disbursement_reference = $4,
-          start_date = $5, end_date = $6, updated_at = NOW()
-        WHERE id = $7 AND tenant_id = $8 RETURNING *`,
-        [
-          req.user.id,
-          disbDate,
-          disbursement_method || "cash",
-          disbursement_reference || null,
-          effectiveStart,
-          endDate.toISOString().split("T")[0],
-          id,
-          loan.tenant_id,
-        ],
-      );
-      const active = result.rows[0];
-
-      // Payment schedule (created at disbursement, not application).
-      // Anchored on effectiveStart: installment i falls due
-      // (i − 1) months after the start date, so installment 1 lands
-      // exactly on start_date.
-      const monthlyPayment = parseFloat(loan.total_amount_due) / months;
-      const scheduleAnchor = new Date(effectiveStart);
-      for (let i = 1; i <= months; i++) {
-        const dueDate = new Date(scheduleAnchor);
-        dueDate.setMonth(dueDate.getMonth() + (i - 1));
-        await query(
-          `INSERT INTO payment_schedules (
-            tenant_id, loan_id, payment_number, due_date, amount_due, status
-          ) VALUES ($1, $2, $3, $4, $5, 'pending')`,
-          [
-            loan.tenant_id,
-            id,
-            i,
-            dueDate.toISOString().split("T")[0],
-            monthlyPayment.toFixed(2),
-          ],
-        );
-      }
-
-      // Capital pool: the cash that actually leaves is the NET disbursed
-      // (principal minus the processing fee the lender retains). Falls back
-      // to principal for loans created before processing fees existed.
-      const principal = parseFloat(loan.principal_amount);
-      const processingFee = parseFloat(loan.processing_fee || 0);
-      // Record the full principal as disbursed (the borrower owes it back)
-      // and immediately recognise the processing fee as income on the pool.
-      // The pool's actual cash position is computed by buildStatus as
-      // initial - disbursed + collected + interest_earned, so the retained
-      // fee correctly offsets the principal outflow without leaving
-      // outstanding_principal negative once the loan is fully repaid.
-      await query(
-        `UPDATE capital_pool
-           SET total_disbursed = total_disbursed + $1,
-               total_interest_earned = total_interest_earned + $2,
-               updated_at = NOW()
-         WHERE tenant_id = $3`,
-        [principal, processingFee, loan.tenant_id],
-      );
-      await query(
-        `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, description)
-         VALUES ($1, 'loan_disbursed', $2, $3, $4)`,
-        [
-          loan.tenant_id,
-          principal,
-          id,
-          processingFee > 0
-            ? `Loan ${loan.loan_code} disbursed (KES ${processingFee.toLocaleString()} processing fee retained as income)`
-            : `Loan ${loan.loan_code} disbursed`,
-        ],
-      );
-
-      // Disbursement is the big capital outflow now — warn admins if
-      // the pool is running low.
-      try {
-        const cp = await query(
-          `SELECT initial_capital,
-                  (initial_capital - total_disbursed + total_collected + total_interest_earned) AS available
-           FROM capital_pool WHERE tenant_id = $1`,
-          [loan.tenant_id],
-        );
-        if (cp.rows[0]) {
-          await notifyCapitalLow(
-            loan.tenant_id,
-            cp.rows[0].available,
-            cp.rows[0].initial_capital,
-          );
-        }
-      } catch (err) {
-        logger.error("notifyCapitalLow (disburse) error:", err);
-      }
-
-      // Customer SMS + Email via the central dispatcher. Both channels
-      // are gated by the tenant's notify_disbursed_{sms,email} prefs
-      // and logged with message_type='loan_disbursed'. The loan-agreement
-      // PDF is attached to the email so the customer gets the contract
-      // alongside the disbursement notice.
-      (async () => {
-        try {
-          const c = await query(
-            "SELECT phone_number, first_name, last_name, email FROM clients WHERE id = $1",
-            [loan.client_id],
-          );
-          const cust = c.rows[0];
-          if (!cust) return;
-          let attachments;
-          if (cust.email) {
-            try {
-              const { buffer, filename } = await buildLoanAgreementPdf(id);
-              attachments = [{ filename, content: buffer }];
-            } catch (pdfErr) {
-              logger.error("Loan-agreement PDF build error:", pdfErr);
-            }
-          }
-          await notificationDispatcher.notify("loan_disbursed", {
-            tenantId: loan.tenant_id,
-            customer: { ...cust, client_id: loan.client_id },
-            data: {
-              loan_id: loan.id,
-              loan_code: loan.loan_code,
-              amount: principal,
-              total_amount_due: loan.total_amount_due,
-              duration_months: loan.loan_duration_months,
-            },
-            attachments,
-          });
-        } catch (err) {
-          logger.error("Disbursement notification error:", err);
-        }
-      })();
-
-      await logAudit({
-        user: req.user,
-        action: "loan_disbursed",
-        entityType: "loan",
-        entityId: id,
-        entityCode: loan.loan_code,
-        description: `Disbursed loan: KES ${principal.toLocaleString()} via ${
-          disbursement_method || "cash"
-        }`,
-        newValues: { disbursement_method, disbursement_reference },
-        req,
-      });
-      logger.info(
-        `✓ Loan ${loan.loan_code} disbursed: KES ${principal.toLocaleString()}`,
-      );
-
+      const active = await performDisburse(req, loan, req.body || {});
       res.json({
         success: true,
         message: "Loan disbursed successfully",
         data: active,
       });
     } catch (error) {
+      if (error?.clientMessage) {
+        return res.status(400).json({ error: error.clientMessage });
+      }
       logger.error("Disburse loan error:", error);
       res.status(500).json({ error: "Failed to disburse loan" });
     }

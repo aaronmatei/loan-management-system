@@ -62,6 +62,11 @@ function Applications() {
   // Bulk selection across applications shown by the current filter.
   const bulk = useBulkSelection(applications);
   const [bulkRunning, setBulkRunning] = useState(null);
+
+  // Mass-disburse modal: opens with the currently-selected approved
+  // loans pre-populated as editable rows (one row per loan).
+  const [showBulkDisburseModal, setShowBulkDisburseModal] = useState(false);
+  const [bulkDisburseRows, setBulkDisburseRows] = useState([]);
   const toggleExpand = (id) =>
     setExpanded((s) => {
       const next = new Set(s);
@@ -259,6 +264,99 @@ function Applications() {
       () => "Confirm rejection?", // already confirmed by typing a reason
       "Mass reject",
     );
+  };
+
+  // Are every selected row in 'approved' status? Only then does the
+  // Mass Disburse button become available.
+  const selectedAllApproved =
+    bulk.count > 0 &&
+    bulk.selectedArray.every((id) => {
+      const a = applications.find((x) => x.id === id);
+      return a && a.status === "approved";
+    });
+
+  const openBulkDisburseModal = () => {
+    const today = new Date().toISOString().split("T")[0];
+    const rows = bulk.selectedArray
+      .map((id) => applications.find((x) => x.id === id))
+      .filter((a) => a && a.status === "approved")
+      .map((a) => ({
+        id: a.id,
+        loan_code: a.loan_code,
+        first_name: a.first_name,
+        last_name: a.last_name,
+        amount: parseFloat(
+          a.net_disbursed_amount ?? a.principal_amount ?? 0,
+        ),
+        disbursement_method: "mpesa",
+        disbursement_reference: "",
+        disbursement_date: today,
+        // Empty start_date → backend default (disb + 1 month).
+        start_date: "",
+      }));
+    if (rows.length === 0) {
+      alert("Select at least one approved loan to disburse.");
+      return;
+    }
+    setBulkDisburseRows(rows);
+    setShowBulkDisburseModal(true);
+  };
+
+  const patchBulkRow = (id, patch) =>
+    setBulkDisburseRows((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
+
+  const handleBulkDisburseSubmit = async (e) => {
+    e.preventDefault();
+    // Per-row sanity: start_date ≥ disbursement_date when provided.
+    for (const r of bulkDisburseRows) {
+      if (r.start_date && r.start_date < r.disbursement_date) {
+        alert(
+          `${r.loan_code}: start date cannot be before the disbursement date.`,
+        );
+        return;
+      }
+    }
+    if (
+      !window.confirm(
+        `Disburse ${bulkDisburseRows.length} loan${
+          bulkDisburseRows.length !== 1 ? "s" : ""
+        }? Capital and eligibility are re-checked per loan.`,
+      )
+    )
+      return;
+    setBulkRunning("disburse");
+    try {
+      const items = bulkDisburseRows.map((r) => ({
+        id: r.id,
+        disbursement_method: r.disbursement_method,
+        disbursement_reference: r.disbursement_reference || null,
+        disbursement_date: r.disbursement_date,
+        start_date: r.start_date || null,
+      }));
+      const res = await api.post("/loans/bulk/disburse", { items });
+      const { processed, skipped } = res.data;
+      let msg = `Mass disburse done.\n\n${processed} processed`;
+      if (skipped) msg += ` · ${skipped} skipped`;
+      if (res.data.details?.length) {
+        const reasons = res.data.details
+          .slice(0, 5)
+          .map((d) => `• ${d.loan_code || d.id}: ${d.reason}`)
+          .join("\n");
+        msg += `\n\nSkipped reasons:\n${reasons}`;
+        if (res.data.details.length > 5)
+          msg += `\n…and ${res.data.details.length - 5} more`;
+      }
+      alert(msg);
+      setShowBulkDisburseModal(false);
+      bulk.clear();
+      fetchData();
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setBulkRunning(null);
+    }
   };
 
   // Compute "disbursement + 1 month" as YYYY-MM-DD, the standard
@@ -868,6 +966,17 @@ function Applications() {
             <X size={15} />
             {bulkRunning === "reject" ? "Rejecting…" : "Mass Reject"}
           </button>
+          {selectedAllApproved && (
+            <button
+              onClick={openBulkDisburseModal}
+              disabled={bulkRunning === "disburse"}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-ocean-600 hover:bg-ocean-700 rounded-lg text-sm font-semibold disabled:opacity-50"
+              title="Disburse all selected approved loans with per-loan details"
+            >
+              <Coins size={15} />
+              {bulkRunning === "disburse" ? "Disbursing…" : "Mass Disburse"}
+            </button>
+          )}
         </PermissionGate>
       </BulkActionBar>
 
@@ -1173,6 +1282,155 @@ function Applications() {
                   className="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg disabled:opacity-50"
                 >
                   {submitting ? "Disbursing..." : <span className="inline-flex items-center gap-2"><Coins size={16}/> Disburse Now</span>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Mass Disburse modal — one editable row per selected approved loan */}
+      {showBulkDisburseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div className="p-5 lg:p-6 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Coins size={20} className="text-ocean-600" />
+                  Mass Disburse
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {bulkDisburseRows.length} approved loan
+                  {bulkDisburseRows.length !== 1 ? "s" : ""} — set per-loan
+                  method, reference and dates, then disburse.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowBulkDisburseModal(false)}
+                className="text-gray-400 hover:text-gray-700"
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <form
+              onSubmit={handleBulkDisburseSubmit}
+              className="flex-1 overflow-y-auto p-5 lg:p-6"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-gray-500 uppercase border-b">
+                    <tr>
+                      <th className="text-left py-2 pr-3">Loan</th>
+                      <th className="text-right py-2 pr-3">Amount</th>
+                      <th className="text-left py-2 pr-3">Method</th>
+                      <th className="text-left py-2 pr-3">Reference</th>
+                      <th className="text-left py-2 pr-3">Disb. date</th>
+                      <th className="text-left py-2">Start date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkDisburseRows.map((r) => (
+                      <tr
+                        key={r.id}
+                        className="border-b last:border-b-0 align-top"
+                      >
+                        <td className="py-3 pr-3">
+                          <div className="font-semibold text-gray-900">
+                            {r.loan_code}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {r.first_name} {r.last_name}
+                          </div>
+                        </td>
+                        <td className="py-3 pr-3 text-right font-semibold text-gray-900 whitespace-nowrap">
+                          KES {r.amount.toLocaleString()}
+                        </td>
+                        <td className="py-3 pr-3">
+                          <select
+                            value={r.disbursement_method}
+                            onChange={(e) =>
+                              patchBulkRow(r.id, {
+                                disbursement_method: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                          >
+                            <option value="mpesa">M-Pesa</option>
+                            <option value="bank_transfer">Bank transfer</option>
+                            <option value="cash">Cash</option>
+                            <option value="cheque">Cheque</option>
+                          </select>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <input
+                            type="text"
+                            value={r.disbursement_reference}
+                            onChange={(e) =>
+                              patchBulkRow(r.id, {
+                                disbursement_reference: e.target.value,
+                              })
+                            }
+                            placeholder="optional"
+                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-36"
+                          />
+                        </td>
+                        <td className="py-3 pr-3">
+                          <input
+                            type="date"
+                            value={r.disbursement_date}
+                            onChange={(e) =>
+                              patchBulkRow(r.id, {
+                                disbursement_date: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                          />
+                          <div className="text-[11px] text-gray-400 mt-0.5">
+                            {ddmmyyyy(r.disbursement_date)}
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <input
+                            type="date"
+                            value={r.start_date}
+                            onChange={(e) =>
+                              patchBulkRow(r.id, {
+                                start_date: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                          />
+                          <div className="text-[11px] text-gray-400 mt-0.5">
+                            {r.start_date
+                              ? ddmmyyyy(r.start_date)
+                              : "default: disb + 1 month"}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-5 mt-5 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDisburseModal(false)}
+                  className="px-6 py-2 bg-gray-500 text-white rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkRunning === "disburse"}
+                  className="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  <Coins size={16} />
+                  {bulkRunning === "disburse"
+                    ? "Disbursing…"
+                    : `Disburse ${bulkDisburseRows.length} loan${
+                        bulkDisburseRows.length !== 1 ? "s" : ""
+                      }`}
                 </button>
               </div>
             </form>
