@@ -47,6 +47,8 @@ function Applications() {
     disbursement_method: "mpesa",
     disbursement_reference: "",
     disbursement_date: new Date().toISOString().split("T")[0],
+    start_date: "", // empty = let backend default to disbursement + 1 month
+    start_date_manual: false, // sticks once user touches the Start Date input
   });
   const [submitting, setSubmitting] = useState(false);
   const [showCounterModal, setShowCounterModal] = useState(false);
@@ -259,8 +261,40 @@ function Applications() {
     );
   };
 
+  // Compute "disbursement + 1 month" as YYYY-MM-DD, the standard
+  // default for the first repayment date.
+  const defaultStartFor = (disb) => {
+    if (!disb) return "";
+    const d = new Date(disb);
+    if (Number.isNaN(d.getTime())) return "";
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
   const handleDisburse = async (e) => {
     e.preventDefault();
+    // Date chain: application_date ≤ disbursement_date ≤ start_date.
+    const appYmd = selectedLoan?.application_date
+      ? new Date(selectedLoan.application_date).toISOString().split("T")[0]
+      : null;
+    if (appYmd && disburseData.disbursement_date < appYmd) {
+      alert(
+        `Disbursement date (${ddmmyyyy(
+          disburseData.disbursement_date,
+        )}) cannot be before the loan creation date (${ddmmyyyy(appYmd)}).`,
+      );
+      return;
+    }
+    const effectiveStart =
+      disburseData.start_date_manual && disburseData.start_date
+        ? disburseData.start_date
+        : defaultStartFor(disburseData.disbursement_date);
+    if (effectiveStart < disburseData.disbursement_date) {
+      alert(
+        "Start date cannot be before the disbursement date.",
+      );
+      return;
+    }
     if (
       !window.confirm(
         `Confirm disbursement of KES ${parseFloat(
@@ -271,7 +305,13 @@ function Applications() {
       return;
     setSubmitting(true);
     try {
-      await api.post(`/loans/${selectedLoan.id}/disburse`, disburseData);
+      const payload = {
+        disbursement_method: disburseData.disbursement_method,
+        disbursement_reference: disburseData.disbursement_reference,
+        disbursement_date: disburseData.disbursement_date,
+        start_date: effectiveStart,
+      };
+      await api.post(`/loans/${selectedLoan.id}/disburse`, payload);
       alert("Loan disbursed successfully! Now active for repayment.");
       setShowDisburseModal(false);
       fetchData();
@@ -1042,31 +1082,73 @@ function Applications() {
                     type="date"
                     value={disburseData.disbursement_date}
                     onChange={(e) =>
-                      setDisburseData({
-                        ...disburseData,
+                      setDisburseData((p) => ({
+                        ...p,
                         disbursement_date: e.target.value,
-                      })
+                        // Slide start_date along the default unless the user
+                        // has manually overridden it.
+                        start_date: p.start_date_manual
+                          ? p.start_date
+                          : defaultStartFor(e.target.value),
+                      }))
                     }
                     required
+                    min={
+                      selectedLoan?.application_date
+                        ? new Date(selectedLoan.application_date)
+                            .toISOString()
+                            .split("T")[0]
+                        : undefined
+                    }
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     = {ddmmyyyy(disburseData.disbursement_date)}
+                    {selectedLoan?.application_date && (
+                      <>
+                        {" "}· must be on or after the loan creation date (
+                        {ddmmyyyy(selectedLoan.application_date)})
+                      </>
+                    )}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">
                     First Repayment Date
                   </label>
-                  <div className="w-full px-3 py-2 border-2 border-gray-100 bg-gray-50 rounded-lg text-gray-700">
-                    {(() => {
-                      const d = new Date(disburseData.disbursement_date);
-                      d.setMonth(d.getMonth() + 1);
-                      return isNaN(d.getTime()) ? "—" : ddmmyyyy(d);
-                    })()}
-                  </div>
+                  <input
+                    type="date"
+                    value={
+                      disburseData.start_date ||
+                      defaultStartFor(disburseData.disbursement_date)
+                    }
+                    onChange={(e) =>
+                      setDisburseData((p) => ({
+                        ...p,
+                        start_date: e.target.value,
+                        start_date_manual: true,
+                      }))
+                    }
+                    min={disburseData.disbursement_date}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
                   <p className="text-xs text-gray-500 mt-1">
-                    Auto-set to 1 month after disbursement.
+                    Default: 1 month after disbursement.{" "}
+                    {disburseData.start_date_manual && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDisburseData((p) => ({
+                            ...p,
+                            start_date: defaultStartFor(p.disbursement_date),
+                            start_date_manual: false,
+                          }))
+                        }
+                        className="text-ocean-600 hover:text-ocean-800 underline"
+                      >
+                        reset
+                      </button>
+                    )}
                   </p>
                 </div>
               </div>

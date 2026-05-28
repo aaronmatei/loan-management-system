@@ -96,15 +96,19 @@ function LoanDetails() {
     if (!loanData?.loan) return;
     const l = loanData.loan;
     const monthlyRate = parseFloat(l.interest_rate) || 0;
+    const ymdFor = (v) =>
+      v ? new Date(v).toISOString().split("T")[0] : "";
     setEditForm({
       principal_amount: l.principal_amount,
       annual_interest_rate: (monthlyRate * 12).toFixed(4),
       monthly_interest_rate: monthlyRate.toFixed(4),
       loan_duration_months: l.loan_duration_months,
       processing_fee_rate: l.processing_fee_rate || 0,
-      application_date: l.application_date
-        ? new Date(l.application_date).toISOString().split("T")[0]
-        : new Date().toISOString().split("T")[0],
+      application_date:
+        ymdFor(l.application_date) ||
+        new Date().toISOString().split("T")[0],
+      disbursement_date: ymdFor(l.disbursed_at),
+      start_date: ymdFor(l.start_date),
       purpose: l.purpose || "",
       guarantor_name: l.guarantor_name || "",
       guarantor_phone: l.guarantor_phone || "",
@@ -117,6 +121,16 @@ function LoanDetails() {
     });
     setEditError("");
     setShowEditModal(true);
+  };
+
+  // "Disbursement + 1 month" as YYYY-MM-DD — the convention for
+  // start_date when the admin hasn't overridden it.
+  const startFromDisb = (disb) => {
+    if (!disb) return "";
+    const d = new Date(disb);
+    if (Number.isNaN(d.getTime())) return "";
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split("T")[0];
   };
 
   // Keep annual ⇄ monthly synced in the edit form (mirrors the new-loan form).
@@ -137,6 +151,27 @@ function LoanDetails() {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    // Date chain: application ≤ disbursement ≤ start.
+    if (
+      editForm.application_date &&
+      editForm.disbursement_date &&
+      editForm.application_date > editForm.disbursement_date
+    ) {
+      setEditError(
+        "Loan creation date cannot be after the disbursement date.",
+      );
+      return;
+    }
+    if (
+      editForm.disbursement_date &&
+      editForm.start_date &&
+      editForm.disbursement_date > editForm.start_date
+    ) {
+      setEditError(
+        "Start date cannot be before the disbursement date.",
+      );
+      return;
+    }
     setEditing(true);
     setEditError("");
     try {
@@ -1411,29 +1446,33 @@ function LoanDetails() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Processing Fee Rate (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={editForm.processing_fee_rate}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      processing_fee_rate: e.target.value,
+                    })
+                  }
+                  className="w-full md:w-1/2 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Date chain: creation ≤ disbursement ≤ start. min/max on
+                  each input gives the user immediate feedback, plus
+                  client-side validation runs on submit. */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Processing Fee Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    value={editForm.processing_fee_rate}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        processing_fee_rate: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Application Date
+                    Loan Creation Date
                   </label>
                   <input
                     type="date"
@@ -1444,9 +1483,107 @@ function LoanDetails() {
                         application_date: e.target.value,
                       })
                     }
-                    max={new Date().toISOString().split("T")[0]}
+                    max={
+                      editForm.disbursement_date ||
+                      new Date().toISOString().split("T")[0]
+                    }
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Disbursement Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.disbursement_date}
+                    onChange={(e) => {
+                      const newDisb = e.target.value;
+                      setEditForm((p) => ({
+                        ...p,
+                        disbursement_date: newDisb,
+                        // Slide start_date along when it was the
+                        // disbursement+1-month default.
+                        start_date:
+                          p.start_date === startFromDisb(p.disbursement_date)
+                            ? startFromDisb(newDisb)
+                            : p.start_date,
+                      }));
+                    }}
+                    min={editForm.application_date || undefined}
+                    disabled={
+                      ![
+                        "active",
+                        "completed",
+                        "defaulted",
+                        "suspended",
+                      ].includes(loan.status)
+                    }
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                      [
+                        "active",
+                        "completed",
+                        "defaulted",
+                        "suspended",
+                      ].includes(loan.status)
+                        ? "border-gray-200 focus:border-ocean-500"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    }`}
+                  />
+                  {![
+                    "active",
+                    "completed",
+                    "defaulted",
+                    "suspended",
+                  ].includes(loan.status) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Set at disbursement.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.start_date}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        start_date: e.target.value,
+                      })
+                    }
+                    min={editForm.disbursement_date || undefined}
+                    disabled={
+                      ![
+                        "active",
+                        "completed",
+                        "defaulted",
+                        "suspended",
+                      ].includes(loan.status)
+                    }
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                      [
+                        "active",
+                        "completed",
+                        "defaulted",
+                        "suspended",
+                      ].includes(loan.status)
+                        ? "border-gray-200 focus:border-ocean-500"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    }`}
+                  />
+                  {[
+                    "active",
+                    "completed",
+                    "defaulted",
+                    "suspended",
+                  ].includes(loan.status) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Default: 1 month after disbursement.
+                    </p>
+                  )}
                 </div>
               </div>
 

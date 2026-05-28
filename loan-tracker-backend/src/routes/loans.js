@@ -1062,20 +1062,35 @@ router.post(
         });
       }
 
-      // The loan starts — and the first repayment falls due — exactly one
-      // month after disbursement, so a loan can never be paid on the day it
-      // is disbursed. The schedule is anchored to the disbursement date, so
-      // any start_date sent by the client is ignored.
+      // First repayment defaults to one month after disbursement (so a
+      // loan can't be paid on the day it's disbursed), but the admin
+      // may override start_date in the modal — for example, granting a
+      // longer grace period. Constraint: start_date must be ≥ disbursement
+      // date. End date is N − 1 months after the resolved start date.
       const months = parseInt(loan.loan_duration_months, 10);
       const disbDate =
         disbursement_date || new Date().toISOString().split("T")[0];
 
-      const startObj = new Date(disbDate);
-      startObj.setMonth(startObj.getMonth() + 1); // first installment
-      const effectiveStart = startObj.toISOString().split("T")[0];
+      let effectiveStart;
+      if (start_date) {
+        const sd = new Date(start_date);
+        if (Number.isNaN(sd.getTime())) {
+          return res.status(400).json({ error: "Invalid start_date" });
+        }
+        if (new Date(start_date) < new Date(disbDate)) {
+          return res.status(400).json({
+            error: "Start date cannot be before the disbursement date.",
+          });
+        }
+        effectiveStart = new Date(start_date).toISOString().split("T")[0];
+      } else {
+        const startObj = new Date(disbDate);
+        startObj.setMonth(startObj.getMonth() + 1);
+        effectiveStart = startObj.toISOString().split("T")[0];
+      }
 
-      const endObj = new Date(disbDate);
-      endObj.setMonth(endObj.getMonth() + months); // last installment
+      const endObj = new Date(effectiveStart);
+      endObj.setMonth(endObj.getMonth() + months - 1);
       const endDate = endObj;
 
       // disbursed_at uses the admin-entered date (so backdated paper
@@ -1101,13 +1116,15 @@ router.post(
       );
       const active = result.rows[0];
 
-      // Payment schedule (created at disbursement, not application). Anchored
-      // to the disbursement date: installment i falls due i months after
-      // disbursement, so the first (i=1) lands on the start date above.
+      // Payment schedule (created at disbursement, not application).
+      // Anchored on effectiveStart: installment i falls due
+      // (i − 1) months after the start date, so installment 1 lands
+      // exactly on start_date.
       const monthlyPayment = parseFloat(loan.total_amount_due) / months;
+      const scheduleAnchor = new Date(effectiveStart);
       for (let i = 1; i <= months; i++) {
-        const dueDate = new Date(disbDate);
-        dueDate.setMonth(dueDate.getMonth() + i);
+        const dueDate = new Date(scheduleAnchor);
+        dueDate.setMonth(dueDate.getMonth() + (i - 1));
         await query(
           `INSERT INTO payment_schedules (
             tenant_id, loan_id, payment_number, due_date, amount_due, status
@@ -1436,6 +1453,8 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       loan_duration_months,
       processing_fee_rate,
       application_date,
+      disbursement_date,
+      start_date,
       purpose,
       guarantor_name,
       guarantor_phone,
@@ -1507,17 +1526,20 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       existing.status,
     );
 
-    // Recompute end_date when duration changes on a disbursed loan
-    // (start_date was anchored at disbursement).
-    let newEndDate = existing.end_date;
-    if (isDisbursed && moneyChanged && existing.disbursed_at) {
-      const eo = new Date(existing.disbursed_at);
-      eo.setMonth(eo.getMonth() + newMonths);
-      newEndDate = eo.toISOString().split("T")[0];
-    }
+    // Helper: YYYY-MM-DD comparison (UTC midnight) so timezone noise
+    // doesn't tip a valid date over the boundary.
+    const ymd = (v) => {
+      if (!v) return null;
+      const d = v instanceof Date ? v : new Date(v);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString().split("T")[0];
+    };
 
-    // Validate application_date if supplied (admins may backdate).
-    let appDate = existing.application_date;
+    // Date chain: application_date ≤ disbursed_at ≤ start_date.
+    // Any field omitted from the payload falls back to the existing
+    // row's value. Schedule regenerates anchored on the resolved
+    // start_date when it (or money fields) changes.
+    let appDate = ymd(existing.application_date);
     if (application_date) {
       const d = new Date(application_date);
       if (Number.isNaN(d.getTime())) {
@@ -1530,17 +1552,103 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
           .status(400)
           .json({ error: "Application date cannot be in the future" });
       }
-      appDate = application_date;
+      appDate = ymd(application_date);
+    }
+
+    let disbDate = ymd(existing.disbursed_at);
+    if (disbursement_date !== undefined && disbursement_date !== null) {
+      if (disbursement_date === "") {
+        disbDate = null;
+      } else {
+        if (!ymd(disbursement_date)) {
+          return res.status(400).json({ error: "Invalid disbursement_date" });
+        }
+        disbDate = ymd(disbursement_date);
+      }
+    }
+
+    let startDateOut = ymd(existing.start_date);
+    if (start_date !== undefined && start_date !== null) {
+      if (start_date === "") {
+        startDateOut = null;
+      } else {
+        if (!ymd(start_date)) {
+          return res.status(400).json({ error: "Invalid start_date" });
+        }
+        startDateOut = ymd(start_date);
+      }
+    }
+
+    // Cross-field date chain validation (only enforce when both ends exist).
+    if (appDate && disbDate && appDate > disbDate) {
+      return res.status(400).json({
+        error:
+          "Application date cannot be after the disbursement date.",
+      });
+    }
+    if (disbDate && startDateOut && disbDate > startDateOut) {
+      return res.status(400).json({
+        error:
+          "Start date cannot be before the disbursement date.",
+      });
+    }
+    if (appDate && startDateOut && !disbDate && appDate > startDateOut) {
+      // Pre-disbursement loan that has a start_date set — keep chain consistent.
+      return res.status(400).json({
+        error: "Start date cannot be before the application date.",
+      });
     }
 
     const lateFee =
       late_payment_fee != null
         ? parseFloat(late_payment_fee) || 0
         : parseFloat(existing.late_payment_fee || 0);
+    const lateFeeWasActive = parseFloat(existing.late_payment_fee || 0) > 0;
+    const lateFeeTurnedOff = lateFeeWasActive && lateFee === 0;
     const penaltyRate =
       penalty_rate != null
         ? parseFloat(penalty_rate) || 0
         : parseFloat(existing.penalty_rate || 0);
+
+    // If disbursement_date was changed but start_date wasn't, default
+    // start_date to disbursement + 1 month (the standard convention).
+    if (
+      disbDate &&
+      !startDateOut &&
+      disbursement_date !== undefined &&
+      start_date === undefined
+    ) {
+      const d = new Date(disbDate);
+      d.setMonth(d.getMonth() + 1);
+      startDateOut = d.toISOString().split("T")[0];
+    }
+    // Also: if disbursement_date moved AND existing start_date was the
+    // old "disbursed_at + 1 month" default, slide start_date along.
+    if (
+      disbDate &&
+      disbursement_date !== undefined &&
+      start_date === undefined &&
+      existing.disbursed_at &&
+      existing.start_date
+    ) {
+      const oldDisb = new Date(existing.disbursed_at);
+      oldDisb.setMonth(oldDisb.getMonth() + 1);
+      const oldDisbPlusOne = oldDisb.toISOString().split("T")[0];
+      if (ymd(existing.start_date) === oldDisbPlusOne) {
+        const d = new Date(disbDate);
+        d.setMonth(d.getMonth() + 1);
+        startDateOut = d.toISOString().split("T")[0];
+      }
+    }
+
+    // end_date = start_date + (N − 1) months when start_date is known,
+    // else preserve existing.
+    let newEndDate = existing.end_date;
+    if (startDateOut) {
+      const eo = new Date(startDateOut);
+      eo.setMonth(eo.getMonth() + newMonths - 1);
+      newEndDate = eo.toISOString().split("T")[0];
+    }
 
     const upd = await query(
       `UPDATE loans SET
@@ -1552,18 +1660,20 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
          processing_fee_rate      = $6,
          processing_fee           = $7,
          net_disbursed_amount     = $8,
-         end_date                 = $9,
-         application_date         = $10,
-         purpose                  = $11,
-         guarantor_name           = $12,
-         guarantor_phone          = $13,
-         guarantor_id_number      = $14,
-         collateral_description   = $15,
-         late_payment_fee         = $16,
-         penalty_rate             = $17,
-         notes                    = COALESCE($18, notes),
+         start_date               = $9,
+         end_date                 = $10,
+         disbursed_at             = COALESCE($11::timestamp, disbursed_at),
+         application_date         = $12,
+         purpose                  = $13,
+         guarantor_name           = $14,
+         guarantor_phone          = $15,
+         guarantor_id_number      = $16,
+         collateral_description   = $17,
+         late_payment_fee         = $18,
+         penalty_rate             = $19,
+         notes                    = COALESCE($20, notes),
          updated_at               = NOW()
-       WHERE id = $19 AND tenant_id = $20
+       WHERE id = $21 AND tenant_id = $22
        RETURNING *`,
       [
         newPrincipal,
@@ -1574,7 +1684,9 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
         newProcFeeRate,
         newProcessingFee,
         newNetDisbursed,
+        startDateOut,
         newEndDate,
+        disbDate, // null preserves existing via COALESCE
         appDate,
         purpose ?? existing.purpose,
         guarantor_name ?? existing.guarantor_name,
@@ -1590,14 +1702,35 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
     );
     const updated = upd.rows[0];
 
+    // Toggle went OFF → wipe accrued late-fee snapshot on all this
+    // loan's schedule rows so the Payment Schedule no longer surfaces
+    // any late fees on this loan. penalty_paid stays — that's the
+    // historical record of money actually received, not an accrual.
+    if (lateFeeTurnedOff) {
+      await query(
+        `UPDATE payment_schedules
+            SET late_fee_charged = 0, updated_at = NOW()
+          WHERE loan_id = $1`,
+        [id],
+      );
+    }
+
     // Regenerate schedule + reconcile capital_pool when money fields
-    // change on a disbursed loan. Existing transactions are preserved;
-    // the next payment-record call will reconcile against the new
-    // total_due via the standard formula.
-    if (isDisbursed && moneyChanged) {
-      // Drop old schedule and rebuild from disbursement date.
+    // OR date fields change on a disbursed loan. Existing transactions
+    // are preserved; the next payment-record call will reconcile
+    // against the new total_due via the standard formula. Schedule
+    // anchors on the resolved start_date (installment 1 = start_date,
+    // installment N = start_date + (N − 1) months).
+    const datesChanged =
+      (disbursement_date !== undefined &&
+        ymd(existing.disbursed_at) !== disbDate) ||
+      (start_date !== undefined &&
+        ymd(existing.start_date) !== startDateOut);
+    if (isDisbursed && (moneyChanged || datesChanged)) {
       await query(`DELETE FROM payment_schedules WHERE loan_id = $1`, [id]);
-      const start = new Date(updated.disbursed_at || updated.start_date);
+      const scheduleAnchor = new Date(
+        updated.start_date || updated.disbursed_at,
+      );
       const monthlyPay = newTotalDue / newMonths;
       // How much of the new total has already been credited as
       // principal+interest (penalty/overpayment excluded) — needed so
@@ -1614,8 +1747,8 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       );
       let remainingPaid = parseFloat(paidRes.rows[0].total_paid || 0);
       for (let i = 1; i <= newMonths; i++) {
-        const dueDate = new Date(start);
-        dueDate.setMonth(dueDate.getMonth() + i);
+        const dueDate = new Date(scheduleAnchor);
+        dueDate.setMonth(dueDate.getMonth() + (i - 1));
         const installmentAmount = Math.round(monthlyPay * 100) / 100;
         let amountPaid = 0;
         let status = "pending";
@@ -1649,17 +1782,21 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       }
 
       // Capital pool reconciliation: roll back old disbursement +
-      // processing-fee contribution, apply new values.
-      const oldPrincipal = parseFloat(existing.principal_amount);
-      const oldProcFee = parseFloat(existing.processing_fee || 0);
-      await query(
-        `UPDATE capital_pool
-            SET total_disbursed       = total_disbursed       - $1 + $2,
-                total_interest_earned = total_interest_earned - $3 + $4,
-                updated_at = NOW()
-          WHERE tenant_id = $5`,
-        [oldPrincipal, newPrincipal, oldProcFee, newProcessingFee, tid],
-      );
+      // processing-fee contribution, apply new values. Only matters
+      // when money fields actually changed — date-only edits don't
+      // shift the principal out or the fee earned.
+      if (moneyChanged) {
+        const oldPrincipal = parseFloat(existing.principal_amount);
+        const oldProcFee = parseFloat(existing.processing_fee || 0);
+        await query(
+          `UPDATE capital_pool
+              SET total_disbursed       = total_disbursed       - $1 + $2,
+                  total_interest_earned = total_interest_earned - $3 + $4,
+                  updated_at = NOW()
+            WHERE tenant_id = $5`,
+          [oldPrincipal, newPrincipal, oldProcFee, newProcessingFee, tid],
+        );
+      }
     }
 
     await logAudit({
