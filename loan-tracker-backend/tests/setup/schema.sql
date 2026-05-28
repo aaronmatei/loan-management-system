@@ -2926,3 +2926,37 @@ CREATE TABLE public.expenses (
 CREATE UNIQUE INDEX uniq_expenses_invoice
   ON public.expenses (tenant_id, invoice_id)
   WHERE invoice_id IS NOT NULL;
+
+--
+-- Loan waivers (migration 035).
+--
+
+ALTER TABLE public.capital_pool
+  ADD COLUMN IF NOT EXISTS total_waived numeric(15,2) NOT NULL DEFAULT 0;
+
+ALTER TABLE public.loans
+  ADD COLUMN IF NOT EXISTS completed_via varchar(20);
+
+CREATE TABLE public.loan_waivers (
+  id              serial PRIMARY KEY,
+  loan_id         integer NOT NULL REFERENCES public.loans(id) ON DELETE CASCADE,
+  tenant_id       integer NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  type            varchar(20) NOT NULL,
+  amount          numeric(15,2) NOT NULL CHECK (amount > 0),
+  reason          text NOT NULL,
+  notes           text,
+  status          varchar(20) NOT NULL DEFAULT 'pending',
+  requested_by    integer REFERENCES public.users(id) ON DELETE SET NULL,
+  requested_at    timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  approved_by     integer REFERENCES public.users(id) ON DELETE SET NULL,
+  approved_at     timestamp,
+  rejected_by     integer REFERENCES public.users(id) ON DELETE SET NULL,
+  rejected_at     timestamp,
+  rejection_reason text,
+  reversed_by     integer REFERENCES public.users(id) ON DELETE SET NULL,
+  reversed_at     timestamp,
+  reversal_reason text,
+  allocation      jsonb,
+  created_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

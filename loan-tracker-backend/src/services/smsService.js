@@ -115,6 +115,12 @@ export const templates = {
   counterOffered: (clientName, offeredAmount, loanCode, businessName) =>
     `Hi ${clientName}, your loan application ${loanCode} at ${businessName || process.env.COMPANY_NAME} has a new offer of KES ${parseFloat(offeredAmount).toLocaleString()}. Log in to accept or decline.`,
 
+  loanWaived: (clientName, amount, loanCode, businessName) =>
+    `Hi ${clientName}, ${businessName || process.env.COMPANY_NAME} has waived KES ${parseFloat(amount).toLocaleString()} on your loan ${loanCode}. Check your portal for the new balance.`,
+
+  loanWaiverReversed: (clientName, amount, loanCode, businessName) =>
+    `Hi ${clientName}, the recent KES ${parseFloat(amount).toLocaleString()} waiver on your loan ${loanCode} at ${businessName || process.env.COMPANY_NAME} has been reversed. Please contact us for details.`,
+
   loanCompleted: (clientName, loanCode) =>
     `Congratulations ${clientName}! 🎉 Your loan ${loanCode} has been fully repaid. Thank you for your timely payments. You can now apply for a new loan. - ${process.env.COMPANY_NAME}`,
 

@@ -602,6 +602,45 @@ export const templates = {
       `,
     }),
   }),
+
+  loanWaived: ({ clientName, amount, loanCode, reason, company }) => ({
+    subject: `Loan adjustment — ${loanCode}`,
+    html: baseLayout({
+      accent: "linear-gradient(135deg, #10b981, #047857)",
+      contentBg: "#ecfdf5",
+      border: "#a7f3d0",
+      title: "A waiver has been applied to your loan",
+      subtitle: "Your balance has been adjusted",
+      company,
+      body: `
+        <p>Hi <strong>${clientName}</strong>,</p>
+        <p>${company.name} has applied a waiver to your loan <strong>${loanCode}</strong>.</p>
+        <div class="info-box" style="border-left-color:#047857;background:#d1fae5;">
+          <p style="margin:0 0 6px 0;"><strong style="color:#065f46;">Amount waived:</strong> <span style="color:#064e3b;font-weight:bold;">KES ${parseFloat(amount).toLocaleString()}</span></p>
+          ${reason ? `<p style="margin:0;"><strong style="color:#065f46;">Reason:</strong> ${reason}</p>` : ""}
+        </div>
+        <p>Log in to your portal to see the updated balance and schedule.</p>
+        <p class="muted">If you have any questions, please contact us.</p>
+      `,
+    }),
+  }),
+
+  loanWaiverReversed: ({ clientName, amount, loanCode, company }) => ({
+    subject: `Loan waiver reversed — ${loanCode}`,
+    html: baseLayout({
+      accent: "linear-gradient(135deg, #f43f5e, #be123c)",
+      contentBg: "#fff1f2",
+      border: "#fecdd3",
+      title: "A waiver on your loan has been reversed",
+      subtitle: "Your balance has been restored",
+      company,
+      body: `
+        <p>Hi <strong>${clientName}</strong>,</p>
+        <p>The waiver of <strong>KES ${parseFloat(amount).toLocaleString()}</strong> on your loan <strong>${loanCode}</strong> has been reversed. Your outstanding balance has been restored to what it was before the waiver.</p>
+        <p>Please reach out to ${company.name} for details about this change.</p>
+      `,
+    }),
+  }),
 };
 
 export default {

@@ -32,6 +32,8 @@ const PREF_COLUMNS = {
   payment_reminder:         ["notify_reminder_sms",                "notify_reminder_email"],
   payment_overdue:          ["notify_overdue_sms",                 "notify_overdue_email"],
   loan_completed:           ["notify_completed_sms",               "notify_completed_email"],
+  loan_waived:              ["notify_completed_sms",               "notify_completed_email"],
+  loan_waiver_reversed:     ["notify_completed_sms",               "notify_completed_email"],
 };
 
 // sms_logs.message_type / email_logs.message_type for each event.
@@ -50,6 +52,8 @@ const MESSAGE_TYPE = {
   payment_reminder: "reminder",
   payment_overdue: "overdue_reminder",
   loan_completed: "loan_completed",
+  loan_waived: "loan_waived",
+  loan_waiver_reversed: "loan_waiver_reversed",
 };
 
 /**
@@ -196,6 +200,10 @@ function renderSms(eventType, { tenant, customer, data }) {
       return data.overpayment_amount > 0
         ? smsTemplates.loanCompletedWithOverpayment(name, data.loan_code, data.overpayment_amount)
         : smsTemplates.loanCompleted(name, data.loan_code);
+    case "loan_waived":
+      return smsTemplates.loanWaived(name, data.amount, data.loan_code, biz);
+    case "loan_waiver_reversed":
+      return smsTemplates.loanWaiverReversed(name, data.amount, data.loan_code, biz);
     default:
       return null;
   }
@@ -293,6 +301,21 @@ function renderEmail(eventType, { tenant, customer, data, company }) {
             loanCode: data.loan_code,
             company,
           });
+    case "loan_waived":
+      return emailTemplates.loanWaived({
+        clientName: name,
+        amount: data.amount,
+        loanCode: data.loan_code,
+        reason: data.reason,
+        company,
+      });
+    case "loan_waiver_reversed":
+      return emailTemplates.loanWaiverReversed({
+        clientName: name,
+        amount: data.amount,
+        loanCode: data.loan_code,
+        company,
+      });
     default:
       return null;
   }
