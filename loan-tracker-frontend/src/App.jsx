@@ -86,6 +86,10 @@ function App() {
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    // Clear the persisted period picker so the next login starts on
+    // the current-year default rather than inheriting the last
+    // session's window.
+    localStorage.removeItem("loanfix:period");
   };
 
   // Apply tenant's white-label favicon + tab title when an authed

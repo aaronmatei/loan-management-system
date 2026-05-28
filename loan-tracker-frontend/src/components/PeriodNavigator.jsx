@@ -80,7 +80,7 @@ const isAtOrPastCurrent = (period) => {
 // so shared links open the same window; subsequent changes write
 // back to both.
 
-const STORAGE_KEY = "loanfix:period";
+export const STORAGE_KEY = "loanfix:period";
 
 function readFromUrl(search) {
   const sp = new URLSearchParams(search);
@@ -112,9 +112,14 @@ export function usePersistentPeriod() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Default: current year. URL beats storage so shared links keep
+  // their window, and storage beats the default so the period sticks
+  // as you navigate between Dashboard / Reports / Analytics. The
+  // STORAGE_KEY is cleared on logout (see AuthContext) so the next
+  // login lands here again.
   const initial =
     readFromUrl(location.search) ||
-    readFromStorage() || { mode: "month", value: currentMonth() };
+    readFromStorage() || { mode: "year", value: currentYear() };
 
   const [period, setPeriod] = React.useState(initial);
 
