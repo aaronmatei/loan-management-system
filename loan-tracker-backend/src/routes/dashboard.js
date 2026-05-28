@@ -97,10 +97,13 @@ router.get("/summary", async (req, res) => {
       [...periodParams, ...tsP.params],
     );
 
-    // Overdue snapshot AT THE END of the period: due_date ≤ to and the
-    // installment is still unpaid as of now. (We have no historical
-    // payment-state table, so this approximates "was overdue then".)
-    const dueByEnd = hasPeriod ? `$2::date` : `CURRENT_DATE`;
+    // Overdue snapshot AT THE END of the period: due_date < to and the
+    // installment is still unpaid. Uses only `to` so we pass [to] not
+    // [from, to] — otherwise PG can't infer $1's type when it's unused.
+    const endParams = hasPeriod ? [to] : [];
+    const endOff = endParams.length;
+    const tsLE = tenantClause(req, endOff, "l.tenant_id");
+    const dueByEnd = hasPeriod ? `$1::date` : `CURRENT_DATE`;
     const overdueStats = await query(
       `
       SELECT
@@ -111,9 +114,9 @@ router.get("/summary", async (req, res) => {
       FROM payment_schedules ps
       JOIN loans l ON ps.loan_id = l.id
       WHERE ps.due_date < ${dueByEnd}
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLP.clause}
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLE.clause}
     `,
-      [...periodParams, ...tsLP.params],
+      [...endParams, ...tsLE.params],
     );
 
     const mostOverdue = await query(
@@ -133,11 +136,11 @@ router.get("/summary", async (req, res) => {
       JOIN loans l ON ps.loan_id = l.id
       JOIN clients c ON l.client_id = c.id
       WHERE ps.due_date < ${dueByEnd}
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLP.clause}
+        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLE.clause}
       ORDER BY days_late DESC
       LIMIT 5
     `,
-      [...periodParams, ...tsLP.params],
+      [...endParams, ...tsLE.params],
     );
 
     // Upcoming = installments whose due date falls inside the period
