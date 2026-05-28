@@ -24,15 +24,27 @@ function BillingDashboard() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState("all");
+  // Billing-period filter — empty = show all months. Format: "YYYY-MM".
+  const [monthFilter, setMonthFilter] = useState("");
 
   const load = async () => {
     setLoading(true);
     try {
+      const qs = new URLSearchParams();
+      if (filter !== "all") qs.set("status", filter);
+      if (monthFilter) {
+        const [y, m] = monthFilter.split("-").map((s) => parseInt(s, 10));
+        if (y && m) {
+          qs.set("year", y);
+          qs.set("month", m);
+        }
+      }
+      const url = `/platform/billing/invoices${
+        qs.toString() ? `?${qs}` : ""
+      }`;
       const [s, i] = await Promise.all([
         platformApi.get("/platform/billing/summary"),
-        platformApi.get(
-          `/platform/billing/invoices${filter !== "all" ? `?status=${filter}` : ""}`,
-        ),
+        platformApi.get(url),
       ]);
       setSummary(s.data.data);
       setInvoices(i.data.data || []);
@@ -46,7 +58,20 @@ function BillingDashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     load();
-  }, [filter]);
+  }, [filter, monthFilter]);
+
+  // Human-readable label for the currently-selected period — used in
+  // the active-filter pill so the staff can see at a glance what
+  // they're looking at.
+  const periodLabel = monthFilter
+    ? (() => {
+        const [y, m] = monthFilter.split("-").map((s) => parseInt(s, 10));
+        return new Date(y, m - 1, 1).toLocaleDateString("en-KE", {
+          month: "long",
+          year: "numeric",
+        });
+      })()
+    : null;
 
   // Client-side sort over the current (server-filtered) result set.
   const {
@@ -157,7 +182,7 @@ function BillingDashboard() {
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4 items-center">
           {[
             { v: "all", l: "All" },
             { v: "pending", l: <span className="inline-flex items-center gap-1"><Clock size={13} /> Pending</span> },
@@ -177,7 +202,36 @@ function BillingDashboard() {
               {t.l}
             </button>
           ))}
+
+          {/* Month picker — pulls invoices for the chosen billing period. */}
+          <div className="flex items-center gap-2 ml-auto bg-white rounded-lg border border-gray-200 px-3 py-1.5">
+            <label className="text-xs font-semibold text-gray-600 uppercase">
+              Month
+            </label>
+            <input
+              type="month"
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="text-sm focus:outline-none bg-transparent"
+            />
+            {monthFilter && (
+              <button
+                onClick={() => setMonthFilter("")}
+                className="text-xs text-gray-500 hover:text-gray-800 underline"
+                title="Show all months"
+              >
+                clear
+              </button>
+            )}
+          </div>
         </div>
+
+        {periodLabel && (
+          <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-ocean-50 text-ocean-700 text-xs font-semibold">
+            Viewing <strong>{periodLabel}</strong> · {invoices.length} invoice
+            {invoices.length !== 1 ? "s" : ""}
+          </div>
+        )}
 
         {invoices.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-12 text-center">
