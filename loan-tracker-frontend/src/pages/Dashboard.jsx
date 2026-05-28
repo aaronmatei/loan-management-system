@@ -383,67 +383,79 @@ function Dashboard() {
         </button>
       )}
 
-      {/* Capital Pool — light/glassy to match the rest of the dashboard */}
+      {/* Capital Pool — premium dark-luxe treatment. Deep navy canvas,
+          aurora highlights, crisp white typography on tabular nums. */}
       {poolStatus && (
-        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-6 mb-6 bg-gradient-to-br from-ocean-100/70 via-white/55 to-indigo-100/60 backdrop-blur-md">
-          {/* Laced colour: soft brand auroras drifting behind the frosted glass. */}
-          <div className="pointer-events-none absolute -top-24 -right-16 w-72 h-72 rounded-full bg-ocean-300/30 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-20 w-72 h-72 rounded-full bg-indigo-300/25 blur-3xl" />
-          <div className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 w-56 h-56 rounded-full bg-emerald-200/20 blur-3xl" />
+        <div className="relative overflow-hidden rounded-3xl shadow-[0_20px_60px_-20px_rgba(8,16,30,0.55)] ring-1 ring-white/10 border border-white/5 p-6 lg:p-8 mb-6 bg-gradient-to-br from-navy-950 via-navy-900 to-[#0c1a2e]">
+          {/* Aurora glows — soft cyan/indigo wash behind the chrome. */}
+          <div className="pointer-events-none absolute -top-32 -right-20 w-96 h-96 rounded-full bg-ocean-500/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-indigo-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute top-12 left-1/3 w-72 h-72 rounded-full bg-cyan-400/10 blur-3xl" />
+          {/* Specular highlight along the top edge — sells the "premium glass" feel. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
 
           {/* Header */}
           <div className="relative flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <IconTile icon={Coins} variant="ocean" size={44} />
+              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-ocean-400 to-ocean-700 ring-1 ring-white/20 shadow-lg shadow-ocean-900/40 flex items-center justify-center">
+                <Coins size={22} className="text-white drop-shadow" />
+              </div>
               <div>
-                <h2 className="text-lg font-bold text-navy-900">
+                <h2 className="text-lg font-semibold text-white tracking-tight">
                   Capital Pool
                 </h2>
-                <p className="text-sm text-slate-500">Available for lending</p>
+                <p className="text-xs text-white/50 uppercase tracking-[0.18em]">
+                  Available for lending
+                </p>
               </div>
             </div>
             {isAdmin && (
               <button
                 onClick={() => setShowTopUp(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-ocean-200 bg-ocean-50 text-ocean-700 text-sm font-semibold hover:bg-ocean-100 transition"
+                className="group inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/15 bg-white/5 text-white/80 text-sm font-medium hover:bg-white/10 hover:border-white/25 hover:text-white transition backdrop-blur-sm"
               >
-                <Plus size={16} /> Top up capital
+                <Plus size={16} className="text-ocean-300 group-hover:text-ocean-200 transition" />
+                Top up capital
               </button>
             )}
           </div>
 
           {/* Available capital + principal currently loaned out */}
-          <div className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mt-6">
+          <div className="relative flex flex-wrap items-end justify-between gap-x-8 gap-y-4 mt-8">
             <div>
-              <p className="text-sm text-slate-500">Available Capital</p>
-              <p className="text-3xl lg:text-4xl font-extrabold text-navy-900 leading-none mt-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                Available Capital
+              </p>
+              <p className="text-4xl lg:text-5xl font-extrabold text-white leading-none mt-2 tracking-tight">
                 {fmtKES(poolStatus.available_pool)}
-                <span className="text-sm font-medium text-slate-400 ml-2">
-                  of {fmtKES(poolStatus.initial_capital)}
-                </span>
+              </p>
+              <p className="text-xs text-white/40 mt-2">
+                of {fmtKES(poolStatus.initial_capital)} total pool
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-slate-500">Loaned Out</p>
-              <p className="text-2xl lg:text-3xl font-extrabold text-ocean-600 leading-none mt-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                Loaned Out
+              </p>
+              <p className="text-3xl lg:text-4xl font-extrabold text-ocean-300 leading-none mt-2 tracking-tight drop-shadow-[0_0_24px_rgba(44,190,255,0.35)]">
                 {fmtKES(poolStatus.outstanding_principal)}
               </p>
             </div>
           </div>
 
           {/* Utilization */}
-          <div className="relative mt-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-slate-500">
+          <div className="relative mt-8">
+            <div className="flex justify-between items-center mb-2.5">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/50">
                 Utilization
               </span>
-              <span className="text-sm font-bold text-ocean-600">
+              <span className="text-sm font-bold text-ocean-200">
                 {poolStatus.utilization_rate.toFixed(1)}%
               </span>
             </div>
-            <div className="w-full bg-white/50 rounded-full h-2.5 overflow-hidden">
+            <div className="relative w-full bg-white/5 ring-1 ring-white/5 rounded-full h-2 overflow-hidden">
               <div
-                className="h-2.5 rounded-full bg-gradient-to-r from-ocean-600 to-ocean-300 transition-all"
+                className="h-2 rounded-full bg-gradient-to-r from-ocean-500 via-ocean-400 to-cyan-300 transition-all shadow-[0_0_18px_rgba(44,190,255,0.65)]"
                 style={{
                   width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
                 }}
@@ -451,42 +463,54 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Cash story row — what went out, what came back, what was
-              earned, how much we're collecting. Period P&L lives in
-              its own row below the Capital Pool card. */}
-          <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <p className="text-xs text-slate-500">Total Disbursed</p>
-              <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+          {/* Hairline separator before the cash-story tiles. */}
+          <div className="relative mt-7 mb-6 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+          {/* Cash story row — lifetime numbers on the pool. Period
+              equivalents live in the strip below the card. */}
+          <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                Total disbursed
+              </p>
+              <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
                 {fmtKES(poolStatus.total_disbursed)}
               </p>
             </div>
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <p className="text-xs text-slate-500">Total Collected</p>
-              <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                Total collected
+              </p>
+              <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
                 {fmtKES(poolStatus.total_collected)}
               </p>
             </div>
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <p className="text-xs text-slate-500">Interest from Loans</p>
-              <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                Interest from loans
+              </p>
+              <p className="text-base lg:text-lg font-bold text-emerald-300 whitespace-nowrap mt-1.5 tracking-tight">
                 +{fmtKES(poolStatus.loan_interest_earned ?? 0)}
               </p>
             </div>
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <p className="text-xs text-slate-500">Interest from Fines</p>
-              <p className="text-base sm:text-lg font-bold text-amber-600 whitespace-nowrap mt-1">
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                Interest from fines
+              </p>
+              <p className="text-base lg:text-lg font-bold text-amber-300 whitespace-nowrap mt-1.5 tracking-tight">
                 +{fmtKES(poolStatus.fines_collected ?? 0)}
               </p>
             </div>
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
-              <p className="text-xs text-slate-500">Collection Rate</p>
-              <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                Collection rate
+              </p>
+              <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
                 {metrics.collection_rate}%
               </p>
-              <div className="w-full bg-white/60 rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="w-full bg-white/5 ring-1 ring-white/5 rounded-full h-1 mt-2 overflow-hidden">
                 <div
-                  className="bg-ocean-500 h-1.5 rounded-full transition-all"
+                  className="bg-gradient-to-r from-ocean-500 to-cyan-300 h-1 rounded-full transition-all shadow-[0_0_10px_rgba(44,190,255,0.55)]"
                   style={{
                     width: `${Math.min(metrics.collection_rate, 100)}%`,
                   }}
