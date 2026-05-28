@@ -912,11 +912,8 @@ function Payments() {
                 <dt className="text-gray-500">Date</dt>
                 <dd>
                   {new Date(
-                    txnModal.created_at || txnModal.payment_date,
-                  ).toLocaleString(undefined, {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
+                    txnModal.payment_date || txnModal.created_at,
+                  ).toLocaleDateString()}
                 </dd>
               </div>
               {txnModal.notes && (
