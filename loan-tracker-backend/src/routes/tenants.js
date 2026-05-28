@@ -166,6 +166,27 @@ router.post("/signup", async (req, res) => {
       [tenant.id],
     );
 
+    // Seed the 11 default expense categories — same set migration 031
+    // backfilled for existing tenants. ON CONFLICT keeps it idempotent
+    // if a migration re-run also touched this tenant.
+    await client.query(
+      `INSERT INTO expense_categories (tenant_id, name, icon, is_default, sort_order)
+       VALUES
+         ($1, 'Salaries & Wages',                'users',          true, 10),
+         ($1, 'Communication (Airtime, SMS, Internet)', 'phone',  true, 20),
+         ($1, 'Office Supplies & Equipment',     'package',        true, 30),
+         ($1, 'Transport & Travel',              'car',            true, 40),
+         ($1, 'Printing & Stationery',           'printer',        true, 50),
+         ($1, 'Transaction Charges',             'credit-card',    true, 60),
+         ($1, 'Default Follow-up Costs',         'alert-triangle', true, 70),
+         ($1, 'Rent & Utilities',                'home',           true, 80),
+         ($1, 'Marketing & Promotion',           'megaphone',      true, 90),
+         ($1, 'Platform Billing',                'receipt',        true, 95),
+         ($1, 'Other',                           'more-horizontal',true, 100)
+       ON CONFLICT (tenant_id, name) DO NOTHING`,
+      [tenant.id],
+    );
+
     await client.query(
       `INSERT INTO company_settings
          (tenant_id, company_name, company_address, company_phone, company_email)

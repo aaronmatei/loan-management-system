@@ -94,7 +94,7 @@ const navGroups = [
     variant: "amber",
     items: [
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
-      { path: "/billing", label: "Billing", icon: Receipt, roles: ["admin", "manager"] },
+      { path: "/expenses", label: "Expenses & Billing", icon: Receipt, roles: ["admin", "manager"] },
       { path: "/backup", label: "Backup", icon: Database, roles: ["admin"] },
       { path: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
     ],

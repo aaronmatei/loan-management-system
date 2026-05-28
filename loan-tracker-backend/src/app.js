@@ -21,6 +21,7 @@ import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
 import settingsRoutes from "./routes/settings.js";
 import billingRoutes from "./routes/billing.js";
+import expensesRoutes from "./routes/expenses.js";
 import automationRoutes from "./routes/automation.js";
 import auditRoutes from "./routes/audit.js";
 import userRoutes from "./routes/users.js";
@@ -111,6 +112,7 @@ app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/billing", billingRoutes); // tenant's own platform invoices
+app.use("/api/expenses", expensesRoutes); // operating expenses + categories
 app.use("/api/automation", automationRoutes); // tenant reminder/overdue automation
 app.use("/api/audit", auditRoutes);
 app.use("/api/users", userRoutes);

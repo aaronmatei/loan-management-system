@@ -2887,3 +2887,36 @@ DROP TRIGGER IF EXISTS email_logs_fill_tenant ON public.email_logs;
 CREATE TRIGGER email_logs_fill_tenant
   BEFORE INSERT ON public.email_logs
   FOR EACH ROW EXECUTE FUNCTION public.fill_log_tenant_id();
+
+--
+-- Expense categories + expenses (migrations 031, 032).
+--
+
+CREATE TABLE public.expense_categories (
+  id           serial PRIMARY KEY,
+  tenant_id    integer NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  name         varchar(80) NOT NULL,
+  icon         varchar(40),
+  is_default   boolean NOT NULL DEFAULT false,
+  is_active    boolean NOT NULL DEFAULT true,
+  sort_order   integer NOT NULL DEFAULT 100,
+  created_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE public.expenses (
+  id                serial PRIMARY KEY,
+  tenant_id         integer NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  category_id       integer REFERENCES public.expense_categories(id) ON DELETE SET NULL,
+  amount            numeric(15,2) NOT NULL CHECK (amount > 0),
+  description       text,
+  expense_date      date NOT NULL DEFAULT CURRENT_DATE,
+  payment_method    varchar(40),
+  reference         varchar(80),
+  is_recurring      boolean NOT NULL DEFAULT false,
+  recurrence_period varchar(20),
+  recorded_by       integer REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
