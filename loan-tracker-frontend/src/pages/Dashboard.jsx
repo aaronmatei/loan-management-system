@@ -236,9 +236,7 @@ function Dashboard() {
 
   // Chart 2: donut from the loan-status breakdown.
   const cap = (s) =>
-    (s || "")
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    (s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const donutData = (portfolioBreakdown || [])
     .map((s) => ({
       name: cap(s.status),
@@ -297,9 +295,18 @@ function Dashboard() {
   // Chart B — Loan-size histogram. Force the bucket order (SQL would
   // alphabetise the labels) and coerce to numbers so a real-data tenant
   // never falsely shows empty.
-  const BUCKET_ORDER = ["<10K", "10–25K", "25–50K", "50–100K", "100–250K", "250K+"];
+  const BUCKET_ORDER = [
+    "<10K",
+    "10–25K",
+    "25–50K",
+    "50–100K",
+    "100–250K",
+    "250K+",
+  ];
   const sizeData = BUCKET_ORDER.map((bucket) => {
-    const row = (metrics.loan_size_buckets || []).find((r) => r.bucket === bucket);
+    const row = (metrics.loan_size_buckets || []).find(
+      (r) => r.bucket === bucket,
+    );
     return {
       bucket,
       count: Number(row?.count || 0),
@@ -348,7 +355,9 @@ function Dashboard() {
       {showWelcome && (
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-4 mb-4 flex justify-between items-center">
           <div>
-            <h3 className="font-bold flex items-center gap-2"><PartyPopper size={18} /> Welcome to your dashboard!</h3>
+            <h3 className="font-bold flex items-center gap-2">
+              <PartyPopper size={18} /> Welcome to your dashboard!
+            </h3>
             <p className="text-sm">
               Your first loan application is in the Applications queue — review
               and disburse it from there.
@@ -387,7 +396,9 @@ function Dashboard() {
             <div className="flex items-center gap-3">
               <IconTile icon={Coins} variant="ocean" size={44} />
               <div>
-                <h2 className="text-lg font-bold text-navy-900">Capital Pool</h2>
+                <h2 className="text-lg font-bold text-navy-900">
+                  Capital Pool
+                </h2>
                 <p className="text-sm text-slate-500">Available for lending</p>
               </div>
             </div>
@@ -483,7 +494,6 @@ function Dashboard() {
               </div>
             </div>
           </div>
-
         </div>
       )}
 
@@ -512,6 +522,16 @@ function Dashboard() {
           </p>
         </div>
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[11px] text-slate-500">Processing Fees</p>
+            <Banknote size={12} className="text-ocean-600 flex-shrink-0" />
+          </div>
+          <p className="text-base font-bold text-ocean-700 whitespace-nowrap mt-1">
+            +{fmtKES(metrics.processing_fees || 0)}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
           <p className="text-[11px] text-slate-500">Interest from Loans</p>
           <p className="text-base font-bold text-emerald-600 whitespace-nowrap mt-1">
             +{fmtKES(metrics.interest_collected ?? 0)}
@@ -521,27 +541,6 @@ function Dashboard() {
           <p className="text-[11px] text-slate-500">Interest from Fines</p>
           <p className="text-base font-bold text-amber-600 whitespace-nowrap mt-1">
             +{fmtKES(metrics.fines_collected ?? 0)}
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/expenses")}
-          className="text-left bg-white rounded-xl border border-slate-100 shadow-sm p-3 hover:border-amber-200 transition"
-        >
-          <div className="flex items-center justify-between gap-1">
-            <p className="text-[11px] text-slate-500">Expenses</p>
-            <Receipt size={12} className="text-amber-600 flex-shrink-0" />
-          </div>
-          <p className="text-base font-bold text-amber-700 whitespace-nowrap mt-1">
-            −{fmtKES(metrics.expenses_this_month || 0)}
-          </p>
-        </button>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <div className="flex items-center justify-between gap-1">
-            <p className="text-[11px] text-slate-500">Processing Fees</p>
-            <Banknote size={12} className="text-ocean-600 flex-shrink-0" />
-          </div>
-          <p className="text-base font-bold text-ocean-700 whitespace-nowrap mt-1">
-            +{fmtKES(metrics.processing_fees || 0)}
           </p>
         </div>
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
@@ -560,6 +559,19 @@ function Dashboard() {
               : "ring-1 ring-rose-200"
           }`}
         >
+          <button
+            onClick={() => navigate("/expenses")}
+            className="text-left bg-white rounded-xl border border-slate-100 shadow-sm p-3 hover:border-amber-200 transition"
+          >
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[11px] text-slate-500">Expenses</p>
+              <Receipt size={12} className="text-amber-600 flex-shrink-0" />
+            </div>
+            <p className="text-base font-bold text-amber-700 whitespace-nowrap mt-1">
+              −{fmtKES(metrics.expenses_this_month || 0)}
+            </p>
+          </button>
+
           <div className="flex items-center justify-between gap-1">
             <p className="text-[11px] text-slate-500">Net Profit</p>
             <ArrowUpDown
@@ -643,9 +655,7 @@ function Dashboard() {
             <IconTile icon={Wallet} variant="ocean" size={40} />
           </div>
           <p className="text-2xl font-bold text-navy-900 mt-2">
-            {fmtKES(
-              metrics.active_portfolio ?? metrics.total_amount_due,
-            )}
+            {fmtKES(metrics.active_portfolio ?? metrics.total_amount_due)}
           </p>
           <p className="text-xs text-slate-500 mt-1">
             {metrics.active_loans} active • {metrics.total_loans} total
@@ -706,7 +716,6 @@ function Dashboard() {
             />
           </div>
         </div>
-
       </div>
 
       {/* ── Insights row: trend chart + portfolio donut ─────────────── */}
@@ -733,7 +742,13 @@ function Dashboard() {
                 margin={{ top: 6, right: 8, left: -8, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="collectedFill" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="collectedFill"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="0%" stopColor="#0086cc" stopOpacity={0.25} />
                     <stop offset="100%" stopColor="#0086cc" stopOpacity={0} />
                   </linearGradient>
@@ -828,7 +843,9 @@ function Dashboard() {
                 <Legend
                   iconType="circle"
                   wrapperStyle={{ fontSize: 12 }}
-                  formatter={(value, entry) => `${value} (${entry.payload.value})`}
+                  formatter={(value, entry) =>
+                    `${value} (${entry.payload.value})`
+                  }
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -844,9 +861,7 @@ function Dashboard() {
             <IconTile icon={Users} variant="ocean" size={36} />
             <div>
               <h3 className="font-bold text-navy-900">Loans by Age</h3>
-              <p className="text-xs text-slate-500">
-                Borrower age × status
-              </p>
+              <p className="text-xs text-slate-500">Borrower age × status</p>
             </div>
           </div>
           {!ageHasData ? (
@@ -1016,7 +1031,9 @@ function Dashboard() {
                 <Legend
                   iconType="circle"
                   wrapperStyle={{ fontSize: 12 }}
-                  formatter={(value, entry) => `${value} (${entry.payload.value})`}
+                  formatter={(value, entry) =>
+                    `${value} (${entry.payload.value})`
+                  }
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -1146,7 +1163,9 @@ function Dashboard() {
         {/* Recent Loans */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><ClipboardList size={20} /> Recent Loans</h3>
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <ClipboardList size={20} /> Recent Loans
+            </h3>
             <button
               onClick={() => navigate("/loans")}
               className="text-ocean-600 hover:text-ocean-700 text-sm font-semibold"
