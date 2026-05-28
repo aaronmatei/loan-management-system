@@ -41,7 +41,6 @@ const standaloneItems = [
   // Dashboard's path is "/" — match it EXACTLY so it doesn't light up
   // on every page (startsWith("/") would be always-true).
   { path: "/", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", permission: "dashboard:view", exact: true },
-  { path: "/analytics", label: "Analytics", icon: TrendingUp, variant: "indigo", permission: "dashboard:view" },
 ];
 
 const navGroups = [
@@ -65,6 +64,7 @@ const navGroups = [
     variant: "indigo",
     items: [
       { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
+      { path: "/analytics", label: "Analytics", icon: TrendingUp, permission: "dashboard:view" },
       { path: "/audit", label: "Audit Log", icon: ScrollText, permission: "audit:view" },
     ],
   },
@@ -294,7 +294,7 @@ function Layout({ children }) {
           </div>
 
           <nav className="flex-1 overflow-y-auto p-4">
-            {/* Standalone (Dashboard + Analytics) */}
+            {/* Standalone (Dashboard) */}
             <ul className="space-y-1">
               {visibleStandalone.map((it) => renderItem(it))}
             </ul>
