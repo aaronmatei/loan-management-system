@@ -552,6 +552,18 @@ function Dashboard() {
             +{fmtKES(metrics.income_this_month || 0)}
           </p>
         </div>
+        <button
+          onClick={() => navigate("/expenses")}
+          className="text-left bg-white rounded-xl border border-slate-100 shadow-sm p-3 hover:border-amber-200 transition"
+        >
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[11px] text-slate-500">Expenses</p>
+            <Receipt size={12} className="text-amber-600 flex-shrink-0" />
+          </div>
+          <p className="text-base font-bold text-amber-700 whitespace-nowrap mt-1">
+            −{fmtKES(metrics.expenses_this_month || 0)}
+          </p>
+        </button>
         <div
           className={`bg-white rounded-xl border border-slate-100 shadow-sm p-3 ${
             (metrics.net_profit_this_month || 0) >= 0
@@ -559,19 +571,6 @@ function Dashboard() {
               : "ring-1 ring-rose-200"
           }`}
         >
-          <button
-            onClick={() => navigate("/expenses")}
-            className="text-left bg-white rounded-xl border border-slate-100 shadow-sm p-3 hover:border-amber-200 transition"
-          >
-            <div className="flex items-center justify-between gap-1">
-              <p className="text-[11px] text-slate-500">Expenses</p>
-              <Receipt size={12} className="text-amber-600 flex-shrink-0" />
-            </div>
-            <p className="text-base font-bold text-amber-700 whitespace-nowrap mt-1">
-              −{fmtKES(metrics.expenses_this_month || 0)}
-            </p>
-          </button>
-
           <div className="flex items-center justify-between gap-1">
             <p className="text-[11px] text-slate-500">Net Profit</p>
             <ArrowUpDown
