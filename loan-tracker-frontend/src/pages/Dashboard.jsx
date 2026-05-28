@@ -1201,6 +1201,55 @@ function Dashboard() {
 
       {/* Recent Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Payments */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Banknote size={20} /> Recent Payments
+            </h3>
+            <button
+              onClick={() => navigate("/payments")}
+              className="text-green-600 hover:text-green-800 text-sm font-semibold"
+            >
+              View all →
+            </button>
+          </div>
+          {activities.recent_payments.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">No payments yet</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {activities.recent_payments.map((payment) => (
+                <div
+                  key={payment.id}
+                  className="p-4 hover:bg-gray-50 transition"
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        {payment.first_name} {payment.last_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {payment.loan_code} • {payment.payment_method}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(payment.payment_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-green-600">
+                        KES {parseFloat(payment.amount_paid).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-500 font-mono">
+                        {payment.transaction_code}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Recent Loans */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-6 border-b border-gray-200 flex justify-between items-center">
@@ -1248,55 +1297,6 @@ function Dashboard() {
                       >
                         {loan.status}
                       </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Recent Payments */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <Banknote size={20} /> Recent Payments
-            </h3>
-            <button
-              onClick={() => navigate("/payments")}
-              className="text-green-600 hover:text-green-800 text-sm font-semibold"
-            >
-              View all →
-            </button>
-          </div>
-          {activities.recent_payments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No payments yet</div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {activities.recent_payments.map((payment) => (
-                <div
-                  key={payment.id}
-                  className="p-4 hover:bg-gray-50 transition"
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-semibold text-gray-800">
-                        {payment.first_name} {payment.last_name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {payment.loan_code} • {payment.payment_method}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(payment.payment_date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-green-600">
-                        KES {parseFloat(payment.amount_paid).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-500 font-mono">
-                        {payment.transaction_code}
-                      </p>
                     </div>
                   </div>
                 </div>

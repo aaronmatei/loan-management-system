@@ -377,8 +377,14 @@ router.get("/recent-activities", async (req, res) => {
     const tsL = tenantClause(req, off, "l.tenant_id");
     const tsT = tenantClause(req, off, "t.tenant_id");
 
+    // Loans sort + filter by their BUSINESS date — the disbursement
+    // date when there is one, else the creation date for applications
+    // still in the queue. Filtering on created_at hides backdated
+    // loans from the period entirely (e.g. a 2022 loan recorded today
+    // wouldn't appear when the user picks 2022).
+    const loanBusinessDate = "COALESCE(l.disbursed_at, l.created_at)::date";
     const loanCreatedWithin = hasPeriod
-      ? ` AND l.created_at::date BETWEEN $1 AND $2`
+      ? ` AND ${loanBusinessDate} BETWEEN $1 AND $2`
       : "";
     const txnDateWithin = hasPeriod
       ? ` AND t.payment_date::date BETWEEN $1 AND $2`
@@ -387,12 +393,13 @@ router.get("/recent-activities", async (req, res) => {
     const recentLoans = await query(
       `
       SELECT
-        l.id, l.loan_code, l.principal_amount, l.status, l.created_at,
+        l.id, l.loan_code, l.principal_amount, l.status,
+        l.created_at, l.disbursed_at,
         c.first_name, c.last_name, c.phone_number
       FROM loans l
       JOIN clients c ON l.client_id = c.id
       WHERE 1=1${loanCreatedWithin}${tsL.clause}
-      ORDER BY l.created_at DESC
+      ORDER BY ${loanBusinessDate} DESC, l.created_at DESC
       LIMIT 5
     `,
       [...periodParams, ...tsL.params],
