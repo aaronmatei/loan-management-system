@@ -5,7 +5,6 @@ import {
   Coins,
   TrendingUp,
   AlertTriangle,
-  RotateCcw,
   PieChart as PieChartIcon,
   BarChart3,
   CreditCard,
@@ -499,7 +498,7 @@ function Dashboard() {
           </span>
         </p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2.5 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5 mb-4">
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
           <p className="text-[11px] text-slate-500">Total Disbursed</p>
           <p className="text-base font-bold text-navy-900 whitespace-nowrap mt-1">
@@ -523,20 +522,6 @@ function Dashboard() {
           <p className="text-base font-bold text-amber-600 whitespace-nowrap mt-1">
             +{fmtKES(metrics.fines_collected ?? 0)}
           </p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <p className="text-[11px] text-slate-500">Collection Rate</p>
-          <p className="text-base font-bold text-navy-900 mt-1">
-            {(metrics.collection_rate || 0).toFixed(1)}%
-          </p>
-          <div className="mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="bg-ocean-500 h-1 rounded-full transition-all"
-              style={{
-                width: `${Math.min(metrics.collection_rate || 0, 100)}%`,
-              }}
-            />
-          </div>
         </div>
         <button
           onClick={() => navigate("/expenses")}
@@ -701,22 +686,25 @@ function Dashboard() {
           </p>
         </button>
 
-        {/* Pending Refunds — always shown; neutral "None pending" at zero */}
+        {/* Collection Rate — period total_collected / total_amount_due */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Pending Refunds
+              Collection Rate
             </p>
-            <IconTile icon={RotateCcw} variant="ocean" size={40} />
+            <IconTile icon={TrendingUp} variant="ocean" size={40} />
           </div>
           <p className="text-2xl font-bold text-navy-900 mt-2">
-            {Number(metrics.pending_refunds || 0).toLocaleString()}
+            {(metrics.collection_rate || 0).toFixed(1)}%
           </p>
-          <p className="text-xs text-slate-500 mt-1">
-            {Number(metrics.pending_refunds) > 0
-              ? `${fmtKES(metrics.total_overpayment)} to refund`
-              : "None pending"}
-          </p>
+          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="bg-ocean-500 h-1.5 rounded-full transition-all"
+              style={{
+                width: `${Math.min(metrics.collection_rate || 0, 100)}%`,
+              }}
+            />
+          </div>
         </div>
 
       </div>
