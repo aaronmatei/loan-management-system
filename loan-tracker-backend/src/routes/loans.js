@@ -1418,6 +1418,382 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
 });
 
 // ============================================================
+// EDIT LOAN — full-field edit (admin + manager).
+//
+// All fields are editable, including the money fields on a
+// disbursed loan. When principal / interest_rate / duration /
+// processing_fee_rate change on an already-disbursed loan we
+// recompute totals, regenerate payment_schedules, and reconcile
+// the capital_pool. Pre-disbursement edits are just field updates
+// (no schedule exists yet, no capital movement yet).
+// ============================================================
+router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      principal_amount,
+      annual_interest_rate,
+      loan_duration_months,
+      processing_fee_rate,
+      application_date,
+      purpose,
+      guarantor_name,
+      guarantor_phone,
+      guarantor_id_number,
+      collateral_description,
+      late_payment_fee,
+      penalty_rate,
+      notes,
+    } = req.body || {};
+
+    const eT = tenantClause(req, 1);
+    const exRes = await query(
+      `SELECT * FROM loans WHERE id = $1${eT.clause}`,
+      [id, ...eT.params],
+    );
+    if (exRes.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+    const existing = exRes.rows[0];
+    const tid = existing.tenant_id;
+
+    // Coerce inputs; fall back to existing values when a field is
+    // missing from the payload (partial edits are allowed).
+    const newPrincipal = parseFloat(
+      principal_amount ?? existing.principal_amount,
+    );
+    // The form sends annual_interest_rate; interest_rate column stores MONTHLY.
+    const annualRate =
+      annual_interest_rate != null
+        ? parseFloat(annual_interest_rate)
+        : parseFloat(existing.interest_rate) * 12;
+    const newMonthlyRate = annualRate / 12;
+    const newMonths = parseInt(
+      loan_duration_months ?? existing.loan_duration_months,
+      10,
+    );
+    const newProcFeeRate = parseFloat(
+      processing_fee_rate ?? existing.processing_fee_rate ?? 0,
+    );
+    if (
+      !Number.isFinite(newPrincipal) ||
+      newPrincipal <= 0 ||
+      !Number.isFinite(annualRate) ||
+      annualRate < 0 ||
+      !Number.isFinite(newMonths) ||
+      newMonths <= 0 ||
+      !Number.isFinite(newProcFeeRate) ||
+      newProcFeeRate < 0 ||
+      newProcFeeRate > 100
+    ) {
+      return res.status(400).json({ error: "Invalid numeric fields" });
+    }
+
+    const newYears = newMonths / 12;
+    const newTotalInterest = newPrincipal * (annualRate / 100) * newYears;
+    const newTotalDue = newPrincipal + newTotalInterest;
+    const newProcessingFee =
+      Math.round(newPrincipal * newProcFeeRate) / 100;
+    const newNetDisbursed =
+      Math.round((newPrincipal - newProcessingFee) * 100) / 100;
+
+    const moneyChanged =
+      parseFloat(existing.principal_amount) !== newPrincipal ||
+      parseFloat(existing.interest_rate) !== newMonthlyRate ||
+      parseInt(existing.loan_duration_months, 10) !== newMonths ||
+      parseFloat(existing.processing_fee_rate || 0) !== newProcFeeRate;
+
+    const isDisbursed = ["active", "completed", "defaulted", "suspended"].includes(
+      existing.status,
+    );
+
+    // Recompute end_date when duration changes on a disbursed loan
+    // (start_date was anchored at disbursement).
+    let newEndDate = existing.end_date;
+    if (isDisbursed && moneyChanged && existing.disbursed_at) {
+      const eo = new Date(existing.disbursed_at);
+      eo.setMonth(eo.getMonth() + newMonths);
+      newEndDate = eo.toISOString().split("T")[0];
+    }
+
+    // Validate application_date if supplied (admins may backdate).
+    let appDate = existing.application_date;
+    if (application_date) {
+      const d = new Date(application_date);
+      if (Number.isNaN(d.getTime())) {
+        return res.status(400).json({ error: "Invalid application_date" });
+      }
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      if (d > todayEnd) {
+        return res
+          .status(400)
+          .json({ error: "Application date cannot be in the future" });
+      }
+      appDate = application_date;
+    }
+
+    const lateFee =
+      late_payment_fee != null
+        ? parseFloat(late_payment_fee) || 0
+        : parseFloat(existing.late_payment_fee || 0);
+    const penaltyRate =
+      penalty_rate != null
+        ? parseFloat(penalty_rate) || 0
+        : parseFloat(existing.penalty_rate || 0);
+
+    const upd = await query(
+      `UPDATE loans SET
+         principal_amount         = $1,
+         interest_rate            = $2,
+         loan_duration_months     = $3,
+         total_interest           = $4,
+         total_amount_due         = $5,
+         processing_fee_rate      = $6,
+         processing_fee           = $7,
+         net_disbursed_amount     = $8,
+         end_date                 = $9,
+         application_date         = $10,
+         purpose                  = $11,
+         guarantor_name           = $12,
+         guarantor_phone          = $13,
+         guarantor_id_number      = $14,
+         collateral_description   = $15,
+         late_payment_fee         = $16,
+         penalty_rate             = $17,
+         notes                    = COALESCE($18, notes),
+         updated_at               = NOW()
+       WHERE id = $19 AND tenant_id = $20
+       RETURNING *`,
+      [
+        newPrincipal,
+        newMonthlyRate,
+        newMonths,
+        newTotalInterest,
+        newTotalDue,
+        newProcFeeRate,
+        newProcessingFee,
+        newNetDisbursed,
+        newEndDate,
+        appDate,
+        purpose ?? existing.purpose,
+        guarantor_name ?? existing.guarantor_name,
+        guarantor_phone ?? existing.guarantor_phone,
+        guarantor_id_number ?? existing.guarantor_id_number,
+        collateral_description ?? existing.collateral_description,
+        lateFee,
+        penaltyRate,
+        notes ?? null,
+        id,
+        tid,
+      ],
+    );
+    const updated = upd.rows[0];
+
+    // Regenerate schedule + reconcile capital_pool when money fields
+    // change on a disbursed loan. Existing transactions are preserved;
+    // the next payment-record call will reconcile against the new
+    // total_due via the standard formula.
+    if (isDisbursed && moneyChanged) {
+      // Drop old schedule and rebuild from disbursement date.
+      await query(`DELETE FROM payment_schedules WHERE loan_id = $1`, [id]);
+      const start = new Date(updated.disbursed_at || updated.start_date);
+      const monthlyPay = newTotalDue / newMonths;
+      // How much of the new total has already been credited as
+      // principal+interest (penalty/overpayment excluded) — needed so
+      // already-paid installments come back marked paid.
+      const paidRes = await query(
+        `SELECT COALESCE(
+            SUM(amount_paid
+                - COALESCE(penalty_portion, 0)
+                - COALESCE(overpayment_portion, 0)),
+            0) AS total_paid
+           FROM transactions
+          WHERE loan_id = $1 AND payment_status = 'completed'`,
+        [id],
+      );
+      let remainingPaid = parseFloat(paidRes.rows[0].total_paid || 0);
+      for (let i = 1; i <= newMonths; i++) {
+        const dueDate = new Date(start);
+        dueDate.setMonth(dueDate.getMonth() + i);
+        const installmentAmount = Math.round(monthlyPay * 100) / 100;
+        let amountPaid = 0;
+        let status = "pending";
+        if (remainingPaid >= installmentAmount) {
+          amountPaid = installmentAmount;
+          status = "paid";
+          remainingPaid -= installmentAmount;
+        } else if (remainingPaid > 0) {
+          amountPaid = Math.round(remainingPaid * 100) / 100;
+          remainingPaid = 0;
+        }
+        if (status !== "paid" && dueDate < new Date()) status = "overdue";
+        await query(
+          `INSERT INTO payment_schedules
+             (tenant_id, loan_id, payment_number, due_date, amount_due,
+              amount_paid, status, actual_payment_date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            tid,
+            id,
+            i,
+            dueDate.toISOString().split("T")[0],
+            installmentAmount,
+            amountPaid,
+            status,
+            status === "paid"
+              ? dueDate.toISOString().split("T")[0]
+              : null,
+          ],
+        );
+      }
+
+      // Capital pool reconciliation: roll back old disbursement +
+      // processing-fee contribution, apply new values.
+      const oldPrincipal = parseFloat(existing.principal_amount);
+      const oldProcFee = parseFloat(existing.processing_fee || 0);
+      await query(
+        `UPDATE capital_pool
+            SET total_disbursed       = total_disbursed       - $1 + $2,
+                total_interest_earned = total_interest_earned - $3 + $4,
+                updated_at = NOW()
+          WHERE tenant_id = $5`,
+        [oldPrincipal, newPrincipal, oldProcFee, newProcessingFee, tid],
+      );
+    }
+
+    await logAudit({
+      user: req.user,
+      action: "loan_edited",
+      entityType: "loan",
+      entityId: id,
+      entityCode: existing.loan_code,
+      description: moneyChanged
+        ? `Edited loan ${existing.loan_code} (money fields changed${
+            isDisbursed ? " — schedule regenerated" : ""
+          })`
+        : `Edited loan ${existing.loan_code}`,
+      oldValues: {
+        principal_amount: existing.principal_amount,
+        interest_rate: existing.interest_rate,
+        loan_duration_months: existing.loan_duration_months,
+        processing_fee_rate: existing.processing_fee_rate,
+        late_payment_fee: existing.late_payment_fee,
+        penalty_rate: existing.penalty_rate,
+        purpose: existing.purpose,
+      },
+      newValues: {
+        principal_amount: newPrincipal,
+        interest_rate: newMonthlyRate,
+        loan_duration_months: newMonths,
+        processing_fee_rate: newProcFeeRate,
+        late_payment_fee: lateFee,
+        penalty_rate: penaltyRate,
+        purpose: updated.purpose,
+      },
+      req,
+    });
+
+    res.json({
+      success: true,
+      message: moneyChanged && isDisbursed
+        ? "Loan updated and schedule regenerated"
+        : "Loan updated",
+      data: updated,
+    });
+  } catch (error) {
+    logger.error("Edit loan error:", error);
+    res.status(500).json({ error: "Failed to edit loan" });
+  }
+});
+
+// ============================================================
+// DELETE LOAN — pre-disbursement only (admin).
+// Permanently removes a loan that has not been disbursed. Disbursed
+// loans (active/completed/defaulted/suspended) are off-limits via
+// the UI — preserving the audit trail and capital-pool history.
+// ============================================================
+router.delete("/:id", authorize("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dT = tenantClause(req, 1);
+    const exRes = await query(
+      `SELECT * FROM loans WHERE id = $1${dT.clause}`,
+      [id, ...dT.params],
+    );
+    if (exRes.rows.length === 0) {
+      return res.status(404).json({ error: "Loan not found" });
+    }
+    const loan = exRes.rows[0];
+
+    const preDisbursementStatuses = [
+      "pending",
+      "under_review",
+      "approved",
+      "counter_offered",
+      "rejected",
+    ];
+    if (!preDisbursementStatuses.includes(loan.status)) {
+      return res.status(400).json({
+        error: `Cannot delete a ${loan.status} loan. Only pre-disbursement loans can be deleted.`,
+      });
+    }
+
+    // Belt-and-braces sanity check: should never happen for a
+    // pre-disbursement loan, but if money already moved, refuse.
+    const txnCheck = await query(
+      `SELECT COUNT(*)::int AS c FROM transactions WHERE loan_id = $1`,
+      [id],
+    );
+    if (parseInt(txnCheck.rows[0].c, 10) > 0) {
+      return res.status(400).json({
+        error: "Cannot delete a loan with transactions on record",
+      });
+    }
+
+    // FK-respecting cleanup. payment_schedules shouldn't exist for
+    // pre-disbursement loans but we sweep them anyway.
+    await query(`DELETE FROM payment_schedules WHERE loan_id = $1`, [id]);
+    await query(`DELETE FROM sms_logs           WHERE loan_id = $1`, [id]);
+    await query(`DELETE FROM email_logs         WHERE loan_id = $1`, [id]);
+    await query(
+      `DELETE FROM audit_logs
+        WHERE entity_type = 'loan' AND entity_id = $1`,
+      [id],
+    );
+    await query(
+      `DELETE FROM notifications
+        WHERE metadata->>'loan_id' = $1::text`,
+      [id],
+    );
+    await query(`DELETE FROM loans WHERE id = $1 AND tenant_id = $2`, [
+      id,
+      loan.tenant_id,
+    ]);
+
+    await logAudit({
+      user: req.user,
+      action: "loan_deleted",
+      entityType: "loan",
+      entityId: id,
+      entityCode: loan.loan_code,
+      description: `Deleted ${loan.status} loan ${loan.loan_code}`,
+      oldValues: {
+        loan_code: loan.loan_code,
+        status: loan.status,
+        principal_amount: loan.principal_amount,
+      },
+      req,
+    });
+
+    res.json({ success: true, message: "Loan deleted" });
+  } catch (error) {
+    logger.error("Delete loan error:", error);
+    res.status(500).json({ error: "Failed to delete loan" });
+  }
+});
+
+// ============================================================
 // UPDATE LOAN STATUS
 // ============================================================
 router.put("/:id/status", authorize("admin", "manager"), async (req, res) => {

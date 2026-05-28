@@ -14,9 +14,14 @@ import {
   Download,
   PartyPopper,
   Check,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import api from "../services/api";
 import PaymentReceipt from "../components/PaymentReceipt";
+import PermissionGate from "../components/PermissionGate";
 
 function LoanDetails() {
   const { id } = useParams();
@@ -41,6 +46,15 @@ function LoanDetails() {
   const [actionError, setActionError] = useState("");
   // Which past payment's receipt modal is open (the transaction row).
   const [receiptTxn, setReceiptTxn] = useState(null);
+
+  // Edit / delete modals.
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     fetchLoanDetails();
@@ -73,6 +87,87 @@ function LoanDetails() {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Open the edit modal pre-filled with the current loan's values.
+  // interest_rate stored as monthly — convert to annual for the form.
+  const openEditModal = () => {
+    if (!loanData?.loan) return;
+    const l = loanData.loan;
+    const monthlyRate = parseFloat(l.interest_rate) || 0;
+    setEditForm({
+      principal_amount: l.principal_amount,
+      annual_interest_rate: (monthlyRate * 12).toFixed(4),
+      monthly_interest_rate: monthlyRate.toFixed(4),
+      loan_duration_months: l.loan_duration_months,
+      processing_fee_rate: l.processing_fee_rate || 0,
+      application_date: l.application_date
+        ? new Date(l.application_date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+      purpose: l.purpose || "",
+      guarantor_name: l.guarantor_name || "",
+      guarantor_phone: l.guarantor_phone || "",
+      guarantor_id_number: l.guarantor_id_number || "",
+      collateral_description: l.collateral_description || "",
+      late_fee_enabled: parseFloat(l.late_payment_fee || 0) > 0,
+      late_payment_fee: parseFloat(l.late_payment_fee || 0),
+      penalty_rate: parseFloat(l.penalty_rate || 0),
+      notes: l.notes || "",
+    });
+    setEditError("");
+    setShowEditModal(true);
+  };
+
+  // Keep annual ⇄ monthly synced in the edit form (mirrors the new-loan form).
+  const onEditAnnualChange = (v) =>
+    setEditForm((p) => ({
+      ...p,
+      annual_interest_rate: v,
+      monthly_interest_rate:
+        v === "" ? "" : (Math.round((parseFloat(v) / 12) * 10000) / 10000).toString(),
+    }));
+  const onEditMonthlyChange = (v) =>
+    setEditForm((p) => ({
+      ...p,
+      monthly_interest_rate: v,
+      annual_interest_rate:
+        v === "" ? "" : (Math.round(parseFloat(v) * 12 * 10000) / 10000).toString(),
+    }));
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditing(true);
+    setEditError("");
+    try {
+      const payload = {
+        ...editForm,
+        late_payment_fee: editForm.late_fee_enabled
+          ? parseFloat(editForm.late_payment_fee) || 0
+          : 0,
+      };
+      // Don't send the UI-only flag to the API.
+      delete payload.late_fee_enabled;
+      delete payload.monthly_interest_rate;
+      await api.put(`/loans/${id}/edit`, payload);
+      setShowEditModal(false);
+      fetchLoanDetails();
+    } catch (err) {
+      setEditError(err.response?.data?.error || "Failed to update loan");
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await api.delete(`/loans/${id}`);
+      navigate("/applications");
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || "Failed to delete loan");
+      setDeleting(false);
     }
   };
 
@@ -268,6 +363,32 @@ function LoanDetails() {
             </button>
           )}
           </>
+        )}
+        {/* Edit — admin + manager. Available at any status. */}
+        <PermissionGate role={["admin", "manager"]}>
+          <button
+            onClick={() => openEditModal()}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
+          >
+            <Pencil size={16} /> Edit Loan
+          </button>
+        </PermissionGate>
+        {/* Delete — admin only, pre-disbursement statuses only. */}
+        {[
+          "pending",
+          "under_review",
+          "approved",
+          "counter_offered",
+          "rejected",
+        ].includes(loan.status) && (
+          <PermissionGate role="admin">
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
+            >
+              <Trash2 size={16} /> Delete
+            </button>
+          </PermissionGate>
         )}
       </div>
 
@@ -1177,6 +1298,381 @@ function LoanDetails() {
           tenant={adminTenant}
           onClose={() => setReceiptTxn(null)}
         />
+      )}
+
+      {/* Edit Loan Modal */}
+      {showEditModal && editForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-3xl w-full my-8">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <Pencil size={22} /> Edit Loan
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {loan.loan_code} ·{" "}
+                  <span className="font-semibold">
+                    {loan.first_name} {loan.last_name}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={editing}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {["active", "completed", "defaulted", "suspended"].includes(
+              loan.status,
+            ) && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3 mb-4 flex items-start gap-2">
+                <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+                <span>
+                  This loan is already <strong>{loan.status}</strong>. Changing
+                  principal, rate, duration or processing fee will regenerate
+                  the payment schedule and reconcile the capital pool. Existing
+                  payments remain on record.
+                </span>
+              </div>
+            )}
+
+            {editError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-4">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Principal (KES) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={editForm.principal_amount}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        principal_amount: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Annual Rate (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.annual_interest_rate}
+                    onChange={(e) => onEditAnnualChange(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Monthly Rate (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.monthly_interest_rate}
+                    onChange={(e) => onEditMonthlyChange(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Duration (months) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="60"
+                    value={editForm.loan_duration_months}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        loan_duration_months: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Processing Fee Rate (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={editForm.processing_fee_rate}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        processing_fee_rate: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Application Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.application_date}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        application_date: e.target.value,
+                      })
+                    }
+                    max={new Date().toISOString().split("T")[0]}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Purpose
+                </label>
+                <input
+                  type="text"
+                  value={editForm.purpose}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, purpose: e.target.value })
+                  }
+                  placeholder="e.g. Business expansion"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3">
+                <h4 className="font-semibold text-gray-700 mb-2 text-sm">
+                  Guarantor
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Name"
+                    value={editForm.guarantor_name}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        guarantor_name: e.target.value,
+                      })
+                    }
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Phone"
+                    value={editForm.guarantor_phone}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        guarantor_phone: e.target.value,
+                      })
+                    }
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="ID Number"
+                    value={editForm.guarantor_id_number}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        guarantor_id_number: e.target.value,
+                      })
+                    }
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Collateral / Security
+                </label>
+                <textarea
+                  rows="2"
+                  value={editForm.collateral_description}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      collateral_description: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-semibold text-gray-700">
+                      Late Payment Fee (KES)
+                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={editForm.late_fee_enabled}
+                      onClick={() =>
+                        setEditForm({
+                          ...editForm,
+                          late_fee_enabled: !editForm.late_fee_enabled,
+                        })
+                      }
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
+                        editForm.late_fee_enabled
+                          ? "bg-ocean-600"
+                          : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                          editForm.late_fee_enabled
+                            ? "translate-x-5"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    disabled={!editForm.late_fee_enabled}
+                    value={
+                      editForm.late_fee_enabled
+                        ? editForm.late_payment_fee
+                        : 0
+                    }
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        late_payment_fee: e.target.value,
+                      })
+                    }
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                      editForm.late_fee_enabled
+                        ? "border-gray-200 focus:border-ocean-500"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Penalty Rate (% per month on overdue)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={editForm.penalty_rate}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        penalty_rate: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  rows="2"
+                  value={editForm.notes}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, notes: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={editing}
+                  className="px-6 py-2 bg-gray-500 text-white font-semibold rounded-lg disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editing}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  <Pencil size={16} />
+                  {editing ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Loan Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+              <Trash2 size={22} className="text-red-700" /> Delete loan?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This permanently removes{" "}
+              <strong className="font-mono">{loan.loan_code}</strong> and any
+              associated logs. The loan must be re-applied to bring it back.
+            </p>
+            {deleteError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-3 text-sm">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex justify-end gap-3 mt-5">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-6 py-2 bg-gray-500 text-white rounded-lg disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-6 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                <Trash2 size={16} />
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
