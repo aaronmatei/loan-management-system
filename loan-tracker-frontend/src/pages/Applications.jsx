@@ -268,12 +268,22 @@ function Applications() {
 
   // Are every selected row in 'approved' status? Only then does the
   // Mass Disburse button become available.
-  const selectedAllApproved =
+  // Per-action gating — the bulk bar only shows actions that are
+  // valid for the current selection. Mass Review needs every row to
+  // still be pending; approve/reject accept pending or under_review;
+  // disburse needs every row already approved. counter_offered and
+  // rejected rows can't be bulk-acted from this bar.
+  const selectedStatuses = bulk.selectedArray
+    .map((id) => applications.find((x) => x.id === id)?.status)
+    .filter(Boolean);
+  const everyIs = (...allowed) =>
     bulk.count > 0 &&
-    bulk.selectedArray.every((id) => {
-      const a = applications.find((x) => x.id === id);
-      return a && a.status === "approved";
-    });
+    selectedStatuses.length === bulk.count &&
+    selectedStatuses.every((s) => allowed.includes(s));
+  const canMassReview = everyIs("pending");
+  const canMassApprove = everyIs("pending", "under_review");
+  const canMassReject = everyIs("pending", "under_review");
+  const selectedAllApproved = everyIs("approved");
 
   const openBulkDisburseModal = () => {
     const today = new Date().toISOString().split("T")[0];
@@ -939,33 +949,39 @@ function Applications() {
         onClear={bulk.clear}
       >
         <PermissionGate role={["admin", "manager"]}>
-          <button
-            onClick={handleBulkReview}
-            disabled={bulkRunning === "review"}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold disabled:opacity-50"
-            title="Move selected pending applications to under_review"
-          >
-            <Search size={15} />
-            {bulkRunning === "review" ? "Reviewing…" : "Mass Review"}
-          </button>
-          <button
-            onClick={handleBulkApprove}
-            disabled={bulkRunning === "approve"}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold disabled:opacity-50"
-            title="Approve selected pending / under_review applications"
-          >
-            <CheckCircle size={15} />
-            {bulkRunning === "approve" ? "Approving…" : "Mass Approve"}
-          </button>
-          <button
-            onClick={handleBulkReject}
-            disabled={bulkRunning === "reject"}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold disabled:opacity-50"
-            title="Reject selected pending / under_review applications"
-          >
-            <X size={15} />
-            {bulkRunning === "reject" ? "Rejecting…" : "Mass Reject"}
-          </button>
+          {canMassReview && (
+            <button
+              onClick={handleBulkReview}
+              disabled={bulkRunning === "review"}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold disabled:opacity-50"
+              title="Move selected pending applications to under_review"
+            >
+              <Search size={15} />
+              {bulkRunning === "review" ? "Reviewing…" : "Mass Review"}
+            </button>
+          )}
+          {canMassApprove && (
+            <button
+              onClick={handleBulkApprove}
+              disabled={bulkRunning === "approve"}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold disabled:opacity-50"
+              title="Approve selected pending / under_review applications"
+            >
+              <CheckCircle size={15} />
+              {bulkRunning === "approve" ? "Approving…" : "Mass Approve"}
+            </button>
+          )}
+          {canMassReject && (
+            <button
+              onClick={handleBulkReject}
+              disabled={bulkRunning === "reject"}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold disabled:opacity-50"
+              title="Reject selected pending / under_review applications"
+            >
+              <X size={15} />
+              {bulkRunning === "reject" ? "Rejecting…" : "Mass Reject"}
+            </button>
+          )}
           {selectedAllApproved && (
             <button
               onClick={openBulkDisburseModal}
