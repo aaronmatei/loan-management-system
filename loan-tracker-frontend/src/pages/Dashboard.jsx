@@ -445,12 +445,9 @@ function Dashboard() {
           {/* Stats — split visually into two rows:
                 Row 1 (5 cards): the cash story — what went out, what
                   came back, what was earned, how much we're collecting.
-                Row 2 (3 cards): this-month P&L — Expenses, Net Profit,
-                  with a small "Live · This month" pill on the left so the
-                  reader knows the time window. Expenses + Net Profit
-                  used to live in the KPI strip below; moving them in
-                  here puts the cash-out / bottom-line story right next
-                  to the cash-in story they relate to. */}
+                Row 2 (4 cards): period P&L — Expenses, Processing fees,
+                  Income, Net Profit. Period scope follows the picker at
+                  the top of the page. */}
           <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <p className="text-xs text-slate-500">Total Disbursed</p>
@@ -492,24 +489,10 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* This-month P&L row — same frosted-glass language as the
-              cash stats above, with brand-coloured accents so they read
-              as "the bottom-line companion" rather than separate KPIs.
-              An inline live-pill marks the time window. */}
+          {/* P&L row — same frosted-glass language as the cash stats
+              above, scoped to the selected period. Expenses · Processing
+              fees · Income · Net Profit. */}
           <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm flex items-center gap-3 col-span-2 lg:col-span-1">
-              <div className="w-9 h-9 rounded-xl bg-white/80 flex items-center justify-center flex-shrink-0">
-                <ArrowUpDown size={16} className="text-ocean-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                  This month
-                </p>
-                <p className="text-xs text-slate-700 leading-tight">
-                  P&amp;L · live
-                </p>
-              </div>
-            </div>
             <button
               onClick={() => navigate("/expenses")}
               className="text-left rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm hover:bg-white/70 hover:border-amber-200 transition"
@@ -525,6 +508,18 @@ function Dashboard() {
                 last: {fmtKES(metrics.expenses_last_month || 0)}
               </p>
             </button>
+            <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs text-slate-500">Processing Fees</p>
+                <Banknote size={14} className="text-ocean-600 mt-0.5 flex-shrink-0" />
+              </div>
+              <p className="text-base sm:text-lg font-bold text-ocean-700 whitespace-nowrap mt-1">
+                +{fmtKES(metrics.processing_fees || 0)}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                retained at disbursement
+              </p>
+            </div>
             <div className="rounded-xl border border-white/70 bg-white/55 p-3 backdrop-blur-sm">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-xs text-slate-500">Income</p>

@@ -62,6 +62,7 @@ router.get("/summary", async (req, res) => {
         COALESCE(SUM(total_amount_due) FILTER (WHERE 1=1${disbWithin}), 0) as total_amount_due,
         COALESCE(SUM(total_amount_due) FILTER (WHERE status = 'active'${disbUntil}), 0) as active_portfolio,
         COALESCE(SUM(total_interest) FILTER (WHERE 1=1${disbWithin}), 0) as total_interest,
+        COALESCE(SUM(processing_fee) FILTER (WHERE 1=1${disbWithin}), 0) as processing_fees,
         COALESCE(SUM(CASE WHEN refund_status = 'pending' THEN overpayment_amount ELSE 0 END), 0) as total_overpayment,
         COUNT(CASE WHEN refund_status = 'pending' THEN 1 END) as pending_refunds
       FROM loans
@@ -303,6 +304,7 @@ router.get("/summary", async (req, res) => {
         total_amount_due: totalDue,
         active_portfolio: parseFloat(loansData.active_portfolio),
         total_interest: parseFloat(loansData.total_interest),
+        processing_fees: parseFloat(loansData.processing_fees),
         total_collected: totalCollected,
         outstanding_balance: outstanding,
         collection_rate: parseFloat(collectionRate),
