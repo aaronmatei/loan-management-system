@@ -39,6 +39,11 @@ import {
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import IconTile from "../components/IconTile";
+import PeriodNavigator, {
+  periodToRange,
+  periodLabel,
+  usePersistentPeriod,
+} from "../components/PeriodNavigator";
 
 // Soft empty state for a chart card (fresh tenant / no data yet).
 function EmptyChart({ label }) {
@@ -80,6 +85,7 @@ function Dashboard() {
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpBusy, setTopUpBusy] = useState(false);
+  const [period, setPeriod] = usePersistentPeriod();
   // Capital adjustments are admin-only on the backend.
   const isAdmin =
     JSON.parse(localStorage.getItem("user") || "{}").role === "admin";
@@ -131,13 +137,16 @@ function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period.mode, period.value]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      const { from, to } = periodToRange(period);
+      const q = from && to ? `?from=${from}&to=${to}` : "";
       const [summaryRes, activitiesRes, trendsRes] = await Promise.all([
-        api.get("/dashboard/summary"),
+        api.get(`/dashboard/summary${q}`),
         api.get("/dashboard/recent-activities"),
         api.get("/dashboard/monthly-trends"),
       ]);
@@ -324,14 +333,18 @@ function Dashboard() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
-          Dashboard
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Welcome back,{" "}
-          <span className="font-semibold">{user?.first_name}</span>!
-        </p>
+      <div className="mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
+            Dashboard
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Welcome back,{" "}
+            <span className="font-semibold">{user?.first_name}</span>! Showing{" "}
+            <span className="font-semibold">{periodLabel(period)}</span>.
+          </p>
+        </div>
+        <PeriodNavigator value={period} onChange={setPeriod} />
       </div>
 
       {showWelcome && (

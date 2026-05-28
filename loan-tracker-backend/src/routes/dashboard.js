@@ -13,48 +13,74 @@ router.use(verifyToken);
 // ============================================================
 router.get("/summary", async (req, res) => {
   try {
-    // Tenant scoping: ts for plain tenant_id tables, tsL for joins
-    // aliased on loans (l). Empty clause for platform admins.
+    // Optional period scoping: when from/to are passed the Dashboard
+    // becomes period-scoped — activity counts/sums (disbursements,
+    // collections, expenses, income) filter to the window. Snapshot
+    // figures (active loans count, active portfolio, outstanding) are
+    // approximated as-at-end-of-period: a loan whose disbursed_at ≤ to
+    // AND current status='active' is treated as active throughout the
+    // historic period. There is no historical-status table, so this
+    // approximation can over-count for very old windows; good enough
+    // for management reporting. Overdue/upcoming/distribution tiles
+    // remain as-of-now because they're forward-looking alerts.
+    const { from, to } = req.query;
+    const hasPeriod = !!(from && to);
+
+    // Two scope variants. Queries that splice in `[$1, $2]` for the
+    // period use the *P versions (tenant placeholder = $3). Queries
+    // without period params use the plain versions (tenant placeholder
+    // = $1).
+    const periodParams = hasPeriod ? [from, to] : [];
+    const off = periodParams.length;
     const ts = tenantClause(req, 0);
     const tsL = tenantClause(req, 0, "l.tenant_id");
+    const tsP = tenantClause(req, off);
+    const tsTP = tenantClause(req, off, "t.tenant_id");
 
-    // Get all loans aggregates — DISBURSED only (active/completed/defaulted);
-    // applications still in the queue don't count as portfolio or money out.
+    // SQL fragments — empty strings when no period, so the existing
+    // all-time behavior survives.
+    const disbWithin = hasPeriod
+      ? ` AND disbursed_at::date BETWEEN $1 AND $2`
+      : "";
+    const disbUntil = hasPeriod ? ` AND disbursed_at::date <= $2` : "";
+    const txnWithin = hasPeriod
+      ? ` AND payment_date::date BETWEEN $1 AND $2`
+      : "";
+
+    // Loan aggregates. Activity counts (total/completed/defaulted) use
+    // disbursement date within the period. Snapshot fields (active
+    // count, active_portfolio) use disbursed_at ≤ to with current
+    // status='active'. total_principal / total_amount_due reflect
+    // loans DISBURSED in the period (so they read as "originations").
     const loansStats = await query(
       `
       SELECT
-        COUNT(*) as total_loans,
-        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_loans,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_loans,
-        COUNT(CASE WHEN status = 'defaulted' THEN 1 END) as defaulted_loans,
-        COALESCE(SUM(principal_amount), 0) as total_principal,
-        COALESCE(SUM(total_amount_due), 0) as total_amount_due,
-        -- "Active portfolio" = receivable book on currently-active loans
-        -- only. The headline "Total Portfolio" tile uses this so completed
-        -- loans (which are no longer part of the active book) don't
-        -- inflate it; the dashboard and Analytics page now agree.
-        COALESCE(SUM(CASE WHEN status = 'active' THEN total_amount_due ELSE 0 END), 0) as active_portfolio,
-        COALESCE(SUM(total_interest), 0) as total_interest,
+        COUNT(*) FILTER (WHERE 1=1${disbWithin}) as total_loans,
+        COUNT(*) FILTER (WHERE status = 'active'${disbUntil}) as active_loans,
+        COUNT(*) FILTER (WHERE status = 'completed'${disbWithin}) as completed_loans,
+        COUNT(*) FILTER (WHERE status = 'defaulted'${disbWithin}) as defaulted_loans,
+        COALESCE(SUM(principal_amount) FILTER (WHERE 1=1${disbWithin}), 0) as total_principal,
+        COALESCE(SUM(total_amount_due) FILTER (WHERE 1=1${disbWithin}), 0) as total_amount_due,
+        COALESCE(SUM(total_amount_due) FILTER (WHERE status = 'active'${disbUntil}), 0) as active_portfolio,
+        COALESCE(SUM(total_interest) FILTER (WHERE 1=1${disbWithin}), 0) as total_interest,
         COALESCE(SUM(CASE WHEN refund_status = 'pending' THEN overpayment_amount ELSE 0 END), 0) as total_overpayment,
         COUNT(CASE WHEN refund_status = 'pending' THEN 1 END) as pending_refunds
       FROM loans
-      WHERE status IN ('active', 'completed', 'defaulted')${ts.clause}
+      WHERE status IN ('active', 'completed', 'defaulted')${tsP.clause}
     `,
-      ts.params,
+      [...periodParams, ...tsP.params],
     );
 
-    // "Total collected" = amount_paid minus any overpayment that's destined
-    // for refund. amount_paid stays as the gross client payment; we only
-    // count what stays with the lender as collected income.
+    // Collections within the period (net of refundable overpayment).
     const paymentsStats = await query(
       `
       SELECT
         COUNT(*) as total_transactions,
         COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0) as total_collected
       FROM transactions
-      WHERE payment_status = 'completed'${ts.clause}
+      WHERE payment_status = 'completed'${txnWithin}${tsP.clause}
     `,
-      ts.params,
+      [...periodParams, ...tsP.params],
     );
 
     // Get clients count
@@ -212,28 +238,30 @@ router.get("/summary", async (req, res) => {
     const collectionRate =
       totalDue > 0 ? ((totalCollected / totalDue) * 100).toFixed(1) : 0;
 
-    // Expenses roll-up — this-month, last-month, total — straight from
-    // the new expenses table. Drives the Dashboard's Expenses tile +
-    // the Net Profit calc.
+    // Expenses roll-up. When a period is supplied, "this month" and
+    // "last month" columns are replaced with the period total and
+    // the prior equal-length window so the Net Profit comparison
+    // still reads sensibly.
     const expenseStats = await query(
       `SELECT
          COALESCE(SUM(amount), 0)::float AS total_all,
          COALESCE(SUM(amount) FILTER (
-           WHERE date_trunc('month', expense_date) = date_trunc('month', CURRENT_DATE)
+           WHERE ${hasPeriod
+             ? "expense_date BETWEEN $1 AND $2"
+             : "date_trunc('month', expense_date) = date_trunc('month', CURRENT_DATE)"}
          ), 0)::float AS total_this_month,
          COALESCE(SUM(amount) FILTER (
-           WHERE date_trunc('month', expense_date) =
-                 date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+           WHERE ${hasPeriod
+             ? "expense_date BETWEEN ($1::date - ($2::date - $1::date + 1)) AND ($1::date - 1)"
+             : "date_trunc('month', expense_date) = date_trunc('month', CURRENT_DATE - INTERVAL '1 month')"}
          ), 0)::float AS total_last_month
        FROM expenses
-       WHERE 1=1${ts.clause}`,
-      ts.params,
+       WHERE 1=1${tsP.clause}`,
+      [...periodParams, ...tsP.params],
     );
 
-    // Income components (this month) for the Net Profit calc —
-    // interest portion + fines (penalty_portion) — restricted to
-    // the current calendar month.
-    const tsT = tenantClause(req, 0, "t.tenant_id");
+    // Income (interest portion + fines) within the period — defaults
+    // to the current calendar month when no period supplied.
     const incomeThisMonth = await query(
       `SELECT
          COALESCE(SUM(
@@ -246,9 +274,11 @@ router.get("/summary", async (req, res) => {
        FROM transactions t
        JOIN loans l ON l.id = t.loan_id
        WHERE t.payment_status = 'completed'
-         AND date_trunc('month', t.payment_date) = date_trunc('month', CURRENT_DATE)
-         ${tsT.clause}`,
-      tsT.params,
+         AND ${hasPeriod
+           ? "t.payment_date::date BETWEEN $1 AND $2"
+           : "date_trunc('month', t.payment_date) = date_trunc('month', CURRENT_DATE)"}
+         ${tsTP.clause}`,
+      [...periodParams, ...tsTP.params],
     );
 
     const expensesData = expenseStats.rows[0];
