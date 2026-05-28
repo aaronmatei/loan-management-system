@@ -2899,6 +2899,7 @@ CREATE TABLE public.expense_categories (
   icon         varchar(40),
   is_default   boolean NOT NULL DEFAULT false,
   is_active    boolean NOT NULL DEFAULT true,
+  is_system    boolean NOT NULL DEFAULT false,
   sort_order   integer NOT NULL DEFAULT 100,
   created_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at   timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,

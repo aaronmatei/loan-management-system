@@ -16,16 +16,22 @@ router.use(verifyToken);
 // CATEGORIES
 // ============================================================
 
-// List all categories for the acting tenant. Includes inactive ones
-// so the Settings page can toggle them back on; the create-expense
-// modal filters to is_active client-side.
+// List categories for the acting tenant. Includes inactive ones so
+// the Settings page can toggle them back on; the create-expense
+// modal filters to is_active client-side. is_system categories
+// (e.g. Platform Billing) are auto-populated and shouldn't appear in
+// the user-facing dropdown — pass ?include_system=true to see them
+// (the Expenses ledger uses this so the auto-imported rows render
+// with their category name).
 router.get("/categories", async (req, res) => {
   try {
+    const includeSystem = req.query.include_system === "true";
     const t = tenantClause(req, 0);
     const r = await query(
-      `SELECT id, name, icon, is_default, is_active, sort_order
+      `SELECT id, name, icon, is_default, is_active, is_system, sort_order
          FROM expense_categories
         WHERE 1=1${t.clause}
+          ${includeSystem ? "" : "AND is_system = false"}
         ORDER BY sort_order, name`,
       t.params,
     );

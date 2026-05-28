@@ -72,50 +72,74 @@ async function notifyInvoiceGenerated(tenant, invoice) {
 // principal/interest split convention used in payments.js
 // (interest_portion = payment * total_interest / total_amount_due).
 /**
- * Mirror a Platform Billing invoice into the tenant's expense ledger.
- * Idempotent via the (tenant_id, invoice_id) unique index — re-running
- * for the same invoice updates the row instead of duplicating it.
+ * Mirror a Platform Billing invoice into the tenant's expense ledger
+ * — but ONLY once the invoice has been paid (in whole or in part).
+ * The expense's amount tracks invoice.amount_paid so partial payments
+ * create the row at the partial amount and a later top-up grows it.
  *
- * Called by generateInvoice (post-INSERT) and by markInvoicePaid (to
- * refresh the description so it reflects the new status). The backfill
- * for historic invoices lives in migration 033.
+ * Idempotent via the (tenant_id, invoice_id) unique index.
+ * Called from markInvoicePaid (post-UPDATE). NOT called by
+ * generateInvoice — that one no longer touches expenses.
  */
 export async function syncInvoiceToExpense(tenantId, invoice) {
   if (!invoice || !invoice.id) return;
-  // Skip zero-amount invoices — the expenses table CHECK (amount > 0)
-  // would reject them and they have no economic effect anyway.
-  const amt = parseFloat(invoice.total_amount || invoice.amount_due || 0);
-  if (!Number.isFinite(amt) || amt <= 0) return;
+  const paidAmt = parseFloat(invoice.amount_paid || 0);
+  // Nothing paid yet → nothing to record. expenses.amount > 0 would
+  // reject a zero anyway.
+  if (!Number.isFinite(paidAmt) || paidAmt <= 0) return;
+
   const cat = await query(
     `SELECT id FROM expense_categories
       WHERE tenant_id = $1 AND name = 'Platform Billing'
       LIMIT 1`,
     [tenantId],
   );
-  if (cat.rows.length === 0) return; // category seed missed this tenant — nothing to do
+  if (cat.rows.length === 0) return; // category seed missed this tenant
+
+  // Use the first payment date as the expense date (when money
+  // actually left the tenant's account), falling back to the invoice
+  // issued_date if no invoice_payments row exists.
+  const firstPaidRes = await query(
+    `SELECT MIN(payment_date)::date AS first_paid
+       FROM invoice_payments WHERE invoice_id = $1`,
+    [invoice.id],
+  );
+  const firstPaid =
+    firstPaidRes.rows[0]?.first_paid ||
+    invoice.issued_date ||
+    invoice.created_at;
+
   const description = `LoanFix invoice ${invoice.invoice_number} · ${
-    invoice.status || "pending"
-  }`;
+    invoice.status || "paid"
+  } · paid ${new Date(firstPaid).toLocaleDateString("en-KE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })}`;
+
   await query(
     `INSERT INTO expenses (
        tenant_id, category_id, amount, description, expense_date,
        payment_method, reference, is_recurring, recurrence_period,
        recorded_by, invoice_id
      )
-     VALUES ($1, $2, $3, $4, $5::date, NULL, $6, true, 'monthly', NULL, $7)
+     VALUES ($1, $2, $3, $4, $5::date,
+             $6, $7, true, 'monthly', NULL, $8)
      ON CONFLICT (tenant_id, invoice_id) WHERE invoice_id IS NOT NULL
        DO UPDATE SET
          amount       = EXCLUDED.amount,
          description  = EXCLUDED.description,
          expense_date = EXCLUDED.expense_date,
+         payment_method = EXCLUDED.payment_method,
          reference    = EXCLUDED.reference,
          updated_at   = NOW()`,
     [
       tenantId,
       cat.rows[0].id,
-      invoice.total_amount || invoice.amount_due,
+      paidAmt,
       description,
-      invoice.issued_date || invoice.created_at,
+      firstPaid,
+      invoice.payment_method || null,
       invoice.invoice_number,
       invoice.id,
     ],
@@ -262,16 +286,10 @@ export async function generateInvoice(tenantId, year, month, userId = null) {
     [tenantId],
   );
 
-  // Mirror this invoice into the tenant's Expenses ledger under
-  // "Platform Billing" so they see it alongside other operating
-  // expenses. Idempotent via the (tenant_id, invoice_id) unique index.
-  try {
-    await syncInvoiceToExpense(tenantId, result.rows[0]);
-  } catch (err) {
-    // Don't fail the invoice flow if the mirror write hiccups — the
-    // backfill query in migration 033 will catch up any stragglers.
-    logger.error("syncInvoiceToExpense error:", err);
-  }
+  // NOTE: we no longer mirror the invoice into expenses at
+  // generation time. An expense row is only written once the tenant
+  // actually pays the invoice — see syncInvoiceToExpense, which is
+  // called from markInvoicePaid.
 
   logger.info(
     `Invoice ${invNumber} generated for tenant ${tenantId}: KES ${totalAmount}`,
