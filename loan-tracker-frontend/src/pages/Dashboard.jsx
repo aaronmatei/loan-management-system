@@ -488,10 +488,9 @@ function Dashboard() {
         </div>
       )}
 
-      {/* ── Period heading + cash row — mirrors the row inside Capital
-          Pool, but scoped to the picked period (and visually outside
-          the lifetime Capital Pool block so the two never feel like
-          the same numbers). */}
+      {/* ── Period heading + compact one-row strip of cash + P&L tiles.
+          Nine tiles in total. Wraps to a 5-col cash row + 4-col P&L row
+          on lg, two equal halves on sm, two-up on mobile. */}
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-sm text-slate-600">
           Showing{" "}
@@ -500,118 +499,95 @@ function Dashboard() {
           </span>
         </p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
-          <p className="text-xs text-slate-500">Total Disbursed</p>
-          <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2.5 mb-4">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <p className="text-[11px] text-slate-500">Total Disbursed</p>
+          <p className="text-base font-bold text-navy-900 whitespace-nowrap mt-1">
             {fmtKES(metrics.total_principal || 0)}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
-          <p className="text-xs text-slate-500">Total Collected</p>
-          <p className="text-base sm:text-lg font-bold text-navy-900 whitespace-nowrap mt-1">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <p className="text-[11px] text-slate-500">Total Collected</p>
+          <p className="text-base font-bold text-navy-900 whitespace-nowrap mt-1">
             {fmtKES(metrics.total_collected || 0)}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
-          <p className="text-xs text-slate-500">Interest from Loans</p>
-          <p className="text-base sm:text-lg font-bold text-emerald-600 whitespace-nowrap mt-1">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <p className="text-[11px] text-slate-500">Interest from Loans</p>
+          <p className="text-base font-bold text-emerald-600 whitespace-nowrap mt-1">
             +{fmtKES(metrics.interest_collected ?? 0)}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
-          <p className="text-xs text-slate-500">Interest from Fines</p>
-          <p className="text-base sm:text-lg font-bold text-amber-600 whitespace-nowrap mt-1">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <p className="text-[11px] text-slate-500">Interest from Fines</p>
+          <p className="text-base font-bold text-amber-600 whitespace-nowrap mt-1">
             +{fmtKES(metrics.fines_collected ?? 0)}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
-          <p className="text-xs text-slate-500">Collection Rate</p>
-          <p className="text-base sm:text-lg font-bold text-navy-900 mt-1">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <p className="text-[11px] text-slate-500">Collection Rate</p>
+          <p className="text-base font-bold text-navy-900 mt-1">
             {(metrics.collection_rate || 0).toFixed(1)}%
           </p>
-          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden">
             <div
-              className="bg-ocean-500 h-1.5 rounded-full transition-all"
+              className="bg-ocean-500 h-1 rounded-full transition-all"
               style={{
                 width: `${Math.min(metrics.collection_rate || 0, 100)}%`,
               }}
             />
           </div>
         </div>
-      </div>
-
-      {/* ── P&L row — scoped to the picked period. Lives outside the
-          Capital Pool card (which holds lifetime cash figures) so the
-          period-dependent numbers visually pivot with the selector. */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <button
           onClick={() => navigate("/expenses")}
-          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-amber-200 hover:shadow transition"
+          className="text-left bg-white rounded-xl border border-slate-100 shadow-sm p-3 hover:border-amber-200 transition"
         >
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Expenses
-            </p>
-            <Receipt size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[11px] text-slate-500">Expenses</p>
+            <Receipt size={12} className="text-amber-600 flex-shrink-0" />
           </div>
-          <p className="text-2xl font-bold text-amber-700 mt-2">
+          <p className="text-base font-bold text-amber-700 whitespace-nowrap mt-1">
             −{fmtKES(metrics.expenses_this_month || 0)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
-            last: {fmtKES(metrics.expenses_last_month || 0)}
-          </p>
         </button>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Processing Fees
-            </p>
-            <Banknote size={16} className="text-ocean-600 mt-0.5 flex-shrink-0" />
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[11px] text-slate-500">Processing Fees</p>
+            <Banknote size={12} className="text-ocean-600 flex-shrink-0" />
           </div>
-          <p className="text-2xl font-bold text-ocean-700 mt-2">
+          <p className="text-base font-bold text-ocean-700 whitespace-nowrap mt-1">
             +{fmtKES(metrics.processing_fees || 0)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
-            retained at disbursement
-          </p>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Income
-            </p>
-            <TrendingUp size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[11px] text-slate-500">Income</p>
+            <TrendingUp size={12} className="text-emerald-600 flex-shrink-0" />
           </div>
-          <p className="text-2xl font-bold text-emerald-600 mt-2">
+          <p className="text-base font-bold text-emerald-600 whitespace-nowrap mt-1">
             +{fmtKES(metrics.income_this_month || 0)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            interest + fines + fees
           </p>
         </div>
         <div
-          className={`bg-white rounded-2xl shadow-sm border border-slate-100 p-5 ${
+          className={`bg-white rounded-xl border border-slate-100 shadow-sm p-3 ${
             (metrics.net_profit_this_month || 0) >= 0
               ? "ring-1 ring-emerald-200"
               : "ring-1 ring-rose-200"
           }`}
         >
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Net Profit
-            </p>
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[11px] text-slate-500">Net Profit</p>
             <ArrowUpDown
-              size={16}
+              size={12}
               className={`${
                 (metrics.net_profit_this_month || 0) >= 0
                   ? "text-emerald-600"
                   : "text-rose-600"
-              } mt-0.5 flex-shrink-0`}
+              } flex-shrink-0`}
             />
           </div>
           <p
-            className={`text-2xl font-bold mt-2 ${
+            className={`text-base font-bold whitespace-nowrap mt-1 ${
               (metrics.net_profit_this_month || 0) >= 0
                 ? "text-emerald-700"
                 : "text-rose-700"
@@ -619,9 +595,6 @@ function Dashboard() {
           >
             {(metrics.net_profit_this_month || 0) >= 0 ? "+" : ""}
             {fmtKES(metrics.net_profit_this_month || 0)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            income − expenses
           </p>
         </div>
       </div>
