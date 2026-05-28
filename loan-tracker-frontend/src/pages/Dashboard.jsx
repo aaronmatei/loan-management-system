@@ -17,6 +17,9 @@ import {
   X,
   Receipt,
   ArrowUpDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Target,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -470,41 +473,56 @@ function Dashboard() {
               equivalents live in the strip below the card. */}
           <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                Total disbursed
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  All time Disbursed
+                </p>
+                <ArrowUpRight size={13} className="text-white/40 flex-shrink-0" />
+              </div>
               <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
                 {fmtKES(poolStatus.total_disbursed)}
               </p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                Total collected
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  All time Collected
+                </p>
+                <ArrowDownLeft size={13} className="text-white/40 flex-shrink-0" />
+              </div>
               <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
                 {fmtKES(poolStatus.total_collected)}
               </p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                Interest from loans
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  All time Interest from Loans
+                </p>
+                <TrendingUp size={13} className="text-emerald-300/70 flex-shrink-0" />
+              </div>
               <p className="text-base lg:text-lg font-bold text-emerald-300 whitespace-nowrap mt-1.5 tracking-tight">
                 +{fmtKES(poolStatus.loan_interest_earned ?? 0)}
               </p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                Interest from fines
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  All time Interest from Fines
+                </p>
+                <AlertTriangle size={13} className="text-amber-300/70 flex-shrink-0" />
+              </div>
               <p className="text-base lg:text-lg font-bold text-amber-300 whitespace-nowrap mt-1.5 tracking-tight">
                 +{fmtKES(poolStatus.fines_collected ?? 0)}
               </p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                Collection rate
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  All time Collection Rate
+                </p>
+                <Target size={13} className="text-ocean-300/80 flex-shrink-0" />
+              </div>
               <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
                 {metrics.collection_rate}%
               </p>
