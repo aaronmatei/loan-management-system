@@ -894,9 +894,10 @@ function Loans() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   {/* Late payment fee is opt-in per loan — not every lender
-                      charges one. The toggle gates whether the input is
-                      live; off keeps it at 0 regardless of what's typed. */}
-                  <div className="flex items-center justify-between mb-1">
+                      charges one. The toggle sits next to the label so it's
+                      unambiguous which field it gates. Off keeps the
+                      submitted value at 0 regardless of what's typed. */}
+                  <div className="flex items-center gap-2 mb-1">
                     <label className="text-sm font-semibold text-gray-700">
                       Late Payment Fee (KES)
                     </label>
@@ -915,6 +916,11 @@ function Loans() {
                           ? "bg-ocean-600"
                           : "bg-gray-300"
                       }`}
+                      title={
+                        formData.late_fee_enabled
+                          ? "Late fee enabled — turn off to remove"
+                          : "Late fee disabled — turn on to charge"
+                      }
                     >
                       <span
                         className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
