@@ -7,6 +7,13 @@ import {
   Paperclip,
   Check,
   X,
+  Send,
+  CheckCircle,
+  Clock,
+  Sparkles,
+  Bell,
+  ArrowUpRight,
+  RefreshCcw,
 } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
@@ -212,79 +219,178 @@ function Email() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            Email Notifications
+      {/* ── Editorial header ────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-10">
+        <div className="max-w-2xl">
+          <h1 className="text-4xl lg:text-5xl font-bold text-navy-900 tracking-tight">
+            Email{" "}
+            <span className="font-serif italic font-medium text-ocean-700">
+              Notifications
+            </span>
           </h1>
-          <p className="text-gray-600 mt-2">
-            Send emails with PDF attachments and track delivery
+          <p className="text-slate-500 mt-3 leading-relaxed">
+            The inbox-side of every conversation. Send statements, receipts and
+            reminders — with PDFs attached when it counts — and watch each
+            message clear the queue.
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 shrink-0">
           <button
             onClick={() => fetchData({ silent: true })}
             disabled={refreshing || loading}
-            className="px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {refreshing ? "Refreshing..." : "Refresh"}
+            <RefreshCcw
+              size={16}
+              className={refreshing ? "animate-spin" : ""}
+            />
+            {refreshing ? "Refreshing…" : "Refresh"}
           </button>
           <button
             onClick={() => setShowCustomModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-ocean-700 text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
           >
             <Mail size={16} /> Compose Email
+            <ArrowUpRight size={14} className="opacity-70" />
           </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-ocean-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-blue-100 text-sm uppercase">Total Sent</p>
-          <p className="text-3xl font-bold mt-2">{stats?.total_sent || 0}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-green-100 text-sm uppercase">Delivered</p>
-          <p className="text-3xl font-bold mt-2">{stats?.successful || 0}</p>
-        </div>
-        <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-6">
-          <p className="text-ocean-100 text-sm uppercase">With Attachments</p>
-          <p className="text-3xl font-bold mt-2">
-            {stats?.with_attachments || 0}
+      {/* ── Stat cards — frosted-glass pastel with corner icon ──── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-ocean-100/70 via-white/55 to-blue-100/60 backdrop-blur-md">
+          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-ocean-300/25 blur-3xl pointer-events-none" />
+          <div className="relative flex items-start justify-between">
+            <p className="text-xs uppercase tracking-wider font-semibold text-ocean-700">
+              Total Sent
+            </p>
+            <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
+              <Send size={16} className="text-ocean-600" />
+            </div>
+          </div>
+          <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
+            {(stats?.total_sent || 0).toLocaleString()}
+          </p>
+          <p className="relative text-xs text-slate-500 mt-1">
+            across all email types
           </p>
         </div>
-        <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-orange-100 text-sm uppercase">Last 30 Days</p>
-          <p className="text-3xl font-bold mt-2">{stats?.last_30_days || 0}</p>
+
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-emerald-100/70 via-white/55 to-green-100/60 backdrop-blur-md">
+          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-emerald-300/25 blur-3xl pointer-events-none" />
+          <div className="relative flex items-start justify-between">
+            <p className="text-xs uppercase tracking-wider font-semibold text-emerald-700">
+              Delivered
+            </p>
+            <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
+              <CheckCircle size={16} className="text-emerald-600" />
+            </div>
+          </div>
+          <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
+            {(stats?.successful || 0).toLocaleString()}
+          </p>
+          <p className="relative text-xs text-slate-500 mt-1">
+            {stats?.total_sent
+              ? `${((stats.successful / stats.total_sent) * 100).toFixed(1)}% delivery rate`
+              : "no emails yet"}
+          </p>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-indigo-100/70 via-white/55 to-violet-100/60 backdrop-blur-md">
+          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-indigo-300/25 blur-3xl pointer-events-none" />
+          <div className="relative flex items-start justify-between">
+            <p className="text-xs uppercase tracking-wider font-semibold text-indigo-700">
+              With Attachments
+            </p>
+            <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
+              <Paperclip size={16} className="text-indigo-600" />
+            </div>
+          </div>
+          <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
+            {(stats?.with_attachments || 0).toLocaleString()}
+          </p>
+          <p className="relative text-xs text-slate-500 mt-1">
+            statements, receipts, agreements
+          </p>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-sky-100/70 via-white/55 to-cyan-100/60 backdrop-blur-md">
+          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-sky-300/25 blur-3xl pointer-events-none" />
+          <div className="relative flex items-start justify-between">
+            <p className="text-xs uppercase tracking-wider font-semibold text-sky-700">
+              Last 30 Days
+            </p>
+            <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
+              <Clock size={16} className="text-sky-600" />
+            </div>
+          </div>
+          <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
+            {(stats?.last_30_days || 0).toLocaleString()}
+          </p>
+          <p className="relative text-xs text-slate-500 mt-1">
+            rolling 30-day window
+          </p>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <Zap size={20} /> Quick Actions
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ── Quick actions — parent card with two action tiles ───── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-10">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center">
+            <Sparkles size={18} className="text-ocean-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-navy-900">Quick actions</h2>
+            <p className="text-xs text-slate-500">
+              Compose, attach, send — without leaving the room.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button
             onClick={handleSendOverdueReminders}
             disabled={sending}
-            className="p-6 bg-gradient-to-br from-red-500 to-orange-600 text-white rounded-xl shadow-md hover:shadow-lg transition text-left disabled:opacity-50"
+            className="group relative text-left p-5 rounded-xl border border-rose-100 bg-rose-50/40 hover:bg-rose-50 hover:border-rose-200 transition disabled:opacity-50"
           >
-            <div className="mb-2"><AlertTriangle size={32} /></div>
-            <h3 className="text-lg font-bold mb-1">Send Overdue Reminders</h3>
-            <p className="text-sm text-white/80">
-              Email all clients with overdue payments
+            <div className="absolute top-4 right-4 text-rose-400 group-hover:text-rose-600 transition">
+              <ArrowUpRight size={18} />
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center mb-4">
+              <AlertTriangle size={20} className="text-rose-600" />
+            </div>
+            <h3 className="font-semibold text-navy-900 mb-1">
+              Send overdue reminders
+            </h3>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Email every client with an outstanding balance in a single,
+              considered push.
+            </p>
+            <p className="text-xs mt-3 text-rose-600 font-medium inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              Bulk email to overdue clients
             </p>
           </button>
+
           <button
             onClick={() => setShowCustomModal(true)}
-            className="p-6 bg-ocean-gradient text-white rounded-xl shadow-md hover:shadow-lg transition text-left"
+            className="group relative text-left p-5 rounded-xl border border-ocean-100 bg-ocean-50/40 hover:bg-ocean-50 hover:border-ocean-200 transition"
           >
-            <div className="mb-2"><Mail size={32} /></div>
-            <h3 className="text-lg font-bold mb-1">Compose Email</h3>
-            <p className="text-sm text-white/80">
-              Send a personalized email, optionally with a statement
+            <div className="absolute top-4 right-4 text-ocean-400 group-hover:text-ocean-600 transition">
+              <ArrowUpRight size={18} />
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-ocean-100 flex items-center justify-center mb-4">
+              <Bell size={20} className="text-ocean-600" />
+            </div>
+            <h3 className="font-semibold text-navy-900 mb-1">
+              Compose email
+            </h3>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Write a personal note. Attach a statement, receipt or agreement
+              if it helps the conversation.
+            </p>
+            <p className="text-xs mt-3 text-ocean-600 font-medium inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-ocean-500" />
+              One-to-one email with attachment
             </p>
           </button>
         </div>
