@@ -97,13 +97,18 @@ router.get("/summary", async (req, res) => {
       [...periodParams, ...tsP.params],
     );
 
-    // Overdue snapshot AT THE END of the period: due_date < to and the
-    // installment is still unpaid. Uses only `to` so we pass [to] not
-    // [from, to] — otherwise PG can't infer $1's type when it's unused.
+    // Overdue snapshot: installments whose due_date has actually
+    // passed AS OF the smaller of (end-of-period, today). Without the
+    // LEAST() clamp, picking a year that extends into the future would
+    // mark every yet-to-fall-due installment as "overdue" — they're
+    // just pending. Uses only `to` so we pass [to] not [from, to];
+    // otherwise PG can't infer $1's type when it's unused.
     const endParams = hasPeriod ? [to] : [];
     const endOff = endParams.length;
     const tsLE = tenantClause(req, endOff, "l.tenant_id");
-    const dueByEnd = hasPeriod ? `$1::date` : `CURRENT_DATE`;
+    const dueByEnd = hasPeriod
+      ? `LEAST($1::date, CURRENT_DATE)`
+      : `CURRENT_DATE`;
     const overdueStats = await query(
       `
       SELECT

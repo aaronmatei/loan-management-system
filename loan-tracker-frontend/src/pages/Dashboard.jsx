@@ -403,7 +403,7 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Available capital + outstanding */}
+          {/* Available capital + principal currently loaned out */}
           <div className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mt-6">
             <div>
               <p className="text-sm text-slate-500">Available Capital</p>
@@ -415,7 +415,7 @@ function Dashboard() {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-slate-500">Outstanding</p>
+              <p className="text-sm text-slate-500">Loaned Out</p>
               <p className="text-2xl lg:text-3xl font-extrabold text-ocean-600 leading-none mt-1">
                 {fmtKES(poolStatus.outstanding_principal)}
               </p>
@@ -641,11 +641,11 @@ function Dashboard() {
           </p>
         </div>
 
-        {/* Outstanding */}
+        {/* Receivable — book balance still owed (principal + interest). */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-              Outstanding
+              Receivable
             </p>
             <IconTile icon={Coins} variant="amber" size={40} />
           </div>

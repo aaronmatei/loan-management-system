@@ -398,7 +398,7 @@ function Reports() {
                   <Clock size={20} className="text-amber-600" />
                 </div>
                 <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
-                  Outstanding
+                  Receivable
                 </p>
                 <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
                   {fmt(snap.outstanding_balance)}
