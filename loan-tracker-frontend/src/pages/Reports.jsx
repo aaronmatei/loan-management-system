@@ -191,15 +191,6 @@ function Reports() {
 
   const { kpis, par, snapshot, expenseStats, cashFlow } = data;
 
-  // Snapshot tiles (Outstanding / PAR / Overdue / Defaulted) only
-  // make sense for the current period — they describe today's state,
-  // not a historical one. Hide them when the picker points at a past
-  // month/year.
-  const onCurrentPeriod =
-    period.mode === "year"
-      ? parseInt(period.value, 10) === new Date().getFullYear()
-      : period.value ===
-        `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
   // Income = interest portion of payments + fines + processing fees
   // retained at disbursement. Net Profit folds in fees too (matches the
@@ -438,13 +429,11 @@ function Reports() {
             </p>
           </div>
 
-          {/* ── Snapshot tiles (today's state) — only shown in
-              "Recent months" mode. In specific-month mode they'd be
-              showing today's outstanding for a long-past month, which
-              is misleading. */}
-          {onCurrentPeriod && (
-            <>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          {/* ── Snapshot tiles (today's state). Shown for every
+              period — they describe outstanding balances right now,
+              not the picked window, so hiding them when you pick a
+              past year just made the layout look broken. */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
                   <Clock size={20} className="text-amber-600" />
                 </div>
@@ -518,8 +507,6 @@ function Reports() {
                   {snap.defaulted_count !== 1 ? "s" : ""}
                 </p>
               </div>
-            </>
-          )}
 
           {/* Expenses + Net Profit moved up into the Portfolio
               Performance hero so the bottom-line story sits beside
