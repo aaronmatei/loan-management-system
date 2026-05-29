@@ -149,17 +149,35 @@ router.get("/loan/:loanId/summary", async (req, res) => {
 
     const loan = loanResult.rows[0];
 
-    // total_paid    = principal+interest applied to amount_due (drives balance)
-    // total_collected = what the lender actually kept (gross − overpayment)
-    // total_penalty_paid + total_overpayment are surfaced for the UI.
+    // total_paid    = principal+interest settled against amount_due
+    //                 (cash via transactions + amount_due-side waivers).
+    //                 This drives the headline balance + progress %.
+    // total_cash_paid = the cash leg only (transactions, ex penalty/overpayment).
+    // total_collected = what the lender actually kept (gross − overpayment).
+    // total_waived_amount_due / total_waived_penalty surfaced so the
+    // UI can break "Paid So Far" into cash vs. waived if it wants.
     const paidResult = await query(
       `SELECT
-         COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)), 0) AS total_paid,
+         COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)), 0) AS total_cash_paid,
          COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0)                                 AS total_collected,
          COALESCE(SUM(COALESCE(penalty_portion, 0)), 0)                                                    AS total_penalty_paid,
          COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0)                                                AS total_overpayment
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
+      [loanId],
+    );
+
+    // Waivers approved on this loan — split into the amount_due bucket
+    // (interest / principal forgiven) and the penalty bucket. Both count
+    // toward "settled" for the balance / progress headline; the penalty
+    // bucket also reduces the per-installment penalty_outstanding via
+    // schedule.penalty_paid that the allocator already bumped.
+    const waiverResult = await query(
+      `SELECT
+         COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)   AS total_waived_amount_due,
+         COALESCE(SUM(COALESCE((allocation->>'penalty_total')::float, 0)), 0) AS total_waived_penalty
+       FROM loan_waivers
+       WHERE loan_id = $1 AND status = 'approved'`,
       [loanId],
     );
 
@@ -245,10 +263,19 @@ router.get("/loan/:loanId/summary", async (req, res) => {
       [loanId],
     );
 
-    const totalPaid = parseFloat(paidResult.rows[0].total_paid);
+    const totalCashPaid = parseFloat(paidResult.rows[0].total_cash_paid);
     const totalCollected = parseFloat(paidResult.rows[0].total_collected);
     const totalPenaltyPaid = parseFloat(paidResult.rows[0].total_penalty_paid);
     const totalOverpayment = parseFloat(paidResult.rows[0].total_overpayment);
+    const totalWaivedAmountDue = parseFloat(
+      waiverResult.rows[0].total_waived_amount_due,
+    );
+    const totalWaivedPenalty = parseFloat(
+      waiverResult.rows[0].total_waived_penalty,
+    );
+    // Settled = cash applied to amount_due + waivers applied to amount_due.
+    // This is what the borrower no longer owes, regardless of source.
+    const totalPaid = totalCashPaid + totalWaivedAmountDue;
     const totalDue = parseFloat(loan.total_amount_due);
     const overpayment = parseFloat(loan.overpayment_amount || 0);
     const balance = Math.max(0, totalDue - totalPaid);
@@ -289,7 +316,10 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         loan,
         summary: {
           total_due: totalDue,
-          total_paid: totalPaid,           // principal+interest applied to amount_due
+          total_paid: totalPaid,           // settled against amount_due (cash + waivers)
+          total_cash_paid: totalCashPaid,  // transactions only (gross of penalty + overpayment subtracted)
+          total_waived_amount_due: totalWaivedAmountDue,
+          total_waived_penalty: totalWaivedPenalty,
           total_collected: totalCollected, // kept by the lender (gross − overpayment)
           total_penalty_paid: totalPenaltyPaid,
           total_overpayment: totalOverpayment,

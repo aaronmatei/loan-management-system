@@ -411,6 +411,17 @@ function Payments() {
                         loanSummary.summary.total_paid,
                       ).toLocaleString()}
                     </p>
+                    {parseFloat(
+                      loanSummary.summary.total_waived_amount_due || 0,
+                    ) > 0 && (
+                      <p className="text-[11px] text-fuchsia-700 mt-0.5">
+                        incl. KES{" "}
+                        {parseFloat(
+                          loanSummary.summary.total_waived_amount_due,
+                        ).toLocaleString()}{" "}
+                        waived
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-gray-600">Balance</p>
