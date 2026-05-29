@@ -93,24 +93,41 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     status.loan_interest_earned = parseFloat(
       breakdown.rows[0].loan_interest_earned,
     );
-    status.fines_collected = parseFloat(breakdown.rows[0].fines_collected);
+    const finesCollectedGross = parseFloat(
+      breakdown.rows[0].fines_collected,
+    );
 
     // Lifetime profitability: total income kept in the pool
     // (total_interest_earned bundles loan-interest + fines +
     // processing fees) minus everything that left as expenses and
-    // forgone-income waivers. Single round-trip so the Dashboard's
-    // "Net Profit (all time)" tile can render without any extra
-    // queries.
+    // forgone-income waivers.
+    //
+    // Waivers split into a principal-side bucket and a penalty-side
+    // bucket inside loan_waivers.allocation. The penalty-side bucket
+    // is the "fines we chose not to collect" — netting it out of
+    // fines_collected gives Total Fines (net), matching how Reports
+    // shows Net Profit after waivers.
     const profitRow = await query(
       `SELECT
          COALESCE((SELECT SUM(amount) FROM expenses WHERE tenant_id = $1), 0)::float
                                                                 AS total_expenses,
          COALESCE((SELECT total_waived FROM capital_pool WHERE tenant_id = $1), 0)::float
-                                                                AS total_waived`,
+                                                                AS total_waived,
+         COALESCE((SELECT SUM(COALESCE((allocation->>'penalty_total')::float, 0))
+                     FROM loan_waivers w
+                     JOIN loans l ON l.id = w.loan_id
+                    WHERE l.tenant_id = $1 AND w.status = 'approved'), 0)::float
+                                                                AS fines_waived`,
       [tid],
     );
     const totalExpenses = parseFloat(profitRow.rows[0].total_expenses) || 0;
     const totalWaived = parseFloat(profitRow.rows[0].total_waived) || 0;
+    const finesWaived = parseFloat(profitRow.rows[0].fines_waived) || 0;
+    const finesNet = Math.max(0, finesCollectedGross - finesWaived);
+
+    status.fines_collected = finesNet;
+    status.fines_collected_gross = finesCollectedGross;
+    status.fines_waived = finesWaived;
     status.total_expenses = totalExpenses;
     status.total_waived = totalWaived;
     status.net_profit_lifetime =
