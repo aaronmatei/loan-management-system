@@ -361,8 +361,10 @@ function Reports() {
             filtered tiles always show; snapshot tiles (Outstanding /
             PAR / Overdue / Defaulted) describe today's state and hide
             in specific-month mode. */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-          {/* ── Period-filtered (driven by the selected window) ── */}
+        {/* Row 1 — Total Disbursed · Collected · Income container
+            (the three income components share an emerald-bordered
+            group with their summed Income reading at the top). */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
               <DollarSign size={20} className="text-blue-600" />
@@ -391,60 +393,71 @@ function Reports() {
               {kpis.payment_count} payments
             </p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-3">
-              <TrendingUp size={20} className="text-indigo-600" />
+
+          {/* ── Income group: emerald border, gradient header showing
+              the summed Income at a glance, three pastel breakdown
+              tiles beneath. Spans 3 columns so it visually anchors
+              the right half of the row. */}
+          <div className="col-span-2 lg:col-span-3 rounded-2xl border-2 border-emerald-200/70 bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/30 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 ring-1 ring-emerald-200 flex items-center justify-center">
+                  <TrendingUp size={16} className="text-emerald-700" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700 font-semibold">
+                    Income
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    interest + fines + fees
+                  </p>
+                </div>
+              </div>
+              <p className="text-2xl lg:text-3xl font-extrabold text-emerald-700 break-words leading-none">
+                +{fmt(incomeWindow)}
+              </p>
             </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
-              Interest from Loans
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
-              {fmt(kpis.interest_earned)}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">loan interest earned</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="w-10 h-10 rounded-xl bg-fuchsia-50 flex items-center justify-center mb-3">
-              <Gavel size={20} className="text-fuchsia-600" />
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center mb-2">
+                  <TrendingUp size={15} className="text-indigo-600" />
+                </div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
+                  Interest from Loans
+                </p>
+                <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
+                  {fmt(kpis.interest_earned)}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
+                <div className="w-8 h-8 rounded-lg bg-fuchsia-50 flex items-center justify-center mb-2">
+                  <Gavel size={15} className="text-fuchsia-600" />
+                </div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
+                  Fines Collected
+                </p>
+                <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
+                  {fmt(kpis.fines_collected)}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
+                <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center mb-2">
+                  <Banknote size={15} className="text-sky-600" />
+                </div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
+                  Processing Fees
+                </p>
+                <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
+                  {fmt(processingFeesWindow)}
+                </p>
+              </div>
             </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
-              Fines Collected
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
-              {fmt(kpis.fines_collected)}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              late-payment penalties
-            </p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center mb-3">
-              <Banknote size={20} className="text-sky-600" />
-            </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
-              Processing Fees
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
-              {fmt(processingFeesWindow)}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              retained at disbursement
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
-              <TrendingUp size={20} className="text-emerald-600" />
-            </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
-              Income
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 text-emerald-700 break-words">
-              {fmt(incomeWindow)}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              interest + fines + fees
-            </p>
-          </div>
+        </div>
+
+        {/* Row 2 — Snapshot tiles. Use 4 cols on lg since the Income
+            tile has merged into the row-1 income group above. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
 
           {/* ── Snapshot tiles (today's state). Shown for every
               period — they describe outstanding balances right now,
