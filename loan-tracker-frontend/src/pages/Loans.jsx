@@ -78,7 +78,7 @@ function Loans() {
     late_fee_enabled: false,
     late_payment_fee: 0,
     penalty_rate_enabled: false,
-    penalty_rate: 5,
+    penalty_rate: 0,
   });
 
   useEffect(() => {
@@ -313,7 +313,7 @@ function Loans() {
         late_fee_enabled: false,
         late_payment_fee: loanPolicy.late_payment_fee,
         penalty_rate_enabled: false,
-        penalty_rate: 5,
+        penalty_rate: 0,
       });
       setSelectedClient(null);
       setClientSearch("");
@@ -1070,15 +1070,16 @@ function Loans() {
                   <input
                     type="number"
                     step="0.1"
+                    min="0"
                     name="penalty_rate"
                     value={
                       formData.penalty_rate_enabled
-                        ? formData.penalty_rate ?? 5
+                        ? formData.penalty_rate ?? 0
                         : 0
                     }
                     onChange={handleInputChange}
                     disabled={!formData.penalty_rate_enabled}
-                    placeholder="5.0"
+                    placeholder="e.g. 5.0"
                     className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
                       formData.penalty_rate_enabled
                         ? "border-gray-200 focus:border-ocean-500"
