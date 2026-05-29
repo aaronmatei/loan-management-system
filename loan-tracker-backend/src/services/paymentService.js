@@ -278,28 +278,48 @@ export async function recordLoanPayment({
     }
   }
 
-  // Recalculate totals after this payment. Two figures roll up from
-  // the transactions table:
-  //  - total_paid  excludes penalty_portion (income) AND
-  //                overpayment_portion (refundable), so it can never
-  //                exceed total_amount_due. Drives isFullyPaid.
-  //  - total_overpayment = SUM(overpayment_portion). Must be computed
-  //                separately — total_paid already excluded it, so
-  //                "max(total_paid − total_due, 0)" is ALWAYS 0 and
-  //                won't surface the real overpayment.
+  // Recalculate totals after this payment. Three figures matter:
+  //  - cash_to_amount_due  amount_paid net of penalty (income) and
+  //                        overpayment (refundable). What the cash
+  //                        leg of payments actually drove down on
+  //                        the principal+interest book.
+  //  - total_overpayment   SUM(overpayment_portion). Must be summed
+  //                        separately — cash_to_amount_due already
+  //                        excluded it, so "cash − totalDue" would
+  //                        always be ≤0 and never surface a refund.
+  //  - waived_to_amount_due  Waivers' allocation.amount_total on
+  //                        approved waivers. A waiver is not cash,
+  //                        but it forgives part of amount_due — so
+  //                        for the purpose of auto-completing a
+  //                        loan, it counts toward "effectively paid"
+  //                        the same way a cash receipt does. Without
+  //                        this, a borrower who pays the balance
+  //                        AFTER a partial waiver stays stuck at
+  //                        status='active' forever because the
+  //                        cash-only sum never catches up to the
+  //                        contractual total_amount_due.
   const newTotalsResult = await query(
     `SELECT
         COALESCE(SUM(
           amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)
-        ), 0)                                              AS total_paid,
-        COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0) AS total_overpayment
+        ), 0)                                              AS cash_to_amount_due,
+        COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0) AS total_overpayment,
+        (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+           FROM loan_waivers
+          WHERE loan_id = $1 AND status = 'approved')      AS waived_to_amount_due
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
   );
 
-  const newTotalPaid = parseFloat(newTotalsResult.rows[0].total_paid);
+  const cashToAmountDue = parseFloat(
+    newTotalsResult.rows[0].cash_to_amount_due,
+  );
+  const waivedToAmountDue = parseFloat(
+    newTotalsResult.rows[0].waived_to_amount_due,
+  );
   const newOverpayment = parseFloat(newTotalsResult.rows[0].total_overpayment);
+  const newTotalPaid = cashToAmountDue + waivedToAmountDue;
   const isFullyPaid = newTotalPaid >= totalDue;
 
   // Update loan status based on actual amounts
