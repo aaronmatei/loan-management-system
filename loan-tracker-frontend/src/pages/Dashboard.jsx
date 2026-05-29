@@ -417,26 +417,26 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Available capital — the hero number, with "of X total
-              pool" trailing in light grey to its right. */}
-          <div className="relative mt-7 flex flex-wrap items-end gap-x-5 gap-y-1">
-            <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-none tracking-tight">
-              {fmtKES(poolStatus.available_pool)}
-            </p>
-            <p className="text-sm text-slate-400 pb-1.5">
-              of {fmtKES(poolStatus.initial_capital)} total pool
-            </p>
-          </div>
-          <p className="relative text-sm text-slate-500 mt-2">
-            Available Capital
-          </p>
-
-          {/* Loaned Out — second large number below. */}
-          <div className="relative mt-7">
-            <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
-              {fmtKES(poolStatus.outstanding_principal)}
-            </p>
-            <p className="text-sm text-slate-500 mt-2">Loaned Out</p>
+          {/* Available capital on the left, Loaned Out on the right
+              — the two hero figures sit as siblings on one row. */}
+          <div className="relative mt-7 flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
+            <div>
+              <div className="flex flex-wrap items-end gap-x-5 gap-y-1">
+                <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-none tracking-tight">
+                  {fmtKES(poolStatus.available_pool)}
+                </p>
+                <p className="text-sm text-slate-400 pb-1.5">
+                  of {fmtKES(poolStatus.initial_capital)} total pool
+                </p>
+              </div>
+              <p className="text-sm text-slate-500 mt-2">Available Capital</p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
+                {fmtKES(poolStatus.outstanding_principal)}
+              </p>
+              <p className="text-sm text-slate-500 mt-2">Loaned Out</p>
+            </div>
           </div>
 
           {/* Utilization track. */}
