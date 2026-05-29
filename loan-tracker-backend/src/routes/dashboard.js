@@ -230,6 +230,59 @@ router.get("/summary", async (req, res) => {
       [...periodParams, ...tsLP.params],
     );
 
+    // Receivable. Sum per-loan remaining balance, where remaining =
+    // total_amount_due − cash-toward-amount_due − waivers-toward-
+    // amount_due, floored at zero. Mirrors the same formula the
+    // Loans list uses for balance_due, so the dashboard and the
+    // table can't disagree. Two prior bugs collapsed by this:
+    //
+    //   1) the old `totalDue − totalCollected` net included
+    //      penalty + overpayment in "collected" even though neither
+    //      actually pays down amount_due, so the cell understated
+    //      receivable by exactly that amount; and
+    //   2) waivers weren't subtracted at all, so a 16k waiver
+    //      against amount_due left a phantom 16k of receivable on
+    //      the books forever.
+    // Single-param style (mirrors overdueStats above). We only need
+    // `to` here, so pass [to] alone — passing both [from, to] when
+    // $1 isn't referenced makes PG throw "could not determine data
+    // type of parameter $1".
+    const disbUntilSolo = hasPeriod
+      ? ` AND l.disbursed_at::date <= $1`
+      : "";
+    const outstandingStats = await query(
+      `
+      SELECT COALESCE(SUM(
+        GREATEST(
+          l.total_amount_due
+          - COALESCE(t.toward_amount_due, 0)
+          - COALESCE(wv.waived_amount_total, 0),
+          0
+        )
+      ), 0)::float AS outstanding
+      FROM loans l
+      LEFT JOIN (
+        SELECT loan_id,
+               SUM(amount_paid
+                   - COALESCE(penalty_portion, 0)
+                   - COALESCE(overpayment_portion, 0)) AS toward_amount_due
+        FROM transactions
+        WHERE payment_status = 'completed'
+        GROUP BY loan_id
+      ) t ON t.loan_id = l.id
+      LEFT JOIN (
+        SELECT loan_id,
+               SUM(COALESCE((allocation->>'amount_total')::float, 0))
+                 AS waived_amount_total
+        FROM loan_waivers
+        WHERE status = 'approved'
+        GROUP BY loan_id
+      ) wv ON wv.loan_id = l.id
+      WHERE l.status IN ('active','completed','defaulted')${disbUntilSolo}${tsLE.clause}
+    `,
+      [...endParams, ...tsLE.params],
+    );
+
     const loansData = loansStats.rows[0];
     const paymentsData = paymentsStats.rows[0];
     const clientsData = clientsStats.rows[0];
@@ -239,7 +292,7 @@ router.get("/summary", async (req, res) => {
     const totalDue = parseFloat(loansData.total_amount_due);
     const totalDisbursed = parseFloat(loansData.total_principal);
     const totalCollected = parseFloat(paymentsData.total_collected);
-    const outstanding = Math.max(0, totalDue - totalCollected);
+    const outstanding = parseFloat(outstandingStats.rows[0].outstanding);
     // Collection rate compares what came back against what we lent out
     // (principal disbursed), capped at 100% so interest + fines
     // collected on top of the principal can't push the rate above
