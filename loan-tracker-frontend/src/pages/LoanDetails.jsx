@@ -213,6 +213,7 @@ function LoanDetails() {
       collateral_description: l.collateral_description || "",
       late_fee_enabled: parseFloat(l.late_payment_fee || 0) > 0,
       late_payment_fee: parseFloat(l.late_payment_fee || 0),
+      penalty_rate_enabled: parseFloat(l.penalty_rate || 0) > 0,
       penalty_rate: parseFloat(l.penalty_rate || 0),
       notes: l.notes || "",
     });
@@ -277,9 +278,13 @@ function LoanDetails() {
         late_payment_fee: editForm.late_fee_enabled
           ? parseFloat(editForm.late_payment_fee) || 0
           : 0,
+        penalty_rate: editForm.penalty_rate_enabled
+          ? parseFloat(editForm.penalty_rate) || 0
+          : 0,
       };
-      // Don't send the UI-only flag to the API.
+      // Don't send the UI-only flags to the API.
       delete payload.late_fee_enabled;
+      delete payload.penalty_rate_enabled;
       delete payload.monthly_interest_rate;
       await api.put(`/loans/${id}/edit`, payload);
       setShowEditModal(false);
@@ -1969,22 +1974,70 @@ function LoanDetails() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Penalty Rate (% per month on overdue)
-                  </label>
+                  {/* Penalty rate is opt-in per loan — same pattern as
+                      the Late Payment Fee toggle above. Off sends 0
+                      to the backend regardless of what's typed. */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-semibold text-gray-700">
+                      Penalty Rate (% per month on overdue)
+                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={editForm.penalty_rate_enabled}
+                      onClick={() =>
+                        setEditForm({
+                          ...editForm,
+                          penalty_rate_enabled: !editForm.penalty_rate_enabled,
+                        })
+                      }
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
+                        editForm.penalty_rate_enabled
+                          ? "bg-ocean-600"
+                          : "bg-gray-300"
+                      }`}
+                      title={
+                        editForm.penalty_rate_enabled
+                          ? "Penalty rate enabled — turn off to remove"
+                          : "Penalty rate disabled — turn on to charge"
+                      }
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                          editForm.penalty_rate_enabled
+                            ? "translate-x-5"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
                   <input
                     type="number"
                     step="0.1"
                     min="0"
-                    value={editForm.penalty_rate}
+                    value={
+                      editForm.penalty_rate_enabled
+                        ? editForm.penalty_rate
+                        : 0
+                    }
                     onChange={(e) =>
                       setEditForm({
                         ...editForm,
                         penalty_rate: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    disabled={!editForm.penalty_rate_enabled}
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                      editForm.penalty_rate_enabled
+                        ? "border-gray-200 focus:border-ocean-500"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    }`}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {editForm.penalty_rate_enabled
+                      ? "Monthly % charged on the overdue principal balance."
+                      : "No penalty rate on this loan."}
+                  </p>
                 </div>
               </div>
 

@@ -77,6 +77,7 @@ function Loans() {
     collateral_description: "",
     late_fee_enabled: false,
     late_payment_fee: 0,
+    penalty_rate_enabled: false,
     penalty_rate: 5,
   });
 
@@ -276,13 +277,16 @@ function Loans() {
     setSuccess("");
 
     try {
-      // Late fee only counts when the toggle is on. If it's off we
-      // send 0 so the backend doesn't accidentally pick up a stale
-      // value the user never opted into.
+      // Late fee + penalty rate only count when their toggles are on.
+      // If a toggle's off we send 0 so the backend doesn't pick up
+      // a stale value the user never opted into.
       const submitData = {
         ...formData,
         late_payment_fee: formData.late_fee_enabled
           ? parseFloat(formData.late_payment_fee) || 0
+          : 0,
+        penalty_rate: formData.penalty_rate_enabled
+          ? parseFloat(formData.penalty_rate) || 0
           : 0,
       };
       const response = await api.post("/loans", submitData);
@@ -308,6 +312,7 @@ function Loans() {
         collateral_description: "",
         late_fee_enabled: false,
         late_payment_fee: loanPolicy.late_payment_fee,
+        penalty_rate_enabled: false,
         penalty_rate: 5,
       });
       setSelectedClient(null);
@@ -1025,18 +1030,66 @@ function Loans() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Penalty Rate (% per month on overdue)
-                  </label>
+                  {/* Penalty rate is opt-in per loan — same pattern as the
+                      Late Payment Fee toggle. Off sends 0 to the backend
+                      regardless of what's typed. */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-semibold text-gray-700">
+                      Penalty Rate (% per month on overdue)
+                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={formData.penalty_rate_enabled}
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          penalty_rate_enabled: !formData.penalty_rate_enabled,
+                        })
+                      }
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
+                        formData.penalty_rate_enabled
+                          ? "bg-ocean-600"
+                          : "bg-gray-300"
+                      }`}
+                      title={
+                        formData.penalty_rate_enabled
+                          ? "Penalty rate enabled — turn off to remove"
+                          : "Penalty rate disabled — turn on to charge"
+                      }
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                          formData.penalty_rate_enabled
+                            ? "translate-x-5"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
                   <input
                     type="number"
                     step="0.1"
                     name="penalty_rate"
-                    value={formData.penalty_rate ?? 5}
+                    value={
+                      formData.penalty_rate_enabled
+                        ? formData.penalty_rate ?? 5
+                        : 0
+                    }
                     onChange={handleInputChange}
+                    disabled={!formData.penalty_rate_enabled}
                     placeholder="5.0"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                      formData.penalty_rate_enabled
+                        ? "border-gray-200 focus:border-ocean-500"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    }`}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.penalty_rate_enabled
+                      ? "Monthly % charged on the overdue principal balance."
+                      : "No penalty rate on this loan."}
+                  </p>
                 </div>
               </div>
             </div>
