@@ -422,12 +422,18 @@ router.get("/kpis", async (req, res) => {
     const k = tenantClause(req, p.off);
     const c = k.clause;
     // Snapshot-up-to-end clauses
-    const dispBy = p.hasPeriod ? ` AND start_date::date <= $2` : "";
+    // Snapshot "by end of period" uses disbursed_at — the date the
+    // cash actually left the lender. Using start_date here was wrong
+    // because start_date defaults to disbursed_at + 1 month (first
+    // installment date), so a loan disbursed 29 May would be excluded
+    // from a May snapshot even though it's already on the books.
+    const dispBy = p.hasPeriod ? ` AND disbursed_at::date <= $2` : "";
     const createdBy = p.hasPeriod ? ` AND created_at::date <= $2` : "";
-    // Activity-within clauses
+    // Activity-within clauses — "new loans in period" / "disbursements
+    // in period" also key off disbursed_at for the same reason.
     const startWithin = p.hasPeriod
-      ? ` AND start_date::date BETWEEN $1 AND $2`
-      : ` AND start_date >= CURRENT_DATE - INTERVAL '30 days'`;
+      ? ` AND disbursed_at::date BETWEEN $1 AND $2`
+      : ` AND disbursed_at >= CURRENT_DATE - INTERVAL '30 days'`;
     const payWithin = p.hasPeriod
       ? ` AND payment_date::date BETWEEN $1 AND $2`
       : ` AND payment_date >= CURRENT_DATE - INTERVAL '30 days'`;

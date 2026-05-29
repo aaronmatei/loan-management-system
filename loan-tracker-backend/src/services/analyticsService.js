@@ -47,8 +47,8 @@ class AnalyticsService {
        FROM loans l
        WHERE l.tenant_id = $1
          AND l.status IN ('active', 'completed', 'defaulted')
-         AND ($2::date IS NULL OR l.start_date >= $2)
-         AND ($3::date IS NULL OR l.start_date <= $3)`,
+         AND ($2::date IS NULL OR l.disbursed_at::date >= $2)
+         AND ($3::date IS NULL OR l.disbursed_at::date <= $3)`,
       [tenantId, dateFrom || null, dateTo || null],
     );
 
