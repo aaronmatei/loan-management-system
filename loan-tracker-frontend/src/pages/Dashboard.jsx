@@ -440,21 +440,45 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Utilization track. */}
+          {/* Utilization — segmented capacity blocks. 10 rounded pills;
+              each filled block fades along a cyan → violet ramp based
+              on its position so the gradient reads as "intensity grows
+              as the pool fills". Block count rounds to nearest 10%. */}
           <div className="relative mt-7">
-            <div className="relative w-full h-1.5 rounded-full bg-slate-200/70 overflow-hidden">
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-400 to-indigo-400"
-                style={{
-                  width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-500">Utilization</span>
               <span className="text-sm font-semibold text-slate-700">
                 {poolStatus.utilization_rate.toFixed(1)}%
               </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: 10 }).map((_, i) => {
+                const filledCount = Math.round(
+                  Math.min(Math.max(poolStatus.utilization_rate, 0), 100) / 10,
+                );
+                const filled = i < filledCount;
+                // cyan-400 (34,211,238) → violet-500 (139,92,246)
+                const t = i / 9;
+                const r = Math.round(34 + (139 - 34) * t);
+                const g = Math.round(211 + (92 - 211) * t);
+                const b = Math.round(238 + (246 - 238) * t);
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 h-2.5 rounded-full transition-colors ${
+                      filled ? "" : "bg-slate-200/80"
+                    }`}
+                    style={
+                      filled
+                        ? {
+                            backgroundColor: `rgb(${r}, ${g}, ${b})`,
+                            boxShadow: `0 0 12px rgba(${r}, ${g}, ${b}, 0.35)`,
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </div>
           </div>
 
