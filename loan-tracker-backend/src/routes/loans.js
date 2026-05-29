@@ -40,7 +40,17 @@ router.get("/", async (req, res) => {
             c.client_code,
             COALESCE(SUM(t.amount_paid), 0) as total_paid,
             COALESCE(SUM(t.penalty_portion), 0) as total_fines_paid,
-            GREATEST(l.total_amount_due - COALESCE(SUM(t.amount_paid), 0), 0) as balance_due,
+            COALESCE(wv.waived_toward_balance, 0) as total_waived_toward_balance,
+            GREATEST(
+              l.total_amount_due
+              - (
+                  COALESCE(SUM(t.amount_paid), 0)
+                  - COALESCE(SUM(t.penalty_portion), 0)
+                  - COALESCE(SUM(t.overpayment_portion), 0)
+                )
+              - COALESCE(wv.waived_toward_balance, 0),
+              0
+            ) as balance_due,
             COALESCE(od.overdue_count, 0)::int  AS overdue_count,
             COALESCE(od.overdue_amount, 0)      AS overdue_amount,
             COALESCE(od.max_days_late, 0)::int  AS max_days_late
@@ -59,6 +69,15 @@ router.get("/", async (req, res) => {
             AND amount_due > COALESCE(amount_paid, 0)
           GROUP BY loan_id
         ) od ON od.loan_id = l.id
+        LEFT JOIN (
+          SELECT
+            loan_id,
+            COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+              AS waived_toward_balance
+          FROM loan_waivers
+          WHERE status = 'approved'
+          GROUP BY loan_id
+        ) wv ON wv.loan_id = l.id
         WHERE 1=1
         `;
     const params = [];
@@ -91,7 +110,8 @@ router.get("/", async (req, res) => {
 
     queryText += `
       GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code,
-               od.overdue_count, od.overdue_amount, od.max_days_late
+               od.overdue_count, od.overdue_amount, od.max_days_late,
+               wv.waived_toward_balance
       ORDER BY l.created_at DESC
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;
