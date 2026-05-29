@@ -359,7 +359,7 @@ function Dashboard() {
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-4 mb-4 flex justify-between items-center">
           <div>
             <h3 className="font-bold flex items-center gap-2">
-              <PartyPopper size={18} /> Welcome to your dashboard!
+              <PartyPopper size={18} /> This is your dashboard!
             </h3>
             <p className="text-sm">
               Your first loan application is in the Applications queue — review
@@ -469,7 +469,7 @@ function Dashboard() {
                 <ArrowUpRight size={12} className="text-slate-300" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
-                All time Disbursed
+                Lifetime disbursement
               </p>
               <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap">
                 {fmtKES(poolStatus.total_disbursed)}
@@ -485,7 +485,7 @@ function Dashboard() {
                 <ArrowDownLeft size={12} className="text-emerald-300" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
-                All time Collected
+                Net collection
               </p>
               <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap">
                 {fmtKES(poolStatus.total_collected)}
@@ -501,7 +501,7 @@ function Dashboard() {
                 <TrendingUp size={12} className="text-emerald-300" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
-                All time Interest from Loans
+                Net Interest
               </p>
               <p className="text-lg lg:text-xl font-extrabold text-emerald-700 mt-1 tracking-tight whitespace-nowrap">
                 +{fmtKES(poolStatus.loan_interest_earned ?? 0)}
@@ -517,7 +517,7 @@ function Dashboard() {
                 <AlertTriangle size={12} className="text-amber-300" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
-                All time Interest from Fines
+                Total Fines
               </p>
               <p className="text-lg lg:text-xl font-extrabold text-amber-700 mt-1 tracking-tight whitespace-nowrap">
                 +{fmtKES(poolStatus.fines_collected ?? 0)}
@@ -533,7 +533,7 @@ function Dashboard() {
                 <Target size={12} className="text-sky-300" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
-                All time Collection Rate
+                Lifetime Collection Rate
               </p>
               <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight">
                 {metrics.collection_rate}%
