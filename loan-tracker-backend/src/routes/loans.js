@@ -41,6 +41,7 @@ router.get("/", async (req, res) => {
             COALESCE(SUM(t.amount_paid), 0) as total_paid,
             COALESCE(SUM(t.penalty_portion), 0) as total_fines_paid,
             COALESCE(wv.waived_toward_balance, 0) as total_waived_toward_balance,
+            COALESCE(wv.total_waived, 0) as total_waived,
             GREATEST(
               l.total_amount_due
               - (
@@ -73,7 +74,8 @@ router.get("/", async (req, res) => {
           SELECT
             loan_id,
             COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
-              AS waived_toward_balance
+              AS waived_toward_balance,
+            COALESCE(SUM(amount), 0) AS total_waived
           FROM loan_waivers
           WHERE status = 'approved'
           GROUP BY loan_id
@@ -111,7 +113,7 @@ router.get("/", async (req, res) => {
     queryText += `
       GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code,
                od.overdue_count, od.overdue_amount, od.max_days_late,
-               wv.waived_toward_balance
+               wv.waived_toward_balance, wv.total_waived
       ORDER BY l.created_at DESC
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;

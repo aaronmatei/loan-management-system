@@ -1553,7 +1553,7 @@ function Loans() {
       ) : (
         <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
           <div className="overflow-auto max-h-[calc(100vh-400px)]">
-            <table className="w-full">
+            <table className="w-full whitespace-nowrap [&_tbody_td]:align-top">
               <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="px-4 py-4 w-10">
@@ -1573,6 +1573,7 @@ function Loans() {
                     ["Total to Pay", "total_amount_due", "right"],
                     ["Paid", "total_paid", "right"],
                     ["Fines", "total_fines_paid", "right"],
+                    ["Waivers", "total_waived", "right"],
                     ["Balance", "balance", "right"],
                     ["Refund Due", "overpayment_amount", "right"],
                     ["Status", "status", "left"],
@@ -1670,6 +1671,16 @@ function Loans() {
                             {parseFloat(
                               loan.total_fines_paid,
                             ).toLocaleString()}
+                          </p>
+                        ) : (
+                          <p className="text-gray-400 text-sm">—</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        {parseFloat(loan.total_waived || 0) > 0 ? (
+                          <p className="font-semibold text-rose-700 text-sm">
+                            KES{" "}
+                            {parseFloat(loan.total_waived).toLocaleString()}
                           </p>
                         ) : (
                           <p className="text-gray-400 text-sm">—</p>
@@ -1800,6 +1811,17 @@ function Loans() {
                         .reduce(
                           (sum, l) =>
                             sum + parseFloat(l.total_fines_paid || 0),
+                          0,
+                        )
+                        .toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold text-rose-700 text-sm">
+                      KES{" "}
+                      {filteredLoans
+                        .reduce(
+                          (sum, l) => sum + parseFloat(l.total_waived || 0),
                           0,
                         )
                         .toLocaleString()}
