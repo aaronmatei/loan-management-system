@@ -12,6 +12,7 @@ import {
   Download,
   Check,
   Plus,
+  RotateCcw,
 } from "lucide-react";
 import api from "../services/api";
 import { useBulkSelection } from "../hooks/useBulkSelection";
@@ -482,6 +483,71 @@ function Loans() {
       fetchLoans();
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Mass refund: visible only when every selected loan has a pending
+  // refund (refund_status='pending' AND overpayment_amount > 0).
+  const selectedAllPendingRefund =
+    bulk.count > 0 &&
+    bulk.selectedArray.every((id) => {
+      const l = loans.find((x) => x.id === id);
+      return (
+        l &&
+        l.refund_status === "pending" &&
+        parseFloat(l.overpayment_amount || 0) > 0
+      );
+    });
+
+  const [showBulkRefundModal, setShowBulkRefundModal] = useState(false);
+  const [bulkRefundData, setBulkRefundData] = useState({
+    refund_method: "M-Pesa",
+    refund_reference: "",
+    refunded_date: new Date().toISOString().split("T")[0],
+  });
+  const [bulkRefundBusy, setBulkRefundBusy] = useState(false);
+
+  const handleBulkRefund = async (e) => {
+    e.preventDefault();
+    if (!bulkRefundData.refund_method || !bulkRefundData.refunded_date) {
+      alert("Method and date are required.");
+      return;
+    }
+    const total = bulk.selectedArray.reduce((sum, id) => {
+      const l = loans.find((x) => x.id === id);
+      return sum + parseFloat(l?.overpayment_amount || 0);
+    }, 0);
+    if (
+      !window.confirm(
+        `Mark ${bulk.count} refund${bulk.count !== 1 ? "s" : ""} as paid (total KES ${total.toLocaleString()})?`,
+      )
+    )
+      return;
+    setBulkRefundBusy(true);
+    try {
+      const res = await api.post("/payments/bulk/refund", {
+        loan_ids: bulk.selectedArray,
+        ...bulkRefundData,
+      });
+      const { processed, skipped, details } = res.data;
+      let msg = `Mass refund done.\n\n${processed} processed`;
+      if (skipped) msg += ` · ${skipped} skipped`;
+      if (details?.length) {
+        const reasons = details
+          .slice(0, 5)
+          .map((d) => `• ${d.loan_code || d.id}: ${d.reason}`)
+          .join("\n");
+        msg += `\n\nSkipped reasons:\n${reasons}`;
+        if (details.length > 5) msg += `\n…and ${details.length - 5} more`;
+      }
+      alert(msg);
+      setShowBulkRefundModal(false);
+      bulk.clear();
+      fetchLoans();
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setBulkRefundBusy(false);
     }
   };
 
@@ -1826,6 +1892,15 @@ function Loans() {
 
         <PermissionGate role={["admin", "manager"]}>
           <div className="border-l border-white/30 mx-1 h-6"></div>
+          {selectedAllPendingRefund && (
+            <button
+              onClick={() => setShowBulkRefundModal(true)}
+              className="px-4 py-2 bg-ocean-500/30 hover:bg-ocean-500/50 rounded-lg text-sm font-semibold inline-flex items-center gap-1"
+              title="Mark every selected pending refund as paid"
+            >
+              <RotateCcw size={16} /> Mass Refund
+            </button>
+          )}
           <button
             onClick={() => handleBulkStatus("defaulted")}
             className="px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-semibold"
@@ -1846,6 +1921,119 @@ function Loans() {
           </button>
         </PermissionGate>
       </BulkActionBar>
+
+      {/* Mass refund modal — one method/reference/date applied to every
+          selected pending refund. Backend re-checks per-loan eligibility. */}
+      {showBulkRefundModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-5 border-b flex items-center justify-between">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <RotateCcw size={18} className="text-ocean-600" /> Mass
+                Refund
+              </h3>
+              <button
+                onClick={() => setShowBulkRefundModal(false)}
+                className="text-gray-400 hover:text-gray-700"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleBulkRefund} className="p-5 space-y-4">
+              <p className="text-sm text-gray-600">
+                Marking{" "}
+                <strong>
+                  {bulk.count} refund{bulk.count !== 1 ? "s" : ""}
+                </strong>{" "}
+                as paid — total{" "}
+                <strong className="text-ocean-700">
+                  KES{" "}
+                  {bulk.selectedArray
+                    .reduce((sum, id) => {
+                      const l = loans.find((x) => x.id === id);
+                      return (
+                        sum + parseFloat(l?.overpayment_amount || 0)
+                      );
+                    }, 0)
+                    .toLocaleString()}
+                </strong>
+                .
+              </p>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-700">
+                  Refund method *
+                </label>
+                <select
+                  value={bulkRefundData.refund_method}
+                  onChange={(e) =>
+                    setBulkRefundData({
+                      ...bulkRefundData,
+                      refund_method: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="M-Pesa">M-Pesa</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="cheque">Cheque</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-700">
+                  Reference
+                </label>
+                <input
+                  type="text"
+                  value={bulkRefundData.refund_reference}
+                  onChange={(e) =>
+                    setBulkRefundData({
+                      ...bulkRefundData,
+                      refund_reference: e.target.value,
+                    })
+                  }
+                  placeholder="optional — shared by all"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-700">
+                  Refund date *
+                </label>
+                <input
+                  type="date"
+                  value={bulkRefundData.refunded_date}
+                  onChange={(e) =>
+                    setBulkRefundData({
+                      ...bulkRefundData,
+                      refunded_date: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkRefundModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkRefundBusy}
+                  className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  <RotateCcw size={15} />
+                  {bulkRefundBusy ? "Processing…" : "Mark as Refunded"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
