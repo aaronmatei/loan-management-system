@@ -90,44 +90,69 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     );
 
     const status = buildStatus(poolResult.rows[0], activeLoans);
-    status.loan_interest_earned = parseFloat(
+    const interestCollectedGross = parseFloat(
       breakdown.rows[0].loan_interest_earned,
     );
     const finesCollectedGross = parseFloat(
       breakdown.rows[0].fines_collected,
     );
 
-    // Lifetime profitability: total income kept in the pool
-    // (total_interest_earned bundles loan-interest + fines +
-    // processing fees) minus everything that left as expenses and
-    // forgone-income waivers.
+    // Lifetime profitability + waiver decomposition.
     //
-    // Waivers split into a principal-side bucket and a penalty-side
-    // bucket inside loan_waivers.allocation. The penalty-side bucket
-    // is the "fines we chose not to collect" — netting it out of
-    // fines_collected gives Total Fines (net), matching how Reports
-    // shows Net Profit after waivers.
+    // Each waiver splits across three buckets — penalty (already
+    // tracked as allocation.penalty_total) plus the
+    // principal/interest blend (allocation.amount_total). New
+    // waivers store the prorated interest_total / principal_total
+    // numbers explicitly (see waiverService.applyWaiver step 3b);
+    // older rows fall back to a proportional split using each
+    // loan's total_interest ÷ total_amount_due ratio so historical
+    // data still nets correctly. Netting these out of the gross
+    // breakdown gives "Interest from Loans (net)" / "Total Fines
+    // (net)" — what we actually kept after forgiving.
     const profitRow = await query(
       `SELECT
          COALESCE((SELECT SUM(amount) FROM expenses WHERE tenant_id = $1), 0)::float
                                                                 AS total_expenses,
          COALESCE((SELECT total_waived FROM capital_pool WHERE tenant_id = $1), 0)::float
                                                                 AS total_waived,
-         COALESCE((SELECT SUM(COALESCE((allocation->>'penalty_total')::float, 0))
-                     FROM loan_waivers w
-                     JOIN loans l ON l.id = w.loan_id
-                    WHERE l.tenant_id = $1 AND w.status = 'approved'), 0)::float
-                                                                AS fines_waived`,
+         COALESCE(SUM(COALESCE((w.allocation->>'penalty_total')::float, 0)), 0)::float
+                                                                AS fines_waived,
+         COALESCE(SUM(
+           COALESCE(
+             (w.allocation->>'interest_total')::float,
+             COALESCE((w.allocation->>'amount_total')::float, 0)
+               * (l.total_interest / NULLIF(l.total_amount_due, 0))
+           )
+         ), 0)::float                                           AS interest_waived,
+         COALESCE(SUM(
+           COALESCE(
+             (w.allocation->>'principal_total')::float,
+             COALESCE((w.allocation->>'amount_total')::float, 0)
+               * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+           )
+         ), 0)::float                                           AS principal_waived
+       FROM loan_waivers w
+       JOIN loans l ON l.id = w.loan_id
+      WHERE l.tenant_id = $1 AND w.status = 'approved'`,
       [tid],
     );
     const totalExpenses = parseFloat(profitRow.rows[0].total_expenses) || 0;
     const totalWaived = parseFloat(profitRow.rows[0].total_waived) || 0;
     const finesWaived = parseFloat(profitRow.rows[0].fines_waived) || 0;
+    const interestWaived = parseFloat(profitRow.rows[0].interest_waived) || 0;
+    const principalWaived = parseFloat(profitRow.rows[0].principal_waived) || 0;
     const finesNet = Math.max(0, finesCollectedGross - finesWaived);
+    const interestNet = Math.max(0, interestCollectedGross - interestWaived);
 
+    // Tiles read the net figures by default; gross + waived bucketing
+    // is exposed so admin views can show "X collected, Y forgiven".
+    status.loan_interest_earned = interestNet;
+    status.loan_interest_earned_gross = interestCollectedGross;
+    status.interest_waived = interestWaived;
     status.fines_collected = finesNet;
     status.fines_collected_gross = finesCollectedGross;
     status.fines_waived = finesWaived;
+    status.principal_waived = principalWaived;
     status.total_expenses = totalExpenses;
     status.total_waived = totalWaived;
     status.net_profit_lifetime =

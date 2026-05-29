@@ -180,6 +180,22 @@ export async function applyWaiver(loanId, tenantId, amount) {
     [amount, tenantId],
   );
 
+  // ── 3b) Decompose amount_total into interest_total / principal_total
+  // using the loan's contractual ratio. Stored in the allocation so
+  // downstream queries (Total Fines net, Net Interest net) can read
+  // explicit numbers instead of recomputing the proportional split
+  // from scratch each time. Penalty was already tracked separately,
+  // so it's not touched here.
+  const ratioDenom = parseFloat(loan.total_amount_due) || 0;
+  const interestShare =
+    ratioDenom > 0 ? parseFloat(loan.total_interest || 0) / ratioDenom : 0;
+  allocation.interest_total =
+    Math.round(allocation.amount_total * interestShare * 100) / 100;
+  allocation.principal_total =
+    Math.round(
+      (allocation.amount_total - allocation.interest_total) * 100,
+    ) / 100;
+
   // ── 4) If the loan is now fully cleared, complete + tag it ──────
   const postPaidRes = await query(
     `SELECT COALESCE(SUM(
