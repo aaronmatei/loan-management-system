@@ -8,6 +8,7 @@ import {
   CreditCard,
   DollarSign,
   Check,
+  CheckCircle,
 } from "lucide-react";
 import { LENDER_TYPES } from "../portal/lenderType";
 
@@ -75,28 +76,6 @@ function AmountDisplay({ value }) {
         .{dec}
       </span>
     </span>
-  );
-}
-
-// Decorative paperclip clipped over the top edge of the receipt.
-function Paperclip({ color = "#c0a060" }) {
-  return (
-    <svg
-      width="56"
-      height="120"
-      viewBox="0 0 56 120"
-      className="absolute -top-6 left-10 pointer-events-none"
-      style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.18))" }}
-      aria-hidden="true"
-    >
-      <path
-        d="M28 6 C 16 6, 8 14, 8 28 L 8 90 C 8 100, 16 108, 26 108 C 36 108, 44 100, 44 90 L 44 36 C 44 28, 38 22, 30 22 C 22 22, 16 28, 16 36 L 16 84"
-        stroke={color}
-        strokeWidth="4"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
   );
 }
 
@@ -219,9 +198,6 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
             }}
             aria-hidden="true"
           />
-
-          {/* Paperclip clipped over the top edge. */}
-          <Paperclip />
 
           {/* ── Navy header band ──────────────────────────────── */}
           <div
@@ -379,45 +355,41 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
                 </div>
               </div>
 
-              {/* ── Rubber stamp — fully paid ───────────────── */}
-              {isFullyPaid && (
-                <div
-                  className="absolute -bottom-5 right-3 pointer-events-none select-none"
-                  style={{
-                    transform: "rotate(-8deg)",
-                    color: "rgba(155, 35, 35, 0.78)",
-                    filter:
-                      "drop-shadow(0 0 0.5px currentColor) drop-shadow(0 1px 0 rgba(155,35,35,0.15))",
-                  }}
-                  aria-hidden="true"
-                >
-                  <div className="border-[2.5px] border-current rounded-lg px-4 py-1.5 flex items-center gap-2 font-serif italic">
-                    <Check size={18} strokeWidth={3} />
-                    <span className="text-sm font-bold tracking-wider">
-                      LOAN FULLY PAID
-                    </span>
-                    <span className="text-xs">— COMPLETED</span>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Next payment box (only when not fully paid) */}
-            {!isFullyPaid && nextDateStr && (
-              <div className="mt-6 rounded-2xl border border-stone-300/60 p-4 flex items-center justify-between bg-white/40">
-                <div>
-                  <Label>Next Payment</Label>
-                  <p className="font-serif text-lg text-stone-900 mt-0.5">
-                    {money(receipt.next_payment_amount)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <Label>Due</Label>
-                  <p className="text-sm font-semibold text-stone-700 mt-0.5">
-                    {nextDateStr}
-                  </p>
-                </div>
+            {/* Fully-paid panel / next-payment box (mutually exclusive) */}
+            {isFullyPaid ? (
+              <div
+                className="mt-6 rounded-2xl border p-5 text-center"
+                style={{
+                  borderColor: theme.accent,
+                  backgroundColor: "rgba(255,255,255,0.45)",
+                }}
+              >
+                <p
+                  className="text-lg font-serif italic inline-flex items-center gap-2"
+                  style={{ color: theme.accent }}
+                >
+                  <CheckCircle size={18} /> Loan fully paid
+                </p>
               </div>
+            ) : (
+              nextDateStr && (
+                <div className="mt-6 rounded-2xl border border-stone-300/60 p-4 flex items-center justify-between bg-white/40">
+                  <div>
+                    <Label>Next Payment</Label>
+                    <p className="font-serif text-lg text-stone-900 mt-0.5">
+                      {money(receipt.next_payment_amount)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Label>Due</Label>
+                    <p className="text-sm font-semibold text-stone-700 mt-0.5">
+                      {nextDateStr}
+                    </p>
+                  </div>
+                </div>
+              )
             )}
 
             {/* Footer */}
