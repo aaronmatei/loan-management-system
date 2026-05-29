@@ -914,12 +914,22 @@ router.get("/export/excel", async (req, res) => {
       `SELECT
          l.loan_code,
          c.first_name || ' ' || c.last_name      AS client,
-         l.principal_amount, l.total_amount_due, l.status, l.start_date,
-         COALESCE(p.paid, 0)                     AS paid
+         l.disbursed_at,
+         l.principal_amount,
+         l.total_interest,
+         l.total_amount_due,
+         l.status,
+         l.start_date,
+         l.overpayment_amount,
+         l.refund_status,
+         COALESCE(p.paid, 0)                     AS paid,
+         COALESCE(p.fines_paid, 0)               AS fines_paid
        FROM loans l
        JOIN clients c ON l.client_id = c.id
        LEFT JOIN (
-         SELECT loan_id, SUM(amount_paid) AS paid
+         SELECT loan_id,
+                SUM(amount_paid) AS paid,
+                SUM(COALESCE(penalty_portion, 0)) AS fines_paid
          FROM transactions WHERE payment_status='completed'
          GROUP BY loan_id
        ) p ON p.loan_id = l.id
@@ -969,17 +979,23 @@ router.get("/export/excel", async (req, res) => {
     summary.getRow(1).font = { bold: true, size: 14 };
     summary.getRow(5).font = { bold: true };
 
-    // ── Loans detail ──
+    // ── Loans detail — mirrors the on-screen Loans table columns
+    // (Loan Code · Client · Disbursed · Principal · Interest · Total
+    // to Pay · Paid · Fines · Balance · Refund Due · Status). Values
+    // are written as numbers so users can still pivot / sum.
     const loansSheet = workbook.addWorksheet("Loans");
     loansSheet.columns = [
       { header: "Loan Code", key: "loan_code", width: 16 },
       { header: "Client", key: "client", width: 26 },
-      { header: "Principal", key: "principal_amount", width: 15 },
-      { header: "Total Due", key: "total_amount_due", width: 15 },
-      { header: "Paid", key: "paid", width: 15 },
-      { header: "Balance", key: "balance", width: 15 },
+      { header: "Disbursed", key: "disbursed_at", width: 14 },
+      { header: "Principal", key: "principal_amount", width: 14 },
+      { header: "Interest", key: "total_interest", width: 14 },
+      { header: "Total to Pay", key: "total_amount_due", width: 15 },
+      { header: "Paid", key: "paid", width: 14 },
+      { header: "Fines", key: "fines_paid", width: 14 },
+      { header: "Balance", key: "balance", width: 14 },
+      { header: "Refund Due", key: "refund_due", width: 16 },
       { header: "Status", key: "status", width: 12 },
-      { header: "Start Date", key: "start_date", width: 14 },
     ];
     loansSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
     loansSheet.getRow(1).fill = {
@@ -988,20 +1004,30 @@ router.get("/export/excel", async (req, res) => {
       fgColor: { argb: "FF4F46E5" },
     };
     loans.rows.forEach((l) => {
-      const principal = parseFloat(l.principal_amount);
-      const totalDue = parseFloat(l.total_amount_due);
-      const paid = parseFloat(l.paid);
+      const principal = parseFloat(l.principal_amount) || 0;
+      const interest = parseFloat(l.total_interest) || 0;
+      const totalDue = parseFloat(l.total_amount_due) || 0;
+      const paid = parseFloat(l.paid) || 0;
+      const finesPaid = parseFloat(l.fines_paid) || 0;
+      const overpayment = parseFloat(l.overpayment_amount) || 0;
+      const refundDue =
+        overpayment > 0
+          ? `${overpayment.toFixed(2)} (${l.refund_status === "refunded" ? "refunded" : "pending"})`
+          : "";
       loansSheet.addRow({
         loan_code: l.loan_code,
         client: l.client,
-        principal_amount: principal.toFixed(2),
-        total_amount_due: totalDue.toFixed(2),
-        paid: paid.toFixed(2),
-        balance: (totalDue - paid).toFixed(2),
-        status: l.status,
-        start_date: l.start_date
-          ? new Date(l.start_date).toLocaleDateString("en-KE")
+        disbursed_at: l.disbursed_at
+          ? new Date(l.disbursed_at).toLocaleDateString("en-KE")
           : "",
+        principal_amount: principal,
+        total_interest: interest,
+        total_amount_due: totalDue,
+        paid,
+        fines_paid: finesPaid,
+        balance: Math.max(totalDue - paid, 0),
+        refund_due: refundDue,
+        status: l.status,
       });
     });
 
