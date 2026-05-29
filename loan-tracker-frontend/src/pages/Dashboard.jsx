@@ -599,7 +599,11 @@ function Dashboard() {
                 Total Fines
               </p>
               <p className="text-lg lg:text-xl font-extrabold text-amber-700 mt-1 tracking-tight whitespace-nowrap">
-                +{fmtKES(poolStatus.fines_collected ?? 0)}
+                +{fmtKES(
+                  poolStatus.fines_collected_gross ??
+                    poolStatus.fines_collected ??
+                    0,
+                )}
               </p>
             </div>
 
