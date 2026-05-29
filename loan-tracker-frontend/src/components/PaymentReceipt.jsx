@@ -1,5 +1,14 @@
 import React from "react";
-import { Printer, MessageSquare } from "lucide-react";
+import {
+  Printer,
+  MessageSquare,
+  User,
+  Phone,
+  Hash,
+  CreditCard,
+  DollarSign,
+  Check,
+} from "lucide-react";
 import { LENDER_TYPES } from "../portal/lenderType";
 
 // Shared, premium payment receipt — used by the tenant admin
@@ -7,7 +16,7 @@ import { LENDER_TYPES } from "../portal/lenderType";
 // (payment-history view in portal/pages/LoanDetails.jsx). One component,
 // two call sites — do not fork.
 //
-// Props (unchanged from the previous version so call sites keep working):
+// Props (unchanged so call sites keep working):
 //   payment — the freshly-recorded `transactions` row (transaction_code,
 //             amount_paid, payment_method, payment_reference, payment_date,
 //             created_at, notes, id)
@@ -18,14 +27,17 @@ import { LENDER_TYPES } from "../portal/lenderType";
 //             completion_percentage)
 //   tenant  — branding (business_name, brand_color, support_phone, ...)
 //
-// The header gradient + accents are derived from the lender's TYPE colour
-// (tenant.business_type), falling back to tenant.brand_color, then a default.
+// Theme: parchment-paper card with a navy/brand header band, gold
+// paperclip clipped to the top edge, and a rotated "LOAN FULLY PAID"
+// rubber stamp when the loan is cleared.
 
-// Derive a header gradient + accents from a hex brand color. Emerald
-// fallback is used ONLY when brand_color is absent or not a 6-digit hex.
+// Derive a dark header colour + accent from a hex brand color. Falls
+// back to a deep navy when brand_color is absent or not 6-digit hex.
 function buildReceiptTheme(brandColor) {
   const base =
-    brandColor && /^#[0-9a-fA-F]{6}$/.test(brandColor) ? brandColor : "#0f3d2e";
+    brandColor && /^#[0-9a-fA-F]{6}$/.test(brandColor)
+      ? brandColor
+      : "#1a2438"; // deep navy default
   const shift = (hex, amt) => {
     const n = parseInt(hex.slice(1), 16);
     const c = (v) => Math.max(0, Math.min(255, v));
@@ -35,32 +47,11 @@ function buildReceiptTheme(brandColor) {
     return `rgb(${r}, ${g}, ${b})`;
   };
   return {
-    headerGradient: `linear-gradient(135deg, ${shift(base, -20)} 0%, ${shift(base, -70)} 100%)`,
-    accent: base, // "This payment", fully-paid, glow dot
-    accentLight: shift(base, 90), // italic first name + light header labels
-    badgeBg: "rgba(255,255,255,0.08)",
-    badgeBorder: "rgba(255,255,255,0.25)",
+    headerBg: shift(base, -40),
+    headerEdge: shift(base, -80),
+    accent: base,
+    accentLight: shift(base, 110),
   };
-}
-
-// Whole-shilling figure bold/white, decimals dimmed so the eye lands on
-// the integer part. `KES` prefix small + muted.
-function SplitAmount({ value, currency = "KES" }) {
-  const [whole, dec = "00"] = Number(value || 0)
-    .toFixed(2)
-    .split(".");
-  const wholeFmt = Number(whole).toLocaleString();
-  return (
-    <span className="inline-flex items-baseline gap-2">
-      <span className="text-base font-normal opacity-60">{currency}</span>
-      <span className="text-5xl lg:text-6xl font-bold tracking-tight text-white">
-        {wholeFmt}
-      </span>
-      <span className="text-3xl lg:text-4xl font-bold text-white/30">
-        .{dec}
-      </span>
-    </span>
-  );
 }
 
 const money = (v) =>
@@ -69,11 +60,49 @@ const money = (v) =>
     maximumFractionDigits: 2,
   })}`;
 
+// Big amount: "KES 10,600" + tiny superscript ".00"
+function AmountDisplay({ value }) {
+  const [whole, dec = "00"] = Number(value || 0)
+    .toFixed(2)
+    .split(".");
+  const wholeFmt = Number(whole).toLocaleString();
+  return (
+    <span className="inline-flex items-start">
+      <span className="text-3xl lg:text-4xl font-extrabold text-stone-800 tracking-tight">
+        KES&nbsp;{wholeFmt}
+      </span>
+      <span className="text-base font-bold text-stone-700 mt-1 ml-0.5">
+        .{dec}
+      </span>
+    </span>
+  );
+}
+
+// Decorative paperclip clipped over the top edge of the receipt.
+function Paperclip({ color = "#c0a060" }) {
+  return (
+    <svg
+      width="56"
+      height="120"
+      viewBox="0 0 56 120"
+      className="absolute -top-6 left-10 pointer-events-none"
+      style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.18))" }}
+      aria-hidden="true"
+    >
+      <path
+        d="M28 6 C 16 6, 8 14, 8 28 L 8 90 C 8 100, 16 108, 26 108 C 36 108, 44 100, 44 90 L 44 36 C 44 28, 38 22, 30 22 C 22 22, 16 28, 16 36 L 16 84"
+        stroke={color}
+        strokeWidth="4"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
 function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
   if (!payment || !receipt) return null;
 
-  // Colour the receipt by the lender's TYPE (microfinance / sacco / chama /
-  // individual). Falls back to the tenant's brand_color, then the default.
   const typeColor =
     LENDER_TYPES[String(tenant?.business_type || "").trim().toLowerCase()]
       ?.color || null;
@@ -84,8 +113,7 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
   const firstName = (receipt.client_name || "").trim().split(/\s+/)[0] || "";
   const isFullyPaid = !!receipt.is_fully_paid;
 
-  // Date + time meta line: date from payment_date, time from created_at
-  // when present (payment_date is a DATE with no time component).
+  // Date/time meta line — date from payment_date, time from created_at.
   const dateObj = payment.payment_date ? new Date(payment.payment_date) : null;
   const timeObj = payment.created_at ? new Date(payment.created_at) : null;
   const dateStr = dateObj
@@ -102,7 +130,11 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
         hour12: true,
       })
     : "";
-  const meta = [dateStr, timeStr, payment.payment_method && `via ${payment.payment_method}`]
+  const meta = [
+    dateStr,
+    timeStr,
+    payment.payment_method && `via ${payment.payment_method}`,
+  ]
     .filter(Boolean)
     .join(" · ");
 
@@ -133,272 +165,284 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
     window.open(url, "_blank");
   };
 
-  // Tiny uppercase muted label used throughout the body.
+  // ── Inline label helpers ────────────────────────────────────────
   const Label = ({ children }) => (
-    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+    <p className="text-[10px] uppercase tracking-[0.14em] text-stone-500 font-semibold">
       {children}
     </p>
   );
 
+  const Field = ({ icon: Icon, label, primary, secondary, mono }) => (
+    <div className="flex items-start gap-2.5">
+      <div className="w-7 h-7 rounded-full bg-stone-200/70 ring-1 ring-stone-300/60 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Icon size={13} className="text-stone-600" />
+      </div>
+      <div className="min-w-0">
+        <Label>{label}</Label>
+        <p
+          className={`${mono ? "font-mono text-sm" : "font-semibold text-sm"} text-stone-800 break-words`}
+        >
+          {primary}
+        </p>
+        {secondary && (
+          <p className="text-xs text-stone-500 mt-0.5">{secondary}</p>
+        )}
+      </div>
+    </div>
+  );
+
+  // Compute extra rows for the Loan Summary box.
+  const penaltyPaid = parseFloat(receipt.penalty_paid || 0);
+  const overpayment = parseFloat(receipt.overpayment || 0);
+  const amountPaidNum = parseFloat(payment.amount_paid || 0);
+  const towardBalance = amountPaidNum - penaltyPaid - overpayment;
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 no-print">
-      <div className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl">
-        <div id="receipt-print-content" className="receipt-card relative bg-[#f7f6f3]">
-          {/* ── Dark gradient header ───────────────────────────── */}
+      <div className="w-full max-w-md max-h-[92vh] overflow-y-auto">
+        {/* ── Receipt card ──────────────────────────────────────── */}
+        <div
+          id="receipt-print-content"
+          className="receipt-card relative rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.45)] overflow-visible"
+          style={{
+            backgroundColor: "#f4ecd6",
+            backgroundImage:
+              "linear-gradient(180deg, #f6efdc 0%, #f1e8cf 100%)",
+          }}
+        >
+          {/* Paper grain — very faint diagonal noise. */}
           <div
-            className="receipt-header relative overflow-hidden px-7 pt-7 pb-9 text-white"
-            style={{ backgroundImage: theme.headerGradient }}
+            className="absolute inset-0 rounded-2xl pointer-events-none mix-blend-multiply"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg, rgba(120,90,40,0.02) 0 1px, transparent 1px 4px)",
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Paperclip clipped over the top edge. */}
+          <Paperclip />
+
+          {/* ── Navy header band ──────────────────────────────── */}
+          <div
+            className="receipt-header relative rounded-t-2xl px-6 py-4 flex items-center justify-between gap-4"
+            style={{
+              background: `linear-gradient(180deg, ${theme.headerBg} 0%, ${theme.headerEdge} 100%)`,
+            }}
           >
-            {/* subtle dotted texture */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundImage:
-                  "radial-gradient(rgba(255,255,255,0.18) 1px, transparent 1px)",
-                backgroundSize: "14px 14px",
-                opacity: 0.15,
-              }}
-            />
-
-            <div className="relative">
-              {/* top row */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-block w-2 h-2 rounded-full"
-                    style={{
-                      backgroundColor: theme.accentLight,
-                      boxShadow: `0 0 8px 1px ${theme.accentLight}`,
-                    }}
-                  />
-                  <span
-                    className="text-[10px] uppercase tracking-[0.2em] font-semibold"
-                    style={{ color: theme.accentLight }}
-                  >
-                    Payment Received
-                  </span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wider text-white/50">
-                    Transaction
-                  </p>
-                  <p className="font-mono text-sm text-white/90">{txnCode}</p>
-                  <span
-                    className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
-                    style={{
-                      backgroundColor: theme.badgeBg,
-                      border: `1px solid ${theme.badgeBorder}`,
-                    }}
-                  >
-                    ✓ Paid
-                  </span>
-                </div>
+            <p className="text-white text-sm font-bold tracking-[0.18em]">
+              PAYMENT RECEIVED
+            </p>
+            <div className="text-right">
+              <p className="text-[9px] uppercase tracking-[0.18em] text-white/55">
+                Transaction
+              </p>
+              <p className="font-mono text-xs text-white">{txnCode}</p>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/12 ring-1 ring-white/25">
+              <div className="w-4 h-4 rounded-full bg-emerald-400/90 flex items-center justify-center">
+                <Check size={10} className="text-white" strokeWidth={3} />
               </div>
-
-              {/* headline */}
-              <div className="mt-6">
-                <p className="text-2xl font-light text-white/90">Thank you,</p>
-                <p
-                  className="text-4xl font-serif italic leading-tight"
-                  style={{ color: theme.accentLight }}
-                >
-                  {firstName || businessName}.
-                </p>
-              </div>
-
-              {/* amount */}
-              <div className="mt-6">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-1">
-                  Amount Paid
-                </p>
-                <SplitAmount value={payment.amount_paid} />
-                {meta && <p className="text-xs text-white/55 mt-2">{meta}</p>}
-              </div>
+              <span className="text-xs font-semibold text-white">Paid</span>
             </div>
           </div>
 
-          {/* ── Ticket perforation seam ────────────────────────── */}
-          <div className="relative h-0">
-            <div
-              className="absolute -left-3 -top-3 w-6 h-6 rounded-full bg-[#f7f6f3]"
-              aria-hidden="true"
-            />
-            <div
-              className="absolute -right-3 -top-3 w-6 h-6 rounded-full bg-[#f7f6f3]"
-              aria-hidden="true"
-            />
-            <div className="absolute left-5 right-5 top-0 border-t border-dashed border-gray-300" />
-          </div>
+          {/* ── Body ──────────────────────────────────────────── */}
+          <div className="relative px-7 pt-7 pb-6">
+            {/* Headline */}
+            <p className="text-2xl lg:text-3xl font-serif italic text-stone-800 leading-tight">
+              Thank you, {firstName || businessName}.
+            </p>
 
-          {/* ── Light body ─────────────────────────────────────── */}
-          <div className="px-7 pt-7 pb-6">
-            {/* detail grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              <div>
-                <Label>Client</Label>
-                <p className="font-semibold text-gray-800">
-                  {receipt.client_name || "—"}
-                </p>
-                {receipt.client_phone && (
-                  <p className="text-sm text-gray-500">{receipt.client_phone}</p>
-                )}
+            {/* Amount Paid block */}
+            <div className="mt-5">
+              <Label>Amount Paid</Label>
+              <div className="mt-1">
+                <AmountDisplay value={payment.amount_paid} />
               </div>
+              {meta && (
+                <p className="text-xs text-stone-500 mt-1.5">{meta}</p>
+              )}
+            </div>
+
+            <div className="border-t border-stone-300/60 my-6" />
+
+            {/* Field grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-5">
+              <Field
+                icon={User}
+                label="Client"
+                primary={receipt.client_name || "—"}
+              />
               {receipt.client_code && (
-                <div>
-                  <Label>Client Code</Label>
-                  <p className="font-mono text-sm text-gray-800">
-                    {receipt.client_code}
-                  </p>
-                </div>
+                <Field
+                  icon={Hash}
+                  label="Client Code"
+                  primary={receipt.client_code}
+                  mono
+                />
               )}
+              {receipt.client_phone && (
+                <Field
+                  icon={Phone}
+                  label="Phone"
+                  primary={receipt.client_phone}
+                />
+              )}
+              <Field
+                icon={CreditCard}
+                label="Method"
+                primary={payment.payment_method || "—"}
+                secondary={
+                  payment.payment_reference
+                    ? `Ref · ${payment.payment_reference}`
+                    : null
+                }
+              />
               {receipt.loan_code && (
-                <div>
-                  <Label>Loan Code</Label>
-                  <p className="font-mono text-sm text-gray-800">
-                    {receipt.loan_code}
-                  </p>
-                </div>
+                <Field
+                  icon={DollarSign}
+                  label="Loan Code"
+                  primary={receipt.loan_code}
+                  mono
+                />
               )}
-              <div>
-                <Label>Method</Label>
-                <p className="font-semibold text-gray-800">
-                  {payment.payment_method || "—"}
-                </p>
-                {payment.payment_reference && (
-                  <p className="text-sm text-gray-500 font-mono">
-                    Ref · {payment.payment_reference}
-                  </p>
-                )}
-              </div>
             </div>
 
-            <div className="border-t border-gray-200 my-6" />
-
-            {/* loan summary */}
-            <div className="rounded-2xl bg-gray-100/70 p-5">
-              <Label>Loan Summary</Label>
-              <div className="mt-3 space-y-2 text-sm">
+            {/* ── Loan Summary panel ─────────────────────────── */}
+            <div
+              className="relative mt-7 rounded-2xl border border-stone-300/60 p-5"
+              style={{ backgroundColor: "rgba(255,253,245,0.7)" }}
+            >
+              <p className="text-center text-stone-700 font-semibold text-sm mb-3 tracking-wide">
+                Loan Summary
+              </p>
+              <div className="space-y-2 text-sm">
                 {receipt.principal != null && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Principal</span>
-                    <span className="text-gray-800">{money(receipt.principal)}</span>
+                    <span className="text-stone-500">Principal</span>
+                    <span className="text-stone-800 font-medium">
+                      {money(receipt.principal)}
+                    </span>
                   </div>
                 )}
                 {receipt.total_amount_due != null && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total due</span>
-                    <span className="text-gray-800">
+                    <span className="text-stone-500">Total due</span>
+                    <span className="text-stone-800 font-medium">
                       {money(receipt.total_amount_due)}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">This payment</span>
-                  <span className="font-semibold" style={{ color: theme.accent }}>
-                    − {money(payment.amount_paid)}
+                  <span className="text-stone-500">This payment</span>
+                  <span className="font-semibold text-rose-700">
+                    −{money(payment.amount_paid)}
                   </span>
                 </div>
-                {parseFloat(receipt.penalty_paid || 0) > 0 && (
+                {penaltyPaid > 0 && (
                   <div className="flex justify-between pl-3 text-xs">
-                    <span className="text-gray-400">↳ Penalty cleared</span>
+                    <span className="text-stone-400">↳ Penalty cleared</span>
                     <span className="text-amber-700">
-                      {money(receipt.penalty_paid)}
+                      {money(penaltyPaid)}
                     </span>
                   </div>
                 )}
-                {parseFloat(receipt.penalty_paid || 0) > 0 &&
-                  parseFloat(payment.amount_paid || 0) -
-                    parseFloat(receipt.penalty_paid || 0) -
-                    parseFloat(receipt.overpayment || 0) >
-                    0 && (
-                    <div className="flex justify-between pl-3 text-xs">
-                      <span className="text-gray-400">↳ Toward balance</span>
-                      <span className="text-gray-600">
-                        {money(
-                          parseFloat(payment.amount_paid || 0) -
-                            parseFloat(receipt.penalty_paid || 0) -
-                            parseFloat(receipt.overpayment || 0),
-                        )}
-                      </span>
-                    </div>
-                  )}
-                {parseFloat(receipt.overpayment || 0) > 0 && (
+                {penaltyPaid > 0 && towardBalance > 0 && (
+                  <div className="flex justify-between pl-3 text-xs">
+                    <span className="text-stone-400">↳ Toward balance</span>
+                    <span className="text-stone-600">
+                      {money(towardBalance)}
+                    </span>
+                  </div>
+                )}
+                {overpayment > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Overpaid</span>
+                    <span className="text-stone-500">Overpaid</span>
                     <span className="font-semibold text-amber-700">
-                      + {money(receipt.overpayment)}
+                      +{money(overpayment)}
                     </span>
                   </div>
                 )}
-                <div className="border-t border-gray-200 my-2" />
-                <div className="flex justify-between items-baseline">
-                  <span className="text-gray-600 font-medium">
+
+                {/* Highlighted remaining balance row */}
+                <div
+                  className="mt-3 -mx-2 px-3 py-2 rounded-lg flex justify-between items-baseline"
+                  style={{ backgroundColor: "rgba(217,200,150,0.35)" }}
+                >
+                  <span className="text-stone-700 font-semibold">
                     Remaining balance
                   </span>
-                  <span className="font-serif text-2xl text-gray-900">
+                  <span className="font-serif text-lg text-stone-900 font-semibold">
                     {money(receipt.remaining_balance)}
                   </span>
                 </div>
               </div>
-            </div>
 
-            {/* next payment / fully paid */}
-            <div className="mt-4">
-              {isFullyPaid ? (
+              {/* ── Rubber stamp — fully paid ───────────────── */}
+              {isFullyPaid && (
                 <div
-                  className="rounded-2xl border p-5 text-center"
+                  className="absolute -bottom-5 right-3 pointer-events-none select-none"
                   style={{
-                    borderColor: theme.accent,
-                    backgroundColor: "rgba(0,0,0,0.02)",
+                    transform: "rotate(-8deg)",
+                    color: "rgba(155, 35, 35, 0.78)",
+                    filter:
+                      "drop-shadow(0 0 0.5px currentColor) drop-shadow(0 1px 0 rgba(155,35,35,0.15))",
                   }}
+                  aria-hidden="true"
                 >
-                  <p
-                    className="text-lg font-serif italic"
-                    style={{ color: theme.accent }}
-                  >
-                    ✓ Loan fully paid
-                  </p>
-                </div>
-              ) : (
-                nextDateStr && (
-                  <div className="rounded-2xl border border-gray-200 p-5 flex items-center justify-between">
-                    <div>
-                      <Label>Next Payment</Label>
-                      <p className="font-serif text-xl text-gray-900 mt-0.5">
-                        {money(receipt.next_payment_amount)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <Label>Due</Label>
-                      <p className="text-sm font-semibold text-gray-700 mt-0.5">
-                        {nextDateStr}
-                      </p>
-                    </div>
+                  <div className="border-[2.5px] border-current rounded-lg px-4 py-1.5 flex items-center gap-2 font-serif italic">
+                    <Check size={18} strokeWidth={3} />
+                    <span className="text-sm font-bold tracking-wider">
+                      LOAN FULLY PAID
+                    </span>
+                    <span className="text-xs">— COMPLETED</span>
                   </div>
-                )
+                </div>
               )}
             </div>
 
-            {/* footer */}
-            <div className="mt-7 text-center">
-              <p className="font-serif italic text-gray-500">
+            {/* Next payment box (only when not fully paid) */}
+            {!isFullyPaid && nextDateStr && (
+              <div className="mt-6 rounded-2xl border border-stone-300/60 p-4 flex items-center justify-between bg-white/40">
+                <div>
+                  <Label>Next Payment</Label>
+                  <p className="font-serif text-lg text-stone-900 mt-0.5">
+                    {money(receipt.next_payment_amount)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <Label>Due</Label>
+                  <p className="text-sm font-semibold text-stone-700 mt-0.5">
+                    {nextDateStr}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="mt-8 text-center">
+              <p className="font-serif italic text-stone-600">
                 A receipt for your records.
               </p>
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">
-                System Generated · No Signature Required
+              <p className="text-[10px] uppercase tracking-[0.14em] text-stone-400 mt-2">
+                This is a system-generated document and requires no signature.
               </p>
               {!tenant?.hide_platform_branding && (
-                <p className="text-[10px] text-gray-300 mt-2">Powered by LoanFix</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-3">
+                  Powered by{" "}
+                  <span className="text-stone-600 font-semibold">LoanFix</span>
+                </p>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── Actions (hidden when printing) ───────────────────── */}
-        <div className="mt-3 flex gap-2 no-print">
+        {/* ── Actions (hidden when printing) ─────────────────── */}
+        <div className="mt-4 flex gap-2 no-print">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 bg-white/90 text-gray-700 rounded-xl font-semibold shadow-sm hover:bg-white"
+            className="flex-1 py-2.5 bg-white/90 text-stone-700 rounded-xl font-semibold shadow-sm hover:bg-white"
           >
             Close
           </button>
@@ -419,8 +463,7 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
       </div>
 
       <style>{`
-        .receipt-card { border-radius: 1.5rem; overflow: hidden; }
-        /* Keep the header rounded at the top inside the clipped card */
+        .receipt-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .receipt-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         @media print {
           body * { visibility: hidden; }
@@ -430,8 +473,6 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
             box-shadow: none;
           }
           .no-print { display: none !important; }
-          /* Force the gradient/colors to render on paper */
-          .receipt-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}</style>
     </div>
