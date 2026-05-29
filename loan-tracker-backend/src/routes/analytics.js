@@ -743,11 +743,24 @@ router.get("/export/pdf", async (req, res) => {
 
     // Snapshot sections (PAR / Aging) only make sense in "recent months"
     // mode — they describe today's state, not a historical month.
-    const [kpis, par, aging] = await Promise.all([
+    // expenseStats is fetched in every mode so the Expenses / Net
+    // Profit lines below match what the on-screen Reports page shows.
+    const [kpis, par, aging, expenseStats] = await Promise.all([
       analyticsService.getTenantPortfolioKPIs(tid, from, to),
       isMonthMode ? null : analyticsService.getPortfolioAtRisk(tid),
       isMonthMode ? null : analyticsService.getAgingAnalysis(tid),
+      analyticsService.getExpenseStats(tid, from, to),
     ]);
+
+    // Income = interest + fines + processing fees retained at
+    // disbursement. Net Profit = income − expenses. Matches the
+    // dashboard + on-screen Reports accounting.
+    const interestEarned = parseFloat(kpis.interest_earned) || 0;
+    const finesCollected = parseFloat(kpis.fines_collected) || 0;
+    const processingFees = parseFloat(kpis.processing_fees) || 0;
+    const incomeWindow = interestEarned + finesCollected + processingFees;
+    const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
+    const netProfit = incomeWindow - expensesWindow;
 
     const tr = await query(
       "SELECT business_name FROM tenants WHERE id = $1",
@@ -799,8 +812,14 @@ router.get("/export/pdf", async (req, res) => {
     doc.text(`Unique Borrowers: ${kpis.unique_borrowers}`);
     doc.text(`Total Disbursed: ${fmtKES(kpis.total_disbursed)}`);
     doc.text(`Total Collected: ${fmtKES(kpis.total_collected)}`);
-    doc.text(`Interest from Loans: ${fmtKES(kpis.interest_earned)}`);
-    doc.text(`Fines Collected: ${fmtKES(kpis.fines_collected)}`);
+    doc.text(`Interest from Loans: ${fmtKES(interestEarned)}`);
+    doc.text(`Fines Collected: ${fmtKES(finesCollected)}`);
+    doc.text(`Processing Fees: ${fmtKES(processingFees)}`);
+    doc.text(`Income (interest + fines + fees): ${fmtKES(incomeWindow)}`);
+    doc.text(`Expenses: ${fmtKES(expensesWindow)}`);
+    doc.text(
+      `Net Profit: ${netProfit >= 0 ? "+" : ""}${fmtKES(netProfit)}`,
+    );
     doc.text(`Average Loan Size: ${fmtKES(kpis.avg_loan_size)}`);
     doc.moveDown(1.5);
 
@@ -867,11 +886,21 @@ router.get("/export/excel", async (req, res) => {
     const periodLabel = buildPeriodLabel({ from, to, months });
     const isMonthMode = Boolean(from && to);
 
-    const [kpis, par, aging] = await Promise.all([
+    const [kpis, par, aging, expenseStats] = await Promise.all([
       analyticsService.getTenantPortfolioKPIs(tid, from, to),
       isMonthMode ? null : analyticsService.getPortfolioAtRisk(tid),
       isMonthMode ? null : analyticsService.getAgingAnalysis(tid),
+      analyticsService.getExpenseStats(tid, from, to),
     ]);
+
+    // Same income / net-profit derivations as the PDF export and the
+    // on-screen Reports page.
+    const interestEarned = parseFloat(kpis.interest_earned) || 0;
+    const finesCollected = parseFloat(kpis.fines_collected) || 0;
+    const processingFees = parseFloat(kpis.processing_fees) || 0;
+    const incomeWindow = interestEarned + finesCollected + processingFees;
+    const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
+    const netProfit = incomeWindow - expensesWindow;
 
     // Loans detail. In month mode, restrict to loans disbursed within
     // the window so the sheet reflects ONLY the selected period.
@@ -916,8 +945,12 @@ router.get("/export/excel", async (req, res) => {
     summary.addRow(["Unique Borrowers", kpis.unique_borrowers]);
     summary.addRow(["Total Disbursed (KES)", kpis.total_disbursed]);
     summary.addRow(["Total Collected (KES)", kpis.total_collected]);
-    summary.addRow(["Interest from Loans (KES)", kpis.interest_earned]);
-    summary.addRow(["Fines Collected (KES)", kpis.fines_collected]);
+    summary.addRow(["Interest from Loans (KES)", interestEarned]);
+    summary.addRow(["Fines Collected (KES)", finesCollected]);
+    summary.addRow(["Processing Fees (KES)", processingFees]);
+    summary.addRow(["Income — interest + fines + fees (KES)", incomeWindow]);
+    summary.addRow(["Expenses (KES)", expensesWindow]);
+    summary.addRow(["Net Profit (KES)", netProfit]);
     summary.addRow(["Average Loan Size (KES)", kpis.avg_loan_size]);
     if (!isMonthMode && par) {
       summary.addRow([]);
