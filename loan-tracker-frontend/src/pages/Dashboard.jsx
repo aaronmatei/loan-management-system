@@ -386,32 +386,19 @@ function Dashboard() {
         </button>
       )}
 
-      {/* Capital Pool — soft-light premium treatment. Lavender-sky
-          gradient canvas, oversized headline numbers, and the five
-          All-time tiles split out into their own pastel-tinted row
-          right below. */}
+      {/* Capital Pool — soft-light premium treatment. Single card:
+          header + Top up capital on top, hero numbers, utilization
+          bar, then the five pastel All-time tiles all live INSIDE. */}
       {poolStatus && (
-        <>
-          {/* Top-up button floats above the card on the right. */}
-          {isAdmin && (
-            <div className="flex justify-end mb-3">
-              <button
-                onClick={() => setShowTopUp(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-white text-amber-700 text-sm font-medium hover:bg-amber-50 hover:border-amber-300 transition shadow-sm"
-              >
-                Top up capital
-                <Plus size={15} />
-              </button>
-            </div>
-          )}
+        <div className="relative overflow-hidden rounded-3xl ring-1 ring-slate-200/60 shadow-[0_10px_40px_-20px_rgba(15,30,60,0.18)] p-6 lg:p-8 mb-6 bg-gradient-to-br from-slate-50 via-sky-50 to-indigo-50/70">
+          {/* Soft tinted glows for that premium light-mode feel. */}
+          <div className="pointer-events-none absolute -top-32 -right-24 w-96 h-96 rounded-full bg-sky-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-indigo-200/30 blur-3xl" />
 
-          <div className="relative overflow-hidden rounded-3xl ring-1 ring-slate-200/60 shadow-[0_10px_40px_-20px_rgba(15,30,60,0.18)] p-6 lg:p-8 mb-3 bg-gradient-to-br from-slate-50 via-sky-50 to-indigo-50/70">
-            {/* Soft tinted glows for that premium light-mode feel. */}
-            <div className="pointer-events-none absolute -top-32 -right-24 w-96 h-96 rounded-full bg-sky-200/40 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-indigo-200/30 blur-3xl" />
-
-            {/* Header — just the icon chip + title. */}
-            <div className="relative flex items-center gap-3">
+          {/* Header — icon chip + title on the left, Top up capital
+              pill on the right. */}
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
               <div className="relative w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-sm flex items-center justify-center">
                 <Coins size={20} className="text-sky-500" />
               </div>
@@ -419,56 +406,64 @@ function Dashboard() {
                 Capital Pool
               </h2>
             </div>
+            {isAdmin && (
+              <button
+                onClick={() => setShowTopUp(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-white text-amber-700 text-sm font-medium hover:bg-amber-50 hover:border-amber-300 transition shadow-sm"
+              >
+                Top up capital
+                <Plus size={15} />
+              </button>
+            )}
+          </div>
 
-            {/* Available capital — the hero number, with "of X total
-                pool" trailing in light grey to its right. */}
-            <div className="relative mt-7 flex flex-wrap items-end gap-x-5 gap-y-1">
-              <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-none tracking-tight">
-                {fmtKES(poolStatus.available_pool)}
-              </p>
-              <p className="text-sm text-slate-400 pb-1.5">
-                of {fmtKES(poolStatus.initial_capital)} total pool
-              </p>
-            </div>
-            <p className="relative text-sm text-slate-500 mt-2">
-              Available Capital
+          {/* Available capital — the hero number, with "of X total
+              pool" trailing in light grey to its right. */}
+          <div className="relative mt-7 flex flex-wrap items-end gap-x-5 gap-y-1">
+            <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-none tracking-tight">
+              {fmtKES(poolStatus.available_pool)}
             </p>
+            <p className="text-sm text-slate-400 pb-1.5">
+              of {fmtKES(poolStatus.initial_capital)} total pool
+            </p>
+          </div>
+          <p className="relative text-sm text-slate-500 mt-2">
+            Available Capital
+          </p>
 
-            {/* Loaned Out — second large number below. */}
-            <div className="relative mt-7">
-              <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
-                {fmtKES(poolStatus.outstanding_principal)}
-              </p>
-              <p className="text-sm text-slate-500 mt-2">Loaned Out</p>
+          {/* Loaned Out — second large number below. */}
+          <div className="relative mt-7">
+            <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
+              {fmtKES(poolStatus.outstanding_principal)}
+            </p>
+            <p className="text-sm text-slate-500 mt-2">Loaned Out</p>
+          </div>
+
+          {/* Utilization track. */}
+          <div className="relative mt-7">
+            <div className="relative w-full h-1.5 rounded-full bg-slate-200/70 overflow-hidden">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-400 to-indigo-400"
+                style={{
+                  width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
+                }}
+              />
             </div>
-
-            {/* Utilization track. */}
-            <div className="relative mt-7">
-              <div className="relative w-full h-1.5 rounded-full bg-slate-200/70 overflow-hidden">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-400 to-indigo-400"
-                  style={{
-                    width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-slate-500">Utilization</span>
-                <span className="text-sm font-semibold text-slate-700">
-                  {poolStatus.utilization_rate.toFixed(1)}%
-                </span>
-              </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs text-slate-500">Utilization</span>
+              <span className="text-sm font-semibold text-slate-700">
+                {poolStatus.utilization_rate.toFixed(1)}%
+              </span>
             </div>
           </div>
 
-          {/* ── All-time tiles row — separate cards below the Capital
-              Pool, each with its own pastel tint and tiny icon chip in
-              the top-left. */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          {/* ── All-time tiles — pastel-tinted cards INSIDE the Capital
+              Pool block, sitting under the utilization bar. */}
+          <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-7">
             {/* All time Disbursed — neutral slate */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-slate-50 to-slate-100/60 ring-1 ring-slate-200/60">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-white/70 to-slate-100/40 ring-1 ring-slate-200/60 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-slate-100 ring-1 ring-slate-200/60 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-slate-200/60 flex items-center justify-center shadow-sm">
                   <ArrowUpRight size={15} className="text-slate-500" />
                 </div>
                 <ArrowUpRight size={12} className="text-slate-300" />
@@ -482,9 +477,9 @@ function Dashboard() {
             </div>
 
             {/* All time Collected — soft emerald */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-50/70 to-emerald-100/40 ring-1 ring-emerald-200/50">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-50/80 to-emerald-100/40 ring-1 ring-emerald-200/50 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-emerald-200/60 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-emerald-200/60 flex items-center justify-center shadow-sm">
                   <ArrowDownLeft size={15} className="text-emerald-600" />
                 </div>
                 <ArrowDownLeft size={12} className="text-emerald-300" />
@@ -498,9 +493,9 @@ function Dashboard() {
             </div>
 
             {/* All time Interest from Loans — emerald accent */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-100/70 to-emerald-50/40 ring-1 ring-emerald-200/60">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-100/80 to-emerald-50/40 ring-1 ring-emerald-200/60 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 ring-1 ring-emerald-200/70 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 ring-1 ring-emerald-200/70 flex items-center justify-center shadow-sm">
                   <TrendingUp size={15} className="text-emerald-600" />
                 </div>
                 <TrendingUp size={12} className="text-emerald-300" />
@@ -514,9 +509,9 @@ function Dashboard() {
             </div>
 
             {/* All time Interest from Fines — warm amber */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-50 to-amber-100/40 ring-1 ring-amber-200/50">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-50/90 to-amber-100/40 ring-1 ring-amber-200/50 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 ring-1 ring-amber-200/70 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 ring-1 ring-amber-200/70 flex items-center justify-center shadow-sm">
                   <AlertTriangle size={15} className="text-amber-600" />
                 </div>
                 <AlertTriangle size={12} className="text-amber-300" />
@@ -530,9 +525,9 @@ function Dashboard() {
             </div>
 
             {/* All time Collection Rate — soft sky */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-sky-50 to-indigo-50/60 ring-1 ring-sky-200/60">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-sky-50/90 to-indigo-50/60 ring-1 ring-sky-200/60 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-sky-200/70 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-sky-200/70 flex items-center justify-center shadow-sm">
                   <Target size={15} className="text-sky-500" />
                 </div>
                 <Target size={12} className="text-sky-300" />
@@ -548,7 +543,7 @@ function Dashboard() {
               </p>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Period heading + compact one-row strip of cash + P&L tiles.
