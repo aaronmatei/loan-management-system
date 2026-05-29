@@ -445,6 +445,41 @@ function Payments() {
                     }}
                   ></div>
                 </div>
+                {(parseFloat(
+                  loanSummary.summary.total_waived_penalty || 0,
+                ) > 0 ||
+                  parseFloat(
+                    loanSummary.summary.total_penalty_paid || 0,
+                  ) > 0) && (
+                  <div className="mt-3 pt-3 border-t border-blue-100 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    {parseFloat(
+                      loanSummary.summary.total_penalty_paid || 0,
+                    ) > 0 && (
+                      <span className="text-gray-600">
+                        Penalty paid:{" "}
+                        <span className="font-semibold text-rose-700">
+                          KES{" "}
+                          {parseFloat(
+                            loanSummary.summary.total_penalty_paid,
+                          ).toLocaleString()}
+                        </span>
+                      </span>
+                    )}
+                    {parseFloat(
+                      loanSummary.summary.total_waived_penalty || 0,
+                    ) > 0 && (
+                      <span className="text-gray-600">
+                        Penalty waived:{" "}
+                        <span className="font-semibold text-fuchsia-700">
+                          KES{" "}
+                          {parseFloat(
+                            loanSummary.summary.total_waived_penalty,
+                          ).toLocaleString()}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
