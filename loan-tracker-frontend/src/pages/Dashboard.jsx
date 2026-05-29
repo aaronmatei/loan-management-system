@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Target,
+  Sparkles,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -418,9 +419,13 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Available capital on the left, Loaned Out on the right
-              — the two hero figures sit as siblings on one row. */}
-          <div className="relative mt-7 flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
+          {/* Available capital left, Net Profit pill centre, Loaned
+              Out right — the three hero figures sit as siblings on
+              one row. The centre pill catches the eye with a soft
+              emerald glow when profit is positive (rose when it dips
+              negative), so the bottom-line number reads at a glance
+              without competing with the two principal-side figures. */}
+          <div className="relative mt-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-6">
             <div>
               <div className="flex flex-wrap items-end gap-x-5 gap-y-1">
                 <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-none tracking-tight">
@@ -432,6 +437,55 @@ function Dashboard() {
               </div>
               <p className="text-sm text-slate-500 mt-2">Available Capital</p>
             </div>
+
+            {/* Net Profit pill — "catchy" hero in the centre. */}
+            {poolStatus.net_profit_lifetime != null && (() => {
+              const netProfit = poolStatus.net_profit_lifetime || 0;
+              const positive = netProfit >= 0;
+              return (
+                <div className="flex-1 min-w-[200px] flex justify-center">
+                  <div
+                    className={`relative overflow-hidden rounded-2xl px-5 py-3 ring-1 ${
+                      positive
+                        ? "ring-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70"
+                        : "ring-rose-200 bg-gradient-to-br from-rose-50 via-white to-rose-100/70"
+                    } shadow-[0_8px_24px_-10px_rgba(16,185,129,0.35)]`}
+                  >
+                    {/* Aurora glow behind the figure. */}
+                    <div
+                      className={`pointer-events-none absolute -top-10 -right-6 w-32 h-32 rounded-full blur-2xl ${
+                        positive ? "bg-emerald-300/40" : "bg-rose-300/40"
+                      }`}
+                    />
+                    <div className="relative flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm ${
+                          positive
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-rose-100 text-rose-700"
+                        }`}
+                      >
+                        <Sparkles size={18} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold">
+                          Net Profit · All Time
+                        </p>
+                        <p
+                          className={`text-2xl lg:text-3xl font-extrabold leading-none tracking-tight mt-0.5 ${
+                            positive ? "text-emerald-700" : "text-rose-700"
+                          }`}
+                        >
+                          {positive ? "+" : ""}
+                          {fmtKES(netProfit)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="text-right">
               <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
                 {fmtKES(poolStatus.outstanding_principal)}

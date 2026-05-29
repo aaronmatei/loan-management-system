@@ -95,6 +95,27 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     );
     status.fines_collected = parseFloat(breakdown.rows[0].fines_collected);
 
+    // Lifetime profitability: total income kept in the pool
+    // (total_interest_earned bundles loan-interest + fines +
+    // processing fees) minus everything that left as expenses and
+    // forgone-income waivers. Single round-trip so the Dashboard's
+    // "Net Profit (all time)" tile can render without any extra
+    // queries.
+    const profitRow = await query(
+      `SELECT
+         COALESCE((SELECT SUM(amount) FROM expenses WHERE tenant_id = $1), 0)::float
+                                                                AS total_expenses,
+         COALESCE((SELECT total_waived FROM capital_pool WHERE tenant_id = $1), 0)::float
+                                                                AS total_waived`,
+      [tid],
+    );
+    const totalExpenses = parseFloat(profitRow.rows[0].total_expenses) || 0;
+    const totalWaived = parseFloat(profitRow.rows[0].total_waived) || 0;
+    status.total_expenses = totalExpenses;
+    status.total_waived = totalWaived;
+    status.net_profit_lifetime =
+      status.total_interest_earned - totalExpenses - totalWaived;
+
     res.json({ success: true, data: status });
   } catch (error) {
     logger.error("Get capital status error:", error);
