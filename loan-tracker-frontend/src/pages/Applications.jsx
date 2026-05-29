@@ -609,7 +609,7 @@ function Applications() {
         <span className="inline-flex items-center gap-1">
           <Calendar size={12} /> Applied:{" "}
           {app.application_date
-            ? new Date(app.application_date).toLocaleDateString()
+            ? new Date(app.application_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
             : "—"}
         </span>
         {app.created_by_name && (

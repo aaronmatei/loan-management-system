@@ -175,7 +175,7 @@ function Billing() {
                           </td>
                           <td className="px-4 py-3 text-center text-sm text-gray-600">
                             {inv.due_date
-                              ? new Date(inv.due_date).toLocaleDateString()
+                              ? new Date(inv.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                               : "—"}
                           </td>
                           <td className="px-4 py-3 text-center">

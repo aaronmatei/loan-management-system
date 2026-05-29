@@ -201,7 +201,7 @@ function ClientProfile() {
               <p className="text-sm text-slate-500">
                 {client.business_name && `${client.business_name} · `}
                 Member since{" "}
-                {new Date(client.created_at).toLocaleDateString()}
+                {new Date(client.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
               </p>
               <div className="flex flex-col sm:flex-row sm:items-center gap-x-5 gap-y-1.5 mt-3">
                 <a
@@ -589,7 +589,7 @@ function ClientProfile() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {loan.start_date
-                        ? new Date(loan.start_date).toLocaleDateString()
+                        ? new Date(loan.start_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                         : "—"}
                     </td>
                     <td className="px-4 py-3">
@@ -668,7 +668,7 @@ function ClientProfile() {
                       {KES(p.amount_paid)}
                     </td>
                     <td className="px-6 py-3 text-gray-700 text-sm">
-                      {new Date(p.payment_date).toLocaleDateString()}
+                      {new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
                     <td className="px-6 py-3">
                       <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">

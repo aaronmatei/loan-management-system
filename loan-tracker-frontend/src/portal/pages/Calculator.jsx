@@ -341,7 +341,7 @@ function CustomerCalculator() {
                               {s.payment_number}
                             </td>
                             <td className="p-2">
-                              {new Date(s.due_date).toLocaleDateString()}
+                              {new Date(s.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                             </td>
                             <td className="text-right p-2 font-bold">
                               {KES(s.amount)}

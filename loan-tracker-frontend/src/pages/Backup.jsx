@@ -207,7 +207,7 @@ function Backup() {
           <p className="text-orange-100 text-sm uppercase">Last Backup</p>
           <p className="text-lg font-bold mt-2">
             {stats?.last_backup
-              ? new Date(stats.last_backup).toLocaleDateString()
+              ? new Date(stats.last_backup).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
               : "Never"}
           </p>
         </div>
@@ -300,7 +300,7 @@ function Backup() {
                       {formatBytes(backup.file_size)}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {new Date(backup.created_at).toLocaleString()}
+                      {new Date(backup.created_at).toLocaleString("en-GB")}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {backup.first_name
@@ -380,7 +380,7 @@ function Backup() {
               </p>
               <p className="text-xs text-gray-500">
                 Created:{" "}
-                {new Date(selectedBackup.created_at).toLocaleString()}
+                {new Date(selectedBackup.created_at).toLocaleString("en-GB")}
               </p>
             </div>
             <div className="mb-4">

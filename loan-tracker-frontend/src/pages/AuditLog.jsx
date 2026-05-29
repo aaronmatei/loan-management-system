@@ -348,7 +348,7 @@ function AuditLog() {
                     className="border-b border-gray-100 hover:bg-gray-50"
                   >
                     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString()}
+                      {new Date(log.created_at).toLocaleString("en-GB")}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <p className="font-semibold text-gray-800">
@@ -453,7 +453,7 @@ function AuditLog() {
                 <div>
                   <p className="text-sm text-gray-500">Date/Time</p>
                   <p className="font-semibold">
-                    {new Date(selectedLog.created_at).toLocaleString()}
+                    {new Date(selectedLog.created_at).toLocaleString("en-GB")}
                   </p>
                 </div>
                 <div>

@@ -701,7 +701,7 @@ function LoanDetails() {
               {loan.refunded_date && (
                 <p className="text-sm text-gray-600 mt-2">
                   Refunded on:{" "}
-                  {new Date(loan.refunded_date).toLocaleDateString()}
+                  {new Date(loan.refunded_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                   {loan.refund_method && ` via ${loan.refund_method}`}
                   {loan.refund_reference && ` (Ref: ${loan.refund_reference})`}
                 </p>
@@ -747,20 +747,20 @@ function LoanDetails() {
             <p className="text-gray-500">Start Date</p>
             <p className="font-semibold text-gray-800">
               {loan.start_date
-                ? new Date(loan.start_date).toLocaleDateString()
+                ? new Date(loan.start_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                 : "— (on disbursement)"}
             </p>
           </div>
           <div>
             <p className="text-gray-500">End Date</p>
             <p className="font-semibold text-gray-800">
-              {new Date(loan.end_date).toLocaleDateString()}
+              {new Date(loan.end_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </p>
           </div>
           <div>
             <p className="text-gray-500">Created</p>
             <p className="font-semibold text-gray-800">
-              {new Date(loan.created_at).toLocaleDateString()}
+              {new Date(loan.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </p>
           </div>
         </div>
@@ -857,7 +857,7 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3">
                       <p className="text-gray-800">
-                        {new Date(item.due_date).toLocaleDateString()}
+                        {new Date(item.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                       </p>
                       {daysStatus && (
                         <p className={`text-xs ${daysStatus.color}`}>
@@ -964,7 +964,7 @@ function LoanDetails() {
                       {item.actual_payment_date
                         ? new Date(
                             item.actual_payment_date,
-                          ).toLocaleDateString()
+                          ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                         : "-"}
                     </td>
                   </tr>
@@ -1105,7 +1105,7 @@ function LoanDetails() {
                       {txn.transaction_code}
                     </td>
                     <td className="px-6 py-3 text-gray-700">
-                      {new Date(txn.payment_date).toLocaleDateString()}
+                      {new Date(txn.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
                     <td className="px-6 py-3 font-bold text-green-600">
                       <div>

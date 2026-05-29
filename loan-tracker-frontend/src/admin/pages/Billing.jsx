@@ -287,7 +287,7 @@ function BillingDashboard() {
                           {i.invoice_number}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Due {new Date(i.due_date).toLocaleDateString()}
+                          Due {new Date(i.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                         </p>
                       </td>
                       <td className="p-3">

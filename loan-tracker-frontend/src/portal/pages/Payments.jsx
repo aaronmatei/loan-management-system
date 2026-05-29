@@ -187,7 +187,7 @@ function Payments() {
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap text-slate-500">
                           {p.payment_date
-                            ? new Date(p.payment_date).toLocaleDateString()
+                            ? new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                             : "—"}
                         </td>
                         <td className="px-4 py-3 text-right">

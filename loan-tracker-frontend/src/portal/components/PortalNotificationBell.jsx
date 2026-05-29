@@ -18,7 +18,7 @@ const ago = (d) => {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
-  return new Date(d).toLocaleDateString();
+  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;

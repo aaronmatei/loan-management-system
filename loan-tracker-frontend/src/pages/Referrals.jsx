@@ -214,7 +214,7 @@ function Referrals() {
                     </p>
                     <p className="text-xs text-gray-500">
                       Signed up{" "}
-                      {new Date(ref.signed_up_at).toLocaleDateString()}
+                      {new Date(ref.signed_up_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>
                   </div>
                   <span

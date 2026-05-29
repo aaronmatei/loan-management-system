@@ -260,7 +260,7 @@ function SMS() {
             </div>
           </div>
           <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
-            {(stats?.total_sent || 0).toLocaleString()}
+            {(stats?.total_sent || 0).toLocaleString("en-GB")}
           </p>
           <p className="relative text-xs text-slate-500 mt-1">
             across all message types
@@ -278,7 +278,7 @@ function SMS() {
             </div>
           </div>
           <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
-            {(stats?.successful || 0).toLocaleString()}
+            {(stats?.successful || 0).toLocaleString("en-GB")}
           </p>
           <p className="relative text-xs text-slate-500 mt-1">
             {stats?.total_sent
@@ -298,7 +298,7 @@ function SMS() {
             </div>
           </div>
           <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
-            {(stats?.last_30_days || 0).toLocaleString()}
+            {(stats?.last_30_days || 0).toLocaleString("en-GB")}
           </p>
           <p className="relative text-xs text-slate-500 mt-1">
             rolling 30-day window
@@ -316,7 +316,7 @@ function SMS() {
             </div>
           </div>
           <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
-            {(stats?.unique_clients || 0).toLocaleString()}
+            {(stats?.unique_clients || 0).toLocaleString("en-GB")}
           </p>
           <p className="relative text-xs text-slate-500 mt-1">
             recipients reached
@@ -578,7 +578,7 @@ function SMS() {
                     className="border-b border-gray-100 hover:bg-gray-50"
                   >
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(log.created_at).toLocaleString()}
+                      {new Date(log.created_at).toLocaleString("en-GB")}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-gray-800 text-sm">

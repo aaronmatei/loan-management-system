@@ -211,7 +211,7 @@ function UserManagement() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {user.last_login
-                      ? new Date(user.last_login).toLocaleString()
+                      ? new Date(user.last_login).toLocaleString("en-GB")
                       : "Never"}
                   </td>
                   <td className="px-4 py-3">

@@ -78,7 +78,7 @@ function TenantPicker() {
                     </h3>
                     <p className="text-sm text-gray-500">
                       Member since{" "}
-                      {new Date(tenant.linked_at).toLocaleDateString()}
+                      {new Date(tenant.linked_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>
                   </div>
                 </div>

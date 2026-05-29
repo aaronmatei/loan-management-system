@@ -585,7 +585,7 @@ function Payments() {
                   <div>
                     <p className="text-xs text-gray-500">Last Payment</p>
                     <p className="font-semibold">
-                      {new Date(g.last_date).toLocaleDateString()}
+                      {new Date(g.last_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>
                   </div>
                 </div>
@@ -619,7 +619,7 @@ function Payments() {
                         </button>
                         <span className="flex items-center gap-2">
                           <span className="text-gray-500">
-                            {new Date(p.payment_date).toLocaleDateString()}
+                            {new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                           </span>
                           <span className="font-bold text-green-600">
                             KES {parseFloat(p.amount_paid).toLocaleString()}
@@ -737,7 +737,7 @@ function Payments() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-gray-600 text-sm">
-                        {new Date(g.last_date).toLocaleDateString()}
+                        {new Date(g.last_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                       </td>
                     </tr>
                     {open && (
@@ -792,7 +792,7 @@ function Payments() {
                                   <td className="py-1.5 text-right text-gray-600">
                                     {new Date(
                                       p.payment_date,
-                                    ).toLocaleDateString()}
+                                    ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                                   </td>
                                 </tr>
                               ))}
@@ -918,7 +918,7 @@ function Payments() {
                 <dd>
                   {new Date(
                     txnModal.payment_date || txnModal.created_at,
-                  ).toLocaleDateString()}
+                  ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                 </dd>
               </div>
               {txnModal.notes && (

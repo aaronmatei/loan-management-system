@@ -1441,10 +1441,10 @@ function Loans() {
                         <p className="text-xs text-gray-500 mt-0.5">
                           Disbursed{" "}
                           {new Date(loan.disbursed_at).toLocaleDateString(
-                            "en-KE",
+                            "en-GB",
                             {
-                              day: "numeric",
-                              month: "short",
+                              day: "2-digit",
+                              month: "2-digit",
                               year: "numeric",
                             },
                           )}
@@ -1634,8 +1634,8 @@ function Loans() {
                       <td className="px-4 py-4 text-sm text-gray-700">
                         {loan.disbursed_at
                           ? new Date(loan.disbursed_at).toLocaleDateString(
-                              "en-KE",
-                              { day: "numeric", month: "short", year: "numeric" },
+                              "en-GB",
+                              { day: "2-digit", month: "2-digit", year: "numeric" },
                             )
                           : "—"}
                       </td>

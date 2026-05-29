@@ -227,7 +227,7 @@ function PromoCodesSection() {
                       </p>
                     </div>
                     <span className="text-xs text-gray-400">
-                      {new Date(c.created_at).toLocaleDateString()}
+                      {new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </span>
                   </div>
                 ))

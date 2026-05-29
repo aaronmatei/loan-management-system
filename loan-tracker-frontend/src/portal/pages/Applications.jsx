@@ -234,7 +234,7 @@ function CustomerApplications() {
                         <p className="text-xs text-gray-500">Applied</p>
                         <p className="font-bold">
                           {a.application_date
-                            ? new Date(a.application_date).toLocaleDateString()
+                            ? new Date(a.application_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                             : "—"}
                         </p>
                       </div>

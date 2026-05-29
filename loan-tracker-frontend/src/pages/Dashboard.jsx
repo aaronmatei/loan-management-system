@@ -1170,7 +1170,7 @@ function Dashboard() {
                         {payment.loan_code} • {payment.payment_method}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {new Date(payment.payment_date).toLocaleDateString()}
+                        {new Date(payment.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                       </p>
                     </div>
                     <div className="text-right">

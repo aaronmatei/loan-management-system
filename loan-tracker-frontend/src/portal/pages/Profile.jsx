@@ -181,7 +181,7 @@ function Profile() {
             <span className="font-mono">{customer.customer_code || "—"}</span>
           </Row>
           <Row label="Member Since">
-            {new Date(customer.created_at).toLocaleDateString()}
+            {new Date(customer.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
           </Row>
         </div>
 
@@ -221,7 +221,7 @@ function Profile() {
                   {customer.date_of_birth || client?.date_of_birth
                     ? new Date(
                         customer.date_of_birth || client.date_of_birth,
-                      ).toLocaleDateString()
+                      ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                     : "—"}
                 </p>
               )}

@@ -150,7 +150,7 @@ function TenantDetail() {
               <div className="flex justify-between">
                 <span>Joined</span>
                 <span className="font-bold">
-                  {new Date(tenant.created_at).toLocaleDateString()}
+                  {new Date(tenant.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                 </span>
               </div>
             </div>
@@ -316,7 +316,7 @@ function TenantDetail() {
                     </td>
                     <td className="p-2 text-gray-500">
                       {u.last_login
-                        ? new Date(u.last_login).toLocaleDateString()
+                        ? new Date(u.last_login).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                         : "Never"}
                     </td>
                   </tr>

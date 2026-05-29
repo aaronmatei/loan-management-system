@@ -85,7 +85,7 @@ function InvoiceDetail() {
                 Period{" "}
                 {String(invoice.billing_month).padStart(2, "0")}/
                 {invoice.billing_year} · Due{" "}
-                {new Date(invoice.due_date).toLocaleDateString()}
+                {new Date(invoice.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
               </p>
             </div>
             <span
@@ -194,7 +194,7 @@ function InvoiceDetail() {
                   <div>
                     <p className="font-bold">{KES(p.amount)}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(p.payment_date).toLocaleDateString()} ·{" "}
+                      {new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })} ·{" "}
                       {p.payment_method}
                     </p>
                     {p.payment_reference && (

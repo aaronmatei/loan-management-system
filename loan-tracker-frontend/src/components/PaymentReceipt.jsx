@@ -136,7 +136,7 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
       lines.push(
         `Next: ${money(receipt.next_payment_amount)} on ${new Date(
           receipt.next_payment_date,
-        ).toLocaleDateString()}`,
+        ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}`,
       );
     }
     const phone = (receipt.client_phone || "").replace(/[^0-9]/g, "");

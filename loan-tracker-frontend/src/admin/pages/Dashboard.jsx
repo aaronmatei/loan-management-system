@@ -210,7 +210,7 @@ function PlatformDashboard() {
                     <p className="font-semibold">{t.business_name}</p>
                     <p className="text-xs text-gray-500">
                       {t.subdomain} • Joined{" "}
-                      {new Date(t.created_at).toLocaleDateString()}
+                      {new Date(t.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>
                   </div>
                   <div className="text-right text-sm">

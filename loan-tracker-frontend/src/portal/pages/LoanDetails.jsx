@@ -19,7 +19,7 @@ import MpesaPayButton from "../../components/MpesaPayButton";
 import PaymentReceipt from "../../components/PaymentReceipt";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
-const day = (d) => (d ? new Date(d).toLocaleDateString() : "N/A");
+const day = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A");
 
 function LoanDetails() {
   const { id } = useParams();
