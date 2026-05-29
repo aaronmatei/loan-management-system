@@ -766,6 +766,9 @@ router.get("/export/pdf", async (req, res) => {
     const finesCollected = parseFloat(kpis.fines_collected) || 0;
     const processingFees = parseFloat(kpis.processing_fees) || 0;
     const waiversWindow = parseFloat(kpis.waivers_applied) || 0;
+    const waiversInterest = parseFloat(kpis.waivers_interest) || 0;
+    const waiversPenalty = parseFloat(kpis.waivers_penalty) || 0;
+    const waiversPrincipal = parseFloat(kpis.waivers_principal) || 0;
     const incomeWindow = interestEarned + finesCollected + processingFees;
     const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
     const netProfit = incomeWindow - expensesWindow - waiversWindow;
@@ -826,6 +829,12 @@ router.get("/export/pdf", async (req, res) => {
     doc.text(`Income (interest + fines + fees): ${fmtKES(incomeWindow)}`);
     doc.text(`Expenses: ${fmtKES(expensesWindow)}`);
     doc.text(`Waivers Applied: ${fmtKES(waiversWindow)}`);
+    if (waiversInterest > 0)
+      doc.text(`  ↳ Interest waived: ${fmtKES(waiversInterest)}`);
+    if (waiversPenalty > 0)
+      doc.text(`  ↳ Penalty waived: ${fmtKES(waiversPenalty)}`);
+    if (waiversPrincipal > 0)
+      doc.text(`  ↳ Principal waived (historical): ${fmtKES(waiversPrincipal)}`);
     doc.text(
       `Net Profit (income − expenses − waivers): ${netProfit >= 0 ? "+" : ""}${fmtKES(netProfit)}`,
     );
@@ -907,9 +916,13 @@ router.get("/export/excel", async (req, res) => {
     const interestEarned = parseFloat(kpis.interest_earned) || 0;
     const finesCollected = parseFloat(kpis.fines_collected) || 0;
     const processingFees = parseFloat(kpis.processing_fees) || 0;
+    const waiversWindow = parseFloat(kpis.waivers_applied) || 0;
+    const waiversInterest = parseFloat(kpis.waivers_interest) || 0;
+    const waiversPenalty = parseFloat(kpis.waivers_penalty) || 0;
+    const waiversPrincipal = parseFloat(kpis.waivers_principal) || 0;
     const incomeWindow = interestEarned + finesCollected + processingFees;
     const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
-    const netProfit = incomeWindow - expensesWindow;
+    const netProfit = incomeWindow - expensesWindow - waiversWindow;
 
     // Loans detail. In month mode, restrict to loans disbursed within
     // the window so the sheet reflects ONLY the selected period.
@@ -970,6 +983,15 @@ router.get("/export/excel", async (req, res) => {
     summary.addRow(["Income — interest + fines + fees (KES)", incomeWindow]);
     summary.addRow(["Expenses (KES)", expensesWindow]);
     summary.addRow(["Waivers Applied (KES)", waiversWindow]);
+    if (waiversInterest > 0)
+      summary.addRow(["  Waivers — Interest (KES)", waiversInterest]);
+    if (waiversPenalty > 0)
+      summary.addRow(["  Waivers — Penalty (KES)", waiversPenalty]);
+    if (waiversPrincipal > 0)
+      summary.addRow([
+        "  Waivers — Principal (historical) (KES)",
+        waiversPrincipal,
+      ]);
     summary.addRow(["Net Profit — income − expenses − waivers (KES)", netProfit]);
     summary.addRow(["Average Loan Size (KES)", kpis.avg_loan_size]);
     if (!isMonthMode && par) {

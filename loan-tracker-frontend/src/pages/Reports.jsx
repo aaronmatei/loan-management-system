@@ -200,6 +200,9 @@ function Reports() {
   const processingFeesWindow = parseFloat(kpis.processing_fees) || 0;
   const waiversWindow = parseFloat(kpis.waivers_applied) || 0;
   const waiversCount = parseInt(kpis.waivers_count, 10) || 0;
+  const waiversInterest = parseFloat(kpis.waivers_interest) || 0;
+  const waiversPenalty = parseFloat(kpis.waivers_penalty) || 0;
+  const waiversPrincipal = parseFloat(kpis.waivers_principal) || 0;
   const incomeWindow =
     (parseFloat(kpis.interest_earned) || 0) +
     (parseFloat(kpis.fines_collected) || 0) +
@@ -386,6 +389,41 @@ function Reports() {
                         {waiversCount} waiver
                         {waiversCount !== 1 ? "s" : ""} applied
                       </p>
+                      {/* Breakdown by waiver type — visible only when
+                          there's something to break down. Sky for
+                          interest waivers, rose for penalty, slate
+                          for legacy/principal rows. */}
+                      {waiversWindow > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {waiversInterest > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[10px] font-semibold"
+                              title="Sum of interest portions waived"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                              Interest {fmt(waiversInterest)}
+                            </span>
+                          )}
+                          {waiversPenalty > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-semibold"
+                              title="Sum of penalty / fines waived"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                              Penalty {fmt(waiversPenalty)}
+                            </span>
+                          )}
+                          {waiversPrincipal > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-semibold"
+                              title="Historical principal waivers (no longer accepted at request time)"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                              Principal {fmt(waiversPrincipal)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

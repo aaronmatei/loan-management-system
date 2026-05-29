@@ -95,15 +95,37 @@ class AnalyticsService {
     // historical pre-approval-flow rows (auto-applied by admin) still
     // surface because the route writes them as status='approved' with
     // approved_at set.
+    // Same explicit-vs-fallback pattern used by /api/capital/status:
+    // new waivers store interest_total / principal_total in the
+    // allocation JSON, so we read those directly; older rows fall
+    // back to a proportional split via the loan's contractual ratio
+    // so historical reporting still nets correctly.
     const waivers = await query(
-      `SELECT COALESCE(SUM(w.amount), 0)::float AS waivers_applied,
-              COUNT(*)::int                    AS waivers_count
-         FROM loan_waivers w
-         JOIN loans l ON l.id = w.loan_id
-        WHERE l.tenant_id = $1
-          AND w.status = 'approved'
-          AND ($2::date IS NULL OR w.approved_at::date >= $2)
-          AND ($3::date IS NULL OR w.approved_at::date <= $3)`,
+      `SELECT
+         COALESCE(SUM(w.amount), 0)::float                    AS waivers_applied,
+         COUNT(*)::int                                        AS waivers_count,
+         COALESCE(SUM(COALESCE((w.allocation->>'penalty_total')::float, 0)), 0)::float
+                                                              AS waivers_penalty,
+         COALESCE(SUM(
+           COALESCE(
+             (w.allocation->>'interest_total')::float,
+             COALESCE((w.allocation->>'amount_total')::float, 0)
+               * (l.total_interest / NULLIF(l.total_amount_due, 0))
+           )
+         ), 0)::float                                         AS waivers_interest,
+         COALESCE(SUM(
+           COALESCE(
+             (w.allocation->>'principal_total')::float,
+             COALESCE((w.allocation->>'amount_total')::float, 0)
+               * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+           )
+         ), 0)::float                                         AS waivers_principal
+       FROM loan_waivers w
+       JOIN loans l ON l.id = w.loan_id
+      WHERE l.tenant_id = $1
+        AND w.status = 'approved'
+        AND ($2::date IS NULL OR w.approved_at::date >= $2)
+        AND ($3::date IS NULL OR w.approved_at::date <= $3)`,
       [tenantId, dateFrom || null, dateTo || null],
     );
 
@@ -127,6 +149,9 @@ class AnalyticsService {
       interest_earned: parseFloat(interest.rows[0].interest_earned) || 0,
       waivers_applied: parseFloat(waivers.rows[0].waivers_applied) || 0,
       waivers_count: parseInt(waivers.rows[0].waivers_count, 10) || 0,
+      waivers_interest: parseFloat(waivers.rows[0].waivers_interest) || 0,
+      waivers_penalty: parseFloat(waivers.rows[0].waivers_penalty) || 0,
+      waivers_principal: parseFloat(waivers.rows[0].waivers_principal) || 0,
       avg_loan_size: totalLoans > 0 ? totalDisbursed / totalLoans : 0,
     };
   }
