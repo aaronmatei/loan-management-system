@@ -363,9 +363,14 @@ function Payments() {
                                   {parseFloat(
                                     loan.principal_amount,
                                   ).toLocaleString()}{" "}
-                                  • Total Due: KES{" "}
+                                  • Remaining: KES{" "}
                                   {parseFloat(
-                                    loan.total_amount_due,
+                                    loan.balance_due ??
+                                      Math.max(
+                                        parseFloat(loan.total_amount_due || 0) -
+                                          parseFloat(loan.total_paid || 0),
+                                        0,
+                                      ),
                                   ).toLocaleString()}
                                 </p>
                               </div>
