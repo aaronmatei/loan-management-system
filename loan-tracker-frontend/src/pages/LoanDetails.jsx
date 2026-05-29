@@ -2334,19 +2334,14 @@ function LoanDetails() {
                         />
                         {enteredAmount > 0 && (
                           <div className="mt-1.5">
-                            <div className="flex items-center justify-between text-[11px] mb-1">
-                              <span
-                                className={
-                                  overCap ? "text-rose-700" : "text-gray-500"
-                                }
-                              >
-                                {overCap
-                                  ? `Exceeds outstanding KES ${cap.toLocaleString()}`
-                                  : `${pctOfCap.toFixed(1)}% of ${waiverForm.type} outstanding`}
-                              </span>
-                              <span className="text-gray-400 font-mono">
-                                of KES {cap.toLocaleString()}
-                              </span>
+                            <div
+                              className={`text-[11px] mb-1 ${
+                                overCap ? "text-rose-700" : "text-gray-600"
+                              }`}
+                            >
+                              {overCap
+                                ? `Exceeds KES ${cap.toLocaleString()} ${waiverForm.type} outstanding`
+                                : `Waiving ${pctOfCap.toFixed(1)}% of KES ${cap.toLocaleString()} ${waiverForm.type} outstanding`}
                             </div>
                             <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                               <div
