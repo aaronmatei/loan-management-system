@@ -2069,7 +2069,8 @@ router.delete("/:id", authorize("admin"), async (req, res) => {
     );
     await query(
       `DELETE FROM notifications
-        WHERE metadata->>'loan_id' = $1::text`,
+        WHERE loan_id = $1
+           OR metadata->>'loan_id' = $1::text`,
       [id],
     );
     await query(`DELETE FROM loans WHERE id = $1 AND tenant_id = $2`, [
