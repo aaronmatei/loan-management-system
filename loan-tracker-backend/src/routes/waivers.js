@@ -21,7 +21,12 @@ import logger from "../config/logger.js";
 const router = express.Router({ mergeParams: true });
 router.use(verifyToken);
 
-const VALID_TYPES = ["penalty", "interest", "principal", "mixed"];
+// Principal isn't waivable — that's capital loss; the UI no longer
+// offers it. "mixed" was an auto-split fallback before applyWaiver
+// honoured the declared type; it's removed too. Both labels stay
+// supported on historical loan_waivers rows (validation only fires
+// at request creation).
+const VALID_TYPES = ["penalty", "interest"];
 
 // Helper — fire the customer notification asynchronously. Same
 // pattern other routes use: best-effort, never blocks the response.

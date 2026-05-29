@@ -2161,22 +2161,24 @@ function LoanDetails() {
               </span>
             </div>
 
-            {/* Loan summary at a glance — so the admin/manager can
-                size the waiver without leaving the modal. Each "use"
-                link pre-fills the Amount field. */}
+            {/* Loan snapshot. Three outstanding buckets — only the
+                two waivable ones (Interest, Penalty) get a "USE"
+                button that fills the form. Principal stays visible
+                for context with a "Not waivable" badge. */}
             {(() => {
               const principal = parseFloat(loan.principal_amount || 0);
-              const totalDue = parseFloat(loan.total_amount_due || 0);
               const totalInterest = parseFloat(loan.total_interest || 0);
-              const paid = parseFloat(summary?.total_paid || 0);
-              const balance = parseFloat(summary?.balance || 0);
-              // Interest already credited (sum of per-installment
-              // interest_portion the backend exposes on each row).
+              const totalAmountPaid = (schedule || []).reduce(
+                (acc, s) => acc + parseFloat(s.amount_paid || 0),
+                0,
+              );
               const interestPaid = (schedule || []).reduce(
                 (acc, s) => acc + parseFloat(s.interest_portion || 0),
                 0,
               );
-              const interestRemaining = Math.max(
+              const principalPaid = Math.max(0, totalAmountPaid - interestPaid);
+              const principalOutstanding = Math.max(0, principal - principalPaid);
+              const interestOutstanding = Math.max(
                 0,
                 totalInterest - interestPaid,
               );
@@ -2184,18 +2186,20 @@ function LoanDetails() {
                 (acc, s) => acc + parseFloat(s.penalty_outstanding || 0),
                 0,
               );
-              const penaltyPaid = parseFloat(summary?.total_penalty_paid || 0);
-              const fill = (value) =>
+
+              const useBucket = (value, type) =>
                 setWaiverForm((p) => ({
                   ...p,
+                  type,
                   amount: value > 0 ? value.toFixed(2) : "",
                 }));
+
               const Row = ({
                 label,
                 value,
-                color = "text-gray-900",
-                fillAmount,
-                fillLabel,
+                color,
+                fillType,
+                badge,
               }) => (
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-gray-500">{label}</span>
@@ -2203,59 +2207,48 @@ function LoanDetails() {
                     <span className={`text-sm font-semibold ${color}`}>
                       KES {value.toLocaleString()}
                     </span>
-                    {fillAmount > 0 && (
+                    {fillType ? (
                       <button
                         type="button"
-                        onClick={() => fill(fillAmount)}
-                        className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-medium uppercase tracking-wider"
-                        title={`Use ${fillLabel || "this"} as the waiver amount`}
+                        onClick={() => useBucket(value, fillType)}
+                        disabled={!(value > 0)}
+                        className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-medium uppercase tracking-wider disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
+                        title={`Use the full ${fillType} outstanding as the waiver amount`}
                       >
                         use
                       </button>
-                    )}
+                    ) : badge ? (
+                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 font-semibold">
+                        {badge}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               );
+
               return (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 space-y-1.5">
                   <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-1">
                     Loan snapshot
                   </p>
-                  <Row label="Principal" value={principal} />
-                  <Row label="Total to pay" value={totalDue} />
                   <Row
-                    label="Paid"
-                    value={paid}
-                    color="text-emerald-700"
+                    label="Principal outstanding"
+                    value={principalOutstanding}
+                    color="text-gray-700"
+                    badge="Not waivable"
                   />
                   <Row
-                    label="Remaining balance"
-                    value={balance}
-                    color="text-orange-700"
-                    fillAmount={balance}
-                    fillLabel="the full remaining balance"
-                  />
-                  <Row
-                    label="Interest remaining"
-                    value={interestRemaining}
+                    label="Interest outstanding"
+                    value={interestOutstanding}
                     color="text-sky-700"
-                    fillAmount={interestRemaining}
-                    fillLabel="the interest portion"
+                    fillType="interest"
                   />
                   <Row
                     label="Penalty outstanding"
                     value={penaltyOutstanding}
                     color="text-rose-700"
-                    fillAmount={penaltyOutstanding}
-                    fillLabel="the outstanding penalty"
+                    fillType="penalty"
                   />
-                  {penaltyPaid > 0 && (
-                    <Row
-                      label="Penalty paid"
-                      value={penaltyPaid}
-                      color="text-gray-700"
-                    />
-                  )}
                 </div>
               );
             })()}
@@ -2267,45 +2260,115 @@ function LoanDetails() {
             )}
 
             <form onSubmit={handleSubmitWaiver} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Type *
-                  </label>
-                  <select
-                    value={waiverForm.type}
-                    onChange={(e) =>
-                      setWaiverForm({ ...waiverForm, type: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white"
-                  >
-                    <option value="penalty">Penalty (late fees + interest on overdue)</option>
-                    <option value="interest">Interest (forgive remaining interest)</option>
-                    <option value="principal">Principal (forgive part of capital)</option>
-                    <option value="mixed">Mixed / combined</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Amount (KES) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0.01"
-                    step="0.01"
-                    value={waiverForm.amount}
-                    onChange={(e) =>
-                      setWaiverForm({
-                        ...waiverForm,
-                        amount: e.target.value,
-                      })
-                    }
-                    placeholder="e.g. 500"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
+              {(() => {
+                // Live cap + percentage indicator for the Amount field.
+                const totalInterest = parseFloat(loan.total_interest || 0);
+                const interestPaid = (schedule || []).reduce(
+                  (acc, s) => acc + parseFloat(s.interest_portion || 0),
+                  0,
+                );
+                const interestOutstanding = Math.max(
+                  0,
+                  totalInterest - interestPaid,
+                );
+                const penaltyOutstanding = (schedule || []).reduce(
+                  (acc, s) => acc + parseFloat(s.penalty_outstanding || 0),
+                  0,
+                );
+                const cap =
+                  waiverForm.type === "interest"
+                    ? interestOutstanding
+                    : penaltyOutstanding;
+                const enteredAmount = parseFloat(waiverForm.amount || 0);
+                const pctOfCap =
+                  cap > 0 ? Math.min(100, (enteredAmount / cap) * 100) : 0;
+                const overCap = enteredAmount > cap + 0.01;
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          Type *
+                        </label>
+                        <select
+                          value={waiverForm.type}
+                          onChange={(e) =>
+                            setWaiverForm({
+                              ...waiverForm,
+                              type: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white"
+                        >
+                          <option value="penalty">
+                            Penalty (late fees + interest on overdue)
+                          </option>
+                          <option value="interest">
+                            Interest (forgive remaining interest)
+                          </option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          Amount (KES) *
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="0.01"
+                          step="0.01"
+                          max={cap > 0 ? cap.toFixed(2) : undefined}
+                          value={waiverForm.amount}
+                          onChange={(e) =>
+                            setWaiverForm({
+                              ...waiverForm,
+                              amount: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. 500"
+                          className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                            overCap
+                              ? "border-rose-300 focus:border-rose-500"
+                              : "border-gray-200 focus:border-emerald-500"
+                          }`}
+                        />
+                        {enteredAmount > 0 && (
+                          <div className="mt-1.5">
+                            <div className="flex items-center justify-between text-[11px] mb-1">
+                              <span
+                                className={
+                                  overCap ? "text-rose-700" : "text-gray-500"
+                                }
+                              >
+                                {overCap
+                                  ? `Exceeds outstanding KES ${cap.toLocaleString()}`
+                                  : `${pctOfCap.toFixed(1)}% of ${waiverForm.type} outstanding`}
+                              </span>
+                              <span className="text-gray-400 font-mono">
+                                of KES {cap.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-1.5 rounded-full transition-all ${
+                                  overCap
+                                    ? "bg-rose-500"
+                                    : waiverForm.type === "interest"
+                                      ? "bg-sky-500"
+                                      : "bg-rose-500"
+                                }`}
+                                style={{
+                                  width: `${pctOfCap}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Reason *
