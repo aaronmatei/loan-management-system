@@ -295,48 +295,99 @@ function Reports() {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
-                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
-                    Expenses
-                  </p>
-                  <p className="text-2xl lg:text-3xl font-extrabold text-amber-700 mt-1 break-words">
-                    −{fmt(expensesWindow)}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {expenseStats?.count_in_window || 0} entries
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
-                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
-                    Waivers
-                  </p>
-                  <p className="text-2xl lg:text-3xl font-extrabold text-fuchsia-700 mt-1 break-words">
-                    −{fmt(waiversWindow)}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {waiversCount} waiver
-                    {waiversCount !== 1 ? "s" : ""} applied
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
-                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
-                    Net Profit
-                  </p>
-                  <p
-                    className={`text-2xl lg:text-3xl font-extrabold mt-1 break-words ${
-                      netProfitWindow >= 0
-                        ? "text-emerald-700"
-                        : "text-rose-700"
-                    }`}
-                  >
-                    {netProfitWindow >= 0 ? "+" : ""}
-                    {fmt(netProfitWindow)}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    income − expenses − waivers
-                  </p>
+                {/* ── Net Profit group: Expenses + Waivers are the two
+                    deductions feeding the bottom-line Net Profit on the
+                    right. Container border + gradient swing emerald
+                    when profit is positive, rose when it dips
+                    negative — matches the Income frame's pattern. */}
+                <div
+                  className={`col-span-2 lg:col-span-3 rounded-xl border-2 p-3 ${
+                    netProfitWindow >= 0
+                      ? "border-emerald-200/70 bg-gradient-to-br from-emerald-50/60 via-white/55 to-emerald-100/40"
+                      : "border-rose-200/70 bg-gradient-to-br from-rose-50/60 via-white/55 to-rose-100/40"
+                  } backdrop-blur-sm`}
+                >
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center ring-1 ${
+                          netProfitWindow >= 0
+                            ? "bg-emerald-100 ring-emerald-200"
+                            : "bg-rose-100 ring-rose-200"
+                        }`}
+                      >
+                        <ArrowUpDown
+                          size={16}
+                          className={
+                            netProfitWindow >= 0
+                              ? "text-emerald-700"
+                              : "text-rose-700"
+                          }
+                        />
+                      </div>
+                      <div>
+                        <p
+                          className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${
+                            netProfitWindow >= 0
+                              ? "text-emerald-700"
+                              : "text-rose-700"
+                          }`}
+                        >
+                          Net Profit
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          income − expenses − waivers
+                        </p>
+                      </div>
+                    </div>
+                    <p
+                      className={`text-2xl lg:text-3xl font-extrabold break-words leading-none ${
+                        netProfitWindow >= 0
+                          ? "text-emerald-700"
+                          : "text-rose-700"
+                      }`}
+                    >
+                      {netProfitWindow >= 0 ? "+" : ""}
+                      {fmt(netProfitWindow)}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div
+                      className={`bg-white rounded-lg border p-3 ${
+                        netProfitWindow >= 0
+                          ? "border-emerald-100/80"
+                          : "border-rose-100/80"
+                      }`}
+                    >
+                      <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                        Expenses
+                      </p>
+                      <p className="text-lg lg:text-xl font-extrabold text-amber-700 mt-0.5 break-words">
+                        −{fmt(expensesWindow)}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {expenseStats?.count_in_window || 0} entries
+                      </p>
+                    </div>
+                    <div
+                      className={`bg-white rounded-lg border p-3 ${
+                        netProfitWindow >= 0
+                          ? "border-emerald-100/80"
+                          : "border-rose-100/80"
+                      }`}
+                    >
+                      <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                        Waivers
+                      </p>
+                      <p className="text-lg lg:text-xl font-extrabold text-fuchsia-700 mt-0.5 break-words">
+                        −{fmt(waiversWindow)}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {waiversCount} waiver
+                        {waiversCount !== 1 ? "s" : ""} applied
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
