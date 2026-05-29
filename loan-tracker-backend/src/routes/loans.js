@@ -39,6 +39,7 @@ router.get("/", async (req, res) => {
             c.phone_number,
             c.client_code,
             COALESCE(SUM(t.amount_paid), 0) as total_paid,
+            COALESCE(SUM(t.penalty_portion), 0) as total_fines_paid,
             GREATEST(l.total_amount_due - COALESCE(SUM(t.amount_paid), 0), 0) as balance_due,
             COALESCE(od.overdue_count, 0)::int  AS overdue_count,
             COALESCE(od.overdue_amount, 0)      AS overdue_amount,

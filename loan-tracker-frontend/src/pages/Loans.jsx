@@ -1452,6 +1452,7 @@ function Loans() {
                     ["Interest", "total_interest", "right"],
                     ["Total to Pay", "total_amount_due", "right"],
                     ["Paid", "total_paid", "right"],
+                    ["Fines", "total_fines_paid", "right"],
                     ["Balance", "balance", "right"],
                     ["Refund Due", "overpayment_amount", "right"],
                     ["Status", "status", "left"],
@@ -1541,6 +1542,18 @@ function Loans() {
                         <p className="font-bold text-green-600 text-sm">
                           KES {totalPaid.toLocaleString()}
                         </p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        {parseFloat(loan.total_fines_paid || 0) > 0 ? (
+                          <p className="font-semibold text-fuchsia-700 text-sm">
+                            KES{" "}
+                            {parseFloat(
+                              loan.total_fines_paid,
+                            ).toLocaleString()}
+                          </p>
+                        ) : (
+                          <p className="text-gray-400 text-sm">—</p>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-right">
                         <p
@@ -1655,6 +1668,18 @@ function Loans() {
                       {filteredLoans
                         .reduce(
                           (sum, l) => sum + parseFloat(l.total_paid || 0),
+                          0,
+                        )
+                        .toLocaleString()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold text-fuchsia-700 text-sm">
+                      KES{" "}
+                      {filteredLoans
+                        .reduce(
+                          (sum, l) =>
+                            sum + parseFloat(l.total_fines_paid || 0),
                           0,
                         )
                         .toLocaleString()}
