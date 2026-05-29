@@ -252,17 +252,16 @@ function Reports() {
         </div>
 
         {/* Portfolio Performance hero — investor-view summary of the
-            selected window: how much capital was deployed vs how much
-            income came back. Returns = loan-interest income + late-fee
-            (fines) income; ROI = returns ÷ invested. Both figures are
-            already period-filtered on the KPI side. */}
+            selected window: how much capital was deployed, what it
+            cost to run, and what was left over. ROI = net profit ÷
+            invested so it reflects the bottom-line yield, not just
+            gross income. */}
         {(() => {
           const invested = parseFloat(kpis.total_disbursed) || 0;
-          const returns =
-            (parseFloat(kpis.interest_earned) || 0) +
-            (parseFloat(kpis.fines_collected) || 0);
           const roiPct =
-            invested > 0 ? ((returns / invested) * 100).toFixed(1) : "0.0";
+            invested > 0
+              ? ((netProfitWindow / invested) * 100).toFixed(1)
+              : "0.0";
           const periodSubtitle = periodLabel(period);
           return (
             <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-6 mb-6 bg-gradient-to-br from-ocean-100/70 via-white/55 to-indigo-100/60 backdrop-blur-md">
@@ -281,13 +280,13 @@ function Reports() {
                       Portfolio Performance
                     </h2>
                     <p className="text-xs text-slate-500">
-                      {periodSubtitle} · capital out vs income back
+                      {periodSubtitle} · capital out vs profit back
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
                   <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
                     Amount Invested
@@ -303,14 +302,32 @@ function Reports() {
 
                 <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
                   <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
-                    Returns Gained
+                    Expenses
                   </p>
-                  <p className="text-2xl lg:text-3xl font-extrabold text-emerald-700 mt-1 break-words">
-                    +{fmt(returns)}
+                  <p className="text-2xl lg:text-3xl font-extrabold text-amber-700 mt-1 break-words">
+                    −{fmt(expensesWindow)}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Interest {fmt(kpis.interest_earned)} · Fines{" "}
-                    {fmt(kpis.fines_collected)}
+                    {expenseStats?.count_in_window || 0} entries
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
+                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
+                    Net Profit
+                  </p>
+                  <p
+                    className={`text-2xl lg:text-3xl font-extrabold mt-1 break-words ${
+                      netProfitWindow >= 0
+                        ? "text-emerald-700"
+                        : "text-rose-700"
+                    }`}
+                  >
+                    {netProfitWindow >= 0 ? "+" : ""}
+                    {fmt(netProfitWindow)}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    income − expenses
                   </p>
                 </div>
 
@@ -322,7 +339,7 @@ function Reports() {
                     {roiPct}%
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    of invested capital
+                    net profit ÷ invested
                   </p>
                 </div>
               </div>
@@ -504,48 +521,9 @@ function Reports() {
             </>
           )}
 
-          {/* Expenses + Net Profit for the selected window — period-
-              filtered, so they live with the other period tiles. */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
-              <Receipt size={20} className="text-amber-700" />
-            </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
-              Expenses
-            </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
-              {fmt(expensesWindow)}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {expenseStats?.count_in_window || 0} entries
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-                netProfitWindow >= 0 ? "bg-emerald-50" : "bg-rose-50"
-              }`}
-            >
-              <ArrowUpDown
-                size={20}
-                className={
-                  netProfitWindow >= 0 ? "text-emerald-600" : "text-rose-600"
-                }
-              />
-            </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
-              Net Profit
-            </p>
-            <p
-              className={`text-xl lg:text-2xl font-bold mt-1 break-words ${
-                netProfitWindow >= 0 ? "text-emerald-700" : "text-rose-700"
-              }`}
-            >
-              {netProfitWindow >= 0 ? "+" : ""}
-              {fmt(netProfitWindow)}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">income − expenses</p>
-          </div>
+          {/* Expenses + Net Profit moved up into the Portfolio
+              Performance hero so the bottom-line story sits beside
+              Amount Invested + ROI. */}
         </div>
 
         {/* ── Income vs Expenses monthly trend ──────────────────── */}
