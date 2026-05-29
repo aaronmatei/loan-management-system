@@ -546,7 +546,7 @@ function Overdue() {
                       <div>
                         <p className="text-xs text-gray-500">Oldest Due</p>
                         <p className="font-semibold">
-                          {new Date(g.oldest_due_date).toLocaleDateString()}
+                          {new Date(g.oldest_due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                         </p>
                       </div>
                       <div>
@@ -593,7 +593,7 @@ function Overdue() {
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-600">
                                   #{s.payment_number} ·{" "}
-                                  {new Date(s.due_date).toLocaleDateString()}
+                                  {new Date(s.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                                 </span>
                                 <span className="flex items-center gap-2">
                                   <span
@@ -738,7 +738,7 @@ function Overdue() {
                               </button>
                             </td>
                             <td className="px-4 py-4 text-sm text-gray-700">
-                              {new Date(g.oldest_due_date).toLocaleDateString()}
+                              {new Date(g.oldest_due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                             </td>
                             <td className="px-4 py-4 text-center">
                               <span
@@ -836,7 +836,7 @@ function Overdue() {
                                           <td className="py-1.5 text-gray-700">
                                             {new Date(
                                               s.due_date,
-                                            ).toLocaleDateString()}
+                                            ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                                           </td>
                                           <td className="py-1.5 text-center">
                                             <span
