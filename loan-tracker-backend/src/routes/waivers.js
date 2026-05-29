@@ -100,7 +100,12 @@ router.post(
       let allocation = null;
       if (isAdmin) {
         try {
-          allocation = await applyWaiver(loan.id, loan.tenant_id, amt);
+          allocation = await applyWaiver(
+            loan.id,
+            loan.tenant_id,
+            amt,
+            type,
+          );
         } catch (err) {
           return res.status(400).json({ error: err.message });
         }
@@ -306,6 +311,7 @@ router.put("/:wId/approve", authorize("admin"), async (req, res) => {
         loan.id,
         loan.tenant_id,
         parseFloat(w.amount),
+        w.type,
       );
     } catch (err) {
       return res.status(400).json({ error: err.message });

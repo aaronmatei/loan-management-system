@@ -20,7 +20,7 @@ import { computeInstallmentPenalty } from "../utils/penalty.js";
  *
  * Throws if `amount` exceeds what's outstanding (penalty + balance).
  */
-export async function applyWaiver(loanId, tenantId, amount) {
+export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
   const loanRes = await query(
     `SELECT * FROM loans WHERE id = $1 AND tenant_id = $2`,
     [loanId, tenantId],
@@ -87,44 +87,67 @@ export async function applyWaiver(loanId, tenantId, amount) {
     0,
   );
 
+  // Per-type cap. The admin's declared type narrows what the waiver
+  // can touch — penalty-only can't fall through onto amount_due,
+  // interest/principal can't fall through onto penalty, mixed is the
+  // full effective owed (current behaviour).
   const effectiveOwed = currentBalance + totalOutstandingPenalty;
-  if (amount > effectiveOwed + 0.01) {
+  const typeCap =
+    type === "penalty"
+      ? totalOutstandingPenalty
+      : type === "interest" || type === "principal"
+        ? currentBalance
+        : effectiveOwed;
+  if (amount > typeCap + 0.01) {
+    const label =
+      type === "penalty"
+        ? "outstanding penalty"
+        : type === "interest" || type === "principal"
+          ? "outstanding loan balance"
+          : "outstanding";
     throw new Error(
-      `Waiver amount (KES ${amount.toLocaleString()}) exceeds outstanding (KES ${effectiveOwed.toLocaleString()}).`,
+      `Waiver amount (KES ${amount.toLocaleString()}) exceeds ${label} (KES ${typeCap.toLocaleString()}).`,
     );
   }
 
-  // ── 1) Allocate to penalty first ────────────────────────────────
+  // ── 1) Allocate to penalty first (only when the admin opted in:
+  //       penalty-type or mixed-type waiver).
   const allocation = {
+    type,
     penalty_total: 0,
     amount_total: 0,
+    interest_total: 0,
+    principal_total: 0,
     schedules: [],
   };
   let remaining = amount;
-  for (const row of penaltyRows) {
-    if (remaining <= 0) break;
-    const apply = Math.min(remaining, row.outstanding);
-    if (apply > 0) {
-      await query(
-        `UPDATE payment_schedules
-            SET penalty_paid = COALESCE(penalty_paid, 0) + $1,
-                updated_at = NOW()
-          WHERE id = $2`,
-        [apply, row.schedule_id],
-      );
-      allocation.penalty_total += apply;
-      allocation.schedules.push({
-        schedule_id: row.schedule_id,
-        penalty_paid_delta: apply,
-        amount_paid_delta: 0,
-        set_status_waived: false,
-      });
-      remaining -= apply;
+  if (type === "penalty" || type === "mixed") {
+    for (const row of penaltyRows) {
+      if (remaining <= 0) break;
+      const apply = Math.min(remaining, row.outstanding);
+      if (apply > 0) {
+        await query(
+          `UPDATE payment_schedules
+              SET penalty_paid = COALESCE(penalty_paid, 0) + $1,
+                  updated_at = NOW()
+            WHERE id = $2`,
+          [apply, row.schedule_id],
+        );
+        allocation.penalty_total += apply;
+        allocation.schedules.push({
+          schedule_id: row.schedule_id,
+          penalty_paid_delta: apply,
+          amount_paid_delta: 0,
+          set_status_waived: false,
+        });
+        remaining -= apply;
+      }
     }
   }
 
-  // ── 2) Allocate to amount_due across pending+overdue, oldest first ─
-  if (remaining > 0) {
+  // ── 2) Allocate to amount_due across pending+overdue, oldest first
+  //       (skipped for penalty-only — it shouldn't touch amount_due).
+  if (remaining > 0 && type !== "penalty") {
     const owedRows = await query(
       `SELECT id, payment_number, amount_due, amount_paid, status
          FROM payment_schedules
@@ -180,21 +203,35 @@ export async function applyWaiver(loanId, tenantId, amount) {
     [amount, tenantId],
   );
 
-  // ── 3b) Decompose amount_total into interest_total / principal_total
-  // using the loan's contractual ratio. Stored in the allocation so
-  // downstream queries (Total Fines net, Net Interest net) can read
-  // explicit numbers instead of recomputing the proportional split
-  // from scratch each time. Penalty was already tracked separately,
-  // so it's not touched here.
-  const ratioDenom = parseFloat(loan.total_amount_due) || 0;
-  const interestShare =
-    ratioDenom > 0 ? parseFloat(loan.total_interest || 0) / ratioDenom : 0;
-  allocation.interest_total =
-    Math.round(allocation.amount_total * interestShare * 100) / 100;
-  allocation.principal_total =
-    Math.round(
-      (allocation.amount_total - allocation.interest_total) * 100,
-    ) / 100;
+  // ── 3b) Bookkeeping — interest_total / principal_total reflect
+  // the admin's declared type. Penalty waivers wrote to
+  // penalty_total in step 1. Pure-interest or pure-principal waivers
+  // get the entire amount_total assigned to the matching bucket
+  // without proration. Only mixed waivers fall back to the
+  // contractual interest÷total ratio so we still have a defensible
+  // split for legacy / unstated cases.
+  const round2 = (n) => Math.round(n * 100) / 100;
+  if (type === "interest") {
+    allocation.interest_total = round2(allocation.amount_total);
+    allocation.principal_total = 0;
+  } else if (type === "principal") {
+    allocation.principal_total = round2(allocation.amount_total);
+    allocation.interest_total = 0;
+  } else if (type === "penalty") {
+    allocation.interest_total = 0;
+    allocation.principal_total = 0;
+  } else {
+    // mixed — proportional split using the loan's contractual ratio
+    const ratioDenom = parseFloat(loan.total_amount_due) || 0;
+    const interestShare =
+      ratioDenom > 0 ? parseFloat(loan.total_interest || 0) / ratioDenom : 0;
+    allocation.interest_total = round2(
+      allocation.amount_total * interestShare,
+    );
+    allocation.principal_total = round2(
+      allocation.amount_total - allocation.interest_total,
+    );
+  }
 
   // ── 4) If the loan is now fully cleared, complete + tag it ──────
   const postPaidRes = await query(
