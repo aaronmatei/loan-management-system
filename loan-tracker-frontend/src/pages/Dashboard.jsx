@@ -386,157 +386,169 @@ function Dashboard() {
         </button>
       )}
 
-      {/* Capital Pool — premium dark-luxe treatment. Deep navy canvas,
-          aurora highlights, crisp white typography on tabular nums. */}
+      {/* Capital Pool — soft-light premium treatment. Lavender-sky
+          gradient canvas, oversized headline numbers, and the five
+          All-time tiles split out into their own pastel-tinted row
+          right below. */}
       {poolStatus && (
-        <div className="relative overflow-hidden rounded-3xl shadow-[0_20px_60px_-20px_rgba(8,16,30,0.55)] ring-1 ring-white/10 border border-white/5 p-6 lg:p-8 mb-6 bg-gradient-to-br from-navy-950 via-navy-900 to-[#0c1a2e]">
-          {/* Aurora glows — soft cyan/indigo wash behind the chrome. */}
-          <div className="pointer-events-none absolute -top-32 -right-20 w-96 h-96 rounded-full bg-ocean-500/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-indigo-500/15 blur-3xl" />
-          <div className="pointer-events-none absolute top-12 left-1/3 w-72 h-72 rounded-full bg-cyan-400/10 blur-3xl" />
-          {/* Specular highlight along the top edge — sells the "premium glass" feel. */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-
-          {/* Header */}
-          <div className="relative flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-ocean-400 to-ocean-700 ring-1 ring-white/20 shadow-lg shadow-ocean-900/40 flex items-center justify-center">
-                <Coins size={22} className="text-white drop-shadow" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-white tracking-tight">
-                  Capital Pool
-                </h2>
-                <p className="text-xs text-white/50 uppercase tracking-[0.18em]">
-                  Available for lending
-                </p>
-              </div>
-            </div>
-            {isAdmin && (
+        <>
+          {/* Top-up button floats above the card on the right. */}
+          {isAdmin && (
+            <div className="flex justify-end mb-3">
               <button
                 onClick={() => setShowTopUp(true)}
-                className="group inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/15 bg-white/5 text-white/80 text-sm font-medium hover:bg-white/10 hover:border-white/25 hover:text-white transition backdrop-blur-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-white text-amber-700 text-sm font-medium hover:bg-amber-50 hover:border-amber-300 transition shadow-sm"
               >
-                <Plus size={16} className="text-ocean-300 group-hover:text-ocean-200 transition" />
                 Top up capital
+                <Plus size={15} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Available capital + principal currently loaned out */}
-          <div className="relative flex flex-wrap items-end justify-between gap-x-8 gap-y-4 mt-8">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                Available Capital
-              </p>
-              <p className="text-4xl lg:text-5xl font-extrabold text-white leading-none mt-2 tracking-tight">
+          <div className="relative overflow-hidden rounded-3xl ring-1 ring-slate-200/60 shadow-[0_10px_40px_-20px_rgba(15,30,60,0.18)] p-6 lg:p-8 mb-3 bg-gradient-to-br from-slate-50 via-sky-50 to-indigo-50/70">
+            {/* Soft tinted glows for that premium light-mode feel. */}
+            <div className="pointer-events-none absolute -top-32 -right-24 w-96 h-96 rounded-full bg-sky-200/40 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-indigo-200/30 blur-3xl" />
+
+            {/* Header — just the icon chip + title. */}
+            <div className="relative flex items-center gap-3">
+              <div className="relative w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-sm flex items-center justify-center">
+                <Coins size={20} className="text-sky-500" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                Capital Pool
+              </h2>
+            </div>
+
+            {/* Available capital — the hero number, with "of X total
+                pool" trailing in light grey to its right. */}
+            <div className="relative mt-7 flex flex-wrap items-end gap-x-5 gap-y-1">
+              <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-none tracking-tight">
                 {fmtKES(poolStatus.available_pool)}
               </p>
-              <p className="text-xs text-white/40 mt-2">
+              <p className="text-sm text-slate-400 pb-1.5">
                 of {fmtKES(poolStatus.initial_capital)} total pool
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                Loaned Out
-              </p>
-              <p className="text-3xl lg:text-4xl font-extrabold text-ocean-300 leading-none mt-2 tracking-tight drop-shadow-[0_0_24px_rgba(44,190,255,0.35)]">
+            <p className="relative text-sm text-slate-500 mt-2">
+              Available Capital
+            </p>
+
+            {/* Loaned Out — second large number below. */}
+            <div className="relative mt-7">
+              <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
                 {fmtKES(poolStatus.outstanding_principal)}
               </p>
+              <p className="text-sm text-slate-500 mt-2">Loaned Out</p>
             </div>
-          </div>
 
-          {/* Utilization */}
-          <div className="relative mt-8">
-            <div className="flex justify-between items-center mb-2.5">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/50">
-                Utilization
-              </span>
-              <span className="text-sm font-bold text-ocean-200">
-                {poolStatus.utilization_rate.toFixed(1)}%
-              </span>
-            </div>
-            <div className="relative w-full bg-white/5 ring-1 ring-white/5 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-ocean-500 via-ocean-400 to-cyan-300 transition-all shadow-[0_0_18px_rgba(44,190,255,0.65)]"
-                style={{
-                  width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Hairline separator before the cash-story tiles. */}
-          <div className="relative mt-7 mb-6 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-          {/* Cash story row — lifetime numbers on the pool. Period
-              equivalents live in the strip below the card. */}
-          <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                  All time Disbursed
-                </p>
-                <ArrowUpRight size={13} className="text-white/40 flex-shrink-0" />
-              </div>
-              <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
-                {fmtKES(poolStatus.total_disbursed)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                  All time Collected
-                </p>
-                <ArrowDownLeft size={13} className="text-white/40 flex-shrink-0" />
-              </div>
-              <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
-                {fmtKES(poolStatus.total_collected)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                  All time Interest from Loans
-                </p>
-                <TrendingUp size={13} className="text-emerald-300/70 flex-shrink-0" />
-              </div>
-              <p className="text-base lg:text-lg font-bold text-emerald-300 whitespace-nowrap mt-1.5 tracking-tight">
-                +{fmtKES(poolStatus.loan_interest_earned ?? 0)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                  All time Interest from Fines
-                </p>
-                <AlertTriangle size={13} className="text-amber-300/70 flex-shrink-0" />
-              </div>
-              <p className="text-base lg:text-lg font-bold text-amber-300 whitespace-nowrap mt-1.5 tracking-tight">
-                +{fmtKES(poolStatus.fines_collected ?? 0)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-3.5 backdrop-blur-md hover:bg-white/[0.07] transition">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                  All time Collection Rate
-                </p>
-                <Target size={13} className="text-ocean-300/80 flex-shrink-0" />
-              </div>
-              <p className="text-base lg:text-lg font-bold text-white whitespace-nowrap mt-1.5 tracking-tight">
-                {metrics.collection_rate}%
-              </p>
-              <div className="w-full bg-white/5 ring-1 ring-white/5 rounded-full h-1 mt-2 overflow-hidden">
+            {/* Utilization track. */}
+            <div className="relative mt-7">
+              <div className="relative w-full h-1.5 rounded-full bg-slate-200/70 overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-ocean-500 to-cyan-300 h-1 rounded-full transition-all shadow-[0_0_10px_rgba(44,190,255,0.55)]"
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-400 to-indigo-400"
                   style={{
-                    width: `${Math.min(metrics.collection_rate, 100)}%`,
+                    width: `${Math.min(Math.max(poolStatus.utilization_rate, 0), 100)}%`,
                   }}
                 />
               </div>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-slate-500">Utilization</span>
+                <span className="text-sm font-semibold text-slate-700">
+                  {poolStatus.utilization_rate.toFixed(1)}%
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+
+          {/* ── All-time tiles row — separate cards below the Capital
+              Pool, each with its own pastel tint and tiny icon chip in
+              the top-left. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+            {/* All time Disbursed — neutral slate */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-slate-50 to-slate-100/60 ring-1 ring-slate-200/60">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 ring-1 ring-slate-200/60 flex items-center justify-center">
+                  <ArrowUpRight size={15} className="text-slate-500" />
+                </div>
+                <ArrowUpRight size={12} className="text-slate-300" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+                All time Disbursed
+              </p>
+              <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap">
+                {fmtKES(poolStatus.total_disbursed)}
+              </p>
+            </div>
+
+            {/* All time Collected — soft emerald */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-50/70 to-emerald-100/40 ring-1 ring-emerald-200/50">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-emerald-200/60 flex items-center justify-center">
+                  <ArrowDownLeft size={15} className="text-emerald-600" />
+                </div>
+                <ArrowDownLeft size={12} className="text-emerald-300" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+                All time Collected
+              </p>
+              <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap">
+                {fmtKES(poolStatus.total_collected)}
+              </p>
+            </div>
+
+            {/* All time Interest from Loans — emerald accent */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-100/70 to-emerald-50/40 ring-1 ring-emerald-200/60">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 ring-1 ring-emerald-200/70 flex items-center justify-center">
+                  <TrendingUp size={15} className="text-emerald-600" />
+                </div>
+                <TrendingUp size={12} className="text-emerald-300" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+                All time Interest from Loans
+              </p>
+              <p className="text-lg lg:text-xl font-extrabold text-emerald-700 mt-1 tracking-tight whitespace-nowrap">
+                +{fmtKES(poolStatus.loan_interest_earned ?? 0)}
+              </p>
+            </div>
+
+            {/* All time Interest from Fines — warm amber */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-50 to-amber-100/40 ring-1 ring-amber-200/50">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 ring-1 ring-amber-200/70 flex items-center justify-center">
+                  <AlertTriangle size={15} className="text-amber-600" />
+                </div>
+                <AlertTriangle size={12} className="text-amber-300" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+                All time Interest from Fines
+              </p>
+              <p className="text-lg lg:text-xl font-extrabold text-amber-700 mt-1 tracking-tight whitespace-nowrap">
+                +{fmtKES(poolStatus.fines_collected ?? 0)}
+              </p>
+            </div>
+
+            {/* All time Collection Rate — soft sky */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-sky-50 to-indigo-50/60 ring-1 ring-sky-200/60">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-sky-200/70 flex items-center justify-center">
+                  <Target size={15} className="text-sky-500" />
+                </div>
+                <Target size={12} className="text-sky-300" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+                All time Collection Rate
+              </p>
+              <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight">
+                {metrics.collection_rate}%
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                All-time collection rate
+              </p>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ── Period heading + compact one-row strip of cash + P&L tiles.
