@@ -353,7 +353,7 @@ function Reports() {
             filtered tiles always show; snapshot tiles (Outstanding /
             PAR / Overdue / Defaulted) describe today's state and hide
             in specific-month mode. */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {/* ── Period-filtered (driven by the selected window) ── */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
