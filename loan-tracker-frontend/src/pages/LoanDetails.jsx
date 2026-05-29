@@ -1128,7 +1128,7 @@ function LoanDetails() {
                             )}
                             {towardBalance > 0 && (
                               <div className="text-gray-600">
-                                Balance: KES{" "}
+                                Toward balance: KES{" "}
                                 {towardBalance.toLocaleString(undefined, {
                                   maximumFractionDigits: 2,
                                 })}

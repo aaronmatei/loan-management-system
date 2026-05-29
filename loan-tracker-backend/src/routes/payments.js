@@ -280,12 +280,13 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const overpayment = parseFloat(loan.overpayment_amount || 0);
     const balance = Math.max(0, totalDue - totalPaid);
 
-    // Annotate each transaction with running balance / % complete. Running
-    // balance tracks the principal-portion applied to amount_due (penalty
-    // is income, not principal reduction). Anything beyond the still-owed
-    // balance is recorded as the overpayment from THIS transaction.
+    // Annotate each transaction with running balance / % complete. The
+    // running tally starts at total_waived_amount_due so the receipt
+    // reflects "already-settled via waivers" before the first real
+    // payment lands — without this, a 16k waiver followed by a 50k
+    // cash payment shows Balance After 16,325 instead of 325.
     const ascTxns = [...transactionsResult.rows].reverse();
-    let running = 0;
+    let running = totalWaivedAmountDue;
     const annotated = ascTxns.map((t) => {
       const principalToward =
         parseFloat(t.amount_paid || 0) - parseFloat(t.penalty_portion || 0);
