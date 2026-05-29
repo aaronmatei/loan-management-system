@@ -186,6 +186,66 @@ router.get("/:id/waivers", async (req, res) => {
 });
 
 // ============================================================
+// GET /waivers/history — tenant-wide waiver history filtered by
+// status. ?status=approved|rejected|reversed|all (default: all
+// non-pending). Joins the same loan + client + reviewer context the
+// pending queue uses so the UI can render one consistent row layout.
+// ============================================================
+router.get(
+  "/history",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const ALLOWED = ["approved", "rejected", "reversed", "all"];
+      const requested = String(req.query.status || "all").toLowerCase();
+      const status = ALLOWED.includes(requested) ? requested : "all";
+
+      const t = tenantClause(req, 0, "w.tenant_id");
+      const statusClause =
+        status === "all"
+          ? `AND w.status IN ('approved','rejected','reversed')`
+          : `AND w.status = '${status}'`;
+
+      const r = await query(
+        `SELECT w.*,
+                l.loan_code, l.principal_amount, l.total_amount_due, l.status AS loan_status,
+                c.first_name, c.last_name, c.phone_number, c.client_code,
+                ru.first_name  || ' ' || ru.last_name  AS requested_by_name,
+                au.first_name  || ' ' || au.last_name  AS approved_by_name,
+                rju.first_name || ' ' || rju.last_name AS rejected_by_name,
+                rvu.first_name || ' ' || rvu.last_name AS reversed_by_name
+           FROM loan_waivers w
+           JOIN loans   l ON l.id = w.loan_id
+           JOIN clients c ON c.id = l.client_id
+           LEFT JOIN users ru  ON ru.id  = w.requested_by
+           LEFT JOIN users au  ON au.id  = w.approved_by
+           LEFT JOIN users rju ON rju.id = w.rejected_by
+           LEFT JOIN users rvu ON rvu.id = w.reversed_by
+          WHERE 1=1${t.clause} ${statusClause}
+          ORDER BY COALESCE(w.reversed_at, w.approved_at, w.rejected_at, w.requested_at) DESC`,
+        t.params,
+      );
+
+      // Roll-up totals so the UI can show "12 approved · KES 47,500" etc.
+      const totals = await query(
+        `SELECT status,
+                COUNT(*)::int AS count,
+                COALESCE(SUM(amount), 0)::float AS total_amount
+           FROM loan_waivers w
+          WHERE 1=1${t.clause}
+          GROUP BY status`,
+        t.params,
+      );
+
+      res.json({ success: true, data: r.rows, totals: totals.rows });
+    } catch (err) {
+      logger.error("List waiver history error:", err);
+      res.status(500).json({ error: "Failed to load waiver history" });
+    }
+  },
+);
+
+// ============================================================
 // GET /waivers/pending — admin queue across all loans
 // ============================================================
 router.get("/pending", authorize("admin"), async (req, res) => {

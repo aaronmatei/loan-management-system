@@ -193,14 +193,18 @@ function Reports() {
 
   const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
   // Income = interest portion of payments + fines + processing fees
-  // retained at disbursement. Net Profit folds in fees too (matches the
-  // dashboard's accounting where fees are recognised at disbursement).
+  // retained at disbursement.
+  // Net Profit = income − expenses − waivers. Waivers are forgone
+  // income (lender chose not to collect) so they net out of the
+  // bottom line alongside operating expenses.
   const processingFeesWindow = parseFloat(kpis.processing_fees) || 0;
+  const waiversWindow = parseFloat(kpis.waivers_applied) || 0;
+  const waiversCount = parseInt(kpis.waivers_count, 10) || 0;
   const incomeWindow =
     (parseFloat(kpis.interest_earned) || 0) +
     (parseFloat(kpis.fines_collected) || 0) +
     processingFeesWindow;
-  const netProfitWindow = incomeWindow - expensesWindow;
+  const netProfitWindow = incomeWindow - expensesWindow - waiversWindow;
   const snap = snapshot || {
     outstanding_balance: 0,
     overdue_count: 0,
@@ -277,7 +281,7 @@ function Reports() {
                 </div>
               </div>
 
-              <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="relative grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
                   <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
                     Amount Invested
@@ -305,6 +309,19 @@ function Reports() {
 
                 <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
                   <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
+                    Waivers
+                  </p>
+                  <p className="text-2xl lg:text-3xl font-extrabold text-fuchsia-700 mt-1 break-words">
+                    −{fmt(waiversWindow)}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {waiversCount} waiver
+                    {waiversCount !== 1 ? "s" : ""} applied
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
+                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
                     Net Profit
                   </p>
                   <p
@@ -318,7 +335,7 @@ function Reports() {
                     {fmt(netProfitWindow)}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    income − expenses
+                    income − expenses − waivers
                   </p>
                 </div>
 

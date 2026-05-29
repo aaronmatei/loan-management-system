@@ -88,6 +88,25 @@ class AnalyticsService {
       [tenantId, dateFrom || null, dateTo || null],
     );
 
+    // Waivers applied in the window — economically a forgone-income
+    // cost (the lender chose not to collect what was owed), so Reports
+    // surfaces this as a separate cost line and folds it into Net
+    // Profit. Approved-status waivers count from approved_at; the
+    // historical pre-approval-flow rows (auto-applied by admin) still
+    // surface because the route writes them as status='approved' with
+    // approved_at set.
+    const waivers = await query(
+      `SELECT COALESCE(SUM(w.amount), 0)::float AS waivers_applied,
+              COUNT(*)::int                    AS waivers_count
+         FROM loan_waivers w
+         JOIN loans l ON l.id = w.loan_id
+        WHERE l.tenant_id = $1
+          AND w.status = 'approved'
+          AND ($2::date IS NULL OR w.approved_at::date >= $2)
+          AND ($3::date IS NULL OR w.approved_at::date <= $3)`,
+      [tenantId, dateFrom || null, dateTo || null],
+    );
+
     const k = loans.rows[0];
     const c = collections.rows[0];
     const totalLoans = parseInt(k.total_loans, 10) || 0;
@@ -106,6 +125,8 @@ class AnalyticsService {
       fines_collected: parseFloat(c.fines_collected) || 0,
       payment_count: parseInt(c.payment_count, 10) || 0,
       interest_earned: parseFloat(interest.rows[0].interest_earned) || 0,
+      waivers_applied: parseFloat(waivers.rows[0].waivers_applied) || 0,
+      waivers_count: parseInt(waivers.rows[0].waivers_count, 10) || 0,
       avg_loan_size: totalLoans > 0 ? totalDisbursed / totalLoans : 0,
     };
   }

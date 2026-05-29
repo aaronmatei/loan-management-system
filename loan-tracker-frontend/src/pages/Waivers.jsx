@@ -1,30 +1,75 @@
-// Waivers approval queue — admin only.
-// Lists every loan-waiver row with status='pending' across the
-// tenant, with one-click Approve / Reject buttons. Approving runs
-// the allocation engine and notifies the customer; rejecting closes
-// the request with a required reason.
+// Waivers — admin queue + tenant-wide history.
+// Tabs: Pending (action queue), Approved, Rejected, Reversed.
+// Pending pulls from /waivers/pending (admin-only). The history tabs
+// share /waivers/history?status=approved|rejected|reversed.
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HandCoins,
   RefreshCcw,
-  Sparkles,
   CheckCircle,
   XCircle,
   Clock,
   ArrowUpRight,
   X,
-  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import api from "../services/api";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 
+const TABS = [
+  {
+    key: "pending",
+    label: "Pending",
+    icon: Clock,
+    activeCls: "border-amber-600 text-amber-700",
+  },
+  {
+    key: "approved",
+    label: "Approved",
+    icon: CheckCircle,
+    activeCls: "border-emerald-600 text-emerald-700",
+  },
+  {
+    key: "rejected",
+    label: "Rejected",
+    icon: XCircle,
+    activeCls: "border-rose-600 text-rose-700",
+  },
+  {
+    key: "reversed",
+    label: "Reversed",
+    icon: RotateCcw,
+    activeCls: "border-slate-600 text-slate-700",
+  },
+];
+
+function statusPill(status) {
+  const styles = {
+    pending: "bg-amber-100 text-amber-800",
+    approved: "bg-emerald-100 text-emerald-800",
+    rejected: "bg-rose-100 text-rose-800",
+    reversed: "bg-slate-200 text-slate-700",
+  };
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+        styles[status] || "bg-slate-100 text-slate-700"
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
+
 function Waivers() {
   const navigate = useNavigate();
-  const [pending, setPending] = useState([]);
+  const [tab, setTab] = useState("pending");
+  const [rows, setRows] = useState([]);
+  const [totals, setTotals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -38,10 +83,18 @@ function Waivers() {
     if (silent) setRefreshing(true);
     else setLoading(true);
     try {
-      const r = await api.get("/waivers/pending");
-      setPending(r.data.data || []);
+      if (tab === "pending") {
+        const r = await api.get("/waivers/pending");
+        setRows(r.data.data || []);
+        setTotals([]);
+      } else {
+        const r = await api.get(`/waivers/history?status=${tab}`);
+        setRows(r.data.data || []);
+        setTotals(r.data.totals || []);
+      }
     } catch (err) {
-      console.error("Failed to load pending waivers:", err);
+      console.error("Failed to load waivers:", err);
+      setRows([]);
     } finally {
       if (silent) setRefreshing(false);
       else setLoading(false);
@@ -50,7 +103,8 @@ function Waivers() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const handleApprove = async () => {
     if (!actingOn) return;
@@ -85,20 +139,19 @@ function Waivers() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-500">
-          Loading pending waivers…
-        </div>
-      </div>
-    );
-  }
+  // Per-tab counts/totals for the small headline tiles.
+  const totalsByStatus = Object.fromEntries(
+    totals.map((t) => [t.status, t]),
+  );
+  const currentTotal = totalsByStatus[tab] || {
+    count: rows.length,
+    total_amount: rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0),
+  };
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Editorial header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-10">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-8">
         <div className="max-w-2xl">
           <h1 className="text-4xl lg:text-5xl font-bold text-navy-900 tracking-tight">
             Waiver{" "}
@@ -107,9 +160,9 @@ function Waivers() {
             </span>
           </h1>
           <p className="text-slate-500 mt-3 leading-relaxed">
-            Requests from your loan officers and managers, waiting for the
-            final word. Approve to apply the allocation; reject to close out
-            the request with a note.
+            Requests from loan officers and managers. Pending sits at the top
+            of the queue; Approved / Rejected / Reversed keep a full audit
+            trail of every decision.
           </p>
         </div>
         <div className="flex gap-3 shrink-0">
@@ -127,79 +180,85 @@ function Waivers() {
         </div>
       </div>
 
-      {/* Summary tile */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-amber-100/70 via-white/55 to-orange-100/60 backdrop-blur-md">
-          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-amber-300/25 blur-3xl pointer-events-none" />
-          <div className="relative flex items-start justify-between">
-            <p className="text-xs uppercase tracking-wider font-semibold text-amber-700">
-              Pending Requests
-            </p>
-            <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
-              <Clock size={16} className="text-amber-600" />
-            </div>
-          </div>
-          <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
-            {pending.length}
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 mb-6">
+        {TABS.map((t) => {
+          const active = tab === t.key;
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`relative inline-flex items-center gap-2 px-4 py-2.5 -mb-px text-sm font-semibold transition border-b-2 ${
+                active
+                  ? t.activeCls
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Icon size={15} /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Single summary tile for the active tab */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+            {TABS.find((t) => t.key === tab)?.label}
           </p>
-          <p className="relative text-xs text-slate-500 mt-1">
-            awaiting your sign-off
+          <p className="text-3xl font-bold text-navy-900 mt-2">
+            {currentTotal.count}
           </p>
-        </div>
-        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-emerald-100/70 via-white/55 to-green-100/60 backdrop-blur-md">
-          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-emerald-300/25 blur-3xl pointer-events-none" />
-          <div className="relative flex items-start justify-between">
-            <p className="text-xs uppercase tracking-wider font-semibold text-emerald-700">
-              Total Requested
-            </p>
-            <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
-              <HandCoins size={16} className="text-emerald-600" />
-            </div>
-          </div>
-          <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
-            {fmt(pending.reduce((s, w) => s + parseFloat(w.amount || 0), 0))}
-          </p>
-          <p className="relative text-xs text-slate-500 mt-1">
-            sum across {pending.length} request
-            {pending.length !== 1 ? "s" : ""}
+          <p className="text-xs text-slate-500 mt-1">
+            waiver{currentTotal.count !== 1 ? "s" : ""}{" "}
+            {tab === "pending" ? "awaiting review" : `(${tab})`}
           </p>
         </div>
-        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-sky-100/70 via-white/55 to-cyan-100/60 backdrop-blur-md">
-          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-sky-300/25 blur-3xl pointer-events-none" />
-          <div className="relative flex items-start justify-between">
-            <p className="text-xs uppercase tracking-wider font-semibold text-sky-700">
-              Unique Loans
-            </p>
-            <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
-              <Sparkles size={16} className="text-sky-600" />
-            </div>
-          </div>
-          <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
-            {new Set(pending.map((w) => w.loan_id)).size}
+        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+            Total Amount
           </p>
-          <p className="relative text-xs text-slate-500 mt-1">
-            different loans affected
+          <p className="text-3xl font-bold text-emerald-700 mt-2">
+            {fmt(currentTotal.total_amount)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            sum of {tab} waivers
+          </p>
+        </div>
+        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+            Unique Loans
+          </p>
+          <p className="text-3xl font-bold text-navy-900 mt-2">
+            {new Set(rows.map((r) => r.loan_id)).size}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            different loans on this tab
           </p>
         </div>
       </div>
 
-      {/* Pending list */}
-      {pending.length === 0 ? (
+      {/* List */}
+      {loading ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-500">
+          Loading {tab} waivers…
+        </div>
+      ) : rows.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-          <CheckCircle
-            size={42}
-            className="text-emerald-400 mx-auto mb-3"
-          />
+          <CheckCircle size={42} className="text-emerald-400 mx-auto mb-3" />
           <h3 className="text-lg font-bold text-slate-700">
-            All caught up
+            {tab === "pending" ? "All caught up" : "Nothing here yet"}
           </h3>
           <p className="text-sm text-slate-500 mt-1">
-            No waiver requests pending review.
+            {tab === "pending"
+              ? "No waiver requests pending review."
+              : `No ${tab} waivers on record.`}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {pending.map((w) => (
+          {rows.map((w) => (
             <div
               key={w.id}
               className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5"
@@ -220,9 +279,16 @@ function Waivers() {
                     <span className="text-xs text-slate-500 font-mono">
                       {w.client_code}
                     </span>
+                    {statusPill(w.status)}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <span className="font-bold text-emerald-700 text-2xl">
+                    <span
+                      className={`font-bold text-2xl ${
+                        w.status === "reversed"
+                          ? "text-slate-500 line-through"
+                          : "text-emerald-700"
+                      }`}
+                    >
                       − {fmt(w.amount)}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold uppercase">
@@ -237,38 +303,63 @@ function Waivers() {
                       "{w.notes}"
                     </p>
                   )}
+                  {w.rejection_reason && (
+                    <p className="text-xs text-rose-700 mt-1">
+                      <strong>Rejected:</strong> {w.rejection_reason}
+                    </p>
+                  )}
+                  {w.reversal_reason && (
+                    <p className="text-xs text-slate-600 mt-1">
+                      <strong>Reversed:</strong> {w.reversal_reason}
+                    </p>
+                  )}
                   <p className="text-xs text-slate-500 mt-2">
                     Requested by{" "}
                     <strong>{w.requested_by_name || "—"}</strong> on{" "}
-                    {new Date(w.requested_at).toLocaleString("en-KE")} · loan
-                    balance owed:{" "}
-                    {fmt(
-                      Math.max(
-                        0,
-                        parseFloat(w.total_amount_due) -
-                          0, /* we don't have collected on this query */
-                      ),
+                    {new Date(w.requested_at).toLocaleString("en-KE")}
+                    {w.approved_at && (
+                      <>
+                        {" "}· Approved by{" "}
+                        <strong>{w.approved_by_name || "—"}</strong> on{" "}
+                        {new Date(w.approved_at).toLocaleString("en-KE")}
+                      </>
+                    )}
+                    {w.rejected_at && (
+                      <>
+                        {" "}· Rejected by{" "}
+                        <strong>{w.rejected_by_name || "—"}</strong> on{" "}
+                        {new Date(w.rejected_at).toLocaleString("en-KE")}
+                      </>
+                    )}
+                    {w.reversed_at && (
+                      <>
+                        {" "}· Reversed by{" "}
+                        <strong>{w.reversed_by_name || "—"}</strong> on{" "}
+                        {new Date(w.reversed_at).toLocaleString("en-KE")}
+                      </>
                     )}
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() =>
-                      setActingOn({ waiver: w, mode: "reject" })
-                    }
-                    className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold text-sm inline-flex items-center gap-2 transition"
-                  >
-                    <XCircle size={16} /> Reject
-                  </button>
-                  <button
-                    onClick={() =>
-                      setActingOn({ waiver: w, mode: "approve" })
-                    }
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold text-sm inline-flex items-center gap-2 transition"
-                  >
-                    <CheckCircle size={16} /> Approve
-                  </button>
-                </div>
+                {tab === "pending" && (
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() =>
+                        setActingOn({ waiver: w, mode: "reject" })
+                      }
+                      className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold text-sm inline-flex items-center gap-2 transition"
+                    >
+                      <XCircle size={16} /> Reject
+                    </button>
+                    <button
+                      onClick={() =>
+                        setActingOn({ waiver: w, mode: "approve" })
+                      }
+                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold text-sm inline-flex items-center gap-2 transition"
+                    >
+                      <CheckCircle size={16} /> Approve
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

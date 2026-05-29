@@ -759,14 +759,16 @@ router.get("/export/pdf", async (req, res) => {
     ]);
 
     // Income = interest + fines + processing fees retained at
-    // disbursement. Net Profit = income − expenses. Matches the
-    // dashboard + on-screen Reports accounting.
+    // disbursement. Net Profit = income − expenses − waivers. Waivers
+    // are forgone income (lender chose not to collect what was owed),
+    // so they net out of the bottom line alongside operating expenses.
     const interestEarned = parseFloat(kpis.interest_earned) || 0;
     const finesCollected = parseFloat(kpis.fines_collected) || 0;
     const processingFees = parseFloat(kpis.processing_fees) || 0;
+    const waiversWindow = parseFloat(kpis.waivers_applied) || 0;
     const incomeWindow = interestEarned + finesCollected + processingFees;
     const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
-    const netProfit = incomeWindow - expensesWindow;
+    const netProfit = incomeWindow - expensesWindow - waiversWindow;
 
     const tr = await query(
       "SELECT business_name FROM tenants WHERE id = $1",
@@ -823,8 +825,9 @@ router.get("/export/pdf", async (req, res) => {
     doc.text(`Processing Fees: ${fmtKES(processingFees)}`);
     doc.text(`Income (interest + fines + fees): ${fmtKES(incomeWindow)}`);
     doc.text(`Expenses: ${fmtKES(expensesWindow)}`);
+    doc.text(`Waivers Applied: ${fmtKES(waiversWindow)}`);
     doc.text(
-      `Net Profit: ${netProfit >= 0 ? "+" : ""}${fmtKES(netProfit)}`,
+      `Net Profit (income − expenses − waivers): ${netProfit >= 0 ? "+" : ""}${fmtKES(netProfit)}`,
     );
     doc.text(`Average Loan Size: ${fmtKES(kpis.avg_loan_size)}`);
     doc.moveDown(1.5);
@@ -966,7 +969,8 @@ router.get("/export/excel", async (req, res) => {
     summary.addRow(["Processing Fees (KES)", processingFees]);
     summary.addRow(["Income — interest + fines + fees (KES)", incomeWindow]);
     summary.addRow(["Expenses (KES)", expensesWindow]);
-    summary.addRow(["Net Profit (KES)", netProfit]);
+    summary.addRow(["Waivers Applied (KES)", waiversWindow]);
+    summary.addRow(["Net Profit — income − expenses − waivers (KES)", netProfit]);
     summary.addRow(["Average Loan Size (KES)", kpis.avg_loan_size]);
     if (!isMonthMode && par) {
       summary.addRow([]);
