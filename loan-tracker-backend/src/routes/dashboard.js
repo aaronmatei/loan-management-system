@@ -237,10 +237,19 @@ router.get("/summary", async (req, res) => {
     const upcomingData = upcomingStats.rows[0];
 
     const totalDue = parseFloat(loansData.total_amount_due);
+    const totalDisbursed = parseFloat(loansData.total_principal);
     const totalCollected = parseFloat(paymentsData.total_collected);
     const outstanding = Math.max(0, totalDue - totalCollected);
+    // Collection rate compares what came back against what we lent out
+    // (principal disbursed), capped at 100% so interest + fines
+    // collected on top of the principal can't push the rate above
+    // "fully recovered". Before this change the denominator was the
+    // contractual total_amount_due, which let fines drive the rate
+    // past 100% and broke the headline progress bar.
     const collectionRate =
-      totalDue > 0 ? ((totalCollected / totalDue) * 100).toFixed(1) : 0;
+      totalDisbursed > 0
+        ? Math.min((totalCollected / totalDisbursed) * 100, 100).toFixed(1)
+        : 0;
 
     // Expenses roll-up. When a period is supplied, "this month" and
     // "last month" columns are replaced with the period total and
