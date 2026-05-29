@@ -42,6 +42,7 @@ class AnalyticsService {
          COUNT(DISTINCT l.client_id)::int                                  AS unique_borrowers,
          COALESCE(SUM(l.principal_amount), 0)                              AS total_disbursed,
          COALESCE(SUM(l.total_interest), 0)                                AS total_interest_expected,
+         COALESCE(SUM(l.processing_fee), 0)                                AS processing_fees,
          COALESCE(SUM(l.total_amount_due), 0)                              AS total_portfolio_value
        FROM loans l
        WHERE l.tenant_id = $1
@@ -99,6 +100,7 @@ class AnalyticsService {
       unique_borrowers: parseInt(k.unique_borrowers, 10) || 0,
       total_disbursed: totalDisbursed,
       total_interest_expected: parseFloat(k.total_interest_expected) || 0,
+      processing_fees: parseFloat(k.processing_fees) || 0,
       total_portfolio_value: parseFloat(k.total_portfolio_value) || 0,
       total_collected: parseFloat(c.total_collected) || 0,
       fines_collected: parseFloat(c.fines_collected) || 0,

@@ -15,8 +15,6 @@ import {
   ClipboardList,
   Banknote,
   X,
-  Receipt,
-  ArrowUpDown,
   ArrowUpRight,
   ArrowDownLeft,
   Target,
@@ -43,7 +41,6 @@ import api from "../services/api";
 import IconTile from "../components/IconTile";
 import PeriodNavigator, {
   periodToRange,
-  periodLabel,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
 
@@ -352,7 +349,11 @@ function Dashboard() {
             <span className="font-semibold">{user?.first_name}</span>!
           </p>
         </div>
-        <PeriodNavigator value={period} onChange={setPeriod} />
+        <PeriodNavigator
+          value={period}
+          onChange={setPeriod}
+          modes={["year"]}
+        />
       </div>
 
       {showWelcome && (
@@ -546,103 +547,9 @@ function Dashboard() {
         </div>
       )}
 
-      {/* ── Period heading + compact one-row strip of cash + P&L tiles.
-          Nine tiles in total. Wraps to a 5-col cash row + 4-col P&L row
-          on lg, two equal halves on sm, two-up on mobile. */}
-      <div className="flex items-baseline justify-between mb-2">
-        <p className="text-sm text-slate-600">
-          Showing{" "}
-          <span className="font-semibold text-navy-900">
-            {periodLabel(period)}
-          </span>
-        </p>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5 mb-4">
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <p className="text-[11px] text-slate-500">Total Disbursed</p>
-          <p className="text-base font-bold text-navy-900 whitespace-nowrap mt-1">
-            {fmtKES(metrics.total_principal || 0)}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <p className="text-[11px] text-slate-500">Total Collected</p>
-          <p className="text-base font-bold text-navy-900 whitespace-nowrap mt-1">
-            {fmtKES(metrics.total_collected || 0)}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <div className="flex items-center justify-between gap-1">
-            <p className="text-[11px] text-slate-500">Processing Fees</p>
-            <Banknote size={12} className="text-ocean-600 flex-shrink-0" />
-          </div>
-          <p className="text-base font-bold text-ocean-700 whitespace-nowrap mt-1">
-            +{fmtKES(metrics.processing_fees || 0)}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <p className="text-[11px] text-slate-500">Interest from Loans</p>
-          <p className="text-base font-bold text-emerald-600 whitespace-nowrap mt-1">
-            +{fmtKES(metrics.interest_collected ?? 0)}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <p className="text-[11px] text-slate-500">Interest from Fines</p>
-          <p className="text-base font-bold text-amber-600 whitespace-nowrap mt-1">
-            +{fmtKES(metrics.fines_collected ?? 0)}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-          <div className="flex items-center justify-between gap-1">
-            <p className="text-[11px] text-slate-500">Income</p>
-            <TrendingUp size={12} className="text-emerald-600 flex-shrink-0" />
-          </div>
-          <p className="text-base font-bold text-emerald-600 whitespace-nowrap mt-1">
-            +{fmtKES(metrics.income_this_month || 0)}
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/expenses")}
-          className="text-left bg-white rounded-xl border border-slate-100 shadow-sm p-3 hover:border-amber-200 transition"
-        >
-          <div className="flex items-center justify-between gap-1">
-            <p className="text-[11px] text-slate-500">Expenses</p>
-            <Receipt size={12} className="text-amber-600 flex-shrink-0" />
-          </div>
-          <p className="text-base font-bold text-amber-700 whitespace-nowrap mt-1">
-            −{fmtKES(metrics.expenses_this_month || 0)}
-          </p>
-        </button>
-        <div
-          className={`bg-white rounded-xl border border-slate-100 shadow-sm p-3 ${
-            (metrics.net_profit_this_month || 0) >= 0
-              ? "ring-1 ring-emerald-200"
-              : "ring-1 ring-rose-200"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-1">
-            <p className="text-[11px] text-slate-500">Net Profit</p>
-            <ArrowUpDown
-              size={12}
-              className={`${
-                (metrics.net_profit_this_month || 0) >= 0
-                  ? "text-emerald-600"
-                  : "text-rose-600"
-              } flex-shrink-0`}
-            />
-          </div>
-          <p
-            className={`text-base font-bold whitespace-nowrap mt-1 ${
-              (metrics.net_profit_this_month || 0) >= 0
-                ? "text-emerald-700"
-                : "text-rose-700"
-            }`}
-          >
-            {(metrics.net_profit_this_month || 0) >= 0 ? "+" : ""}
-            {fmtKES(metrics.net_profit_this_month || 0)}
-          </p>
-        </div>
-      </div>
+      {/* Period-scoped cash + P&L tiles moved to Reports. Dashboard
+          now stays focused on lifetime Capital Pool figures + the
+          snapshot KPI strip below. */}
 
       {/* Top-up capital modal */}
       {showTopUp && (

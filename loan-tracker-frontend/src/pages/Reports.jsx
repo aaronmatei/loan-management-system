@@ -25,6 +25,7 @@ import {
   Eye,
   Receipt,
   ArrowUpDown,
+  Banknote,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -200,9 +201,14 @@ function Reports() {
       : period.value ===
         `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
+  // Income = interest portion of payments + fines + processing fees
+  // retained at disbursement. Net Profit folds in fees too (matches the
+  // dashboard's accounting where fees are recognised at disbursement).
+  const processingFeesWindow = parseFloat(kpis.processing_fees) || 0;
   const incomeWindow =
     (parseFloat(kpis.interest_earned) || 0) +
-    (parseFloat(kpis.fines_collected) || 0);
+    (parseFloat(kpis.fines_collected) || 0) +
+    processingFeesWindow;
   const netProfitWindow = incomeWindow - expensesWindow;
   const snap = snapshot || {
     outstanding_balance: 0,
@@ -384,6 +390,34 @@ function Reports() {
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
               late-payment penalties
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center mb-3">
+              <Banknote size={20} className="text-sky-600" />
+            </div>
+            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+              Processing Fees
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
+              {fmt(processingFeesWindow)}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              retained at disbursement
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
+              <TrendingUp size={20} className="text-emerald-600" />
+            </div>
+            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+              Income
+            </p>
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-emerald-700 break-words">
+              {fmt(incomeWindow)}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              interest + fines + fees
             </p>
           </div>
 

@@ -162,11 +162,34 @@ export default function PeriodNavigator({
   onChange,
   disableFuture = true,
   className = "",
+  // Which modes the picker offers. Pass ["year"] to lock the navigator
+  // to calendar-year selection and hide the Month/Year toggle (used by
+  // the Dashboard, where month-level scoping is too narrow).
+  modes = ["month", "year"],
 }) {
   const forwardDisabled = disableFuture && isAtOrPastCurrent(value);
+  const showModeToggle = modes.length > 1;
+
+  // If the current value isn't in the allowed modes (e.g. localStorage
+  // had {mode:'month'} but this page only allows year), coerce to the
+  // first allowed mode on render. Effect runs once per modes/value
+  // mismatch.
+  React.useEffect(() => {
+    if (!modes.includes(value.mode)) {
+      const target = modes[0];
+      if (target === "year") {
+        const y = value.value?.split("-")[0] || currentYear();
+        onChange({ mode: "year", value: y });
+      } else {
+        onChange({ mode: "month", value: `${value.value || currentYear()}-01` });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.mode, modes.join(",")]);
 
   const switchMode = (mode) => {
     if (mode === value.mode) return;
+    if (!modes.includes(mode)) return;
     // Carry the year over when switching modes so the user keeps context.
     if (mode === "year") {
       const y = value.value?.split("-")[0] || currentYear();
@@ -185,28 +208,34 @@ export default function PeriodNavigator({
     <div
       className={`inline-flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-2 py-1.5 shadow-sm ${className}`}
     >
-      {/* Mode toggle */}
-      <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
-        {[
-          { v: "month", l: "Month" },
-          { v: "year", l: "Year" },
-        ].map((t) => (
-          <button
-            key={t.v}
-            type="button"
-            onClick={() => switchMode(t.v)}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
-              value.mode === t.v
-                ? "bg-white text-ocean-700 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            {t.l}
-          </button>
-        ))}
-      </div>
+      {/* Mode toggle — hidden when only one mode is allowed. */}
+      {showModeToggle && (
+        <>
+          <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
+            {[
+              { v: "month", l: "Month" },
+              { v: "year", l: "Year" },
+            ]
+              .filter((t) => modes.includes(t.v))
+              .map((t) => (
+                <button
+                  key={t.v}
+                  type="button"
+                  onClick={() => switchMode(t.v)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                    value.mode === t.v
+                      ? "bg-white text-ocean-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {t.l}
+                </button>
+              ))}
+          </div>
 
-      <div className="w-px h-5 bg-slate-200" />
+          <div className="w-px h-5 bg-slate-200" />
+        </>
+      )}
 
       {/* Backward arrow */}
       <button
