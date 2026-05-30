@@ -2178,19 +2178,47 @@ function LoanDetails() {
             {/* Loan snapshot. Three outstanding buckets — only the
                 two waivable ones (Interest, Penalty) get a "USE"
                 button that fills the form. Principal stays visible
-                for context with a "Not waivable" badge. */}
+                for context with a "Not waivable" badge.
+
+                Outstanding math separates waivers (admin-declared
+                buckets, read from loan_waivers.allocation) from cash
+                (no declared split, prorated by the contract ratio).
+                Without this split, a "waive interest" action looks
+                like it also paid down principal because both numbers
+                are derived from the same amount_due bucket — which is
+                exactly the "principal dropped from 3,000 to 2,272.73
+                after I only waived interest" confusion. */}
             {(() => {
               const principal = parseFloat(loan.principal_amount || 0);
               const totalInterest = parseFloat(loan.total_interest || 0);
+              const totalAmountDue = principal + totalInterest;
               const totalAmountPaid = (schedule || []).reduce(
                 (acc, s) => acc + parseFloat(s.amount_paid || 0),
                 0,
               );
-              const interestPaid = (schedule || []).reduce(
-                (acc, s) => acc + parseFloat(s.interest_portion || 0),
-                0,
+              const approvedW = (waivers || []).filter(
+                (w) => w.status === "approved",
               );
-              const principalPaid = Math.max(0, totalAmountPaid - interestPaid);
+              const sumAlloc = (key) =>
+                approvedW.reduce(
+                  (a, w) => a + parseFloat(w.allocation?.[key] || 0),
+                  0,
+                );
+              const waiverAmountTotal = sumAlloc("amount_total");
+              const waiverInterest = sumAlloc("interest_total");
+              const waiverPrincipal = sumAlloc("principal_total");
+              const cashToAmountDue = Math.max(
+                0,
+                totalAmountPaid - waiverAmountTotal,
+              );
+              const principalRatio =
+                totalAmountDue > 0 ? principal / totalAmountDue : 0;
+              const interestRatio =
+                totalAmountDue > 0 ? totalInterest / totalAmountDue : 0;
+              const principalPaid =
+                cashToAmountDue * principalRatio + waiverPrincipal;
+              const interestPaid =
+                cashToAmountDue * interestRatio + waiverInterest;
               const principalOutstanding = Math.max(0, principal - principalPaid);
               const interestOutstanding = Math.max(
                 0,
@@ -2275,12 +2303,35 @@ function LoanDetails() {
 
             <form onSubmit={handleSubmitWaiver} className="space-y-4">
               {(() => {
-                // Live cap + percentage indicator for the Amount field.
+                // Live cap + percentage indicator for the Amount
+                // field. Mirrors the snapshot block above — admin-
+                // declared waivers carve out their own buckets;
+                // cash gets prorated by contract ratio.
+                const principal = parseFloat(loan.principal_amount || 0);
                 const totalInterest = parseFloat(loan.total_interest || 0);
-                const interestPaid = (schedule || []).reduce(
-                  (acc, s) => acc + parseFloat(s.interest_portion || 0),
+                const totalAmountDue = principal + totalInterest;
+                const totalAmountPaid = (schedule || []).reduce(
+                  (acc, s) => acc + parseFloat(s.amount_paid || 0),
                   0,
                 );
+                const approvedW = (waivers || []).filter(
+                  (w) => w.status === "approved",
+                );
+                const sumAlloc = (key) =>
+                  approvedW.reduce(
+                    (a, w) => a + parseFloat(w.allocation?.[key] || 0),
+                    0,
+                  );
+                const waiverAmountTotal = sumAlloc("amount_total");
+                const waiverInterest = sumAlloc("interest_total");
+                const cashToAmountDue = Math.max(
+                  0,
+                  totalAmountPaid - waiverAmountTotal,
+                );
+                const interestRatio =
+                  totalAmountDue > 0 ? totalInterest / totalAmountDue : 0;
+                const interestPaid =
+                  cashToAmountDue * interestRatio + waiverInterest;
                 const interestOutstanding = Math.max(
                   0,
                   totalInterest - interestPaid,
