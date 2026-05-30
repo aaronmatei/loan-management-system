@@ -23,6 +23,28 @@ const OVERDUE_WHERE = `
 `;
 
 // ============================================================
+// GET OVERDUE COUNT — lightweight endpoint for the sidebar badge.
+// One COUNT query, no rows fetched, no penalty math, no pagination.
+// Mirrors OVERDUE_WHERE so the badge agrees with the page total.
+// ============================================================
+router.get("/count", async (req, res) => {
+  try {
+    const t = tenantClause(req, 0, "l.tenant_id");
+    const result = await query(
+      `SELECT COUNT(*)::int AS n
+         FROM payment_schedules ps
+         JOIN loans l ON ps.loan_id = l.id
+        WHERE ${OVERDUE_WHERE}${t.clause}`,
+      t.params,
+    );
+    res.json({ success: true, count: result.rows[0].n });
+  } catch (error) {
+    logger.error("Get overdue count error:", error);
+    res.status(500).json({ error: "Failed to fetch overdue count" });
+  }
+});
+
+// ============================================================
 // GET ALL OVERDUE PAYMENTS (with client + loan info)
 //   ?min_days   only N+ days late
 //   ?max_days   only up to N days late

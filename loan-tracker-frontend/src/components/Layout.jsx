@@ -119,21 +119,30 @@ function Layout({ children }) {
   const [overdueCount, setOverdueCount] = useState(0);
   const [pendingWaivers, setPendingWaivers] = useState(0);
 
-  // Overdue badge — best-effort, ignore failures (preserved feature)
+  // Overdue badge — hits the dedicated /overdue/count endpoint
+  // (single COUNT query, ~50ms) rather than /dashboard/summary
+  // (10+ queries, ~2s) which was where the old "slow to appear"
+  // came from. Re-fetches on every route change so the badge
+  // clears the moment the user navigates away after recording a
+  // payment — the empty-deps version only ran once at mount, so
+  // the count went stale until the next full page reload.
   useEffect(() => {
     let mounted = true;
     api
-      .get("/dashboard/summary")
+      .get("/overdue/count")
       .then((res) => {
-        if (mounted) setOverdueCount(res.data.data?.overdue_count || 0);
+        if (mounted) setOverdueCount(res.data.count || 0);
       })
       .catch(() => {});
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [location.pathname]);
 
   // Pending-waivers badge — admin only. Tenant-scoped on the backend.
+  // Same deps as the overdue badge so approving / rejecting a waiver
+  // updates the count on the next route change instead of going stale
+  // until a full reload.
   useEffect(() => {
     let mounted = true;
     let user = null;
@@ -152,7 +161,7 @@ function Layout({ children }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [location.pathname]);
 
   // Active matcher. Dashboard "/" wants exact; everything else uses
   // startsWith so /clients/123/profile still highlights Clients.
