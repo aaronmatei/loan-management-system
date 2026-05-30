@@ -108,6 +108,13 @@ function Analytics() {
   const formatKES = (value) => {
     if (!value && value !== 0) return "KES 0";
     const num = parseFloat(value);
+    return `KES ${Math.round(num).toLocaleString("en-KE")}`;
+  };
+  // Y-axis ticks have ~50px to render in; the long-form labels overflow
+  // and clip the chart. Keep the compact form for axis ticks only.
+  const formatKESCompact = (value) => {
+    if (!value && value !== 0) return "KES 0";
+    const num = parseFloat(value);
     if (num >= 1000000) return `KES ${(num / 1000000).toFixed(2)}M`;
     if (num >= 1000) return `KES ${(num / 1000).toFixed(1)}K`;
     return `KES ${num.toFixed(0)}`;
@@ -212,7 +219,7 @@ function Analytics() {
             </defs>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" />
-            <YAxis tickFormatter={(value) => formatKES(value)} />
+            <YAxis tickFormatter={(value) => formatKESCompact(value)} />
             <Tooltip content={<CurrencyTooltip />} />
             <Legend />
             <Area
