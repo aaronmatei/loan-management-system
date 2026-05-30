@@ -387,101 +387,121 @@ function Payments() {
               )}
             </div>
 
-            {/* Loan Summary if selected */}
-            {loanSummary && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                  <BarChart3 size={16} /> Loan Status
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div>
-                    <p className="text-gray-600">Total Due</p>
-                    <p className="font-bold text-gray-800">
-                      KES{" "}
-                      {parseFloat(
-                        loanSummary.summary.total_due,
-                      ).toLocaleString()}
+            {/* Loan Summary if selected — ledger style so the user can
+                see at a glance what was cash vs waived on both the
+                principal+interest book and the penalty book. Resolves
+                the "I paid the balance and there's still 500 left"
+                confusion: that 500 is the amount_due left after part of
+                the cash had to clear the outstanding penalty first. */}
+            {loanSummary && (() => {
+              const s = loanSummary.summary;
+              const num = (v) => parseFloat(v || 0);
+              const fmt = (v) => num(v).toLocaleString();
+              const totalDue = num(s.total_due);
+              const cashToAmountDue = num(s.total_cash_paid);
+              const waivedAmountDue = num(s.total_waived_amount_due);
+              const balance = num(s.balance);
+              const progress = parseFloat(s.progress_percentage || 0);
+              const penaltyPaid = num(s.total_penalty_paid);
+              const penaltyWaived = num(s.total_waived_penalty);
+              const hasPenaltyActivity = penaltyPaid + penaltyWaived > 0;
+              return (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                    <BarChart3 size={16} /> Loan Status
+                  </h3>
+
+                  {/* Principal + interest ledger */}
+                  <div className="bg-white rounded-md p-3 text-sm space-y-1.5">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                      Principal + interest
                     </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Paid So Far</p>
-                    <p className="font-bold text-green-600">
-                      KES{" "}
-                      {parseFloat(
-                        loanSummary.summary.total_paid,
-                      ).toLocaleString()}
-                    </p>
-                    {parseFloat(
-                      loanSummary.summary.total_waived_amount_due || 0,
-                    ) > 0 && (
-                      <p className="text-[11px] text-fuchsia-700 mt-0.5">
-                        incl. KES{" "}
-                        {parseFloat(
-                          loanSummary.summary.total_waived_amount_due,
-                        ).toLocaleString()}{" "}
-                        waived
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Balance</p>
-                    <p className="font-bold text-orange-600">
-                      KES{" "}
-                      {parseFloat(loanSummary.summary.balance).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Progress</p>
-                    <p className="font-bold text-blue-600">
-                      {loanSummary.summary.progress_percentage}%
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-green-500 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${loanSummary.summary.progress_percentage}%`,
-                    }}
-                  ></div>
-                </div>
-                {(parseFloat(
-                  loanSummary.summary.total_waived_penalty || 0,
-                ) > 0 ||
-                  parseFloat(
-                    loanSummary.summary.total_penalty_paid || 0,
-                  ) > 0) && (
-                  <div className="mt-3 pt-3 border-t border-blue-100 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    {parseFloat(
-                      loanSummary.summary.total_penalty_paid || 0,
-                    ) > 0 && (
-                      <span className="text-gray-600">
-                        Penalty paid:{" "}
-                        <span className="font-semibold text-rose-700">
-                          KES{" "}
-                          {parseFloat(
-                            loanSummary.summary.total_penalty_paid,
-                          ).toLocaleString()}
-                        </span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total due</span>
+                      <span className="font-semibold text-gray-800">
+                        KES {fmt(totalDue)}
                       </span>
-                    )}
-                    {parseFloat(
-                      loanSummary.summary.total_waived_penalty || 0,
-                    ) > 0 && (
-                      <span className="text-gray-600">
-                        Penalty waived:{" "}
+                    </div>
+                    <div className="flex justify-between pl-4">
+                      <span className="text-gray-500">↳ Cash paid</span>
+                      <span className="font-semibold text-green-700">
+                        KES {fmt(cashToAmountDue)}
+                      </span>
+                    </div>
+                    {waivedAmountDue > 0 && (
+                      <div className="flex justify-between pl-4">
+                        <span className="text-gray-500">↳ Waived</span>
                         <span className="font-semibold text-fuchsia-700">
-                          KES{" "}
-                          {parseFloat(
-                            loanSummary.summary.total_waived_penalty,
-                          ).toLocaleString()}
+                          KES {fmt(waivedAmountDue)}
                         </span>
-                      </span>
+                      </div>
                     )}
+                    <div className="flex justify-between border-t border-gray-100 pt-1.5">
+                      <span className="font-semibold text-gray-700">Balance</span>
+                      <span
+                        className={`font-bold ${
+                          balance > 0 ? "text-orange-600" : "text-green-600"
+                        }`}
+                      >
+                        KES {fmt(balance)}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* Progress bar */}
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-600">Progress</span>
+                      <span className="font-semibold text-blue-700">
+                        {progress}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Penalty ledger — only when penalties have been
+                      paid or waived. This is the line that explains
+                      why a "settled" loan can still show a balance:
+                      cash goes to penalty first. */}
+                  {hasPenaltyActivity && (
+                    <div className="mt-3 bg-white rounded-md p-3 text-sm space-y-1.5">
+                      <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                        Penalties
+                      </p>
+                      {penaltyPaid > 0 && (
+                        <div className="flex justify-between pl-4">
+                          <span className="text-gray-500">↳ Cash paid</span>
+                          <span className="font-semibold text-rose-700">
+                            KES {fmt(penaltyPaid)}
+                          </span>
+                        </div>
+                      )}
+                      {penaltyWaived > 0 && (
+                        <div className="flex justify-between pl-4">
+                          <span className="text-gray-500">↳ Waived</span>
+                          <span className="font-semibold text-fuchsia-700">
+                            KES {fmt(penaltyWaived)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-gray-100 pt-1.5">
+                        <span className="font-semibold text-gray-700">
+                          Settled
+                        </span>
+                        <span className="font-bold text-gray-800">
+                          KES {fmt(penaltyPaid + penaltyWaived)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Payment Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
