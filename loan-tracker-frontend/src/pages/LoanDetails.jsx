@@ -70,6 +70,19 @@ function LoanDetails() {
     reason: "",
     notes: "",
   });
+  // Reason picker — five presets cover most real waivers; "other"
+  // unlocks a free-text input. Kept as separate UI state so we can
+  // tell "user picked Other and is typing" apart from "user has not
+  // chosen yet" — both have empty waiverForm.reason but different
+  // intent.
+  const WAIVER_REASONS = [
+    "Goodwill — first late payment",
+    "Financial hardship (illness, job loss, family emergency)",
+    "Negotiated settlement",
+    "Billing or system error",
+    "Uncollectable — write-off",
+  ];
+  const [reasonChoice, setReasonChoice] = useState("");
   const [savingWaiver, setSavingWaiver] = useState(false);
   const [waiverError, setWaiverError] = useState("");
   // Reverse-waiver confirmation modal.
@@ -105,6 +118,7 @@ function LoanDetails() {
 
   const openWaiverModal = () => {
     setWaiverForm({ type: "penalty", amount: "", reason: "", notes: "" });
+    setReasonChoice("");
     setWaiverError("");
     setShowWaiverModal(true);
   };
@@ -2368,16 +2382,42 @@ function LoanDetails() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Reason *
                 </label>
-                <input
-                  type="text"
+                <select
                   required
-                  value={waiverForm.reason}
-                  onChange={(e) =>
-                    setWaiverForm({ ...waiverForm, reason: e.target.value })
-                  }
-                  placeholder="e.g. Goodwill — first late payment"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
-                />
+                  value={reasonChoice}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setReasonChoice(v);
+                    setWaiverForm({
+                      ...waiverForm,
+                      reason: v === "other" ? "" : v,
+                    });
+                  }}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white"
+                >
+                  <option value="" disabled>
+                    Select a reason…
+                  </option>
+                  {WAIVER_REASONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                  <option value="other">Other (specify)</option>
+                </select>
+                {reasonChoice === "other" && (
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={waiverForm.reason}
+                    onChange={(e) =>
+                      setWaiverForm({ ...waiverForm, reason: e.target.value })
+                    }
+                    placeholder="Enter the reason…"
+                    className="mt-2 w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
