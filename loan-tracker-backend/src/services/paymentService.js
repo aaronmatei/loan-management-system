@@ -537,19 +537,31 @@ export async function buildReceiptBlock(loanId, tenantId) {
     const l = loanRes.rows[0];
 
     // total_paid is the principal+interest portion applied to amount_due
-    // (excludes penalty AND overpayment). Mirrors routes/payments.js summary.
+    // (excludes penalty AND overpayment) PLUS waivers' amount_total, so
+    // a receipt issued right after a waiver+payment that together cover
+    // the contract reads "Remaining KES 0" instead of leaving the
+    // waived share on the books. Mirrors routes/payments.js summary,
+    // the loans list balance_due, and the dashboard outstanding —
+    // same formula everywhere.
     const paidRes = await query(
-      `SELECT COALESCE(
-          SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)),
-          0
-        ) AS total_paid
+      `SELECT
+          COALESCE(SUM(
+            amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)
+          ), 0) AS cash_to_amount_due,
+          (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+             FROM loan_waivers
+            WHERE loan_id = $1 AND status = 'approved') AS waived_to_amount_due
          FROM transactions
         WHERE loan_id = $1 AND payment_status = 'completed'`,
       [loanId],
     );
 
     const totalDue = parseFloat(l.total_amount_due);
-    const totalPaid = parseFloat(paidRes.rows[0].total_paid || 0);
+    const cashToAmountDue = parseFloat(paidRes.rows[0].cash_to_amount_due || 0);
+    const waivedToAmountDue = parseFloat(
+      paidRes.rows[0].waived_to_amount_due || 0,
+    );
+    const totalPaid = cashToAmountDue + waivedToAmountDue;
     const remaining = Math.max(0, totalDue - totalPaid);
     const overpayment = parseFloat(l.overpayment_amount || 0);
 

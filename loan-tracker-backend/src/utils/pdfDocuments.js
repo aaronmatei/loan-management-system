@@ -432,16 +432,37 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   }
   const txn = result.rows[0];
 
-  // Balance AS OF this payment: cumulative completed payments through
-  // this transaction (id <= current) so a re-printed receipt still
-  // reflects the state at the time it was paid.
+  // Balance AS OF this payment: cumulative settlement through this
+  // transaction so a re-printed receipt still reflects the state at
+  // the time it was paid. Two bugs in the old formula:
+  //   1) SUM(amount_paid) is the gross transaction figure — included
+  //      penalty and overpayment, both of which do NOT pay down
+  //      amount_due. Receipt under-stated remaining by the penalty
+  //      cash applied to the loan.
+  //   2) Waivers weren't subtracted at all. A receipt issued after a
+  //      waiver+cash combo that fully cleared the loan still showed a
+  //      "remaining" equal to the waived amount.
+  // Now: cash net of penalty/overpayment through this txn, plus
+  // waivers approved on or before this payment's date. Mirrors the
+  // formula buildReceiptBlock and the loans-list balance_due use, so
+  // the printed PDF, the on-screen receipt, and every other surface
+  // can't disagree.
   const paidThroughRes = await query(
-    `SELECT COALESCE(SUM(amount_paid), 0) AS paid
+    `SELECT
+        COALESCE(SUM(
+          amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)
+        ), 0) AS cash_through,
+        (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+           FROM loan_waivers
+          WHERE loan_id = $1 AND status = 'approved'
+            AND approved_at <= $3) AS waived_through
        FROM transactions
       WHERE loan_id = $1 AND payment_status = 'completed' AND id <= $2`,
-    [txn.loan_id, txn.id],
+    [txn.loan_id, txn.id, txn.payment_date],
   );
-  const paidThrough = parseFloat(paidThroughRes.rows[0].paid);
+  const cashThrough = parseFloat(paidThroughRes.rows[0].cash_through);
+  const waivedThrough = parseFloat(paidThroughRes.rows[0].waived_through);
+  const paidThrough = cashThrough + waivedThrough;
   const remaining = Math.max(0, parseFloat(txn.total_amount_due) - paidThrough);
 
   // Next unpaid installment (schedules are already allocated by now).
