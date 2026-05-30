@@ -492,6 +492,24 @@ function Applications() {
           <button
             onClick={() => {
               setSelectedLoan(app);
+              // Default the disbursement date to the application date —
+              // most lenders disburse on or near the day the borrower
+              // applied, and pre-filling "today" makes back-dating into
+              // an extra click + date-picker fight. The user can still
+              // override; the min= constraint stays the application
+              // date either way.
+              const appYmd = app.application_date
+                ? new Date(app.application_date).toISOString().split("T")[0]
+                : app.created_at
+                  ? new Date(app.created_at).toISOString().split("T")[0]
+                  : new Date().toISOString().split("T")[0];
+              setDisburseData({
+                disbursement_method: "mpesa",
+                disbursement_reference: "",
+                disbursement_date: appYmd,
+                start_date: "",
+                start_date_manual: false,
+              });
               setShowDisburseModal(true);
             }}
             className={`${actBtn} bg-ocean-600 hover:bg-ocean-700 text-white`}
