@@ -158,6 +158,47 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     status.net_profit_lifetime =
       status.total_interest_earned - totalExpenses - totalWaived;
 
+    // "Loaned Out" is principal still on loan. The capital_pool table
+    // tracks disbursed − collected, where collected is bumped only by
+    // cash receipts. Waivers don't move cash, so the principal share
+    // of any waiver sits forever in outstanding_principal even after
+    // the loan is completed via waiver — exactly the discrepancy that
+    // makes a fully-closed loan show "KES 7,272 loaned out".
+    //
+    // The Reports-side bucketing above respects the admin's declared
+    // waiver type (interest vs penalty vs principal), which is the
+    // right lens for income recognition. For the treasury view here
+    // we want the contractual ratio instead: a waiver against
+    // amount_due forgives principal in lockstep with interest, no
+    // matter how the admin labelled the line item — because the
+    // borrower will not be paying that principal back either way.
+    const principalWriteOff = await query(
+      `SELECT COALESCE(SUM(
+         COALESCE((w.allocation->>'amount_total')::float, 0)
+           * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+       ), 0)::float AS principal_written_off
+       FROM loan_waivers w
+       JOIN loans l ON l.id = w.loan_id
+      WHERE l.tenant_id = $1 AND w.status = 'approved'`,
+      [tid],
+    );
+    const principalWrittenOff =
+      parseFloat(principalWriteOff.rows[0].principal_written_off) || 0;
+    status.principal_written_off = principalWrittenOff;
+    status.outstanding_principal = Math.max(
+      0,
+      status.outstanding_principal - principalWrittenOff,
+    );
+    status.utilization_rate =
+      parseFloat(status.initial_capital) > 0
+        ? parseFloat(
+            (
+              (status.outstanding_principal / status.initial_capital) *
+              100
+            ).toFixed(2),
+          )
+        : 0;
+
     res.json({ success: true, data: status });
   } catch (error) {
     logger.error("Get capital status error:", error);
