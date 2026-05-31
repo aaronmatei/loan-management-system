@@ -323,6 +323,15 @@ router.get("/loan/:loanId/summary", async (req, res) => {
           total_waived_penalty: totalWaivedPenalty,
           total_collected: totalCollected, // kept by the lender (gross − overpayment)
           total_penalty_paid: totalPenaltyPaid,
+          // Sum of per-installment penalty_outstanding — what the
+          // borrower still owes in penalty right now after both
+          // cash and waiver have been applied. Lets the Payments
+          // panel show "Balance + Penalty = Total to pay" without
+          // re-deriving from the schedule client-side.
+          total_penalty_outstanding: scheduleWithPenalty.reduce(
+            (acc, s) => acc + parseFloat(s.penalty_outstanding || 0),
+            0,
+          ),
           total_overpayment: totalOverpayment,
           balance: balance,
           overpayment: overpayment,

@@ -404,7 +404,10 @@ function Payments() {
               const progress = parseFloat(s.progress_percentage || 0);
               const penaltyPaid = num(s.total_penalty_paid);
               const penaltyWaived = num(s.total_waived_penalty);
-              const hasPenaltyActivity = penaltyPaid + penaltyWaived > 0;
+              const penaltyOutstanding = num(s.total_penalty_outstanding);
+              const hasPenaltyActivity =
+                penaltyPaid + penaltyWaived + penaltyOutstanding > 0;
+              const totalToPay = balance + penaltyOutstanding;
               return (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
@@ -464,10 +467,13 @@ function Payments() {
                     </div>
                   </div>
 
-                  {/* Penalty ledger — only when penalties have been
-                      paid or waived. This is the line that explains
-                      why a "settled" loan can still show a balance:
-                      cash goes to penalty first. */}
+                  {/* Penalty ledger — render whenever there's any
+                      penalty activity (paid, waived, or still
+                      outstanding). Outstanding line makes it clear
+                      that penalty continues to accrue independent of
+                      the principal+interest book; together with the
+                      Total to pay row below it answers "what does
+                      the borrower owe me right now in cash?". */}
                   {hasPenaltyActivity && (
                     <div className="mt-3 bg-white rounded-md p-3 text-sm space-y-1.5">
                       <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
@@ -489,14 +495,38 @@ function Payments() {
                           </span>
                         </div>
                       )}
-                      <div className="flex justify-between border-t border-gray-100 pt-1.5">
-                        <span className="font-semibold text-gray-700">
-                          Settled
+                      {penaltyOutstanding > 0 && (
+                        <div className="flex justify-between pl-4">
+                          <span className="text-gray-500">↳ Outstanding</span>
+                          <span className="font-semibold text-orange-600">
+                            KES {fmt(penaltyOutstanding)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Total to pay — what the borrower must hand over
+                      right now to clear both books. Balance is the
+                      remaining principal+interest after cash + waivers;
+                      penaltyOutstanding is the still-accruing fine on
+                      whatever's still overdue. Both are live figures. */}
+                  {totalToPay > 0 && (
+                    <div className="mt-3 bg-blue-100/60 border border-blue-200 rounded-md p-3 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-blue-900 uppercase text-xs tracking-wide">
+                          Total to pay now
                         </span>
-                        <span className="font-bold text-gray-800">
-                          KES {fmt(penaltyPaid + penaltyWaived)}
+                        <span className="font-bold text-blue-900 text-lg">
+                          KES {fmt(totalToPay)}
                         </span>
                       </div>
+                      {penaltyOutstanding > 0 && balance > 0 && (
+                        <p className="text-[11px] text-blue-700/80 mt-1">
+                          KES {fmt(balance)} balance + KES{" "}
+                          {fmt(penaltyOutstanding)} penalty
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
