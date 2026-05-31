@@ -144,13 +144,23 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     const finesNet = Math.max(0, finesCollectedGross - finesWaived);
     const interestNet = Math.max(0, interestCollectedGross - interestWaived);
 
-    // Tiles read the net figures by default; gross + waived bucketing
-    // is exposed so admin views can show "X collected, Y forgiven".
-    status.loan_interest_earned = interestNet;
+    // Dashboard tiles read GROSS cash figures now — same cash-flow
+    // lens that drives net_profit_lifetime (which subtracts
+    // principal_written_off, not the admin-declared waiver total).
+    // Subtracting waivers here too double-counted the loss: a
+    // 3,000 interest waiver dropped cash interest by ~1,636 (less
+    // cash came in), and then we ALSO subtracted the 3,000 waiver
+    // from the tile, leaving the headline 1,636 below the actual
+    // cash earned. interestNet / finesNet are kept on the response
+    // for any surface that explicitly wants the "after admin
+    // waiver" lens, but the primary fields point at gross.
+    status.loan_interest_earned = interestCollectedGross;
     status.loan_interest_earned_gross = interestCollectedGross;
+    status.loan_interest_earned_net_admin = interestNet;
     status.interest_waived = interestWaived;
-    status.fines_collected = finesNet;
+    status.fines_collected = finesCollectedGross;
     status.fines_collected_gross = finesCollectedGross;
+    status.fines_collected_net_admin = finesNet;
     status.fines_waived = finesWaived;
     status.principal_waived = principalWaived;
     status.total_expenses = totalExpenses;
