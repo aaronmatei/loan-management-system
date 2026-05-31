@@ -347,7 +347,7 @@ function Reports() {
                           Net Profit
                         </p>
                         <p className="text-xs text-slate-500">
-                          income − expenses − waivers
+                          income − expenses − principal write-off
                         </p>
                       </div>
                     </div>
@@ -362,7 +362,7 @@ function Reports() {
                       {fmt(netProfitWindow)}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div
                       className={`bg-white rounded-lg border p-3 ${
                         netProfitWindow >= 0
@@ -380,6 +380,18 @@ function Reports() {
                         {expenseStats?.count_in_window || 0} entries
                       </p>
                     </div>
+                    {/* Principal Write-off — the ACTUAL second
+                        subtraction from Income. Cash interest waivers
+                        are already missing from cash income (so
+                        re-subtracting them double-counts), but the
+                        principal share of those waivers — money you
+                        lent that won't come back — is a real cash
+                        loss not captured anywhere else. By contract
+                        ratio: Σ (waiver.amount_total × principal /
+                        total_amount_due). For Paul: 3,000 × 5/11 =
+                        1,364. Without this tile the arithmetic
+                        "Income − Expenses − Waivers" doesn't add up
+                        to Net Profit. */}
                     <div
                       className={`bg-white rounded-lg border p-3 ${
                         netProfitWindow >= 0
@@ -388,7 +400,30 @@ function Reports() {
                       }`}
                     >
                       <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                        Waivers
+                        Principal Write-off
+                      </p>
+                      <p className="text-lg lg:text-xl font-extrabold text-rose-700 mt-0.5 break-words">
+                        −{fmt(principalWrittenOff)}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        principal share of waivers
+                      </p>
+                    </div>
+                    {/* Waivers — informational. Interest waivers are
+                        already reflected in lower cash interest
+                        (Income side ticks up less), and penalty
+                        waivers were never cash income to begin with,
+                        so neither moves Net Profit by itself. Kept
+                        here as a record of what was forgiven. */}
+                    <div
+                      className={`bg-white rounded-lg border border-dashed p-3 ${
+                        netProfitWindow >= 0
+                          ? "border-emerald-200/60"
+                          : "border-rose-200/60"
+                      }`}
+                    >
+                      <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                        Waivers <span className="lowercase italic font-normal text-slate-400">(info)</span>
                       </p>
                       <p className="text-lg lg:text-xl font-extrabold text-fuchsia-700 mt-0.5 break-words">
                         −{fmt(waiversWindow)}
