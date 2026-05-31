@@ -557,9 +557,12 @@ function LoanDetails() {
           </PermissionGate>
         )}
         {/* Waiver — admin records directly, others request approval.
-            Only meaningful on disbursed loans with an outstanding
-            balance. */}
-        {["active", "defaulted", "suspended"].includes(loan.status) && (
+            Disabled on defaulted loans: write-offs on a defaulted
+            balance should go through the reactivate flow first so the
+            loan is back to 'active' and the waiver sits on top of a
+            live obligation, not a closed one. The Reactivate button
+            stays visible right next to this one for that path. */}
+        {["active", "suspended"].includes(loan.status) && (
           <PermissionGate role={["admin", "manager", "loan_officer"]}>
             <button
               onClick={openWaiverModal}
