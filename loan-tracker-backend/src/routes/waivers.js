@@ -172,7 +172,14 @@ router.post(
 router.get("/:id/waivers", async (req, res) => {
   try {
     const { id } = req.params;
-    const t = tenantClause(req, 1);
+    // Qualify the tenant column — loan_waivers AND users both have
+    // tenant_id, so an unqualified `AND tenant_id = $2` parsed
+    // against a query with four user-table JOINs throws
+    // `column reference "tenant_id" is ambiguous`. fetchWaivers in
+    // the frontend swallows the 500, leaves waivers state empty,
+    // and the Waive Loan modal shows "no waivers applied" on a
+    // loan that clearly has them.
+    const t = tenantClause(req, 1, "w.tenant_id");
     const r = await query(
       `SELECT w.*,
               ru.first_name || ' ' || ru.last_name AS requested_by_name,
