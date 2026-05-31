@@ -73,9 +73,10 @@ function Waivers() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Modal state — reject needs a typed reason.
-  const [actingOn, setActingOn] = useState(null); // { waiver, mode: 'approve' | 'reject' }
+  // Modal state — reject + reverse both need a typed reason.
+  const [actingOn, setActingOn] = useState(null); // { waiver, mode: 'approve' | 'reject' | 'reverse' }
   const [rejectReason, setRejectReason] = useState("");
+  const [reverseReason, setReverseReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -137,6 +138,31 @@ function Waivers() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleReverse = async () => {
+    if (!actingOn || !reverseReason.trim()) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await api.post(`/waivers/${actingOn.waiver.id}/reverse`, {
+        reversal_reason: reverseReason.trim(),
+      });
+      setActingOn(null);
+      setReverseReason("");
+      load({ silent: true });
+    } catch (err) {
+      setActionError(err.response?.data?.error || "Failed to reverse");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const closeModal = () => {
+    setActingOn(null);
+    setRejectReason("");
+    setReverseReason("");
+    setActionError("");
   };
 
   // Per-tab counts/totals for the small headline tiles.
@@ -360,36 +386,52 @@ function Waivers() {
                     </button>
                   </div>
                 )}
+                {tab === "approved" && w.status === "approved" && (
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() =>
+                        setActingOn({ waiver: w, mode: "reverse" })
+                      }
+                      className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold text-sm inline-flex items-center gap-2 transition"
+                      title="Undo this waiver — restores schedule rows + pool counter"
+                    >
+                      <RotateCcw size={16} /> Reverse
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Approve / Reject confirmation */}
+      {/* Approve / Reject / Reverse confirmation */}
       {actingOn && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <div className="flex justify-between items-start mb-3">
               <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                {actingOn.mode === "approve" ? (
+                {actingOn.mode === "approve" && (
                   <>
                     <CheckCircle size={20} className="text-emerald-700" />
                     Approve waiver?
                   </>
-                ) : (
+                )}
+                {actingOn.mode === "reject" && (
                   <>
                     <XCircle size={20} className="text-rose-700" />
                     Reject waiver?
                   </>
                 )}
+                {actingOn.mode === "reverse" && (
+                  <>
+                    <RotateCcw size={20} className="text-rose-700" />
+                    Reverse waiver?
+                  </>
+                )}
               </h3>
               <button
-                onClick={() => {
-                  setActingOn(null);
-                  setRejectReason("");
-                  setActionError("");
-                }}
+                onClick={closeModal}
                 disabled={busy}
                 className="text-slate-400 hover:text-slate-600"
               >
@@ -398,7 +440,7 @@ function Waivers() {
             </div>
 
             <p className="text-sm text-gray-600 mb-4">
-              {actingOn.mode === "approve" ? (
+              {actingOn.mode === "approve" && (
                 <>
                   Applies{" "}
                   <strong className="text-emerald-700">
@@ -408,7 +450,8 @@ function Waivers() {
                   <span className="font-mono">{actingOn.waiver.loan_code}</span>
                   . The customer will be notified.
                 </>
-              ) : (
+              )}
+              {actingOn.mode === "reject" && (
                 <>
                   Closes the request for{" "}
                   <strong className="text-rose-700">
@@ -418,6 +461,19 @@ function Waivers() {
                   <span className="font-mono">{actingOn.waiver.loan_code}</span>
                   . The borrower is NOT charged anything — the request is
                   simply declined.
+                </>
+              )}
+              {actingOn.mode === "reverse" && (
+                <>
+                  Undoes{" "}
+                  <strong className="text-rose-700">
+                    {fmt(actingOn.waiver.amount)}
+                  </strong>{" "}
+                  on loan{" "}
+                  <span className="font-mono">{actingOn.waiver.loan_code}</span>
+                  . Schedule rows roll back to their pre-waiver state, the pool
+                  counter is decremented, and the row stays in the Reversed tab
+                  for audit. The borrower is notified.
                 </>
               )}
             </p>
@@ -438,6 +494,22 @@ function Waivers() {
               </>
             )}
 
+            {actingOn.mode === "reverse" && (
+              <>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Reason for reversal *
+                </label>
+                <textarea
+                  rows="2"
+                  value={reverseReason}
+                  onChange={(e) => setReverseReason(e.target.value)}
+                  placeholder="e.g. Applied to wrong loan — reversing"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-rose-500 focus:outline-none mb-3"
+                  required
+                />
+              </>
+            )}
+
             {actionError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-3 text-sm">
                 {actionError}
@@ -446,17 +518,13 @@ function Waivers() {
 
             <div className="flex justify-end gap-3 mt-3">
               <button
-                onClick={() => {
-                  setActingOn(null);
-                  setRejectReason("");
-                  setActionError("");
-                }}
+                onClick={closeModal}
                 disabled={busy}
                 className="px-5 py-2 bg-gray-500 text-white rounded-lg disabled:opacity-50"
               >
                 Cancel
               </button>
-              {actingOn.mode === "approve" ? (
+              {actingOn.mode === "approve" && (
                 <button
                   onClick={handleApprove}
                   disabled={busy}
@@ -465,7 +533,8 @@ function Waivers() {
                   <CheckCircle size={16} />
                   {busy ? "Approving…" : "Approve & apply"}
                 </button>
-              ) : (
+              )}
+              {actingOn.mode === "reject" && (
                 <button
                   onClick={handleReject}
                   disabled={busy || !rejectReason.trim()}
@@ -473,6 +542,16 @@ function Waivers() {
                 >
                   <XCircle size={16} />
                   {busy ? "Rejecting…" : "Reject request"}
+                </button>
+              )}
+              {actingOn.mode === "reverse" && (
+                <button
+                  onClick={handleReverse}
+                  disabled={busy || !reverseReason.trim()}
+                  className="px-5 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  <RotateCcw size={16} />
+                  {busy ? "Reversing…" : "Reverse waiver"}
                 </button>
               )}
             </div>
