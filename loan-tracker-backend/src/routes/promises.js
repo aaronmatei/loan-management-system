@@ -1,0 +1,276 @@
+// Promise to Pay — collections-side commitments.
+//
+// Borrower verbally agrees to pay an amount by a specific date; admin logs
+// it on the loan so it appears in a follow-up queue. "Broken" status is
+// derived on read (pending + promised_date < today) so we don't need a
+// nightly job to flip rows — keeps the SQL model tiny.
+//
+// Mount routes:
+//   POST /api/loans/:id/promises         — log a new promise on a loan
+//   GET  /api/loans/:id/promises         — list promises for a loan
+//   GET  /api/promises                   — tenant-wide list, filtered by status
+//   GET  /api/promises/summary           — counts by derived status for tiles
+//   PUT  /api/promises/:pid/kept         — mark as fulfilled
+//   PUT  /api/promises/:pid/cancel       — cancel with a reason
+//
+// All routes verifyToken + tenant-scoped. Capture/resolve/cancel actions are
+// admin/manager/loan_officer; viewing is anyone with a token.
+
+import express from "express";
+import { query } from "../config/database.js";
+import { verifyToken, authorize } from "../middleware/auth.js";
+import { tenantClause, tenantId } from "../utils/tenantScope.js";
+import logger from "../config/logger.js";
+
+const router = express.Router();
+router.use(verifyToken);
+
+// Derived status SQL fragment — applies to a row aliased as `p`.
+// pending + promised_date < today  →  broken
+// pending + promised_date >= today →  pending
+// kept / cancelled                  →  themselves
+const DERIVED_STATUS = `
+  CASE
+    WHEN p.status = 'pending' AND p.promised_date < CURRENT_DATE THEN 'broken'
+    ELSE p.status
+  END
+`;
+
+// =============================================================
+// POST /loans/:id/promises — log a new promise
+// =============================================================
+router.post(
+  "/:id/promises",
+  authorize("admin", "manager", "loan_officer"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { amount, promised_date, notes } = req.body;
+
+      const numAmount = parseFloat(amount);
+      if (!Number.isFinite(numAmount) || numAmount <= 0) {
+        return res
+          .status(400)
+          .json({ error: "Amount must be a positive number" });
+      }
+      if (!promised_date || !/^\d{4}-\d{2}-\d{2}$/.test(promised_date)) {
+        return res
+          .status(400)
+          .json({ error: "promised_date must be YYYY-MM-DD" });
+      }
+
+      // Confirm the loan belongs to this tenant + isn't closed.
+      const lt = tenantClause(req, 1);
+      const lr = await query(
+        `SELECT id, status FROM loans WHERE id = $1${lt.clause}`,
+        [id, ...lt.params],
+      );
+      if (lr.rows.length === 0) {
+        return res.status(404).json({ error: "Loan not found" });
+      }
+      if (["completed", "rejected"].includes(lr.rows[0].status)) {
+        return res.status(400).json({
+          error: `Cannot log a promise on a ${lr.rows[0].status} loan`,
+        });
+      }
+
+      const tid = tenantId(req);
+      const r = await query(
+        `INSERT INTO promises_to_pay
+           (tenant_id, loan_id, amount, promised_date, notes, captured_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [tid, id, numAmount, promised_date, notes || null, req.user.id],
+      );
+      res.status(201).json({ success: true, data: r.rows[0] });
+    } catch (err) {
+      logger.error("Create promise error:", err);
+      res.status(500).json({ error: "Failed to log promise" });
+    }
+  },
+);
+
+// =============================================================
+// GET /loans/:id/promises — per-loan history
+// =============================================================
+router.get("/:id/promises", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const t = tenantClause(req, 1, "p.tenant_id");
+    const r = await query(
+      `SELECT p.*, ${DERIVED_STATUS} AS derived_status,
+              cb.first_name || ' ' || cb.last_name AS captured_by_name,
+              rb.first_name || ' ' || rb.last_name AS resolved_by_name
+         FROM promises_to_pay p
+         LEFT JOIN users cb ON cb.id = p.captured_by
+         LEFT JOIN users rb ON rb.id = p.resolved_by
+        WHERE p.loan_id = $1${t.clause}
+        ORDER BY p.promised_date DESC, p.id DESC`,
+      [id, ...t.params],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (err) {
+    logger.error("List promises (per loan) error:", err);
+    res.status(500).json({ error: "Failed to load promises" });
+  }
+});
+
+// =============================================================
+// GET /promises — tenant-wide list
+//   ?status=all|pending|broken|kept|cancelled  (default: all)
+//   ?from=YYYY-MM-DD&to=YYYY-MM-DD  (filter by promised_date window)
+// =============================================================
+router.get("/", async (req, res) => {
+  try {
+    const status = (req.query.status || "all").toLowerCase();
+    const validStatuses = ["all", "pending", "broken", "kept", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status filter" });
+    }
+
+    const params = [];
+    let where = "WHERE 1=1";
+
+    const t = tenantClause(req, params.length, "p.tenant_id");
+    if (t.clause) {
+      where += t.clause;
+      params.push(...t.params);
+    }
+
+    if (status !== "all") {
+      params.push(status);
+      where += ` AND ${DERIVED_STATUS} = $${params.length}`;
+    }
+
+    const { from, to } = req.query;
+    if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
+      params.push(from);
+      where += ` AND p.promised_date >= $${params.length}`;
+    }
+    if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      params.push(to);
+      where += ` AND p.promised_date <= $${params.length}`;
+    }
+
+    const r = await query(
+      `SELECT p.*, ${DERIVED_STATUS} AS derived_status,
+              l.loan_code, l.status AS loan_status,
+              c.first_name, c.last_name, c.phone_number, c.client_code,
+              cb.first_name || ' ' || cb.last_name AS captured_by_name,
+              rb.first_name || ' ' || rb.last_name AS resolved_by_name
+         FROM promises_to_pay p
+         JOIN loans l ON l.id = p.loan_id
+         JOIN clients c ON c.id = l.client_id
+         LEFT JOIN users cb ON cb.id = p.captured_by
+         LEFT JOIN users rb ON rb.id = p.resolved_by
+         ${where}
+        ORDER BY p.promised_date ASC, p.id DESC
+        LIMIT 1000`,
+      params,
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (err) {
+    logger.error("List promises (tenant-wide) error:", err);
+    res.status(500).json({ error: "Failed to load promises" });
+  }
+});
+
+// =============================================================
+// GET /promises/summary — derived-status counts for tiles
+// =============================================================
+router.get("/summary", async (req, res) => {
+  try {
+    const t = tenantClause(req, 0, "p.tenant_id");
+    const r = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'pending')::int   AS pending_count,
+         COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'broken')::int    AS broken_count,
+         COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'kept')::int      AS kept_count,
+         COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'cancelled')::int AS cancelled_count,
+         COALESCE(SUM(amount) FILTER (WHERE ${DERIVED_STATUS} = 'pending'), 0)::float AS pending_amount,
+         COALESCE(SUM(amount) FILTER (WHERE ${DERIVED_STATUS} = 'broken'), 0)::float  AS broken_amount
+       FROM promises_to_pay p
+       WHERE 1=1${t.clause}`,
+      t.params,
+    );
+    res.json({ success: true, data: r.rows[0] });
+  } catch (err) {
+    logger.error("Promises summary error:", err);
+    res.status(500).json({ error: "Failed to load summary" });
+  }
+});
+
+// =============================================================
+// PUT /promises/:pid/kept — mark as fulfilled
+// =============================================================
+router.put(
+  "/:pid/kept",
+  authorize("admin", "manager", "loan_officer"),
+  async (req, res) => {
+    try {
+      const { pid } = req.params;
+      const t = tenantClause(req, 1, "tenant_id");
+      const r = await query(
+        `UPDATE promises_to_pay
+            SET status      = 'kept',
+                resolved_at = NOW(),
+                resolved_by = $2,
+                updated_at  = NOW()
+          WHERE id = $1 AND status = 'pending'${t.clause}
+          RETURNING *`,
+        [pid, req.user.id, ...t.params],
+      );
+      if (r.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ error: "Promise not found or already resolved" });
+      }
+      res.json({ success: true, data: r.rows[0] });
+    } catch (err) {
+      logger.error("Mark promise kept error:", err);
+      res.status(500).json({ error: "Failed to update promise" });
+    }
+  },
+);
+
+// =============================================================
+// PUT /promises/:pid/cancel — cancel with a reason
+// =============================================================
+router.put(
+  "/:pid/cancel",
+  authorize("admin", "manager", "loan_officer"),
+  async (req, res) => {
+    try {
+      const { pid } = req.params;
+      const reason = (req.body?.cancelled_reason || "").trim();
+      if (!reason) {
+        return res
+          .status(400)
+          .json({ error: "cancelled_reason is required" });
+      }
+      const t = tenantClause(req, 2, "tenant_id");
+      const r = await query(
+        `UPDATE promises_to_pay
+            SET status           = 'cancelled',
+                cancelled_reason = $2,
+                resolved_at      = NOW(),
+                resolved_by      = $3,
+                updated_at       = NOW()
+          WHERE id = $1 AND status = 'pending'${t.clause}
+          RETURNING *`,
+        [pid, reason, req.user.id, ...t.params],
+      );
+      if (r.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ error: "Promise not found or already resolved" });
+      }
+      res.json({ success: true, data: r.rows[0] });
+    } catch (err) {
+      logger.error("Cancel promise error:", err);
+      res.status(500).json({ error: "Failed to cancel promise" });
+    }
+  },
+);
+
+export default router;

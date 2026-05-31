@@ -2961,3 +2961,22 @@ CREATE TABLE public.loan_waivers (
   created_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE public.promises_to_pay (
+  id               serial PRIMARY KEY,
+  tenant_id        integer NOT NULL REFERENCES public.tenants(id),
+  loan_id          integer NOT NULL REFERENCES public.loans(id),
+  amount           numeric(12,2) NOT NULL CHECK (amount > 0),
+  promised_date    date NOT NULL,
+  notes            text,
+  status           varchar(20) NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending', 'kept', 'cancelled')),
+  made_at          timestamp NOT NULL DEFAULT NOW(),
+  captured_by      integer REFERENCES public.users(id),
+  resolved_at      timestamp,
+  resolved_by      integer REFERENCES public.users(id),
+  cancelled_reason text,
+  updated_at       timestamp DEFAULT NOW()
+);
+CREATE INDEX idx_promises_loan   ON public.promises_to_pay(loan_id);
+CREATE INDEX idx_promises_tenant ON public.promises_to_pay(tenant_id, status, promised_date);
