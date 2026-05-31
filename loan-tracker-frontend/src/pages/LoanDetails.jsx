@@ -121,6 +121,15 @@ function LoanDetails() {
     setReasonChoice("");
     setWaiverError("");
     setShowWaiverModal(true);
+    // Re-fetch waivers + loan summary so the modal's Loan Snapshot
+    // (principal / interest / penalty outstanding) reflects any
+    // waivers that landed since the page mounted — e.g. one
+    // approved from the Waivers admin page, or one applied in a
+    // separate browser tab. Without this the snapshot can stay
+    // stuck at "0 waivers applied" and the admin sees the wrong
+    // outstanding the next time they open the modal.
+    fetchWaivers();
+    fetchLoanDetails();
   };
 
   const handleSubmitWaiver = async (e) => {
@@ -2228,9 +2237,20 @@ function LoanDetails() {
               const approvedW = (waivers || []).filter(
                 (w) => w.status === "approved",
               );
+              // Defensive parse — allocation comes off a JSONB column.
+              // node-postgres normally hands it back as an object, but
+              // for some payloads (or if a transformer ever stops
+              // running) it arrives as a string and `w.allocation?.[k]`
+              // silently returns undefined → every bucket reads as 0
+              // → modal says "Interest outstanding 6,000" on a loan
+              // that's clearly had a 2k interest waiver applied.
+              const allocOf = (w) =>
+                typeof w.allocation === "string"
+                  ? JSON.parse(w.allocation || "{}")
+                  : w.allocation || {};
               const sumAlloc = (key) =>
                 approvedW.reduce(
-                  (a, w) => a + parseFloat(w.allocation?.[key] || 0),
+                  (a, w) => a + parseFloat(allocOf(w)[key] || 0),
                   0,
                 );
               const waiverAmountTotal = sumAlloc("amount_total");
@@ -2346,9 +2366,15 @@ function LoanDetails() {
                 const approvedW = (waivers || []).filter(
                   (w) => w.status === "approved",
                 );
+                // Same defensive parse as the snapshot block above —
+                // see the comment there.
+                const allocOf = (w) =>
+                  typeof w.allocation === "string"
+                    ? JSON.parse(w.allocation || "{}")
+                    : w.allocation || {};
                 const sumAlloc = (key) =>
                   approvedW.reduce(
-                    (a, w) => a + parseFloat(w.allocation?.[key] || 0),
+                    (a, w) => a + parseFloat(allocOf(w)[key] || 0),
                     0,
                   );
                 const waiverAmountTotal = sumAlloc("amount_total");
