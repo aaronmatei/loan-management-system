@@ -155,22 +155,13 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     status.principal_waived = principalWaived;
     status.total_expenses = totalExpenses;
     status.total_waived = totalWaived;
-    status.net_profit_lifetime =
-      status.total_interest_earned - totalExpenses - totalWaived;
 
-    // "Loaned Out" is principal still on loan. The capital_pool table
-    // tracks disbursed − collected, where collected is bumped only by
-    // cash receipts. Waivers don't move cash, so the principal share
-    // of any waiver sits forever in outstanding_principal even after
-    // the loan is completed via waiver — exactly the discrepancy that
-    // makes a fully-closed loan show "KES 7,272 loaned out".
-    //
-    // The Reports-side bucketing above respects the admin's declared
-    // waiver type (interest vs penalty vs principal), which is the
-    // right lens for income recognition. For the treasury view here
-    // we want the contractual ratio instead: a waiver against
-    // amount_due forgives principal in lockstep with interest, no
-    // matter how the admin labelled the line item — because the
+    // Contract-ratio principal write-off — drives BOTH the
+    // "Loaned Out" tile (subtract from outstanding_principal) AND
+    // net_profit_lifetime (the only real cash loss not already
+    // implicit in lower cash receipts). Treasury lens: a waiver
+    // against amount_due forgives principal in lockstep with
+    // interest no matter how the admin labelled it, because the
     // borrower will not be paying that principal back either way.
     const principalWriteOff = await query(
       `SELECT COALESCE(SUM(
@@ -185,6 +176,35 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     const principalWrittenOff =
       parseFloat(principalWriteOff.rows[0].principal_written_off) || 0;
     status.principal_written_off = principalWrittenOff;
+
+    // net_profit_lifetime uses the cash-flow lens, not the
+    // forgone-income lens, so it matches the pool's actual cash
+    // position (available_pool − initial_capital). Two facts make
+    // the cash-flow formula the right one:
+    //
+    //   1) interest_earned already counts cash only — when a
+    //      borrower pays less because of a waiver, the interest
+    //      cash that didn't come in is already missing from
+    //      interest_earned. Subtracting the waiver's income share
+    //      *again* would double-count the loss.
+    //   2) The only real economic loss that isn't already
+    //      captured by lower cash income is the principal that
+    //      won't come back — the principal share of the waiver
+    //      (by contract ratio).
+    //
+    // Worked example: 5k principal / 6k interest, 2k interest
+    // waiver, borrower paid 9k cash + 522.50 penalty + 250 fee:
+    //   interest_earned     = 4,909 (cash interest) + 522.50 + 250 = 5,681.59
+    //   principalWrittenOff = 2,000 × 5/11 = 909.09
+    //   net_profit          = 5,681.59 − 909.09 = 4,772.50
+    //   = exactly the pool's cash growth (available_pool − 100k).
+    // The old formula subtracted total_waived = 2,665 and got
+    // 3,016.59 — under-stating profit by 1,755.91, the income
+    // portion of waivers that the lender never actually had on the
+    // books to lose (it was already missing from interest_earned).
+    status.net_profit_lifetime =
+      status.total_interest_earned - totalExpenses - principalWrittenOff;
+
     status.outstanding_principal = Math.max(
       0,
       status.outstanding_principal - principalWrittenOff,

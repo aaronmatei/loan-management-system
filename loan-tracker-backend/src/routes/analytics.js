@@ -758,10 +758,18 @@ router.get("/export/pdf", async (req, res) => {
       analyticsService.getExpenseStats(tid, from, to),
     ]);
 
-    // Income = interest + fines + processing fees retained at
-    // disbursement. Net Profit = income − expenses − waivers. Waivers
-    // are forgone income (lender chose not to collect what was owed),
-    // so they net out of the bottom line alongside operating expenses.
+    // Income = interest + fines + processing fees (cash only — these
+    // counters only tick when cash actually comes in). Net Profit =
+    // income − expenses − principal_written_off. The cash-flow lens:
+    // a waiver's income share is already absent from interest_earned
+    // and fines_collected (the borrower paid less cash, those tiles
+    // ticked less), so re-subtracting it as "waivers_applied" would
+    // double-count the loss. The only real economic loss not already
+    // reflected in lower cash income is the principal share of
+    // amount_due waivers — that's principal_written_off_by_ratio.
+    // See capital.js for the worked example. waivers_applied is
+    // still surfaced on the report for transparency but doesn't move
+    // the bottom line a second time.
     const interestEarned = parseFloat(kpis.interest_earned) || 0;
     const finesCollected = parseFloat(kpis.fines_collected) || 0;
     const processingFees = parseFloat(kpis.processing_fees) || 0;
@@ -769,9 +777,11 @@ router.get("/export/pdf", async (req, res) => {
     const waiversInterest = parseFloat(kpis.waivers_interest) || 0;
     const waiversPenalty = parseFloat(kpis.waivers_penalty) || 0;
     const waiversPrincipal = parseFloat(kpis.waivers_principal) || 0;
+    const principalWrittenOff =
+      parseFloat(kpis.principal_written_off_by_ratio) || 0;
     const incomeWindow = interestEarned + finesCollected + processingFees;
     const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
-    const netProfit = incomeWindow - expensesWindow - waiversWindow;
+    const netProfit = incomeWindow - expensesWindow - principalWrittenOff;
 
     const tr = await query(
       "SELECT business_name FROM tenants WHERE id = $1",
@@ -912,7 +922,8 @@ router.get("/export/excel", async (req, res) => {
     ]);
 
     // Same income / net-profit derivations as the PDF export and the
-    // on-screen Reports page.
+    // on-screen Reports page — cash-flow lens, see capital.js for why
+    // we subtract principal_written_off rather than waivers_applied.
     const interestEarned = parseFloat(kpis.interest_earned) || 0;
     const finesCollected = parseFloat(kpis.fines_collected) || 0;
     const processingFees = parseFloat(kpis.processing_fees) || 0;
@@ -920,9 +931,11 @@ router.get("/export/excel", async (req, res) => {
     const waiversInterest = parseFloat(kpis.waivers_interest) || 0;
     const waiversPenalty = parseFloat(kpis.waivers_penalty) || 0;
     const waiversPrincipal = parseFloat(kpis.waivers_principal) || 0;
+    const principalWrittenOff =
+      parseFloat(kpis.principal_written_off_by_ratio) || 0;
     const incomeWindow = interestEarned + finesCollected + processingFees;
     const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
-    const netProfit = incomeWindow - expensesWindow - waiversWindow;
+    const netProfit = incomeWindow - expensesWindow - principalWrittenOff;
 
     // Loans detail. In month mode, restrict to loans disbursed within
     // the window so the sheet reflects ONLY the selected period.

@@ -193,21 +193,29 @@ function Reports() {
 
   const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
   // Income = interest portion of payments + fines + processing fees
-  // retained at disbursement.
-  // Net Profit = income − expenses − waivers. Waivers are forgone
-  // income (lender chose not to collect) so they net out of the
-  // bottom line alongside operating expenses.
+  // retained at disbursement (cash-side counters only).
+  // Net Profit = income − expenses − principal_written_off. The cash-
+  // flow lens: a waiver's income share is already absent from the
+  // cash counters above (borrower paid less, those ticked less), so
+  // re-subtracting waivers_applied would double-count. The only real
+  // economic loss not already in lower cash income is the principal
+  // share of amount_due waivers — that's principal_written_off_by_ratio,
+  // computed in analyticsService against the contract ratio. waivers_*
+  // are still shown on the report for transparency but don't move the
+  // bottom line a second time.
   const processingFeesWindow = parseFloat(kpis.processing_fees) || 0;
   const waiversWindow = parseFloat(kpis.waivers_applied) || 0;
   const waiversCount = parseInt(kpis.waivers_count, 10) || 0;
   const waiversInterest = parseFloat(kpis.waivers_interest) || 0;
   const waiversPenalty = parseFloat(kpis.waivers_penalty) || 0;
   const waiversPrincipal = parseFloat(kpis.waivers_principal) || 0;
+  const principalWrittenOff =
+    parseFloat(kpis.principal_written_off_by_ratio) || 0;
   const incomeWindow =
     (parseFloat(kpis.interest_earned) || 0) +
     (parseFloat(kpis.fines_collected) || 0) +
     processingFeesWindow;
-  const netProfitWindow = incomeWindow - expensesWindow - waiversWindow;
+  const netProfitWindow = incomeWindow - expensesWindow - principalWrittenOff;
   const snap = snapshot || {
     outstanding_balance: 0,
     overdue_count: 0,

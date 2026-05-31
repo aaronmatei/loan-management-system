@@ -119,7 +119,17 @@ class AnalyticsService {
              COALESCE((w.allocation->>'amount_total')::float, 0)
                * (l.principal_amount / NULLIF(l.total_amount_due, 0))
            )
-         ), 0)::float                                         AS waivers_principal
+         ), 0)::float                                         AS waivers_principal,
+         -- Contract-ratio principal write-off (treasury lens, used by
+         -- Reports' Net Profit calc). Always uses the principal/total
+         -- ratio against amount_total, regardless of the admin's
+         -- declared waiver type — same lens capital.js applies to
+         -- outstanding_principal. Penalty-only waivers contribute
+         -- zero here because they don't touch amount_due at all.
+         COALESCE(SUM(
+           COALESCE((w.allocation->>'amount_total')::float, 0)
+             * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+         ), 0)::float                                         AS principal_written_off_by_ratio
        FROM loan_waivers w
        JOIN loans l ON l.id = w.loan_id
       WHERE l.tenant_id = $1
@@ -152,6 +162,8 @@ class AnalyticsService {
       waivers_interest: parseFloat(waivers.rows[0].waivers_interest) || 0,
       waivers_penalty: parseFloat(waivers.rows[0].waivers_penalty) || 0,
       waivers_principal: parseFloat(waivers.rows[0].waivers_principal) || 0,
+      principal_written_off_by_ratio:
+        parseFloat(waivers.rows[0].principal_written_off_by_ratio) || 0,
       avg_loan_size: totalLoans > 0 ? totalDisbursed / totalLoans : 0,
     };
   }
