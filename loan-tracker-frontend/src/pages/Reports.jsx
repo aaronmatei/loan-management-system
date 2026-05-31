@@ -515,36 +515,20 @@ function Reports() {
               </p>
             </div>
             {(() => {
-              // Interest tile breakdown:
-              //   Initial = contractual interest on loans in the
-              //             window (kpis.total_interest_expected).
-              //   Waived  = the interest portion of amount_due
-              //             waivers by contract ratio
-              //             (waivers_interest_by_ratio). NOT the
-              //             admin-declared interest_total — that
-              //             one double-attributes the principal
-              //             share of "type=interest" waivers, so
-              //             Initial − Waived would overshoot the
-              //             actual cash interest collected.
-              //
-              // Fines tile breakdown:
-              //   Initial = cash kept + waived in window. For closed
-              //             loans this equals true total accrued
-              //             (cash + waived + outstanding=0). For
-              //             active loans with unpaid penalty still
-              //             sitting on the schedule it undercounts
-              //             by the outstanding component — fine as
-              //             a Reports-period figure.
-              //   Waived  = admin-declared penalty_total
-              //             (waivers_penalty). Penalty isn't tracked
-              //             through amount_total so ratio doesn't
-              //             apply here.
+              // Interest + Fines tile breakdowns are informational —
+              // Initial shows what was on the books contractually,
+              // Waived shows what the admin chose to forgive. Both
+              // use admin-declared waiver buckets (waivers_interest /
+              // waivers_penalty) so the numbers match what the admin
+              // typed into the Waive modal. The cash-headline value
+              // is independent — it's the cash actually collected,
+              // which won't equal Initial − Waived because cash
+              // payments split principal vs interest by ratio and
+              // admin-declared waivers don't.
               const interestCash = parseFloat(kpis.interest_earned) || 0;
               const finesCash = parseFloat(kpis.fines_collected) || 0;
               const initialInterest =
                 parseFloat(kpis.total_interest_expected) || 0;
-              const waivedInterestByRatio =
-                parseFloat(kpis.waivers_interest_by_ratio) || 0;
               const initialFines = finesCash + waiversPenalty;
               return (
                 <div className="grid grid-cols-3 gap-2">
@@ -565,8 +549,8 @@ function Reports() {
                       <div className="flex justify-between text-gray-500">
                         <span>Waived</span>
                         <span className="font-semibold text-fuchsia-700">
-                          {waivedInterestByRatio > 0 ? "−" : ""}
-                          {fmt(waivedInterestByRatio)}
+                          {waiversInterest > 0 ? "−" : ""}
+                          {fmt(waiversInterest)}
                         </span>
                       </div>
                     </div>
