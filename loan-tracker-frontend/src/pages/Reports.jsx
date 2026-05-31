@@ -514,41 +514,79 @@ function Reports() {
                 +{fmt(incomeWindow)}
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center mb-2">
-                  <TrendingUp size={15} className="text-indigo-600" />
+            {(() => {
+              // Decompose each income leg into "what got settled in
+              // this window" = cash kept + waiver. The waiver line
+              // makes it explicit what was forgiven so admins can
+              // read interest_earned / fines_collected as "after
+              // waivers" rather than guessing whether they're gross
+              // or net.
+              const interestCash = parseFloat(kpis.interest_earned) || 0;
+              const finesCash = parseFloat(kpis.fines_collected) || 0;
+              const initialInterest = interestCash + waiversInterest;
+              const initialFines = finesCash + waiversPenalty;
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
+                      Interest from Loans
+                    </p>
+                    <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
+                      {fmt(interestCash)}
+                    </p>
+                    <div className="mt-2 pt-2 border-t border-gray-100 space-y-0.5 text-[11px]">
+                      <div className="flex justify-between text-gray-500">
+                        <span>Initial</span>
+                        <span className="font-semibold text-gray-700">
+                          {fmt(initialInterest)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-500">
+                        <span>Waived</span>
+                        <span className="font-semibold text-fuchsia-700">
+                          {waiversInterest > 0 ? "−" : ""}
+                          {fmt(waiversInterest)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
+                      Fines Collected
+                    </p>
+                    <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
+                      {fmt(finesCash)}
+                    </p>
+                    <div className="mt-2 pt-2 border-t border-gray-100 space-y-0.5 text-[11px]">
+                      <div className="flex justify-between text-gray-500">
+                        <span>Accrued</span>
+                        <span className="font-semibold text-gray-700">
+                          {fmt(initialFines)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-500">
+                        <span>Waived</span>
+                        <span className="font-semibold text-fuchsia-700">
+                          {waiversPenalty > 0 ? "−" : ""}
+                          {fmt(waiversPenalty)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
+                    <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center mb-2">
+                      <Banknote size={15} className="text-sky-600" />
+                    </div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
+                      Processing Fees
+                    </p>
+                    <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
+                      {fmt(processingFeesWindow)}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
-                  Interest from Loans
-                </p>
-                <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
-                  {fmt(kpis.interest_earned)}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
-                <div className="w-8 h-8 rounded-lg bg-fuchsia-50 flex items-center justify-center mb-2">
-                  <Gavel size={15} className="text-fuchsia-600" />
-                </div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
-                  Fines Collected
-                </p>
-                <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
-                  {fmt(kpis.fines_collected)}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
-                <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center mb-2">
-                  <Banknote size={15} className="text-sky-600" />
-                </div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
-                  Processing Fees
-                </p>
-                <p className="text-base lg:text-lg font-bold text-gray-900 mt-0.5 break-words">
-                  {fmt(processingFeesWindow)}
-                </p>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         </div>
 
