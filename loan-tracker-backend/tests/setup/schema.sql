@@ -842,7 +842,8 @@ CREATE TABLE public.payment_schedules (
     tenant_id integer NOT NULL,
     penalty_paid numeric(12,2) DEFAULT 0,
     late_fee_charged numeric(15,2) DEFAULT 0,
-    penalty_interest_charged numeric(15,2) DEFAULT 0
+    penalty_interest_charged numeric(15,2) DEFAULT 0,
+    interest_paid numeric(12,2) DEFAULT 0
 );
 
 

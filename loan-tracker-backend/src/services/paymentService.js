@@ -268,15 +268,25 @@ export async function recordLoanPayment({
 
     const amountDue = parseFloat(schedule.amount_due);
     const alreadyPaidOnSchedule = parseFloat(schedule.amount_paid || 0);
-    const stillOwed = amountDue - alreadyPaidOnSchedule;
+    const interestPaidOnSchedule = parseFloat(schedule.interest_paid || 0);
+    // Interest already covered by waiver counts toward "this row is
+    // settled" too — without this, a row whose interest had been
+    // waived would need extra cash to flip to 'paid' (the cash sum
+    // would have to reach amount_due even though interest_paid is
+    // already covering part of it).
+    const stillOwed = Math.max(
+      0,
+      amountDue - alreadyPaidOnSchedule - interestPaidOnSchedule,
+    );
 
     if (remainingAmount >= stillOwed) {
-      // Full payment of this installment
+      // Full payment of this installment — bump amount_paid by the
+      // cash slice needed to close it, leaving interest_paid intact.
       await query(
         `UPDATE payment_schedules
            SET amount_paid = $1, status = 'paid', actual_payment_date = $2, updated_at = NOW()
            WHERE id = $3`,
-        [amountDue, paymentDate, schedule.id],
+        [alreadyPaidOnSchedule + stillOwed, paymentDate, schedule.id],
       );
       remainingAmount -= stillOwed;
     } else {

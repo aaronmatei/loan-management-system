@@ -147,9 +147,31 @@ export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
 
   // ── 2) Allocate to amount_due across pending+overdue, oldest first
   //       (skipped for penalty-only — it shouldn't touch amount_due).
+  //
+  // Interest-type waivers are special: they fill the per-installment
+  // INTEREST bucket only, not the combined amount_paid. So waiving
+  // 2k of interest on a 5k/6k loan with 500 interest per installment
+  // fills interest_paid on the first four rows (500 × 4 = 2,000) and
+  // leaves their principal portion (416.67 each) still owed in
+  // amount_due. Without this split, the schedule used to show rows
+  // 1–2 as 'waived' status because amount_paid had been bumped past
+  // amount_due, which the admin reads as "you waived the principal
+  // too." Penalty waivers were already in this shape (penalty_paid
+  // only, never touching amount_paid).
+  //
+  // Principal-type and mixed-type waivers still bump amount_paid
+  // (they're explicitly forgiving principal or a proportional blend).
+  // Only type='interest' uses the new interest-bucket path.
   if (remaining > 0 && type !== "penalty") {
+    const interestPerInstallment =
+      type === "interest"
+        ? parseFloat(loan.total_interest || 0) /
+          (parseInt(loan.loan_duration_months, 10) || 1)
+        : 0;
+
     const owedRows = await query(
-      `SELECT id, payment_number, amount_due, amount_paid, status
+      `SELECT id, payment_number, amount_due, amount_paid, status,
+              COALESCE(interest_paid, 0) AS interest_paid
          FROM payment_schedules
         WHERE loan_id = $1 AND status IN ('pending', 'overdue')
         ORDER BY due_date ASC`,
@@ -157,6 +179,63 @@ export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
     );
     for (const s of owedRows.rows) {
       if (remaining <= 0) break;
+
+      if (type === "interest") {
+        // Cap by remaining interest capacity on this installment
+        // (interestPerInstallment minus what's already been waived
+        // here). Don't touch amount_paid; status decisions are made
+        // off the combined balance below.
+        const interestSoFar = parseFloat(s.interest_paid || 0);
+        const interestCapacity = Math.max(
+          0,
+          interestPerInstallment - interestSoFar,
+        );
+        if (interestCapacity <= 0) continue;
+        const apply = Math.min(remaining, interestCapacity);
+        const newInterestPaid = interestSoFar + apply;
+
+        // Status flips to 'waived' only when the COMBINED balance
+        // (amount_due − amount_paid − interest_paid) hits zero — for
+        // an interest waiver alone that won't happen because
+        // principal is still owed, which is exactly the user's intent.
+        const due = parseFloat(s.amount_due);
+        const cashPaid = parseFloat(s.amount_paid || 0);
+        const remainingBalance = due - cashPaid - newInterestPaid;
+        const fullyCleared = remainingBalance <= 0.001;
+
+        await query(
+          `UPDATE payment_schedules
+              SET interest_paid = $1,
+                  status        = CASE WHEN $2 THEN 'waived'::varchar ELSE status END,
+                  actual_payment_date = CASE WHEN $2 THEN CURRENT_DATE ELSE actual_payment_date END,
+                  updated_at    = NOW()
+            WHERE id = $3`,
+          [newInterestPaid, fullyCleared, s.id],
+        );
+
+        allocation.amount_total += apply;
+        const existing = allocation.schedules.find(
+          (a) => a.schedule_id === s.id,
+        );
+        if (existing) {
+          existing.interest_paid_delta =
+            (existing.interest_paid_delta || 0) + apply;
+          existing.set_status_waived = fullyCleared;
+        } else {
+          allocation.schedules.push({
+            schedule_id: s.id,
+            penalty_paid_delta: 0,
+            amount_paid_delta: 0,
+            interest_paid_delta: apply,
+            set_status_waived: fullyCleared,
+          });
+        }
+        remaining -= apply;
+        continue;
+      }
+
+      // Non-interest path (principal / mixed) — still bumps
+      // amount_paid as before.
       const due = parseFloat(s.amount_due);
       const paid = parseFloat(s.amount_paid || 0);
       const stillOwed = due - paid;
@@ -242,9 +321,11 @@ export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
       WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
   );
-  // Schedule rows now reflect the waiver via amount_paid (since we
-  // bumped amount_paid in step 2). Effective paid against total_due
-  // = transactions paid + waiver amount_total applied to schedules.
+  // allocation.amount_total is the cumulative amount_due reduced by
+  // this waiver — bumped per-row in step 2 regardless of whether the
+  // dollars landed on schedule.amount_paid (principal/mixed waivers)
+  // or schedule.interest_paid (interest waivers). So this rolls up
+  // to "loan settlement progress" the same way for both.
   const effectivePaid =
     parseFloat(postPaidRes.rows[0].total_paid || 0) + allocation.amount_total;
   if (effectivePaid + 0.001 >= totalDue) {
@@ -269,20 +350,25 @@ export async function reverseWaiver(loanId, tenantId, allocation) {
   if (!allocation || !Array.isArray(allocation.schedules)) return;
 
   for (const a of allocation.schedules) {
-    // Walk back: subtract penalty_paid_delta + amount_paid_delta,
-    // and restore status if we'd flipped it to 'waived'.
+    // Walk back: subtract penalty_paid_delta + amount_paid_delta +
+    // interest_paid_delta, and restore status if we'd flipped it to
+    // 'waived'. interest_paid_delta is the new bucket for type=
+    // 'interest' waivers — older waiver allocations don't carry the
+    // field so the `|| 0` keeps reversals of pre-feature waivers
+    // running unchanged.
     await query(
       `UPDATE payment_schedules
-          SET penalty_paid = GREATEST(COALESCE(penalty_paid, 0) - $1, 0),
-              amount_paid  = GREATEST(COALESCE(amount_paid, 0)  - $2, 0),
-              status       = CASE
+          SET penalty_paid  = GREATEST(COALESCE(penalty_paid, 0)  - $1, 0),
+              amount_paid   = GREATEST(COALESCE(amount_paid, 0)   - $2, 0),
+              interest_paid = GREATEST(COALESCE(interest_paid, 0) - $5, 0),
+              status        = CASE
                                 WHEN $3 AND status = 'waived'
                                 THEN CASE
                                   WHEN due_date < CURRENT_DATE THEN 'overdue'
                                   ELSE 'pending'
                                 END
                                 ELSE status
-                             END,
+                              END,
               actual_payment_date = CASE WHEN $3 AND status = 'waived' THEN NULL ELSE actual_payment_date END,
               updated_at = NOW()
         WHERE id = $4`,
@@ -291,6 +377,7 @@ export async function reverseWaiver(loanId, tenantId, allocation) {
         a.amount_paid_delta || 0,
         Boolean(a.set_status_waived),
         a.schedule_id,
+        a.interest_paid_delta || 0,
       ],
     );
   }

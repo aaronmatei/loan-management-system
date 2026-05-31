@@ -204,8 +204,15 @@ router.get("/loan/:loanId/summary", async (req, res) => {
 
     const scheduleWithPenalty = scheduleResult.rows.map((s) => {
       const due = parseFloat(s.amount_due) || 0;
-      const paid = parseFloat(s.amount_paid || 0);
-      const bal = due - paid;
+      const cashPaid = parseFloat(s.amount_paid || 0);
+      const interestPaid = parseFloat(s.interest_paid || 0);
+      // Balance = amount_due − cash paid − interest covered by waiver.
+      // The interest_paid bucket was added so type='interest' waivers
+      // could land on the interest portion of an installment without
+      // pretending the principal half had been paid too. So balance
+      // here reflects how much the borrower still has to hand over
+      // (in cash) before the installment is fully cleared.
+      const bal = due - cashPaid - interestPaid;
       const daysLate =
         s.status === "paid" ? 0 : parseInt(s.days_late, 10) || 0;
       const computed = computeInstallmentPenalty({
@@ -239,12 +246,23 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         penaltyInterestCharged > 0
           ? penaltyInterestCharged
           : computed.penalty_interest;
-      const paidRatio = due > 0 ? Math.min(1, paid / due) : 0;
-      const interest_portion =
-        Math.round(interestPerInstallment * paidRatio * 100) / 100;
+      // Display interest_portion = waiver-covered interest + cash
+      // share of interest (by contract ratio), capped at the
+      // installment's interest portion. So a row whose interest is
+      // fully covered by waiver reads as 500/500 even if subsequent
+      // cash also lands — the cash slice goes to principal, which is
+      // what's still owed on that row.
+      const paidRatio = due > 0 ? Math.min(1, cashPaid / due) : 0;
+      const interest_portion = Math.round(
+        Math.min(
+          interestPerInstallment,
+          interestPaid + interestPerInstallment * paidRatio,
+        ) * 100,
+      ) / 100;
       return {
         ...s,
         balance_due: Math.round(Math.max(0, bal) * 100) / 100,
+        interest_paid: interestPaid,
         ...computed,
         late_fee: lateFee,
         penalty_interest: penaltyInterest,
