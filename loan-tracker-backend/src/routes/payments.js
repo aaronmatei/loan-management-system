@@ -206,17 +206,28 @@ router.get("/loan/:loanId/summary", async (req, res) => {
       const due = parseFloat(s.amount_due) || 0;
       const cashPaid = parseFloat(s.amount_paid || 0);
       const interestPaid = parseFloat(s.interest_paid || 0);
-      // Balance = amount_due − cash paid − interest covered by waiver.
-      // The interest_paid bucket was added so type='interest' waivers
-      // could land on the interest portion of an installment without
-      // pretending the principal half had been paid too. So balance
-      // here reflects how much the borrower still has to hand over
-      // (in cash) before the installment is fully cleared.
+      // Two balances on this row, used for different things:
+      //
+      //   bal (display / status) = due − cash − interest waiver
+      //     → "how much more cash does the borrower need to close
+      //        this installment." Drives balance_due in the row +
+      //        the row's status. Shrinks when interest is waived.
+      //
+      //   penaltyBal (penalty math) = due − cash only
+      //     → the CONTRACTUALLY overdue amount that penalty
+      //        accrues against. Interest forgiveness on a row
+      //        doesn't shrink the penalty owed for being late; the
+      //        installment was still missed at its full amount.
+      //        Otherwise a 500 interest waiver would silently
+      //        reduce every overdue row's penalty interest too,
+      //        which double-credits the borrower (less interest
+      //        owed AND a smaller late-fee charge).
       const bal = due - cashPaid - interestPaid;
+      const penaltyBal = Math.max(0, due - cashPaid);
       const daysLate =
         s.status === "paid" ? 0 : parseInt(s.days_late, 10) || 0;
       const computed = computeInstallmentPenalty({
-        balance: bal,
+        balance: penaltyBal,
         daysLate,
         lateFee: loan.late_payment_fee,
         penaltyRate: loan.penalty_rate,
