@@ -2256,6 +2256,12 @@ function LoanDetails() {
               const waiverAmountTotal = sumAlloc("amount_total");
               const waiverInterest = sumAlloc("interest_total");
               const waiverPrincipal = sumAlloc("principal_total");
+              // TEMP diagnostic — drop this once the snapshot is
+              // proven to be reading waivers correctly. If users
+              // see "W:0 I:0" here while approved waivers exist on
+              // the loan, the modal isn't getting the waivers state
+              // (network/timing/cache).
+              const _debugWaiverInfo = `W:${approvedW.length} I:${waiverInterest}`;
               const cashToAmountDue = Math.max(
                 0,
                 totalAmountPaid - waiverAmountTotal,
@@ -2319,8 +2325,11 @@ function LoanDetails() {
 
               return (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 space-y-1.5">
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-1">
-                    Loan snapshot
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-1 flex items-center justify-between">
+                    <span>Loan snapshot</span>
+                    <span className="text-slate-400 font-mono normal-case">
+                      {_debugWaiverInfo}
+                    </span>
                   </p>
                   <Row
                     label="Principal outstanding"
