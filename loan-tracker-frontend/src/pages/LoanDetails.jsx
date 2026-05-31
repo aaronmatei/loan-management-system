@@ -790,25 +790,54 @@ function LoanDetails() {
             {schedule.filter((s) => s.status === "paid").length} of{" "}
             {schedule.length} payments completed
             {(() => {
-              const totalPenalty = schedule.reduce(
+              // Penalty breakdown across the schedule. Accrued is what
+              // was ever charged across all installments (per-row
+              // penalty_total, which already takes the max of the live
+              // formula and what's been paid — so it doesn't drop just
+              // because a cleared row's recompute hit zero). The other
+              // three legs come off the loan-summary totals so they
+              // agree with the Payments page's Loan Status panel.
+              const totalAccrued = schedule.reduce(
                 (sum, s) => sum + parseFloat(s.penalty_total || 0),
                 0,
               );
-              const totalPenaltyPaid = parseFloat(
-                summary.total_penalty_paid || 0,
+              const cashPaid = parseFloat(summary.total_penalty_paid || 0);
+              const waived = parseFloat(summary.total_waived_penalty || 0);
+              const outstanding = parseFloat(
+                summary.total_penalty_outstanding || 0,
               );
-              if (totalPenalty <= 0 && totalPenaltyPaid <= 0) return null;
+              if (
+                totalAccrued <= 0 &&
+                cashPaid <= 0 &&
+                waived <= 0 &&
+                outstanding <= 0
+              )
+                return null;
               return (
-                <span className="text-amber-700 font-medium">
-                  {" "}
-                  · KES {totalPenalty.toLocaleString()} penalty accrued
-                  {totalPenaltyPaid > 0 && (
-                    <span className="text-green-700">
+                <>
+                  <span className="text-amber-700 font-medium">
+                    {" "}
+                    · KES {totalAccrued.toLocaleString()} penalty accrued
+                  </span>
+                  {waived > 0 && (
+                    <span className="text-fuchsia-700 font-medium">
                       {" "}
-                      · KES {totalPenaltyPaid.toLocaleString()} paid
+                      · KES {waived.toLocaleString()} waived
                     </span>
                   )}
-                </span>
+                  {cashPaid > 0 && (
+                    <span className="text-green-700 font-medium">
+                      {" "}
+                      · KES {cashPaid.toLocaleString()} paid
+                    </span>
+                  )}
+                  {outstanding > 0 && (
+                    <span className="text-orange-700 font-medium">
+                      {" "}
+                      · KES {outstanding.toLocaleString()} outstanding
+                    </span>
+                  )}
+                </>
               );
             })()}
           </p>
