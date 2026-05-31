@@ -525,14 +525,20 @@ function LoanDetails() {
           </>
         )}
         {/* Edit — admin + manager. Available at any status. */}
-        <PermissionGate role={["admin", "manager"]}>
-          <button
-            onClick={() => openEditModal()}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
-          >
-            <Pencil size={16} /> Edit Loan
-          </button>
-        </PermissionGate>
+        {/* Edit is meaningless on a closed loan — once it's
+            completed/defaulted/rejected the terms are settled and
+            mutating them would re-open accounting that's already
+            been booked. Hide the button rather than show + 403 it. */}
+        {!["completed", "defaulted", "rejected"].includes(loan.status) && (
+          <PermissionGate role={["admin", "manager"]}>
+            <button
+              onClick={() => openEditModal()}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
+            >
+              <Pencil size={16} /> Edit Loan
+            </button>
+          </PermissionGate>
+        )}
         {/* Delete — admin only, pre-disbursement statuses only. */}
         {[
           "pending",

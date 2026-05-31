@@ -173,8 +173,15 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
       WHERE l.tenant_id = $1 AND w.status = 'approved'`,
       [tid],
     );
-    const principalWrittenOff =
-      parseFloat(principalWriteOff.rows[0].principal_written_off) || 0;
+    // round2 + sub-cent threshold kills the IEEE-754 residuals
+    // that show up when several amount_total × principal/total
+    // ratios sum (e.g. 5000/11000 = 0.4545… across 3 waivers
+    // leaves outstanding_principal at 0.004 instead of 0).
+    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    const zeroish = (n) => (Math.abs(n) < 0.01 ? 0 : n);
+    const principalWrittenOff = round2(
+      principalWriteOff.rows[0].principal_written_off,
+    );
     status.principal_written_off = principalWrittenOff;
 
     // net_profit_lifetime uses the cash-flow lens, not the
@@ -204,10 +211,11 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     // books to lose (it was already missing from interest_earned).
     status.net_profit_lifetime =
       status.total_interest_earned - totalExpenses - principalWrittenOff;
+    status.net_profit_lifetime = zeroish(round2(status.net_profit_lifetime));
 
     status.outstanding_principal = Math.max(
       0,
-      status.outstanding_principal - principalWrittenOff,
+      zeroish(round2(status.outstanding_principal - principalWrittenOff)),
     );
     status.utilization_rate =
       parseFloat(status.initial_capital) > 0

@@ -18,7 +18,9 @@ const OVERDUE_WHERE = `
     ps.status = 'overdue'
     OR (ps.status = 'pending' AND ps.due_date < CURRENT_DATE)
   )
-  AND ps.amount_due > COALESCE(ps.amount_paid, 0)
+  AND (ps.amount_due
+        - COALESCE(ps.amount_paid, 0)
+        - COALESCE(ps.interest_paid, 0)) > 0
   AND l.status != 'completed'
 `;
 
@@ -111,8 +113,14 @@ router.get("/", async (req, res) => {
         ps.amount_paid,
         COALESCE(ps.penalty_paid, 0) AS penalty_paid,
         ps.status,
-        (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS balance_due,
-        (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS amount_outstanding,
+        GREATEST(
+          ps.amount_due - COALESCE(ps.amount_paid, 0) - COALESCE(ps.interest_paid, 0),
+          0
+        ) AS balance_due,
+        GREATEST(
+          ps.amount_due - COALESCE(ps.amount_paid, 0) - COALESCE(ps.interest_paid, 0),
+          0
+        ) AS amount_outstanding,
         (CURRENT_DATE - ps.due_date::date) AS days_late,
         l.loan_code,
         l.principal_amount AS loan_principal,
@@ -159,7 +167,10 @@ router.get("/", async (req, res) => {
         SELECT
           ps.loan_id,
           c.id AS client_id,
-          (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS bal,
+          GREATEST(
+            ps.amount_due - COALESCE(ps.amount_paid, 0) - COALESCE(ps.interest_paid, 0),
+            0
+          ) AS bal,
           (CURRENT_DATE - ps.due_date::date) AS d
         FROM payment_schedules ps
         JOIN loans l ON ps.loan_id = l.id

@@ -110,17 +110,36 @@ router.get("/summary", async (req, res) => {
     const dueByEnd = hasPeriod
       ? `LEAST($1::date, CURRENT_DATE)`
       : `CURRENT_DATE`;
+    // Two filters routes/overdue.js was already applying but this
+    // path missed: (a) exclude rows on completed loans, and (b)
+    // exclude rows whose schedule status has flipped past 'pending'/
+    // 'overdue' (e.g. 'paid', 'waived'). Without them, a loan that
+    // finished via cash + interest waiver — where cash bumped
+    // amount_paid only by the cash share and interest_paid filled
+    // the rest — kept showing up as "overdue 3" on the Dashboard
+    // because amount_due > amount_paid still holds on each row.
+    // The schedule itself reads those rows as 'paid'; the dashboard
+    // tile should agree.
     const overdueStats = await query(
       `
       SELECT
         COUNT(*) as overdue_count,
         COUNT(DISTINCT ps.loan_id) as overdue_loans,
         COUNT(DISTINCT l.client_id) as overdue_clients,
-        COALESCE(SUM(ps.amount_due - COALESCE(ps.amount_paid, 0)), 0) as overdue_amount
+        COALESCE(SUM(
+          GREATEST(
+            ps.amount_due - COALESCE(ps.amount_paid, 0) - COALESCE(ps.interest_paid, 0),
+            0
+          )
+        ), 0) as overdue_amount
       FROM payment_schedules ps
       JOIN loans l ON ps.loan_id = l.id
       WHERE ps.due_date < ${dueByEnd}
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLE.clause}
+        AND ps.status IN ('pending', 'overdue')
+        AND l.status != 'completed'
+        AND (ps.amount_due
+              - COALESCE(ps.amount_paid, 0)
+              - COALESCE(ps.interest_paid, 0)) > 0${tsLE.clause}
     `,
       [...endParams, ...tsLE.params],
     );
@@ -132,7 +151,10 @@ router.get("/summary", async (req, res) => {
         ps.loan_id,
         ps.payment_number,
         ps.due_date,
-        (ps.amount_due - COALESCE(ps.amount_paid, 0)) AS amount_outstanding,
+        GREATEST(
+          ps.amount_due - COALESCE(ps.amount_paid, 0) - COALESCE(ps.interest_paid, 0),
+          0
+        ) AS amount_outstanding,
         (${dueByEnd} - ps.due_date::date) AS days_late,
         l.loan_code,
         c.first_name,
@@ -142,7 +164,11 @@ router.get("/summary", async (req, res) => {
       JOIN loans l ON ps.loan_id = l.id
       JOIN clients c ON l.client_id = c.id
       WHERE ps.due_date < ${dueByEnd}
-        AND ps.amount_due > COALESCE(ps.amount_paid, 0)${tsLE.clause}
+        AND ps.status IN ('pending', 'overdue')
+        AND l.status != 'completed'
+        AND (ps.amount_due
+              - COALESCE(ps.amount_paid, 0)
+              - COALESCE(ps.interest_paid, 0)) > 0${tsLE.clause}
       ORDER BY days_late DESC
       LIMIT 5
     `,
