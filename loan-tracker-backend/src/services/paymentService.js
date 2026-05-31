@@ -99,22 +99,35 @@ export async function recordLoanPayment({
     throw httpError(400, `Cannot record payment on ${loan.status} loan`);
   }
 
-  // "Already paid against amount_due" excludes both the penalty_portion
-  // (income, not principal) AND the overpayment_portion (refunded to the
-  // client, not applied to the balance).
+  // "Already paid against amount_due" needs BOTH halves: the cash
+  // legs of prior transactions (net of penalty + overpayment, which
+  // don't reduce amount_due), AND the approved waivers' amount_total
+  // (forgiven principal+interest, also reduces amount_due).
+  //
+  // Skipping waivers here was making the overpayment check wrong:
+  // for a loan with 11k contract and 2k waiver, the recorder saw
+  // currentBalance = 11k − 0 cash = 11k, decided a 9.6k payment was
+  // UNDER-paying, and wrote overpayment_portion = 0. The borrower
+  // had genuinely overpaid by 77.50 against the post-waiver book
+  // and the refund queue silently lost them.
   const paidResult = await query(
-    `SELECT COALESCE(
-        SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)),
-        0
-      ) AS total_paid
+    `SELECT
+        COALESCE(SUM(
+          amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)
+        ), 0) AS cash_to_amount_due,
+        (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+           FROM loan_waivers
+          WHERE loan_id = $1 AND status = 'approved') AS waived_to_amount_due
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
     [loanId],
   );
 
-  const alreadyPaid = parseFloat(paidResult.rows[0].total_paid);
+  const alreadyPaid =
+    parseFloat(paidResult.rows[0].cash_to_amount_due || 0) +
+    parseFloat(paidResult.rows[0].waived_to_amount_due || 0);
   const totalDue = parseFloat(loan.total_amount_due);
-  const currentBalance = totalDue - alreadyPaid;
+  const currentBalance = Math.max(0, totalDue - alreadyPaid);
   const paymentAmount = parseFloat(amountPaid);
 
   // Outstanding penalty across the loan's overdue installments. Penalty
