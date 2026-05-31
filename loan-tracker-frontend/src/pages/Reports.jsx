@@ -515,15 +515,36 @@ function Reports() {
               </p>
             </div>
             {(() => {
-              // Decompose each income leg into "what got settled in
-              // this window" = cash kept + waiver. The waiver line
-              // makes it explicit what was forgiven so admins can
-              // read interest_earned / fines_collected as "after
-              // waivers" rather than guessing whether they're gross
-              // or net.
+              // Interest tile breakdown:
+              //   Initial = contractual interest on loans in the
+              //             window (kpis.total_interest_expected).
+              //   Waived  = the interest portion of amount_due
+              //             waivers by contract ratio
+              //             (waivers_interest_by_ratio). NOT the
+              //             admin-declared interest_total — that
+              //             one double-attributes the principal
+              //             share of "type=interest" waivers, so
+              //             Initial − Waived would overshoot the
+              //             actual cash interest collected.
+              //
+              // Fines tile breakdown:
+              //   Initial = cash kept + waived in window. For closed
+              //             loans this equals true total accrued
+              //             (cash + waived + outstanding=0). For
+              //             active loans with unpaid penalty still
+              //             sitting on the schedule it undercounts
+              //             by the outstanding component — fine as
+              //             a Reports-period figure.
+              //   Waived  = admin-declared penalty_total
+              //             (waivers_penalty). Penalty isn't tracked
+              //             through amount_total so ratio doesn't
+              //             apply here.
               const interestCash = parseFloat(kpis.interest_earned) || 0;
               const finesCash = parseFloat(kpis.fines_collected) || 0;
-              const initialInterest = interestCash + waiversInterest;
+              const initialInterest =
+                parseFloat(kpis.total_interest_expected) || 0;
+              const waivedInterestByRatio =
+                parseFloat(kpis.waivers_interest_by_ratio) || 0;
               const initialFines = finesCash + waiversPenalty;
               return (
                 <div className="grid grid-cols-3 gap-2">
@@ -544,8 +565,8 @@ function Reports() {
                       <div className="flex justify-between text-gray-500">
                         <span>Waived</span>
                         <span className="font-semibold text-fuchsia-700">
-                          {waiversInterest > 0 ? "−" : ""}
-                          {fmt(waiversInterest)}
+                          {waivedInterestByRatio > 0 ? "−" : ""}
+                          {fmt(waivedInterestByRatio)}
                         </span>
                       </div>
                     </div>

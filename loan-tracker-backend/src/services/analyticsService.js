@@ -129,7 +129,19 @@ class AnalyticsService {
          COALESCE(SUM(
            COALESCE((w.allocation->>'amount_total')::float, 0)
              * (l.principal_amount / NULLIF(l.total_amount_due, 0))
-         ), 0)::float                                         AS principal_written_off_by_ratio
+         ), 0)::float                                         AS principal_written_off_by_ratio,
+         -- Same contract-ratio lens for the interest side — used by
+         -- Reports' "Interest from Loans" tile so that
+         --   Initial (contractual)
+         --   − Waived (by ratio, this field)
+         --   = Cash interest collected
+         -- reconciles. Differs from waivers_interest (admin-declared)
+         -- when a type=interest waiver was applied to a row whose
+         -- contractual interest share was smaller than amount_total.
+         COALESCE(SUM(
+           COALESCE((w.allocation->>'amount_total')::float, 0)
+             * (l.total_interest / NULLIF(l.total_amount_due, 0))
+         ), 0)::float                                         AS waivers_interest_by_ratio
        FROM loan_waivers w
        JOIN loans l ON l.id = w.loan_id
       WHERE l.tenant_id = $1
@@ -164,6 +176,8 @@ class AnalyticsService {
       waivers_principal: parseFloat(waivers.rows[0].waivers_principal) || 0,
       principal_written_off_by_ratio:
         parseFloat(waivers.rows[0].principal_written_off_by_ratio) || 0,
+      waivers_interest_by_ratio:
+        parseFloat(waivers.rows[0].waivers_interest_by_ratio) || 0,
       avg_loan_size: totalLoans > 0 ? totalDisbursed / totalLoans : 0,
     };
   }
