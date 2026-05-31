@@ -499,8 +499,16 @@ export async function recordLoanPayment({
     `✓ Payment recorded: ${transactionCode}, KES ${paymentAmount} for loan ${loan.loan_code}`,
   );
 
-  // Build the receipt block the frontend modal needs.
-  const receipt = await buildReceiptBlock(loan.id, loan.tenant_id);
+  // Build the receipt block the frontend modal needs. Pass the just-
+  // recorded transaction so per-payment lines (penalty cleared by
+  // this txn, overpayment from this txn) survive into the receipt —
+  // without it the immediate-after-payment slip silently drops them
+  // and the user only sees them later when re-opening from history.
+  const receipt = await buildReceiptBlock(
+    loan.id,
+    loan.tenant_id,
+    transaction,
+  );
 
   return {
     message:
@@ -521,12 +529,12 @@ export async function recordLoanPayment({
  * payment. Tenant-scoped; returns null on miss rather than throwing —
  * the receipt is a UX enhancement, not part of the payment contract.
  */
-export async function buildReceiptBlock(loanId, tenantId) {
+export async function buildReceiptBlock(loanId, tenantId, transaction = null) {
   try {
     const loanRes = await query(
       `SELECT
          l.id, l.loan_code, l.principal_amount, l.total_interest,
-         l.total_amount_due,
+         l.total_amount_due, l.overpayment_amount,
          c.first_name, c.last_name, c.phone_number, c.client_code
        FROM loans l
        JOIN clients c ON c.id = l.client_id
@@ -563,7 +571,20 @@ export async function buildReceiptBlock(loanId, tenantId) {
     );
     const totalPaid = cashToAmountDue + waivedToAmountDue;
     const remaining = Math.max(0, totalDue - totalPaid);
-    const overpayment = parseFloat(l.overpayment_amount || 0);
+    // Prefer per-transaction overpayment when the caller passed the
+    // just-recorded transaction in — that's what the receipt is FOR
+    // (this payment, not the cumulative loan-level figure). Falls
+    // back to loans.overpayment_amount for callers that don't have
+    // a single transaction in mind.
+    const overpayment = transaction
+      ? parseFloat(transaction.overpayment_portion || 0)
+      : parseFloat(l.overpayment_amount || 0);
+    // Penalty cleared by this specific transaction. Without this the
+    // immediate receipt under-counts what the cash actually settled
+    // and the "Toward balance" line on the slip is wrong.
+    const penaltyPaid = transaction
+      ? parseFloat(transaction.penalty_portion || 0)
+      : 0;
 
     const nextRes = await query(
       `SELECT payment_number, due_date, amount_due, amount_paid
@@ -593,6 +614,7 @@ export async function buildReceiptBlock(loanId, tenantId) {
       total_paid: totalPaid,
       remaining_balance: remaining,
       overpayment,
+      penalty_paid: penaltyPaid,
       is_fully_paid: remaining === 0,
       next_payment_number: next?.payment_number || null,
       next_payment_amount: nextAmount,
