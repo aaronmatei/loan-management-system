@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   X,
   HandCoins,
+  Handshake,
   RotateCcw,
   XCircle,
   Clock,
@@ -89,6 +90,17 @@ function LoanDetails() {
   const [reversingWaiver, setReversingWaiver] = useState(null);
   const [reversalReason, setReversalReason] = useState("");
   const [reversingBusy, setReversingBusy] = useState(false);
+
+  // Promise to Pay — modal state + form. Borrower commits to pay
+  // KES X by date Y; we log it so the follow-up team can chase.
+  const [showPromiseModal, setShowPromiseModal] = useState(false);
+  const [promiseForm, setPromiseForm] = useState({
+    amount: "",
+    promised_date: "",
+    notes: "",
+  });
+  const [savingPromise, setSavingPromise] = useState(false);
+  const [promiseError, setPromiseError] = useState("");
 
   const currentUser = (() => {
     try {
@@ -177,6 +189,47 @@ function LoanDetails() {
       alert(err.response?.data?.error || "Failed to reverse waiver");
     } finally {
       setReversingBusy(false);
+    }
+  };
+
+  // Open the Promise modal pre-filled with a sensible default date
+  // (today + 3 days — the typical "I'll pay you by Friday" window).
+  const openPromiseModal = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    setPromiseForm({
+      amount: "",
+      promised_date: d.toISOString().slice(0, 10),
+      notes: "",
+    });
+    setPromiseError("");
+    setShowPromiseModal(true);
+  };
+
+  const handleSubmitPromise = async (e) => {
+    e.preventDefault();
+    const amt = parseFloat(promiseForm.amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setPromiseError("Enter a positive amount.");
+      return;
+    }
+    if (!promiseForm.promised_date) {
+      setPromiseError("Pick a date the borrower committed to.");
+      return;
+    }
+    setSavingPromise(true);
+    setPromiseError("");
+    try {
+      await api.post(`/loans/${id}/promises`, {
+        amount: amt,
+        promised_date: promiseForm.promised_date,
+        notes: promiseForm.notes.trim() || null,
+      });
+      setShowPromiseModal(false);
+    } catch (err) {
+      setPromiseError(err.response?.data?.error || "Failed to log promise");
+    } finally {
+      setSavingPromise(false);
     }
   };
 
@@ -575,6 +628,21 @@ function LoanDetails() {
             >
               <HandCoins size={16} />
               {isAdminRole ? "Waive Loan" : "Request Waiver"}
+            </button>
+          </PermissionGate>
+        )}
+        {/* Promise to Pay — log a verbal commitment from the borrower
+            so it shows up in the collections follow-up queue. Only
+            meaningful on a live (non-closed) loan; same gate as the
+            Waive Loan button. */}
+        {["active", "suspended"].includes(loan.status) && (
+          <PermissionGate role={["admin", "manager", "loan_officer"]}>
+            <button
+              onClick={openPromiseModal}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
+              title="Record the borrower's verbal promise to pay by a specific date"
+            >
+              <Handshake size={16} /> Log Promise
             </button>
           </PermissionGate>
         )}
@@ -2623,6 +2691,122 @@ function LoanDetails() {
                 {reversingBusy ? "Reversing…" : "Reverse waiver"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Promise to Pay modal */}
+      {showPromiseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <Handshake size={22} className="text-amber-600" />
+                  Log Promise to Pay
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {loan.loan_code} ·{" "}
+                  <span className="font-semibold">
+                    {loan.first_name} {loan.last_name}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPromiseModal(false)}
+                disabled={savingPromise}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 mb-4 text-sm flex items-start gap-2">
+              <Clock size={16} className="flex-shrink-0 mt-0.5" />
+              <span>
+                Records the borrower's verbal commitment. Shows up in the
+                Promises queue until you mark it kept or cancel it. Becomes
+                "broken" automatically if the date passes without resolution.
+              </span>
+            </div>
+
+            {promiseError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-3 text-sm">
+                {promiseError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitPromise} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Amount (KES) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    value={promiseForm.amount}
+                    onChange={(e) =>
+                      setPromiseForm((p) => ({ ...p, amount: e.target.value }))
+                    }
+                    placeholder="e.g. 5000"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Promised by *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={promiseForm.promised_date}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) =>
+                      setPromiseForm((p) => ({
+                        ...p,
+                        promised_date: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  rows="2"
+                  value={promiseForm.notes}
+                  onChange={(e) =>
+                    setPromiseForm((p) => ({ ...p, notes: e.target.value }))
+                  }
+                  placeholder="Context for the follow-up officer (e.g. 'will pay after salary on Friday')"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowPromiseModal(false)}
+                  disabled={savingPromise}
+                  className="px-5 py-2 bg-gray-500 text-white font-semibold rounded-lg disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPromise}
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  <Handshake size={16} />
+                  {savingPromise ? "Saving…" : "Log Promise"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

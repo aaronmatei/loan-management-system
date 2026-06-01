@@ -67,9 +67,7 @@ const navGroups = [
       // baking a number into the static config.
       { path: "/overdue", label: "Overdue", icon: AlertTriangle, permission: "overdue:view", badgeKey: "overdue" },
       { path: "/waivers", label: "Waivers", icon: HandCoins, roles: ["admin"], badgeKey: "pendingWaivers" },
-      // Promises to Pay sidebar entry lands with slice 3 (the
-      // /promises page itself). Pre-wiring the link here would point
-      // at a 404 in the interim.
+      { path: "/promises", label: "Promises to Pay", icon: Handshake, permission: "loans:view" },
     ],
   },
   {
