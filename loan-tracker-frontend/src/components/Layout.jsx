@@ -292,15 +292,17 @@ function Layout({ children }) {
         >
           {active ? (
             // On the gradient pill, a translucent-white tile reads cleaner
-            // than a second gradient.
+            // than a second gradient. Tile size + icon size kept in lock-
+            // step with IconTile's 0.5-of-size scaling so the active and
+            // inactive states look identical apart from the gradient.
             <span
               className="flex items-center justify-center rounded-xl bg-white/20 shrink-0"
-              style={{ width: 32, height: 32 }}
+              style={{ width: 26, height: 26 }}
             >
-              {Icon && <Icon size={16} color="#fff" strokeWidth={2.2} />}
+              {Icon && <Icon size={13} color="#fff" strokeWidth={2.2} />}
             </span>
           ) : (
-            <IconTile icon={Icon} variant={item.variant || variant} size={32} />
+            <IconTile icon={Icon} variant={item.variant || variant} size={26} />
           )}
           <span className="flex-1 text-sm">{item.label}</span>
           {badge > 0 && (
