@@ -14,6 +14,7 @@ import {
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import { computeLoanTotals } from "../../utils/loanMath";
+import { purposesForPackage } from "../../utils/loanPurposes";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 // Tenants store the rate annually; customers think monthly.
@@ -138,6 +139,7 @@ function ApplyLoan() {
               min_duration: parseInt(found.min_duration_months, 10),
               max_duration: parseInt(found.max_duration_months, 10),
             });
+            const allowed = found.allowed_purposes || [];
             setForm((p) => ({
               ...p,
               interest_method: found.interest_method || "flat",
@@ -146,6 +148,15 @@ function ApplyLoan() {
                 found.min_duration_months,
                 found.max_duration_months,
               ),
+              // Snap purpose into the package's allow-list. Pre-fill
+              // when there's a single sensible choice; otherwise
+              // clear so the customer makes an explicit pick.
+              purpose:
+                allowed.length === 1
+                  ? allowed[0]
+                  : allowed.length === 0 || allowed.includes(p.purpose)
+                    ? p.purpose
+                    : "",
             }));
           } catch {
             setPolicy(basePolicy);
@@ -503,25 +514,20 @@ function ApplyLoan() {
                 className={`${fld} bg-white`}
               >
                 <option value="">Select purpose…</option>
-                {[
-                  "Business expansion",
-                  "Stock purchase",
-                  "Equipment purchase",
-                  "School fees",
-                  "Medical emergency",
-                  "Home improvement",
-                  "Vehicle purchase",
-                  "Farming inputs",
-                  "Working capital",
-                  "Wedding expenses",
-                  "Funeral expenses",
-                  "Other",
-                ].map((p) => (
+                {purposesForPackage(pkg).map((p) => (
                   <option key={p} value={p}>
                     {p}
                   </option>
                 ))}
               </select>
+              {pkg && (pkg.allowed_purposes || []).length > 0 && (
+                <p className="text-xs text-slate-500 mt-1">
+                  {pkg.name} only supports{" "}
+                  {(pkg.allowed_purposes || []).length === 1
+                    ? "this purpose"
+                    : "these purposes"}.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">

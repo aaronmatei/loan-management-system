@@ -11,6 +11,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import api from "../services/api";
+import { LOAN_PURPOSES } from "../utils/loanPurposes";
 
 // Loan packages — per-tenant loan products. A package locks the
 // financial mechanics (rate, processing fee, interest method) and
@@ -46,6 +47,7 @@ function LoanPackagesSection() {
     min_credit_score: "",
     allowed_client_types: [],
     allowed_branch_ids: [],
+    allowed_purposes: [],
   };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
@@ -136,6 +138,9 @@ function LoanPackagesSection() {
         : [],
       allowed_branch_ids: Array.isArray(p.allowed_branch_ids)
         ? p.allowed_branch_ids.map((id) => Number(id))
+        : [],
+      allowed_purposes: Array.isArray(p.allowed_purposes)
+        ? p.allowed_purposes
         : [],
     });
     setError("");
@@ -467,6 +472,37 @@ function LoanPackagesSection() {
                   None selected = all branches.
                 </p>
               </div>
+            </div>
+
+            {/* Purposes pin which loan purposes the customer can pick
+                on the apply form. None selected = the full canonical
+                list (default behavior). */}
+            <div className="mt-3">
+              <label className="block text-sm font-semibold mb-1">
+                Allowed Purposes
+              </label>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {LOAN_PURPOSES.map((p) => {
+                  const on = form.allowed_purposes.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => toggleInArray("allowed_purposes", p)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
+                        on
+                          ? "bg-ocean-600 text-white border-ocean-600"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                None selected = the customer can pick any purpose.
+              </p>
             </div>
           </div>
 

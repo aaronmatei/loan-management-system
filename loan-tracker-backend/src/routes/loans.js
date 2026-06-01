@@ -281,6 +281,21 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         return res.status(400).json({ error: rangeErr, blocker: "package_range" });
       }
 
+      // Purpose gate — when the package pins a list of allowed
+      // purposes, reject anything outside it. Empty list = any
+      // purpose, matching the legacy behavior.
+      const allowedPurposes = pkg.allowed_purposes || [];
+      if (
+        allowedPurposes.length > 0 &&
+        purpose &&
+        !allowedPurposes.includes(purpose)
+      ) {
+        return res.status(400).json({
+          error: `"${pkg.name}" only supports these purposes: ${allowedPurposes.join(", ")}`,
+          blocker: "package_purpose",
+        });
+      }
+
       // Eligibility gates (credit score / client_type / branch).
       // Reuse the row already fetched for the credit-eligibility
       // block above by querying its full shape — we only need three

@@ -21,6 +21,23 @@ router.use(verifyToken);
 const METHODS = ["flat", "reducing"];
 const CLIENT_TYPES = ["individual", "group", "business"];
 
+// Canonical purpose list. Mirrors utils/loanPurposes.js on the
+// frontend — bump both together if you add/remove a purpose.
+const LOAN_PURPOSES = [
+  "Business expansion",
+  "Stock purchase",
+  "Equipment purchase",
+  "School fees",
+  "Medical emergency",
+  "Home improvement",
+  "Vehicle purchase",
+  "Farming inputs",
+  "Working capital",
+  "Wedding expenses",
+  "Funeral expenses",
+  "Other",
+];
+
 // Normalize an inbound array — accepts arrays directly or comma-
 // separated strings (handy from form submits). Trims, drops empties,
 // and lower-cases for the client-type case. Returns [] for null/
@@ -121,6 +138,12 @@ function validatePayload(body, { partial = false } = {}) {
       return "allowed_branch_ids must be an array of branch IDs";
     }
   }
+  if (body?.allowed_purposes !== undefined) {
+    const purposes = normArray(body.allowed_purposes);
+    if (purposes && purposes.some((p) => !LOAN_PURPOSES.includes(p))) {
+      return `allowed_purposes entries must be from the canonical list`;
+    }
+  }
   return null;
 }
 
@@ -189,6 +212,7 @@ router.post("/", authorize("admin", "manager"), async (req, res) => {
       normArray(req.body.allowed_client_types, { lowercase: true }) || [];
     const eligibleBranches =
       normArray(req.body.allowed_branch_ids, { asInt: true }) || [];
+    const eligiblePurposes = normArray(req.body.allowed_purposes) || [];
     const minScore =
       req.body.min_credit_score === undefined ||
       req.body.min_credit_score === null ||
@@ -201,8 +225,9 @@ router.post("/", authorize("admin", "manager"), async (req, res) => {
          tenant_id, name, description,
          annual_interest_rate, processing_fee_rate, interest_method,
          min_amount, max_amount, min_duration_months, max_duration_months,
-         min_credit_score, allowed_client_types, allowed_branch_ids
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         min_credit_score, allowed_client_types, allowed_branch_ids,
+         allowed_purposes
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
         tid,
@@ -218,6 +243,7 @@ router.post("/", authorize("admin", "manager"), async (req, res) => {
         minScore,
         eligibleTypes,
         eligibleBranches,
+        eligiblePurposes,
       ],
     );
 
@@ -292,6 +318,10 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
       req.body.allowed_branch_ids === undefined
         ? null
         : normArray(req.body.allowed_branch_ids, { asInt: true }) || [];
+    const incomingPurposes =
+      req.body.allowed_purposes === undefined
+        ? null
+        : normArray(req.body.allowed_purposes) || [];
     let incomingMinScore;
     if (req.body.min_credit_score === undefined) {
       incomingMinScore = undefined;
@@ -326,6 +356,7 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
          -- [] (a non-null empty array) which overwrites.
          allowed_client_types  = COALESCE($13::text[], allowed_client_types),
          allowed_branch_ids    = COALESCE($14::int[], allowed_branch_ids),
+         allowed_purposes      = COALESCE($17::text[], allowed_purposes),
          updated_at            = NOW()
        WHERE id = $15 AND tenant_id = $16
        RETURNING *`,
@@ -358,6 +389,7 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
         incomingBranches,
         id,
         cur.tenant_id,
+        incomingPurposes,
       ],
     );
 

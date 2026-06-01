@@ -370,7 +370,8 @@ router.get("/lenders/:id/packages", async (req, res) => {
               annual_interest_rate, processing_fee_rate, interest_method,
               min_amount, max_amount,
               min_duration_months, max_duration_months,
-              min_credit_score, allowed_client_types, allowed_branch_ids
+              min_credit_score, allowed_client_types, allowed_branch_ids,
+              allowed_purposes
          FROM loan_packages
         WHERE tenant_id = $1 AND active = TRUE
         ORDER BY name ASC`,
@@ -1507,6 +1508,20 @@ router.post("/applications", async (req, res) => {
       const rangeErr = validateAgainstPackage(pkg, principal, months);
       if (rangeErr) {
         return res.status(400).json({ error: rangeErr });
+      }
+
+      // Purpose gate — when the package pins purposes, reject any
+      // value outside that list. Customers can't bypass this by
+      // hand-rolling the API.
+      const allowedPurposes = pkg.allowed_purposes || [];
+      if (
+        allowedPurposes.length > 0 &&
+        purpose &&
+        !allowedPurposes.includes(purpose)
+      ) {
+        return res.status(400).json({
+          error: `${pkg.name} only supports these purposes: ${allowedPurposes.join(", ")}`,
+        });
       }
 
       // Eligibility gates. Same evaluator the staff route uses, so a

@@ -272,7 +272,8 @@ CREATE TABLE public.loan_packages (
     min_credit_score integer
         CHECK (min_credit_score IS NULL OR min_credit_score >= 0),
     allowed_client_types text[] NOT NULL DEFAULT '{}',
-    allowed_branch_ids integer[] NOT NULL DEFAULT '{}'
+    allowed_branch_ids integer[] NOT NULL DEFAULT '{}',
+    allowed_purposes text[] NOT NULL DEFAULT '{}'
 );
 CREATE UNIQUE INDEX loan_packages_tenant_name_active_unique
     ON public.loan_packages (tenant_id, lower((name)::text)) WHERE active;

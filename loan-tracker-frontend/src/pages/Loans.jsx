@@ -25,6 +25,7 @@ import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
 import { computeLoanTotals } from "../utils/loanMath";
 import { evaluatePackageEligibility } from "../utils/packageEligibility";
+import { purposesForPackage } from "../utils/loanPurposes";
 
 function Loans() {
   const navigate = useNavigate();
@@ -829,6 +830,7 @@ function Loans() {
                     );
                     if (pkg) {
                       const annual = parseFloat(pkg.annual_interest_rate);
+                      const allowed = pkg.allowed_purposes || [];
                       setFormData((prev) => ({
                         ...prev,
                         package_id: pkgId,
@@ -838,6 +840,16 @@ function Loans() {
                           roundRate(annual / 12),
                         ),
                         processing_fee_rate: String(pkg.processing_fee_rate),
+                        // Snap purpose into the package's allow-list.
+                        // Single allowed purpose → auto-fill; current
+                        // value still valid → keep it; otherwise clear.
+                        purpose:
+                          allowed.length === 1
+                            ? allowed[0]
+                            : allowed.length === 0 ||
+                                allowed.includes(prev.purpose)
+                              ? prev.purpose
+                              : "",
                       }));
                     } else {
                       setFormData((prev) => ({ ...prev, package_id: "" }));
@@ -1073,25 +1085,19 @@ function Loans() {
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                 >
                   <option value="">Select purpose…</option>
-                  {[
-                    "Business expansion",
-                    "Stock purchase",
-                    "Equipment purchase",
-                    "School fees",
-                    "Medical emergency",
-                    "Home improvement",
-                    "Vehicle purchase",
-                    "Farming inputs",
-                    "Working capital",
-                    "Wedding expenses",
-                    "Funeral expenses",
-                    "Other",
-                  ].map((p) => (
+                  {purposesForPackage(selectedPackage).map((p) => (
                     <option key={p} value={p}>
                       {p}
                     </option>
                   ))}
                 </select>
+                {selectedPackage &&
+                  (selectedPackage.allowed_purposes || []).length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Restricted by package to{" "}
+                      {(selectedPackage.allowed_purposes || []).join(", ")}.
+                    </p>
+                  )}
               </div>
             </div>
 
