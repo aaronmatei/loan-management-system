@@ -25,6 +25,7 @@ import {
   X,
   HandCoins,
   Handshake,
+  AlertOctagon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -66,6 +67,7 @@ const navGroups = [
       // badgeKey lets renderItem read the live count (overdueCount) without
       // baking a number into the static config.
       { path: "/overdue", label: "Overdue", icon: AlertTriangle, permission: "overdue:view", badgeKey: "overdue" },
+      { path: "/defaulted", label: "Defaulted", icon: AlertOctagon, permission: "loans:view" },
       { path: "/waivers", label: "Waivers", icon: HandCoins, roles: ["admin"], badgeKey: "pendingWaivers" },
       { path: "/promises", label: "Promises to Pay", icon: Handshake, permission: "loans:view" },
     ],
