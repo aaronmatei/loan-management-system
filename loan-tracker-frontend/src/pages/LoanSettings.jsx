@@ -77,7 +77,7 @@ function LoanSettings() {
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
           <SlidersHorizontal size={28} /> Loan Settings
