@@ -24,6 +24,7 @@ import billingRoutes from "./routes/billing.js";
 import expensesRoutes from "./routes/expenses.js";
 import waiverRoutes from "./routes/waivers.js";
 import promiseRoutes from "./routes/promises.js";
+import reconciliationRoutes from "./routes/reconciliation.js";
 import automationRoutes from "./routes/automation.js";
 import auditRoutes from "./routes/audit.js";
 import userRoutes from "./routes/users.js";
@@ -125,6 +126,7 @@ app.use("/api/waivers", waiverRoutes);
 //  /api/promises … → tenant-wide queue + summary + mark kept/cancel
 app.use("/api/loans", promiseRoutes);
 app.use("/api/promises", promiseRoutes);
+app.use("/api/reconciliation", reconciliationRoutes);
 app.use("/api/automation", automationRoutes); // tenant reminder/overdue automation
 app.use("/api/audit", auditRoutes);
 app.use("/api/users", userRoutes);

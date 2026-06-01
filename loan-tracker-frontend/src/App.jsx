@@ -58,6 +58,7 @@ import Expenses from "./pages/Expenses";
 import Waivers from "./pages/Waivers";
 import Promises from "./pages/Promises";
 import Defaulted from "./pages/Defaulted";
+import Reconciliation from "./pages/Reconciliation";
 import Automation from "./pages/Automation";
 import AuditLog from "./pages/AuditLog";
 import UserManagement from "./pages/UserManagement";
@@ -248,6 +249,7 @@ function App() {
               <Route path="/waivers" element={<Waivers />} />
               <Route path="/promises" element={<Promises />} />
               <Route path="/defaulted" element={<Defaulted />} />
+              <Route path="/reconciliation" element={<Reconciliation />} />
               <Route path="/automation" element={<Automation />} />
               <Route path="/white-label" element={<WhiteLabelSettings />} />
               <Route path="/embed" element={<EmbedSettings />} />

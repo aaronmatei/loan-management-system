@@ -26,6 +26,7 @@ import {
   HandCoins,
   Handshake,
   AlertOctagon,
+  Scale,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -79,6 +80,7 @@ const navGroups = [
     items: [
       { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
       { path: "/analytics", label: "Analytics", icon: TrendingUp, permission: "dashboard:view" },
+      { path: "/reconciliation", label: "Reconciliation", icon: Scale, permission: "reports:view" },
     ],
   },
   {
