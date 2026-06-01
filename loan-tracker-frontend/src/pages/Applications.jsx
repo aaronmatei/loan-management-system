@@ -531,6 +531,38 @@ function Applications() {
   // and processing meta). Reused by the desktop expanded row and mobile cards.
   const renderDetails = (app) => (
     <div className="space-y-3">
+      {/* Package + interest method row — only shown when at least one
+          is interesting (package set OR non-default method) so the
+          panel stays tidy for vanilla flat-rate custom loans. */}
+      {(app.package_name ||
+        (app.interest_method && app.interest_method !== "flat")) && (
+        <div className="flex flex-wrap gap-x-6 gap-y-2 bg-indigo-50/50 border border-indigo-100 rounded-lg p-3">
+          {app.package_name && (
+            <div>
+              <p className="text-xs text-gray-500">Package</p>
+              <p className="font-semibold text-indigo-800">
+                {app.package_name}
+              </p>
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-gray-500">Interest Method</p>
+            <p>
+              <span
+                className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  app.interest_method === "reducing"
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {app.interest_method === "reducing"
+                  ? "Reducing"
+                  : "Flat"}
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div>
           <p className="text-xs text-gray-500">Principal</p>
@@ -839,10 +871,19 @@ function Applications() {
                           <td className="px-4 py-3">
                             <button
                               onClick={() => toggleExpand(app.id)}
-                              className="font-mono text-sm font-bold text-ocean-600 hover:underline"
+                              className="font-mono text-sm font-bold text-ocean-600 hover:underline block"
                             >
                               {app.loan_code}
                             </button>
+                            {/* Package chip when applied via a
+                                published product; absent for
+                                off-product custom apps. Keeps the
+                                code column readable at a glance. */}
+                            {app.package_name && (
+                              <p className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 inline-block px-1.5 py-0.5 rounded mt-1">
+                                {app.package_name}
+                              </p>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <p className="font-semibold text-gray-800 text-sm">

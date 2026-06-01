@@ -1809,7 +1809,16 @@ function Loans() {
                         />
                       </td>
                       <td className="px-4 py-4 font-mono text-sm font-semibold text-ocean-600">
-                        {loan.loan_code}
+                        <div>{loan.loan_code}</div>
+                        {/* Package tag — only shown when the loan was
+                            applied via a published product. Off-product
+                            custom loans (package_name=null) skip the
+                            tag entirely so the column stays compact. */}
+                        {loan.package_name && (
+                          <p className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 inline-block px-1.5 py-0.5 rounded mt-1 font-sans">
+                            {loan.package_name}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <div>

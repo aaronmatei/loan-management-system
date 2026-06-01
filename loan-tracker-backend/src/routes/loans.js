@@ -1589,11 +1589,13 @@ router.get("/applications/queue", async (req, res) => {
     let queryText = `
       SELECT l.*,
         c.first_name, c.last_name, c.phone_number, c.client_code, c.county,
+        pk.name AS package_name,
         creator.first_name AS created_by_name,
         reviewer.first_name AS reviewed_by_name,
         approver.first_name AS approved_by_name
       FROM loans l
       JOIN clients c ON l.client_id = c.id
+      LEFT JOIN loan_packages pk ON pk.id = l.package_id
       LEFT JOIN users creator ON l.created_by = creator.id
       LEFT JOIN users reviewer ON l.reviewed_by = reviewer.id
       LEFT JOIN users approver ON l.approved_by = approver.id
