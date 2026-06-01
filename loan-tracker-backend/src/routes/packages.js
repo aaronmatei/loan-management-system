@@ -97,7 +97,13 @@ function validatePayload(body, { partial = false } = {}) {
       return "max_duration_months must be ≥ min_duration_months";
     }
   }
-  if (body?.min_credit_score !== undefined && body.min_credit_score !== null) {
+  // Empty string from the form means "no minimum" — same as undefined
+  // and null. Only a non-empty value gets the 0..100 integer check.
+  if (
+    body?.min_credit_score !== undefined &&
+    body.min_credit_score !== null &&
+    body.min_credit_score !== ""
+  ) {
     const s = parseInt(body.min_credit_score, 10);
     if (!Number.isInteger(s) || s < 0 || s > 100) {
       return "min_credit_score must be between 0 and 100";
