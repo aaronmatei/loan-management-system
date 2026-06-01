@@ -54,8 +54,30 @@ router.get("/", async (req, res) => {
     const { search, status, page = 1, limit = 10000 } = req.query;
     const offset = (page - 1) * limit;
 
+    // Enriched list query — branch name comes from the FK join; the
+    // loan-status aggregate powers both the "Last Activity" timestamp
+    // and the derived tag chips (VIP / Repeat / Blacklisted) the
+    // frontend renders. last_activity = MAX over the client's row,
+    // their loans, and their payments — cheap because each subquery
+    // is keyed on an indexed FK.
     let queryText = `
-      SELECT c.*, b.name AS branch_name
+      SELECT c.*,
+             b.name AS branch_name,
+             (SELECT COUNT(*) FROM loans
+               WHERE client_id = c.id AND status = 'completed')::int
+               AS completed_loans_count,
+             (SELECT COUNT(*) FROM loans
+               WHERE client_id = c.id AND status = 'defaulted')::int
+               AS defaulted_loans_count,
+             (SELECT COUNT(*) FROM loans
+               WHERE client_id = c.id AND status = 'active')::int
+               AS active_loans_count,
+             GREATEST(
+               c.updated_at,
+               (SELECT MAX(l.created_at) FROM loans l WHERE l.client_id = c.id),
+               (SELECT MAX(t.payment_date) FROM transactions t
+                 WHERE t.client_id = c.id AND t.payment_status = 'completed')
+             ) AS last_activity
         FROM clients c
         LEFT JOIN branches b ON b.id = c.branch_id
        WHERE 1=1`;
@@ -329,6 +351,23 @@ router.get("/:id/credit-profile", async (req, res) => {
       : { level: "unrated", label: "🆕 Building credit", color: "slate" };
     const eligibility = checkEligibility(summary, creditScore ?? 0);
     if (!rated) eligibility.reason = "New borrower — no credit history yet";
+
+    // Cache the score back on the client row so the Clients list
+    // can show it without re-running this expensive aggregate per
+    // row. Best-effort — never fail the profile fetch if the cache
+    // write hiccups. Skipped for platform admins viewing a client
+    // from outside their own tenant (req.user.tenant_id absent).
+    if (creditScore !== null && req.user?.tenant_id) {
+      try {
+        await query(
+          `UPDATE clients SET credit_score = $1
+            WHERE id = $2 AND tenant_id = $3`,
+          [creditScore, id, req.user.tenant_id],
+        );
+      } catch (err) {
+        logger.error("Failed to cache credit_score on client:", err);
+      }
+    }
 
     res.json({
       success: true,

@@ -247,7 +247,8 @@ CREATE TABLE public.clients (
     signup_promo_code character varying(40),
     branch_id integer,
     client_type character varying(20) NOT NULL DEFAULT 'individual'
-        CHECK (client_type IN ('individual', 'group', 'business'))
+        CHECK (client_type IN ('individual', 'group', 'business')),
+    credit_score integer
 );
 
 CREATE TABLE public.branches (

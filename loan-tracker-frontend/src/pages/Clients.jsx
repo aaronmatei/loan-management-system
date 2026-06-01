@@ -14,7 +14,10 @@ import {
   CLIENT_TYPES,
   businessNameLabel,
   clientTypeLabel,
+  clientTags,
+  tagChipClass,
 } from "../utils/clientTypes";
+import { timeAgo } from "../utils/relativeTime";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
@@ -592,6 +595,20 @@ function Clients() {
                     <p className="text-xs text-ocean-600 font-mono">
                       {client.client_code}
                     </p>
+                    {clientTags(client).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {clientTags(client).map((t) => (
+                          <span
+                            key={t.key}
+                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${tagChipClass(
+                              t.tone,
+                            )}`}
+                          >
+                            {t.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <span
@@ -610,19 +627,23 @@ function Clients() {
                   <p className="font-semibold">{client.phone_number}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">County</p>
+                  <p className="text-xs text-gray-500">Branch</p>
                   <p className="font-semibold truncate">
-                    {client.county || "N/A"}
+                    {client.branch_name || "—"}
                   </p>
                 </div>
-                {client.email && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-500">Email</p>
-                    <p className="font-semibold truncate text-blue-600">
-                      {client.email}
-                    </p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-xs text-gray-500">Score</p>
+                  <p className="font-semibold">
+                    {client.credit_score == null ? "—" : client.credit_score}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Last Activity</p>
+                  <p className="font-semibold truncate">
+                    {timeAgo(client.last_activity)}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
@@ -680,9 +701,10 @@ function Clients() {
                     ["Name", "first_name"],
                     ["Type", "client_type"],
                     ["Phone", "phone_number"],
-                    ["Email", "email"],
-                    ["Business", "business_name"],
-                    ["Location", "city"],
+                    ["Branch", "branch_name"],
+                    ["Joined", "created_at"],
+                    ["Score", "credit_score"],
+                    ["Last Activity", "last_activity"],
                     ["Status", "status"],
                   ].map(([label, key]) => (
                     <SortableHeader
@@ -720,7 +742,21 @@ function Clients() {
                       {client.client_code}
                     </td>
                     <td className="px-6 py-4 font-semibold text-gray-800">
-                      {client.first_name} {client.last_name}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>
+                          {client.first_name} {client.last_name}
+                        </span>
+                        {clientTags(client).map((t) => (
+                          <span
+                            key={t.key}
+                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${tagChipClass(
+                              t.tone,
+                            )}`}
+                          >
+                            {t.label}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -739,13 +775,39 @@ function Clients() {
                       {client.phone_number}
                     </td>
                     <td className="px-6 py-4 text-gray-600">
-                      {client.email || "-"}
+                      {client.branch_name || "—"}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {client.business_name || client.business_type || "-"}
+                    <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
+                      {client.created_at
+                        ? new Date(client.created_at).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )
+                        : "—"}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {client.city || client.county || "-"}
+                    <td className="px-6 py-4 font-semibold text-gray-700">
+                      {client.credit_score == null ? (
+                        <span className="text-gray-400">—</span>
+                      ) : (
+                        <span
+                          className={
+                            client.credit_score >= 80
+                              ? "text-emerald-600"
+                              : client.credit_score >= 60
+                                ? "text-amber-600"
+                                : "text-rose-600"
+                          }
+                        >
+                          {client.credit_score}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
+                      {timeAgo(client.last_activity)}
                     </td>
                     <td className="px-6 py-4">
                       <span
