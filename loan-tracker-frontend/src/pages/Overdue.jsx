@@ -79,13 +79,23 @@ function Overdue() {
   const openPromise = (g) => {
     const d = new Date();
     d.setDate(d.getDate() + 3);
+    // Default amount = what the borrower needs to hand over to clear
+    // the overdue rows: principal+interest balance on the missed
+    // installments + the penalty that's accrued on them. Fields are
+    // the per-loan aggregates the row already renders (g.balance_due
+    // and g.penalty_outstanding); my earlier draft read
+    // g.overdue_balance which doesn't exist, hence the 0.00 default
+    // the user flagged.
+    const balance = parseFloat(g.balance_due || 0);
+    const penalty = parseFloat(g.penalty_outstanding || 0);
+    const suggested = balance + penalty;
     setPromiseTarget({
       loanId: g.loan_id,
       loanCode: g.loan_code,
       name: `${g.first_name} ${g.last_name}`,
     });
     setPromiseForm({
-      amount: String(Number(g.overdue_balance || 0).toFixed(2)),
+      amount: suggested > 0 ? suggested.toFixed(2) : "",
       promised_date: d.toISOString().slice(0, 10),
       notes: "",
     });
@@ -1112,8 +1122,9 @@ function Overdue() {
             <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 mb-4 text-sm flex items-start gap-2">
               <Clock size={16} className="flex-shrink-0 mt-0.5" />
               <span>
-                Amount defaults to the row's overdue balance. Adjust if the
-                borrower committed to a different figure.
+                Amount defaults to the row's overdue balance + accrued
+                penalty — what the borrower needs to clear to be current.
+                Adjust if they committed to a different figure.
               </span>
             </div>
 
