@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, RotateCcw, PartyPopper, Search, X, Download, BarChart3, ChevronRight, ChevronDown } from "lucide-react";
+import { AlertTriangle, RotateCcw, PartyPopper, Search, X, Download, BarChart3, ChevronRight, ChevronDown, Handshake, Clock } from "lucide-react";
 import api from "../services/api";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
@@ -62,6 +62,63 @@ function Overdue() {
 
   // Which loans are expanded to reveal their overdue installments.
   const [expanded, setExpanded] = useState(() => new Set());
+
+  // Log Promise to Pay — inline action so the collections officer can
+  // capture a borrower's verbal commitment without leaving the chase
+  // list. Loan id + a pre-filled suggested amount come from the row
+  // (overdue total seems like a sane default — admin can change it).
+  const [promiseTarget, setPromiseTarget] = useState(null); // { loanId, loanCode, name, suggestedAmount }
+  const [promiseForm, setPromiseForm] = useState({
+    amount: "",
+    promised_date: "",
+    notes: "",
+  });
+  const [savingPromise, setSavingPromise] = useState(false);
+  const [promiseError, setPromiseError] = useState("");
+
+  const openPromise = (g) => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    setPromiseTarget({
+      loanId: g.loan_id,
+      loanCode: g.loan_code,
+      name: `${g.first_name} ${g.last_name}`,
+    });
+    setPromiseForm({
+      amount: String(Number(g.overdue_balance || 0).toFixed(2)),
+      promised_date: d.toISOString().slice(0, 10),
+      notes: "",
+    });
+    setPromiseError("");
+  };
+
+  const submitPromise = async (e) => {
+    e.preventDefault();
+    if (!promiseTarget) return;
+    const amt = parseFloat(promiseForm.amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setPromiseError("Enter a positive amount.");
+      return;
+    }
+    if (!promiseForm.promised_date) {
+      setPromiseError("Pick a promise date.");
+      return;
+    }
+    setSavingPromise(true);
+    setPromiseError("");
+    try {
+      await api.post(`/loans/${promiseTarget.loanId}/promises`, {
+        amount: amt,
+        promised_date: promiseForm.promised_date,
+        notes: promiseForm.notes.trim() || null,
+      });
+      setPromiseTarget(null);
+    } catch (err) {
+      setPromiseError(err.response?.data?.error || "Failed to log promise");
+    } finally {
+      setSavingPromise(false);
+    }
+  };
   const toggleExpand = (loanId) =>
     setExpanded((s) => {
       const next = new Set(s);
@@ -566,9 +623,23 @@ function Overdue() {
                         </p>
                       </div>
                     </div>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => openPromise(g)}
+                        className="flex-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition inline-flex items-center justify-center gap-1"
+                      >
+                        <Handshake size={12} /> Log Promise
+                      </button>
+                      <button
+                        onClick={() => navigate(`/loans/${g.loan_id}`)}
+                        className="flex-1 px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
+                      >
+                        Open Loan
+                      </button>
+                    </div>
                     <button
                       onClick={() => toggleExpand(g.loan_id)}
-                      className="mt-3 w-full inline-flex items-center justify-center gap-1 text-xs font-semibold text-ocean-600"
+                      className="mt-2 w-full inline-flex items-center justify-center gap-1 text-xs font-semibold text-ocean-600"
                     >
                       {open ? (
                         <>
@@ -776,12 +847,21 @@ function Overdue() {
                               </span>
                             </td>
                             <td className="px-4 py-4 text-center">
-                              <button
-                                onClick={() => navigate(`/loans/${g.loan_id}`)}
-                                className="px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
-                              >
-                                View Loan
-                              </button>
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  onClick={() => openPromise(g)}
+                                  className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition inline-flex items-center gap-1"
+                                  title="Log a Promise to Pay from this overdue row"
+                                >
+                                  <Handshake size={12} /> Promise
+                                </button>
+                                <button
+                                  onClick={() => navigate(`/loans/${g.loan_id}`)}
+                                  className="px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
+                                >
+                                  View
+                                </button>
+                              </div>
                             </td>
                           </tr>
                           {open && (
@@ -1001,6 +1081,121 @@ function Overdue() {
           {defaulting ? "Marking…" : "Mark Defaulted"}
         </button>
       </BulkActionBar>
+
+      {/* Log Promise modal — inline so the chase officer doesn't have
+          to navigate into the loan page just to capture a verbal
+          commitment. Mirrors the one on LoanDetails so behaviour and
+          validation are identical. */}
+      {promiseTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <Handshake size={22} className="text-amber-600" />
+                  Log Promise to Pay
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {promiseTarget.loanCode} ·{" "}
+                  <span className="font-semibold">{promiseTarget.name}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setPromiseTarget(null)}
+                disabled={savingPromise}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 mb-4 text-sm flex items-start gap-2">
+              <Clock size={16} className="flex-shrink-0 mt-0.5" />
+              <span>
+                Amount defaults to the row's overdue balance. Adjust if the
+                borrower committed to a different figure.
+              </span>
+            </div>
+
+            {promiseError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-3 text-sm">
+                {promiseError}
+              </div>
+            )}
+
+            <form onSubmit={submitPromise} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Amount (KES) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    value={promiseForm.amount}
+                    onChange={(e) =>
+                      setPromiseForm((p) => ({ ...p, amount: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Promised by *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={promiseForm.promised_date}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) =>
+                      setPromiseForm((p) => ({
+                        ...p,
+                        promised_date: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  rows="2"
+                  value={promiseForm.notes}
+                  onChange={(e) =>
+                    setPromiseForm((p) => ({ ...p, notes: e.target.value }))
+                  }
+                  placeholder="e.g. will pay after salary on Friday"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setPromiseTarget(null)}
+                  disabled={savingPromise}
+                  className="px-5 py-2 bg-gray-500 text-white font-semibold rounded-lg disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPromise}
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  <Handshake size={16} />
+                  {savingPromise ? "Saving…" : "Log Promise"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
