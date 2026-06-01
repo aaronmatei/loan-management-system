@@ -493,6 +493,7 @@ function LoanPackagesSection() {
                 <th className="px-3 py-2 font-semibold">Name</th>
                 <th className="px-3 py-2 font-semibold">Method</th>
                 <th className="px-3 py-2 font-semibold text-right">Rate p.a.</th>
+                <th className="px-3 py-2 font-semibold text-right">Rate p.m.</th>
                 <th className="px-3 py-2 font-semibold text-right">Fee</th>
                 <th className="px-3 py-2 font-semibold text-right">Amount</th>
                 <th className="px-3 py-2 font-semibold text-right">Months</th>
@@ -538,6 +539,9 @@ function LoanPackagesSection() {
                   </td>
                   <td className="px-3 py-2 text-right">
                     {Number(p.annual_interest_rate).toFixed(2)}%
+                  </td>
+                  <td className="px-3 py-2 text-right text-gray-600">
+                    {(Number(p.annual_interest_rate) / 12).toFixed(2)}%
                   </td>
                   <td className="px-3 py-2 text-right">
                     {Number(p.processing_fee_rate).toFixed(2)}%
