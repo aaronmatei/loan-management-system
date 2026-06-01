@@ -12,6 +12,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/auth.js";
 import clientRoutes from "./routes/clients.js";
 import branchRoutes from "./routes/branches.js";
+import packageRoutes from "./routes/packages.js";
 import loanRoutes from "./routes/loans.js";
 import paymentRoutes from "./routes/payments.js";
 import dashboardRoutes from "./routes/dashboard.js";
@@ -107,6 +108,7 @@ app.use("/api/white-label", whiteLabelRoutes);
 app.use("/api/widget", widgetRoutes); // PUBLIC — embeddable on third-party sites
 app.use("/api/clients", clientRoutes);
 app.use("/api/branches", branchRoutes);
+app.use("/api/packages", packageRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);

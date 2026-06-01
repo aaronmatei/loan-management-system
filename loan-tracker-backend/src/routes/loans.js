@@ -7,6 +7,10 @@ import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { nextLoanCode } from "../utils/clientCode.js";
 import { getLoanStanding } from "../utils/loanEligibility.js";
 import {
+  computeLoanTotals,
+  validateAgainstPackage,
+} from "../utils/loanMath.js";
+import {
   notifyApplicationSubmitted,
   notifyApplicationApproved,
   notifyApplicationRejected,
@@ -196,7 +200,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     const {
       client_id,
       principal_amount,
-      annual_interest_rate, // ✅ Now using annual rate
+      annual_interest_rate: bodyAnnualRate,
       loan_duration_months,
       start_date,
       purpose,
@@ -210,7 +214,46 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       application_date: bodyApplicationDate,
       application_source,
       review_notes,
+      package_id: bodyPackageId,
+      interest_method: bodyInterestMethod,
     } = req.body;
+
+    // Package-or-free-form. If a package is supplied, its mechanics
+    // (rate, fee, method) take precedence over whatever the form
+    // submitted — admins picked the package, so the form fields are
+    // pre-filled but ultimately just preview. Range-validate amount +
+    // duration against the package; rejection here is a 400, not a
+    // schema error, so the UI can call out the offending field.
+    let pkg = null;
+    if (bodyPackageId) {
+      const pkgT = tenantClause(req, 1);
+      const pr = await query(
+        `SELECT * FROM loan_packages WHERE id = $1${pkgT.clause}`,
+        [bodyPackageId, ...pkgT.params],
+      );
+      if (pr.rows.length === 0 || !pr.rows[0].active) {
+        return res
+          .status(400)
+          .json({ error: "Selected package is invalid or archived" });
+      }
+      pkg = pr.rows[0];
+    }
+
+    // Effective inputs: package overrides body for the locked fields;
+    // free-form takes the body values.
+    const annual_interest_rate = pkg
+      ? parseFloat(pkg.annual_interest_rate)
+      : bodyAnnualRate;
+    const interestMethod = (
+      pkg ? pkg.interest_method : bodyInterestMethod || "flat"
+    )
+      .toString()
+      .toLowerCase();
+    if (!["flat", "reducing"].includes(interestMethod)) {
+      return res
+        .status(400)
+        .json({ error: "interest_method must be 'flat' or 'reducing'" });
+    }
 
     // Validation. start_date is NOT required at application time —
     // it's set when the loan is disbursed.
@@ -224,6 +267,17 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         error:
           "Client, amount, interest rate, and duration are required",
       });
+    }
+
+    if (pkg) {
+      const rangeErr = validateAgainstPackage(
+        pkg,
+        principal_amount,
+        loan_duration_months,
+      );
+      if (rangeErr) {
+        return res.status(400).json({ error: rangeErr, blocker: "package_range" });
+      }
     }
 
     // Client must belong to the acting tenant (platform admin bypasses).
@@ -286,17 +340,23 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     // and approval. Schedule, capital movement and notifications all
     // happen at /disburse, not at application.
 
-    // Loan calculations. interest_rate stores the MONTHLY rate as a
-    // percent (existing convention — analytics, the agreement PDF and
-    // every display derive annual = interest_rate * 12 from it; do
-    // NOT change this to a fraction).
+    // Loan calculations via shared loanMath helper. interest_rate
+    // column stores the MONTHLY rate as a percent (existing convention
+    // — analytics, the agreement PDF, and every display derive annual
+    // = interest_rate * 12 from it; do NOT change this to a fraction).
+    // The interest method drives the math: 'flat' is the legacy
+    // straight-line spread; 'reducing' is amortized (EMI) so interest
+    // falls as the balance shrinks.
     const principal = parseFloat(principal_amount);
     const annualRate = parseFloat(annual_interest_rate);
     const monthlyRate = annualRate / 12;
     const months = parseInt(loan_duration_months);
-    const years = months / 12;
-    const totalInterest = principal * (annualRate / 100) * years;
-    const totalAmountDue = principal + totalInterest;
+    const { totalInterest, totalAmountDue } = computeLoanTotals({
+      principal,
+      annualRatePct: annualRate,
+      months,
+      method: interestMethod,
+    });
 
     // Writes bind to the acting tenant (loans.tenant_id is NOT NULL).
     const wTid = req.user?.tenant_id;
@@ -373,9 +433,10 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         guarantor_name, guarantor_phone, guarantor_id_number,
         collateral_description, late_payment_fee, penalty_rate,
         processing_fee_rate, processing_fee, net_disbursed_amount,
-        application_date, application_source, review_notes
+        application_date, application_source, review_notes,
+        package_id, interest_method
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, $15, $16,
-                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21)
+                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21, $23, $24)
       RETURNING *`,
       [
         wTid,
@@ -405,6 +466,8 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         application_source || "walk_in",
         review_notes || null,
         appDate,
+        pkg ? pkg.id : null,
+        interestMethod,
       ],
     );
 
@@ -1180,12 +1243,23 @@ async function performDisburse(req, loan, opts) {
   );
   const active = result.rows[0];
 
-  // Payment schedule anchored on effectiveStart.
-  const monthlyPayment = parseFloat(loan.total_amount_due) / months;
+  // Payment schedule anchored on effectiveStart. Per-installment
+  // amounts come from computeLoanTotals so the 'reducing' (EMI) path
+  // gets a properly-amortized schedule — flat keeps the legacy even
+  // split. The last row is pinned to the residual balance so cents
+  // never drift across rounding.
+  const monthlyRatePct = parseFloat(loan.interest_rate) || 0;
+  const { schedule } = computeLoanTotals({
+    principal: parseFloat(loan.principal_amount),
+    annualRatePct: monthlyRatePct * 12,
+    months,
+    method: loan.interest_method || "flat",
+  });
   const scheduleAnchor = new Date(effectiveStart);
   for (let i = 1; i <= months; i++) {
     const dueDate = new Date(scheduleAnchor);
     dueDate.setMonth(dueDate.getMonth() + (i - 1));
+    const row = schedule[i - 1];
     await query(
       `INSERT INTO payment_schedules (
         tenant_id, loan_id, payment_number, due_date, amount_due, status
@@ -1195,7 +1269,7 @@ async function performDisburse(req, loan, opts) {
         loan.id,
         i,
         dueDate.toISOString().split("T")[0],
-        monthlyPayment.toFixed(2),
+        row.amountDue.toFixed(2),
       ],
     );
   }

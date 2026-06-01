@@ -22,6 +22,7 @@ import PermissionGate from "../components/PermissionGate";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
+import { computeLoanTotals } from "../utils/loanMath";
 
 function Loans() {
   const navigate = useNavigate();
@@ -64,6 +65,8 @@ function Loans() {
 
   const [formData, setFormData] = useState({
     client_id: "",
+    package_id: "",
+    interest_method: "flat",
     principal_amount: "",
     annual_interest_rate: "50",
     monthly_interest_rate: "4.1667", // annual / 12 — display companion, synced
@@ -81,12 +84,31 @@ function Loans() {
     penalty_rate: 0,
   });
 
+  const [packages, setPackages] = useState([]);
+
   useEffect(() => {
     fetchLoans();
     fetchClients();
     fetchPoolStatus();
     fetchLoanPolicy();
+    fetchPackages();
   }, []);
+
+  // Active packages only — archived ones still resolve on historical
+  // loans via the FK, but can't be picked for new applications.
+  const fetchPackages = async () => {
+    try {
+      const r = await api.get("/packages");
+      setPackages((r.data.data || []).filter((p) => p.active));
+    } catch {
+      // non-fatal — form falls back to free-form custom loan
+    }
+  };
+
+  // Derived: the currently-selected package object (or null when the
+  // staff picked "Custom"). Drives the field-lock and range hints.
+  const selectedPackage =
+    packages.find((p) => String(p.id) === String(formData.package_id)) || null;
 
   // Pull the tenant's loan policy and seed the form defaults from it, so a
   // new application picks up the configured annual rate, late fee, etc.
@@ -234,17 +256,22 @@ function Loans() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Live calculation with annual rate
+  // Live calculation — defers to the shared loanMath helper so flat
+  // and reducing-balance previews stay identical to what the backend
+  // actually books at create time.
   const calculateLoanDetails = () => {
     const principal = parseFloat(formData.principal_amount) || 0;
     const annualRate = parseFloat(formData.annual_interest_rate) || 0;
     const months = parseInt(formData.loan_duration_months) || 0;
-
     const monthlyRate = annualRate / 12;
-    const years = months / 12;
-    const totalInterest = principal * (annualRate / 100) * years;
-    const totalAmount = principal + totalInterest;
-    const monthlyPayment = months > 0 ? totalAmount / months : 0;
+
+    const { totalInterest, totalAmountDue, monthlyPayment } =
+      computeLoanTotals({
+        principal,
+        annualRatePct: annualRate,
+        months,
+        method: formData.interest_method,
+      });
 
     // Processing fee snapshot — mirrors what the backend will store on the
     // loan: principal × the form's processing_fee_rate% (defaults to the
@@ -256,7 +283,7 @@ function Loans() {
     return {
       monthlyRate: monthlyRate.toFixed(2),
       totalInterest: totalInterest.toFixed(2),
-      totalAmount: totalAmount.toFixed(2),
+      totalAmount: totalAmountDue.toFixed(2),
       monthlyPayment: monthlyPayment.toFixed(2),
       feeRate,
       processingFee,
@@ -297,6 +324,8 @@ function Loans() {
       // Reset form — defaults come from the tenant's configured loan policy.
       setFormData({
         client_id: "",
+        package_id: "",
+        interest_method: "flat",
         principal_amount: "",
         annual_interest_rate: String(loanPolicy.default_interest_rate),
         monthly_interest_rate: String(
@@ -777,6 +806,97 @@ function Loans() {
               </div>
             )}
 
+            {/* Loan Package + Interest Method.
+                The picker offers "Custom loan" + every active package.
+                When a package is selected, the rate / fee / method are
+                pulled from the package and the form fields become
+                read-only so staff can see the values but can't
+                override them. Range hints below amount/duration are
+                informational; the backend re-validates on submit. */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Loan Package
+                </label>
+                <select
+                  value={formData.package_id}
+                  onChange={(e) => {
+                    const pkgId = e.target.value;
+                    const pkg = packages.find(
+                      (p) => String(p.id) === String(pkgId),
+                    );
+                    if (pkg) {
+                      const annual = parseFloat(pkg.annual_interest_rate);
+                      setFormData((prev) => ({
+                        ...prev,
+                        package_id: pkgId,
+                        interest_method: pkg.interest_method || "flat",
+                        annual_interest_rate: String(annual),
+                        monthly_interest_rate: String(
+                          roundRate(annual / 12),
+                        ),
+                        processing_fee_rate: String(pkg.processing_fee_rate),
+                      }));
+                    } else {
+                      setFormData((prev) => ({ ...prev, package_id: "" }));
+                    }
+                  }}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                >
+                  <option value="">
+                    Custom loan — no package (free-form)
+                  </option>
+                  {packages.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({Number(p.annual_interest_rate).toFixed(2)}%
+                      {" · "}
+                      {p.interest_method === "reducing" ? "reducing" : "flat"})
+                    </option>
+                  ))}
+                </select>
+                {selectedPackage && (
+                  <p className="text-xs text-ocean-600 mt-1">
+                    Rate, fee, and method are locked by this package.
+                    Allowed amount{" "}
+                    {Number(selectedPackage.min_amount).toLocaleString()}–
+                    {Number(selectedPackage.max_amount).toLocaleString()},
+                    duration {selectedPackage.min_duration_months}–
+                    {selectedPackage.max_duration_months} months.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Interest Method *
+                </label>
+                <select
+                  value={formData.interest_method}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      interest_method: e.target.value,
+                    })
+                  }
+                  disabled={!!selectedPackage}
+                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white ${
+                    selectedPackage ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <option value="flat">
+                    Flat — interest spread evenly
+                  </option>
+                  <option value="reducing">
+                    Reducing balance — amortized (EMI)
+                  </option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.interest_method === "reducing"
+                    ? "Each installment is the same EMI; interest portion shrinks as the balance falls."
+                    : "Total interest spread evenly across all installments (legacy default)."}
+                </p>
+              </div>
+            </div>
+
             {/* Amount, Annual Rate, Monthly Rate, Duration */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
@@ -789,7 +909,8 @@ function Loans() {
                   value={formData.principal_amount}
                   onChange={handleInputChange}
                   required
-                  min="1000"
+                  min={selectedPackage ? selectedPackage.min_amount : 1000}
+                  max={selectedPackage ? selectedPackage.max_amount : undefined}
                   step="100"
                   placeholder="5000"
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
@@ -806,7 +927,10 @@ function Loans() {
                   required
                   min="0"
                   step="0.01"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  readOnly={!!selectedPackage}
+                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                    selectedPackage ? "bg-gray-50 cursor-not-allowed" : ""
+                  }`}
                 />
               </div>
               <div>
@@ -820,7 +944,10 @@ function Loans() {
                   required
                   min="0"
                   step="0.01"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  readOnly={!!selectedPackage}
+                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                    selectedPackage ? "bg-gray-50 cursor-not-allowed" : ""
+                  }`}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Synced with annual rate.
@@ -836,8 +963,10 @@ function Loans() {
                   value={formData.loan_duration_months}
                   onChange={handleInputChange}
                   required
-                  min="1"
-                  max="60"
+                  min={selectedPackage ? selectedPackage.min_duration_months : 1}
+                  max={
+                    selectedPackage ? selectedPackage.max_duration_months : 60
+                  }
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
@@ -856,7 +985,10 @@ function Loans() {
                   min="0"
                   max="100"
                   step="0.01"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  readOnly={!!selectedPackage}
+                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                    selectedPackage ? "bg-gray-50 cursor-not-allowed" : ""
+                  }`}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Deducted from disbursed amount.

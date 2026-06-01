@@ -251,6 +251,29 @@ CREATE TABLE public.clients (
     credit_score integer
 );
 
+CREATE TABLE public.loan_packages (
+    id serial PRIMARY KEY,
+    tenant_id integer NOT NULL,
+    name character varying(80) NOT NULL,
+    description text,
+    annual_interest_rate numeric(6,2) NOT NULL CHECK (annual_interest_rate >= 0),
+    processing_fee_rate numeric(5,2) NOT NULL DEFAULT 0
+        CHECK (processing_fee_rate >= 0 AND processing_fee_rate <= 100),
+    interest_method character varying(20) NOT NULL DEFAULT 'flat'
+        CHECK (interest_method IN ('flat', 'reducing')),
+    min_amount numeric(15,2) NOT NULL CHECK (min_amount > 0),
+    max_amount numeric(15,2) NOT NULL CHECK (max_amount >= min_amount),
+    min_duration_months integer NOT NULL CHECK (min_duration_months > 0),
+    max_duration_months integer NOT NULL
+        CHECK (max_duration_months >= min_duration_months),
+    active boolean NOT NULL DEFAULT true,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX loan_packages_tenant_name_active_unique
+    ON public.loan_packages (tenant_id, lower((name)::text)) WHERE active;
+CREATE INDEX idx_loan_packages_tenant ON public.loan_packages (tenant_id);
+
 CREATE TABLE public.branches (
     id serial PRIMARY KEY,
     tenant_id integer NOT NULL,
@@ -723,7 +746,10 @@ CREATE TABLE public.loans (
     offered_amount numeric(12,2),
     counter_offered_by integer,
     counter_offered_at timestamp without time zone,
-    counter_offer_note text
+    counter_offer_note text,
+    package_id integer,
+    interest_method character varying(20) NOT NULL DEFAULT 'flat'
+        CHECK (interest_method IN ('flat', 'reducing'))
 );
 
 
@@ -2471,6 +2497,12 @@ ALTER TABLE ONLY public.clients
 
 ALTER TABLE ONLY public.branches
     ADD CONSTRAINT branches_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.loan_packages
+    ADD CONSTRAINT loan_packages_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.loans
+    ADD CONSTRAINT loans_package_id_fkey FOREIGN KEY (package_id) REFERENCES public.loan_packages(id) ON DELETE SET NULL;
 
 
 --
