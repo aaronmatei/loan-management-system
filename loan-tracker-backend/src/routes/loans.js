@@ -305,9 +305,33 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         .status(400)
         .json({ error: "No tenant context — re-login required" });
     }
-    // Canonical loan_code via shared helper (LN-<PREFIX>-<YEAR>-<NNNNN>).
-    // MAX(suffix)+1 sequence — safe against historic deletions.
-    const loanCode = await nextLoanCode(query, wTid);
+    // Application date first — needed for the loan_code MMYYYY part
+    // below so a back-dated application reads with its real date in
+    // the code (e.g. 042022 for an April 2022 origination captured
+    // today). Defaults to today; admins may back-date but a future
+    // date is rejected.
+    let appDate = null;
+    if (bodyApplicationDate) {
+      const d = new Date(bodyApplicationDate);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({ error: "Invalid application_date" });
+      }
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      if (d > todayEnd) {
+        return res
+          .status(400)
+          .json({ error: "Application date cannot be in the future" });
+      }
+      appDate = bodyApplicationDate;
+    }
+
+    // Canonical loan_code via shared helper:
+    //   LN-<PREFIX>-<MMYYYY>-<NNNNN>
+    // MM + YYYY come from application_date (today if none supplied),
+    // sequence is MAX(suffix)+1 — safe against historic deletions and
+    // works across the legacy YYYY-only format too.
+    const loanCode = await nextLoanCode(query, wTid, appDate || new Date());
 
     // Processing fee snapshot: a % of the principal, deducted from what the
     // borrower receives (net disbursed). The form may override the tenant's
@@ -336,23 +360,8 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       Math.round(principal * processingFeeRate) / 100; // principal * rate/100
     const netDisbursed = Math.round((principal - processingFee) * 100) / 100;
 
-    // Application date: defaults to today; admins may backdate (e.g. capturing
-    // a paper application), but a future date is rejected.
-    let appDate = null;
-    if (bodyApplicationDate) {
-      const d = new Date(bodyApplicationDate);
-      if (isNaN(d.getTime())) {
-        return res.status(400).json({ error: "Invalid application_date" });
-      }
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-      if (d > todayEnd) {
-        return res
-          .status(400)
-          .json({ error: "Application date cannot be in the future" });
-      }
-      appDate = bodyApplicationDate;
-    }
+    // (appDate already computed above so it could flow into the
+    // MMYYYY portion of the loan_code.)
 
     // Create as a PENDING application: no start/end date, no schedule,
     // no capital movement, no notifications until disbursement.
