@@ -377,13 +377,21 @@ function LenderDetail() {
           {lender.is_linked ? (
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={apply}
-                  className="flex-1 py-3 rounded-xl font-bold text-white"
-                  style={{ backgroundColor: bc }}
-                >
-                  Apply for a loan
-                </button>
+                {/* Hide the standalone "Apply for a loan" button when
+                    the lender publishes products — the product cards
+                    above already provide the apply entry points, with
+                    package context + eligibility checks the bare apply
+                    button can't offer. Falls back to the generic
+                    button only when there are no products at all. */}
+                {packages.length === 0 && (
+                  <button
+                    onClick={() => apply()}
+                    className="flex-1 py-3 rounded-xl font-bold text-white"
+                    style={{ backgroundColor: bc }}
+                  >
+                    Apply for a loan
+                  </button>
+                )}
                 <button
                   onClick={() =>
                     navigate(
