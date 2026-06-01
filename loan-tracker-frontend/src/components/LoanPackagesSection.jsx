@@ -7,6 +7,8 @@ import {
   Archive,
   ArchiveRestore,
   Check,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import api from "../services/api";
 
@@ -47,6 +49,16 @@ function LoanPackagesSection() {
   };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
+  // Which rows are expanded — stored as a Set so toggling is O(1)
+  // and unrelated rows don't re-render. The whole row is the
+  // affordance (click anywhere except the action buttons toggles).
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const toggleExpanded = (id) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const load = () => {
     setLoading(true);
@@ -490,6 +502,7 @@ function LoanPackagesSection() {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-gray-600 border-b border-gray-200">
+                <th className="w-8" aria-hidden="true"></th>
                 <th className="px-3 py-2 font-semibold">Name</th>
                 <th className="px-3 py-2 font-semibold">Method</th>
                 <th className="px-3 py-2 font-semibold text-right">Rate p.a.</th>
@@ -502,88 +515,146 @@ function LoanPackagesSection() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((p) => (
-                <tr
-                  key={p.id}
-                  className={`border-b border-gray-100 ${
-                    p.active ? "" : "opacity-60"
-                  }`}
-                >
-                  <td className="px-3 py-2">
-                    <div className="font-semibold text-gray-800">
-                      {p.name}
-                      {!p.active && (
-                        <span className="ml-2 text-xs text-gray-500">
-                          (archived)
-                        </span>
-                      )}
-                    </div>
-                    {p.description && (
-                      <div className="text-xs text-gray-500">
-                        {p.description}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        p.interest_method === "reducing"
-                          ? "bg-indigo-100 text-indigo-700"
-                          : "bg-slate-100 text-slate-700"
+              {rows.map((p) => {
+                const expanded = expandedIds.has(p.id);
+                return (
+                  <React.Fragment key={p.id}>
+                    <tr
+                      onClick={() => toggleExpanded(p.id)}
+                      className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition ${
+                        p.active ? "" : "opacity-60"
                       }`}
                     >
-                      {p.interest_method === "reducing"
-                        ? "Reducing"
-                        : "Flat"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {Number(p.annual_interest_rate).toFixed(2)}%
-                  </td>
-                  <td className="px-3 py-2 text-right text-gray-600">
-                    {(Number(p.annual_interest_rate) / 12).toFixed(2)}%
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {Number(p.processing_fee_rate).toFixed(2)}%
-                  </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    {Number(p.min_amount).toLocaleString()} –{" "}
-                    {Number(p.max_amount).toLocaleString()}
-                  </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    {p.min_duration_months} – {p.max_duration_months}
-                  </td>
-                  <td className="px-3 py-2 text-right">{p.loan_count}</td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="inline-flex items-center gap-1">
-                      <button
-                        onClick={() => startEdit(p)}
-                        className="p-1 text-gray-700 hover:bg-gray-100 rounded"
-                        title="Edit"
+                      <td className="px-2 py-2 text-gray-400">
+                        {expanded ? (
+                          <ChevronDown size={16} />
+                        ) : (
+                          <ChevronRight size={16} />
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="font-semibold text-gray-800">
+                          {p.name}
+                          {!p.active && (
+                            <span className="ml-2 text-xs text-gray-500">
+                              (archived)
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            p.interest_method === "reducing"
+                              ? "bg-indigo-100 text-indigo-700"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {p.interest_method === "reducing"
+                            ? "Reducing"
+                            : "Flat"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {Number(p.annual_interest_rate).toFixed(2)}%
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-600">
+                        {(Number(p.annual_interest_rate) / 12).toFixed(2)}%
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {Number(p.processing_fee_rate).toFixed(2)}%
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {Number(p.min_amount).toLocaleString()} –{" "}
+                        {Number(p.max_amount).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {p.min_duration_months} – {p.max_duration_months}
+                      </td>
+                      <td className="px-3 py-2 text-right">{p.loan_count}</td>
+                      <td
+                        className="px-3 py-2 text-right"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Pencil size={16} />
-                      </button>
-                      {p.active ? (
-                        <button
-                          onClick={() => archive(p)}
-                          className="p-1 text-rose-600 hover:bg-rose-50 rounded"
-                          title="Archive"
-                        >
-                          <Archive size={16} />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => restore(p)}
-                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
-                          title="Restore"
-                        >
-                          <ArchiveRestore size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => startEdit(p)}
+                            className="p-1 text-gray-700 hover:bg-gray-100 rounded"
+                            title="Edit"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          {p.active ? (
+                            <button
+                              onClick={() => archive(p)}
+                              className="p-1 text-rose-600 hover:bg-rose-50 rounded"
+                              title="Archive"
+                            >
+                              <Archive size={16} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => restore(p)}
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                              title="Restore"
+                            >
+                              <ArchiveRestore size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        <td></td>
+                        <td colSpan={9} className="px-3 py-3">
+                          <div className="space-y-2">
+                            {p.description ? (
+                              <p className="text-sm text-gray-700">
+                                {p.description}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-gray-400 italic">
+                                No description.
+                              </p>
+                            )}
+                            {(p.min_credit_score != null ||
+                              (p.allowed_client_types || []).length > 0 ||
+                              (p.allowed_branch_ids || []).length > 0) && (
+                              <div className="flex flex-wrap gap-3 text-xs text-gray-600 pt-1">
+                                {p.min_credit_score != null && (
+                                  <span>
+                                    <span className="font-semibold">
+                                      Min score:
+                                    </span>{" "}
+                                    {p.min_credit_score}
+                                  </span>
+                                )}
+                                {(p.allowed_client_types || []).length > 0 && (
+                                  <span>
+                                    <span className="font-semibold">
+                                      Client types:
+                                    </span>{" "}
+                                    {p.allowed_client_types.join(", ")}
+                                  </span>
+                                )}
+                                {(p.allowed_branch_ids || []).length > 0 && (
+                                  <span>
+                                    <span className="font-semibold">
+                                      Branches:
+                                    </span>{" "}
+                                    {p.allowed_branch_ids.length} restricted
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
