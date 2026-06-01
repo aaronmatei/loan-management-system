@@ -19,6 +19,7 @@ import {
   ArrowDownLeft,
   Target,
   Sparkles,
+  Receipt,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -538,7 +539,7 @@ function Dashboard() {
 
           {/* ── All-time tiles — pastel-tinted cards INSIDE the Capital
               Pool block, sitting under the utilization bar. */}
-          <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-7">
+          <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-7">
             {/* All time Disbursed — neutral slate */}
             <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-white/70 to-slate-100/40 ring-1 ring-slate-200/60 backdrop-blur-sm">
               <div className="flex items-center justify-between">
@@ -604,6 +605,28 @@ function Dashboard() {
                     poolStatus.fines_collected ??
                     0,
                 )}
+              </p>
+            </div>
+
+            {/* All time Processing Fees — cool indigo, sits between
+                Total Fines and Collection Rate so the revenue-side
+                tiles read Interest → Fines → Fees → Collection Rate
+                in one sweep. Fee is retained at disbursement time
+                (booked into capital_pool.total_interest_earned) but
+                surfacing it separately makes the income story
+                explicit instead of bundled into Net Interest. */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-indigo-50/80 to-violet-100/40 ring-1 ring-indigo-200/60 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 ring-1 ring-indigo-200/70 flex items-center justify-center shadow-sm">
+                  <Receipt size={15} className="text-indigo-600" />
+                </div>
+                <Receipt size={12} className="text-indigo-300" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+                Processing Fees
+              </p>
+              <p className="text-lg lg:text-xl font-extrabold text-indigo-700 mt-1 tracking-tight whitespace-nowrap">
+                +{fmtKES(poolStatus.processing_fees ?? 0)}
               </p>
             </div>
 

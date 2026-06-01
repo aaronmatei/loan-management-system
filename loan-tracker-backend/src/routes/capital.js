@@ -97,6 +97,22 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
       breakdown.rows[0].fines_collected,
     );
 
+    // Lifetime processing fees retained at disbursement. Booked into
+    // capital_pool.total_interest_earned at loan-disbursal time (see
+    // routes/loans.js), so SUM(processing_fee) over disbursed loans
+    // is the authoritative figure. Only loans that actually went out
+    // the door (active / completed / defaulted) count — pending /
+    // rejected applications never produced a fee.
+    const feesRow = await query(
+      `SELECT COALESCE(SUM(processing_fee), 0)::float AS processing_fees
+         FROM loans
+        WHERE tenant_id = $1
+          AND status IN ('active', 'completed', 'defaulted')`,
+      [tid],
+    );
+    const processingFeesTotal =
+      parseFloat(feesRow.rows[0].processing_fees) || 0;
+
     // Lifetime profitability + waiver decomposition.
     //
     // Each waiver splits across three buckets — penalty (already
@@ -163,6 +179,7 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     status.fines_collected_net_admin = finesNet;
     status.fines_waived = finesWaived;
     status.principal_waived = principalWaived;
+    status.processing_fees = processingFeesTotal;
     status.total_expenses = totalExpenses;
     status.total_waived = totalWaived;
 
