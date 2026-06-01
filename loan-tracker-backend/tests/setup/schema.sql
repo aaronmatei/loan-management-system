@@ -268,7 +268,11 @@ CREATE TABLE public.loan_packages (
         CHECK (max_duration_months >= min_duration_months),
     active boolean NOT NULL DEFAULT true,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
-    updated_at timestamp without time zone NOT NULL DEFAULT now()
+    updated_at timestamp without time zone NOT NULL DEFAULT now(),
+    min_credit_score integer
+        CHECK (min_credit_score IS NULL OR min_credit_score >= 0),
+    allowed_client_types text[] NOT NULL DEFAULT '{}',
+    allowed_branch_ids integer[] NOT NULL DEFAULT '{}'
 );
 CREATE UNIQUE INDEX loan_packages_tenant_name_active_unique
     ON public.loan_packages (tenant_id, lower((name)::text)) WHERE active;

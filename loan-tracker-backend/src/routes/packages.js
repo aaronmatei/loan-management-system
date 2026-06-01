@@ -19,6 +19,27 @@ const router = express.Router();
 router.use(verifyToken);
 
 const METHODS = ["flat", "reducing"];
+const CLIENT_TYPES = ["individual", "group", "business"];
+
+// Normalize an inbound array — accepts arrays directly or comma-
+// separated strings (handy from form submits). Trims, drops empties,
+// and lower-cases for the client-type case. Returns [] for null/
+// undefined / empty inputs so the DB DEFAULT '{}' applies.
+function normArray(raw, { lowercase = false, asInt = false } = {}) {
+  if (raw == null) return null;
+  const list = Array.isArray(raw)
+    ? raw
+    : String(raw)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+  if (asInt) {
+    return list
+      .map((v) => parseInt(v, 10))
+      .filter((n) => Number.isInteger(n) && n > 0);
+  }
+  return lowercase ? list.map((s) => String(s).toLowerCase()) : list;
+}
 
 // Shared payload validation — used by POST + PUT. Returns null when
 // the input is valid; otherwise a string suitable for a 400 body.
@@ -74,6 +95,24 @@ function validatePayload(body, { partial = false } = {}) {
     }
     if (!Number.isInteger(mx) || mx < mn) {
       return "max_duration_months must be ≥ min_duration_months";
+    }
+  }
+  if (body?.min_credit_score !== undefined && body.min_credit_score !== null) {
+    const s = parseInt(body.min_credit_score, 10);
+    if (!Number.isInteger(s) || s < 0 || s > 100) {
+      return "min_credit_score must be between 0 and 100";
+    }
+  }
+  if (body?.allowed_client_types !== undefined) {
+    const types = normArray(body.allowed_client_types, { lowercase: true });
+    if (types && types.some((t) => !CLIENT_TYPES.includes(t))) {
+      return `allowed_client_types entries must be one of: ${CLIENT_TYPES.join(", ")}`;
+    }
+  }
+  if (body?.allowed_branch_ids !== undefined) {
+    const ids = normArray(body.allowed_branch_ids, { asInt: true });
+    if (ids === null) {
+      return "allowed_branch_ids must be an array of branch IDs";
     }
   }
   return null;
@@ -140,12 +179,24 @@ router.post("/", authorize("admin", "manager"), async (req, res) => {
         .json({ error: "A package with this name already exists" });
     }
 
+    const eligibleTypes =
+      normArray(req.body.allowed_client_types, { lowercase: true }) || [];
+    const eligibleBranches =
+      normArray(req.body.allowed_branch_ids, { asInt: true }) || [];
+    const minScore =
+      req.body.min_credit_score === undefined ||
+      req.body.min_credit_score === null ||
+      req.body.min_credit_score === ""
+        ? null
+        : parseInt(req.body.min_credit_score, 10);
+
     const r = await query(
       `INSERT INTO loan_packages (
          tenant_id, name, description,
          annual_interest_rate, processing_fee_rate, interest_method,
-         min_amount, max_amount, min_duration_months, max_duration_months
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         min_amount, max_amount, min_duration_months, max_duration_months,
+         min_credit_score, allowed_client_types, allowed_branch_ids
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [
         tid,
@@ -158,6 +209,9 @@ router.post("/", authorize("admin", "manager"), async (req, res) => {
         parseFloat(max_amount),
         parseInt(min_duration_months, 10),
         parseInt(max_duration_months, 10),
+        minScore,
+        eligibleTypes,
+        eligibleBranches,
       ],
     );
 
@@ -221,6 +275,29 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
         .json({ error: "Use DELETE to archive a package" });
     }
 
+    // Eligibility columns: omitted → leave as-is (COALESCE); explicit
+    // empty/null → clear back to "no restriction". For min_credit_score
+    // an empty string from the form also clears.
+    const incomingTypes =
+      req.body.allowed_client_types === undefined
+        ? null
+        : normArray(req.body.allowed_client_types, { lowercase: true }) || [];
+    const incomingBranches =
+      req.body.allowed_branch_ids === undefined
+        ? null
+        : normArray(req.body.allowed_branch_ids, { asInt: true }) || [];
+    let incomingMinScore;
+    if (req.body.min_credit_score === undefined) {
+      incomingMinScore = undefined;
+    } else if (
+      req.body.min_credit_score === null ||
+      req.body.min_credit_score === ""
+    ) {
+      incomingMinScore = null;
+    } else {
+      incomingMinScore = parseInt(req.body.min_credit_score, 10);
+    }
+
     const r = await query(
       `UPDATE loan_packages SET
          name                  = $1,
@@ -233,8 +310,18 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
          min_duration_months   = COALESCE($8, min_duration_months),
          max_duration_months   = COALESCE($9, max_duration_months),
          active                = COALESCE($10, active),
+         -- min_credit_score: $12 acts as the "was this field on the
+         -- payload?" flag. When TRUE we write $11 (which may be NULL
+         -- to clear the gate); when FALSE we leave the column alone.
+         min_credit_score      = CASE WHEN $12::boolean THEN $11
+                                      ELSE min_credit_score END,
+         -- Array columns use COALESCE: omitted fields arrive as NULL
+         -- and keep the existing value; explicit clears arrive as
+         -- [] (a non-null empty array) which overwrites.
+         allowed_client_types  = COALESCE($13::text[], allowed_client_types),
+         allowed_branch_ids    = COALESCE($14::int[], allowed_branch_ids),
          updated_at            = NOW()
-       WHERE id = $11 AND tenant_id = $12
+       WHERE id = $15 AND tenant_id = $16
        RETURNING *`,
       [
         cleanName,
@@ -259,6 +346,10 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
           ? null
           : parseInt(req.body.max_duration_months, 10),
         req.body.active ?? null,
+        incomingMinScore === undefined ? null : incomingMinScore,
+        incomingMinScore !== undefined,
+        incomingTypes,
+        incomingBranches,
         id,
         cur.tenant_id,
       ],

@@ -11,6 +11,7 @@ import {
   computeLoanTotals,
   validateAgainstPackage,
 } from "../../utils/loanMath.js";
+import { evaluatePackageEligibility } from "../../utils/packageEligibility.js";
 import {
   buildLoanStatementPdf,
   buildClientStatementPdf,
@@ -354,9 +355,13 @@ router.get("/lenders/:id", async (req, res) => {
 
 // Browseable loan products for a single lender. Returns ACTIVE
 // packages only — archived ones still resolve on historical loans via
-// the FK but can't be picked for new applications. No customer-link
-// check here: products are public per-lender info, same surface the
-// /lenders/:id detail uses.
+// the FK but can't be picked for new applications. Each row carries
+// an `eligibility` block computed against THIS customer's local
+// client row at the lender (credit_score / client_type / branch_id),
+// so the UI can show badges + reasons up front rather than letting
+// the apply page fail on submit. When the customer isn't yet linked
+// to this lender, eligibility falls back to "we'd need to create a
+// client row first" — encoded as an empty client object.
 router.get("/lenders/:id/packages", async (req, res) => {
   try {
     const tenantId = parseInt(req.params.id, 10);
@@ -364,13 +369,36 @@ router.get("/lenders/:id/packages", async (req, res) => {
       `SELECT id, name, description,
               annual_interest_rate, processing_fee_rate, interest_method,
               min_amount, max_amount,
-              min_duration_months, max_duration_months
+              min_duration_months, max_duration_months,
+              min_credit_score, allowed_client_types, allowed_branch_ids
          FROM loan_packages
         WHERE tenant_id = $1 AND active = TRUE
         ORDER BY name ASC`,
       [tenantId],
     );
-    res.json({ success: true, data: r.rows });
+
+    // Pull the customer's per-tenant client row (if any) for the
+    // eligibility check. Cross-tenant view (e.g. directory) does NOT
+    // get an eligibility check — the customer must be linked first.
+    const cli = await query(
+      `SELECT c.credit_score, c.client_type, c.branch_id
+         FROM customer_tenant_links ctl
+         JOIN clients c ON c.id = ctl.client_id
+        WHERE ctl.platform_customer_id = $1
+          AND ctl.tenant_id = $2
+          AND ctl.status = 'active'
+        LIMIT 1`,
+      [req.platformCustomerId, tenantId],
+    );
+    const clientRow = cli.rows[0] || null;
+
+    const data = r.rows.map((p) => ({
+      ...p,
+      eligibility: clientRow
+        ? evaluatePackageEligibility(p, clientRow)
+        : { eligible: false, reasons: ["Link this lender first"], recommended: false },
+    }));
+    res.json({ success: true, data });
   } catch (error) {
     logger.error("Portal lender packages error:", error);
     res.status(500).json({ error: "Failed to fetch loan products" });
@@ -1479,6 +1507,21 @@ router.post("/applications", async (req, res) => {
       const rangeErr = validateAgainstPackage(pkg, principal, months);
       if (rangeErr) {
         return res.status(400).json({ error: rangeErr });
+      }
+
+      // Eligibility gates. Same evaluator the staff route uses, so a
+      // customer can't sneak through a product gated on credit score
+      // or branch by hand-rolling the API call.
+      const cli = await query(
+        `SELECT credit_score, client_type, branch_id FROM clients WHERE id = $1`,
+        [req.currentClientId],
+      );
+      const verdict = evaluatePackageEligibility(pkg, cli.rows[0] || {});
+      if (!verdict.eligible) {
+        return res.status(400).json({
+          error: `You're not eligible for ${pkg.name}: ${verdict.reasons.join("; ")}`,
+          reasons: verdict.reasons,
+        });
       }
     } else {
       // Free-form (no package): fall back to the global portal policy.

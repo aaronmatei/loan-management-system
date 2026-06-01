@@ -16,8 +16,15 @@ import api from "../services/api";
 // for a loan referencing it. Archived packages stay in the DB so
 // historical loans can still resolve via loans.package_id; they're
 // just hidden from create-loan dropdowns.
+const CLIENT_TYPE_CHOICES = [
+  { value: "individual", label: "Individual" },
+  { value: "group", label: "Group" },
+  { value: "business", label: "Business" },
+];
+
 function LoanPackagesSection() {
   const [rows, setRows] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -31,19 +38,40 @@ function LoanPackagesSection() {
     max_amount: "",
     min_duration_months: "",
     max_duration_months: "",
+    min_credit_score: "",
+    allowed_client_types: [],
+    allowed_branch_ids: [],
   };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
 
   const load = () => {
     setLoading(true);
-    api
-      .get("/packages")
-      .then((r) => setRows(r.data.data || []))
+    Promise.all([
+      api.get("/packages"),
+      api.get("/branches").catch(() => ({ data: { data: [] } })),
+    ])
+      .then(([pkgs, brs]) => {
+        setRows(pkgs.data.data || []);
+        setBranches((brs.data.data || []).filter((b) => b.active));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  // Toggle a value in/out of an array field on the form.
+  const toggleInArray = (field, value) => {
+    setForm((prev) => {
+      const cur = prev[field] || [];
+      return {
+        ...prev,
+        [field]: cur.includes(value)
+          ? cur.filter((v) => v !== value)
+          : [...cur, value],
+      };
+    });
+  };
 
   const startAdd = () => {
     setEditingId(null);
@@ -64,6 +92,13 @@ function LoanPackagesSection() {
       max_amount: p.max_amount ?? "",
       min_duration_months: p.min_duration_months ?? "",
       max_duration_months: p.max_duration_months ?? "",
+      min_credit_score: p.min_credit_score ?? "",
+      allowed_client_types: Array.isArray(p.allowed_client_types)
+        ? p.allowed_client_types
+        : [],
+      allowed_branch_ids: Array.isArray(p.allowed_branch_ids)
+        ? p.allowed_branch_ids.map((id) => Number(id))
+        : [],
     });
     setError("");
   };
@@ -286,6 +321,101 @@ function LoanPackagesSection() {
               />
             </div>
           </div>
+          {/* Eligibility — three optional gates that block apply for
+              clients who don't qualify. All default to "no restriction"
+              so leaving them blank keeps the package open. */}
+          <div className="border-t border-gray-200 pt-3 mt-1">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
+              Eligibility (optional)
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Min Credit Score (0–100)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={form.min_credit_score}
+                  onChange={(e) =>
+                    setForm({ ...form, min_credit_score: e.target.value })
+                  }
+                  placeholder="Leave blank for no minimum"
+                  className={fld}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Unrated clients fail any minimum.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Allowed Client Types
+                </label>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {CLIENT_TYPE_CHOICES.map((c) => {
+                    const on = form.allowed_client_types.includes(c.value);
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() =>
+                          toggleInArray("allowed_client_types", c.value)
+                        }
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
+                          on
+                            ? "bg-ocean-600 text-white border-ocean-600"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  None selected = all types allowed.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Allowed Branches
+                </label>
+                {branches.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    Add branches in the Branches section first.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {branches.map((b) => {
+                      const on = form.allowed_branch_ids.includes(b.id);
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() =>
+                            toggleInArray("allowed_branch_ids", b.id)
+                          }
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
+                            on
+                              ? "bg-ocean-600 text-white border-ocean-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          {b.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  None selected = all branches.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {error && (
             <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm">
               {error}

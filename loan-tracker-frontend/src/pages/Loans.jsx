@@ -11,6 +11,7 @@ import {
   Search,
   Download,
   Check,
+  CheckCircle,
   Plus,
   RotateCcw,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
 import { computeLoanTotals } from "../utils/loanMath";
+import { evaluatePackageEligibility } from "../utils/packageEligibility";
 
 function Loans() {
   const navigate = useNavigate();
@@ -896,6 +898,55 @@ function Loans() {
                 </p>
               </div>
             </div>
+
+            {/* Eligibility banner — appears only when a package is
+                chosen AND a client is selected. Computes locally
+                against the client's credit_score / client_type /
+                branch_id so admin sees the verdict before submit.
+                Backend re-checks on POST so this is advisory only. */}
+            {selectedPackage && selectedClient && (() => {
+              const verdict = evaluatePackageEligibility(
+                selectedPackage,
+                {
+                  credit_score:
+                    clientCreditProfile?.credit_score ??
+                    selectedClient.credit_score,
+                  client_type: selectedClient.client_type,
+                  branch_id: selectedClient.branch_id,
+                },
+              );
+              if (verdict.eligible) {
+                return (
+                  <div
+                    className={`rounded-lg px-4 py-3 text-sm flex items-start gap-2 ${
+                      verdict.recommended
+                        ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+                        : "bg-sky-50 border border-sky-200 text-sky-800"
+                    }`}
+                  >
+                    <CheckCircle size={16} className="mt-0.5 shrink-0" />
+                    <span>
+                      {verdict.recommended
+                        ? `Recommended — this client is a strong fit for "${selectedPackage.name}".`
+                        : `Client is eligible for "${selectedPackage.name}".`}
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-lg px-4 py-3 text-sm">
+                  <div className="font-semibold flex items-center gap-2">
+                    <AlertTriangle size={16} /> Not eligible for "
+                    {selectedPackage.name}"
+                  </div>
+                  <ul className="list-disc list-inside mt-1 text-rose-700">
+                    {verdict.reasons.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
 
             {/* Amount, Annual Rate, Monthly Rate, Duration */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

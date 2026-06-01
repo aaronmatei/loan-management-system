@@ -10,6 +10,7 @@ import {
   computeLoanTotals,
   validateAgainstPackage,
 } from "../utils/loanMath.js";
+import { evaluatePackageEligibility } from "../utils/packageEligibility.js";
 import {
   notifyApplicationSubmitted,
   notifyApplicationApproved,
@@ -277,6 +278,24 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       );
       if (rangeErr) {
         return res.status(400).json({ error: rangeErr, blocker: "package_range" });
+      }
+
+      // Eligibility gates (credit score / client_type / branch).
+      // Reuse the row already fetched for the credit-eligibility
+      // block above by querying its full shape — we only need three
+      // columns. NULL credit_score is intentional: unrated clients
+      // fail any min_credit_score check.
+      const cli = await query(
+        `SELECT credit_score, client_type, branch_id FROM clients WHERE id = $1`,
+        [client_id],
+      );
+      const verdict = evaluatePackageEligibility(pkg, cli.rows[0] || {});
+      if (!verdict.eligible) {
+        return res.status(400).json({
+          error: `Client not eligible for "${pkg.name}": ${verdict.reasons.join("; ")}`,
+          blocker: "package_eligibility",
+          reasons: verdict.reasons,
+        });
       }
     }
 

@@ -11,6 +11,9 @@ import {
   Mail,
   Package as PackageIcon,
   TrendingDown,
+  Sparkles,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -225,72 +228,115 @@ function LenderDetail() {
               Loan products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-              {packages.map((p) => (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col"
-                >
-                  <div className="flex items-start gap-2 mb-1">
-                    <PackageIcon
-                      size={16}
-                      style={{ color: bc }}
-                      className="mt-0.5 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="font-bold text-navy-900 leading-tight">
-                        {p.name}
-                      </p>
-                      {p.description && (
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {p.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 my-3">
-                    <div>
-                      <p className="text-slate-500">Rate</p>
-                      <p className="font-semibold">
-                        {(parseFloat(p.annual_interest_rate) / 12).toFixed(2)}%
-                        p.m.
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Method</p>
-                      <p className="font-semibold inline-flex items-center gap-1">
-                        {p.interest_method === "reducing" && (
-                          <TrendingDown
-                            size={12}
-                            className="text-indigo-500"
-                          />
-                        )}
-                        {p.interest_method === "reducing"
-                          ? "Reducing"
-                          : "Flat"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Amount</p>
-                      <p className="font-semibold">
-                        {KES(p.min_amount)} – {KES(p.max_amount)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Duration</p>
-                      <p className="font-semibold">
-                        {p.min_duration_months}–{p.max_duration_months} mo
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => apply(p.id)}
-                    className="mt-auto py-2 rounded-lg font-semibold text-white text-sm"
-                    style={{ backgroundColor: bc }}
+              {packages.map((p) => {
+                const elig = p.eligibility || { eligible: true, reasons: [] };
+                return (
+                  <div
+                    key={p.id}
+                    className={`bg-white rounded-2xl shadow-sm border p-4 flex flex-col transition ${
+                      elig.eligible
+                        ? "border-slate-100"
+                        : "border-slate-100 opacity-70"
+                    }`}
                   >
-                    Apply with this product
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-start gap-2 mb-1">
+                      <PackageIcon
+                        size={16}
+                        style={{ color: bc }}
+                        className="mt-0.5 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-bold text-navy-900 leading-tight">
+                            {p.name}
+                          </p>
+                          {elig.recommended && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+                              <Sparkles size={10} /> Recommended
+                            </span>
+                          )}
+                          {!elig.recommended && elig.eligible && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">
+                              <CheckCircle size={10} /> Eligible
+                            </span>
+                          )}
+                          {!elig.eligible && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
+                              <XCircle size={10} /> Not eligible
+                            </span>
+                          )}
+                        </div>
+                        {p.description && (
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {p.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 my-3">
+                      <div>
+                        <p className="text-slate-500">Rate</p>
+                        <p className="font-semibold">
+                          {(parseFloat(p.annual_interest_rate) / 12).toFixed(2)}
+                          % p.m.
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Method</p>
+                        <p className="font-semibold inline-flex items-center gap-1">
+                          {p.interest_method === "reducing" && (
+                            <TrendingDown
+                              size={12}
+                              className="text-indigo-500"
+                            />
+                          )}
+                          {p.interest_method === "reducing"
+                            ? "Reducing"
+                            : "Flat"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Amount</p>
+                        <p className="font-semibold">
+                          {KES(p.min_amount)} – {KES(p.max_amount)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Duration</p>
+                        <p className="font-semibold">
+                          {p.min_duration_months}–{p.max_duration_months} mo
+                        </p>
+                      </div>
+                    </div>
+                    {!elig.eligible && elig.reasons?.length > 0 && (
+                      <div className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg p-2 mb-2">
+                        {elig.reasons.map((r, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <span className="text-slate-400 mt-0.5">•</span>
+                            <span>{r}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => apply(p.id)}
+                      disabled={!elig.eligible}
+                      className={`mt-auto py-2 rounded-lg font-semibold text-white text-sm transition ${
+                        elig.eligible
+                          ? ""
+                          : "bg-slate-300 cursor-not-allowed"
+                      }`}
+                      style={
+                        elig.eligible ? { backgroundColor: bc } : undefined
+                      }
+                    >
+                      {elig.eligible
+                        ? "Apply with this product"
+                        : "Not available"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
