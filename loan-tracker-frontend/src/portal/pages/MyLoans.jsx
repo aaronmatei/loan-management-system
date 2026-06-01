@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, Coins, FileText, X } from "lucide-react";
+import { ChevronRight, Coins, FileText, X, Plus } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import SortHeader from "../components/SortHeader";
@@ -137,12 +137,27 @@ function MyLoans() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1 flex items-center gap-2">
-          <Coins size={28} className="text-navy-900" /> My Loans
-        </h1>
-        <p className="text-slate-500 mb-5">
-          Every loan across all your lenders, in one place
-        </p>
+        <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
+              <Coins size={28} className="text-navy-900" /> My Loans
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Every loan across all your lenders, in one place
+            </p>
+          </div>
+          {/* Funnel customer back to the lenders directory to pick
+              which lender they want to borrow from — products are
+              per-lender, so a generic "Apply" button here can't
+              skip the lender choice. */}
+          <button
+            onClick={() => navigate("/loanfix/lenders")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 shadow-sm hover:shadow-md transition shrink-0"
+          >
+            <Plus size={16} /> Apply for a loan
+          </button>
+        </div>
+        <div className="mb-5" />
 
         {/* Active lender filter (set from a lender's "View my loans") */}
         {activeLender && (
