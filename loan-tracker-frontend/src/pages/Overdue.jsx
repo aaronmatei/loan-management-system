@@ -55,6 +55,12 @@ function Overdue() {
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
+  // Period filter — installments whose due_date falls in [from, to].
+  // Empty string = no constraint on that side. Drives the "Loans Not
+  // Paid (period)" view requested in the original list — chase
+  // installments due in a specific week / month / window.
+  const [periodFrom, setPeriodFrom] = useState("");
+  const [periodTo, setPeriodTo] = useState("");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -138,19 +144,23 @@ function Overdue() {
 
   useEffect(() => {
     fetchOverdueData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodFrom, periodTo]);
 
   // Reset to first page whenever filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, severityFilter]);
+  }, [searchQuery, severityFilter, periodFrom, periodTo]);
 
   const fetchOverdueData = async () => {
     try {
       setLoading(true);
       setError("");
-      // Default limit is large so we can paginate client-side
-      const response = await api.get("/overdue");
+      const params = new URLSearchParams();
+      if (periodFrom) params.append("from", periodFrom);
+      if (periodTo) params.append("to", periodTo);
+      const qs = params.toString();
+      const response = await api.get(`/overdue${qs ? `?${qs}` : ""}`);
       setOverdueList(response.data.data || []);
       setSummary(response.data.summary || null);
     } catch (err) {
@@ -159,6 +169,68 @@ function Overdue() {
       setLoading(false);
     }
   };
+
+  // Period quick-picks. Local-time dates so "this week" matches what
+  // the user sees on their calendar, not what UTC says. Week starts
+  // Monday — the conventional working-week start.
+  const periodPresets = (() => {
+    const toIso = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const today = new Date();
+    const startOfWeek = (d) => {
+      const x = new Date(d);
+      // JS Sunday=0, Monday=1 ... shift so Monday=0
+      const dow = (x.getDay() + 6) % 7;
+      x.setDate(x.getDate() - dow);
+      return x;
+    };
+    const endOfWeek = (d) => {
+      const s = startOfWeek(d);
+      s.setDate(s.getDate() + 6);
+      return s;
+    };
+    const startOfMonth = (d) =>
+      new Date(d.getFullYear(), d.getMonth(), 1);
+    const endOfMonth = (d) =>
+      new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const prevWeekRef = new Date(today);
+    prevWeekRef.setDate(prevWeekRef.getDate() - 7);
+    return [
+      {
+        key: "this-week",
+        label: "This Week",
+        from: toIso(startOfWeek(today)),
+        to: toIso(endOfWeek(today)),
+      },
+      {
+        key: "last-week",
+        label: "Last Week",
+        from: toIso(startOfWeek(prevWeekRef)),
+        to: toIso(endOfWeek(prevWeekRef)),
+      },
+      {
+        key: "this-month",
+        label: "This Month",
+        from: toIso(startOfMonth(today)),
+        to: toIso(endOfMonth(today)),
+      },
+      {
+        key: "last-month",
+        label: "Last Month",
+        from: toIso(startOfMonth(prevMonth)),
+        to: toIso(endOfMonth(prevMonth)),
+      },
+    ];
+  })();
+
+  const matchedPreset = periodPresets.find(
+    (p) => p.from === periodFrom && p.to === periodTo,
+  );
 
   const handleRefresh = async () => {
     try {
@@ -505,6 +577,70 @@ function Overdue() {
                   <X size={15} /> Clear
                 </button>
               )}
+            </div>
+
+            {/* Period filter — "Loans Not Paid in this window."
+                Filters by ps.due_date BETWEEN ?from AND ?to on the
+                backend so the page can answer "who was meant to pay
+                last week and didn't" without the user re-running the
+                manager's mental query against /loans. Quick-picks
+                cover the 90% case (this week / last week / this
+                month / last month); custom From/To stays for one-
+                off windows. */}
+            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 mb-1">
+                  Due From
+                </label>
+                <input
+                  type="date"
+                  value={periodFrom}
+                  onChange={(e) => setPeriodFrom(e.target.value)}
+                  className="px-3 py-1.5 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 mb-1">
+                  Due To
+                </label>
+                <input
+                  type="date"
+                  value={periodTo}
+                  onChange={(e) => setPeriodTo(e.target.value)}
+                  min={periodFrom || undefined}
+                  className="px-3 py-1.5 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none text-sm"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5 ml-auto">
+                {periodPresets.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => {
+                      setPeriodFrom(p.from);
+                      setPeriodTo(p.to);
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                      matchedPreset?.key === p.key
+                        ? "bg-red-100 text-red-700"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {(periodFrom || periodTo) && (
+                  <button
+                    onClick={() => {
+                      setPeriodFrom("");
+                      setPeriodTo("");
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1 transition"
+                    title="Show all overdue, ignore the date window"
+                  >
+                    <X size={12} /> Clear period
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Active filter tags */}

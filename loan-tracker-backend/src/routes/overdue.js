@@ -50,6 +50,8 @@ router.get("/count", async (req, res) => {
 // GET ALL OVERDUE PAYMENTS (with client + loan info)
 //   ?min_days   only N+ days late
 //   ?max_days   only up to N days late
+//   ?from       YYYY-MM-DD — only installments due ≥ this date
+//   ?to         YYYY-MM-DD — only installments due ≤ this date
 //   ?search     client name / phone / loan code / client code
 //   ?page       page number (default 1)
 //   ?limit      items per page (default 10000 for client-side paging)
@@ -59,6 +61,12 @@ router.get("/", async (req, res) => {
     const minDays = parseInt(req.query.min_days, 10);
     const maxDays = parseInt(req.query.max_days, 10);
     const search = (req.query.search || "").trim();
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from)
+      ? req.query.from
+      : null;
+    const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to)
+      ? req.query.to
+      : null;
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.max(parseInt(req.query.limit, 10) || 10000, 1);
     const offset = (page - 1) * limit;
@@ -76,6 +84,21 @@ router.get("/", async (req, res) => {
     if (Number.isFinite(maxDays) && maxDays >= 0) {
       filterParams.push(maxDays);
       filters += ` AND (CURRENT_DATE - ps.due_date::date) <= $${filterParams.length}`;
+    }
+
+    // Period filter — installments whose due_date falls inside the
+    // window. Drives the "Loans Not Paid (period)" view: pick last
+    // week / month / custom range and see which installments came
+    // due in that window and didn't get paid. Reuses the same
+    // OVERDUE_WHERE constant (status + balance check) so a row that
+    // was paid AFTER the period closes drops out cleanly.
+    if (from) {
+      filterParams.push(from);
+      filters += ` AND ps.due_date::date >= $${filterParams.length}`;
+    }
+    if (to) {
+      filterParams.push(to);
+      filters += ` AND ps.due_date::date <= $${filterParams.length}`;
     }
 
     if (search) {
