@@ -24,6 +24,7 @@ import {
   LogOut,
   X,
   HandCoins,
+  Handshake,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -42,15 +43,23 @@ const standaloneItems = [
   // Dashboard's path is "/" — match it EXACTLY so it doesn't light up
   // on every page (startsWith("/") would be always-true).
   { path: "/", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", permission: "dashboard:view", exact: true },
+  // Clients promoted to top-level — it's the entity the whole loan
+  // workflow refers back to, so it deserves a single-click slot rather
+  // than living inside a group with the loan items it intersects.
+  { path: "/clients", label: "Clients", icon: Users, variant: "ocean", permission: "clients:view" },
 ];
 
 const navGroups = [
   {
-    id: "lending",
-    label: "Lending",
+    // LOANS = origination → collection workflow, top to bottom:
+    //   Applications (intake) → Loans (book) → Payments (cash in) →
+    //   Overdue (chase) → Waivers (forgive) → Promises (commit to pay).
+    // Reads like a loan's lifecycle, which matches how a loan officer
+    // moves through their day.
+    id: "loans",
+    label: "Loans",
     variant: "ocean",
     items: [
-      { path: "/clients", label: "Clients", icon: Users, permission: "clients:view" },
       { path: "/applications", label: "Applications", icon: ClipboardList, permission: "loans:view" },
       { path: "/loans", label: "Loans", icon: Wallet, permission: "loans:view" },
       { path: "/payments", label: "Payments", icon: CreditCard, permission: "payments:view" },
@@ -58,6 +67,9 @@ const navGroups = [
       // baking a number into the static config.
       { path: "/overdue", label: "Overdue", icon: AlertTriangle, permission: "overdue:view", badgeKey: "overdue" },
       { path: "/waivers", label: "Waivers", icon: HandCoins, roles: ["admin"], badgeKey: "pendingWaivers" },
+      // Promises to Pay sidebar entry lands with slice 3 (the
+      // /promises page itself). Pre-wiring the link here would point
+      // at a 404 in the interim.
     ],
   },
   {
@@ -67,7 +79,6 @@ const navGroups = [
     items: [
       { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
       { path: "/analytics", label: "Analytics", icon: TrendingUp, permission: "dashboard:view" },
-      { path: "/audit", label: "Audit Log", icon: ScrollText, permission: "audit:view" },
     ],
   },
   {
@@ -97,6 +108,9 @@ const navGroups = [
     items: [
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
       { path: "/expenses", label: "Expenses & Billing", icon: Receipt, roles: ["admin", "manager"] },
+      // Audit Log is a compliance/security surface, not an analytical
+      // one — sits closer to Users / Settings than to Reports / Analytics.
+      { path: "/audit", label: "Audit Log", icon: ScrollText, permission: "audit:view" },
       { path: "/backup", label: "Backup", icon: Database, roles: ["admin"] },
       { path: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
     ],
