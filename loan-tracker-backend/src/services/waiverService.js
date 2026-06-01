@@ -392,10 +392,56 @@ export async function reverseWaiver(loanId, tenantId, allocation) {
     [total, tenantId],
   );
 
-  // If the waiver had flipped the loan to completed/waived, unflip
-  // it back to active. Any post-reversal payment recording will
-  // re-flip it correctly if the borrower then settles.
-  if (allocation.loan_completed) {
+  // After the unwind, re-derive the loan's settlement state and
+  // sync the loan + schedule rows so they reflect reality.
+  //
+  // The old logic only flipped the loan back to 'active' when the
+  // reversed waiver had itself completed the loan (allocation.
+  // loan_completed=true). That misses the common case where the
+  // loan was completed by a CASH payment after the waiver had been
+  // applied — reversing the waiver then leaves the loan stuck on
+  // 'completed' with a positive balance owed. We now check
+  // settlement directly instead of trusting the historical flag.
+  await syncLoanStateAfterUnwind(loanId, tenantId);
+}
+
+/**
+ * Re-derive the loan + schedule state after a waiver reversal
+ * (or any other operation that may shrink the effective paid amount).
+ *
+ *  • If the loan is currently 'completed' but cash + remaining
+ *    approved waivers no longer cover total_amount_due, flip the
+ *    loan back to 'active' and clear completed_via.
+ *  • Walk each schedule: if its paid bucket (amount_paid +
+ *    interest_paid) no longer meets amount_due, demote 'paid' to
+ *    'overdue' (due_date in the past) or 'pending' (due_date today
+ *    or future) so the overdue queue, schedule UI, and balance
+ *    breakdowns line up with the loan-level truth.
+ */
+async function syncLoanStateAfterUnwind(loanId, tenantId) {
+  const r = await query(
+    `SELECT
+       l.total_amount_due,
+       l.status,
+       (SELECT COALESCE(SUM(
+                 amount_paid - COALESCE(penalty_portion, 0)
+                             - COALESCE(overpayment_portion, 0)
+              ), 0)
+          FROM transactions
+         WHERE loan_id = $1 AND payment_status = 'completed') AS cash_net,
+       (SELECT COALESCE(SUM((allocation->>'amount_total')::numeric), 0)
+          FROM loan_waivers
+         WHERE loan_id = $1 AND status = 'approved') AS waiver_net
+       FROM loans l WHERE l.id = $1`,
+    [loanId],
+  );
+  if (!r.rows[0]) return;
+  const totalDue = parseFloat(r.rows[0].total_amount_due) || 0;
+  const effectivePaid =
+    parseFloat(r.rows[0].cash_net) + parseFloat(r.rows[0].waiver_net);
+  const stillSettled = effectivePaid + 0.001 >= totalDue;
+
+  if (r.rows[0].status === "completed" && !stillSettled) {
     await query(
       `UPDATE loans
           SET status = 'active', completed_via = NULL, updated_at = NOW()
@@ -403,4 +449,23 @@ export async function reverseWaiver(loanId, tenantId, allocation) {
       [loanId, tenantId],
     );
   }
+
+  // Schedule-level recompute. Any schedule still marked 'paid' whose
+  // cash+interest_paid no longer meets amount_due gets demoted; mirror
+  // logic the waived-flip path uses (overdue if due_date < today, else
+  // pending). 'waived' rows are left alone — the waiver-status walk
+  // above already handles them.
+  await query(
+    `UPDATE payment_schedules
+        SET status = CASE
+                       WHEN due_date < CURRENT_DATE THEN 'overdue'
+                       ELSE 'pending'
+                     END,
+            updated_at = NOW()
+      WHERE loan_id = $1
+        AND status = 'paid'
+        AND COALESCE(amount_paid, 0) + COALESCE(interest_paid, 0)
+            + 0.001 < amount_due`,
+    [loanId],
+  );
 }

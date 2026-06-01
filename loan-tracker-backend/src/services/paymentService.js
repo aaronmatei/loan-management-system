@@ -350,6 +350,7 @@ export async function recordLoanPayment({
     await query(
       `UPDATE loans
          SET status = 'completed',
+             completed_via = COALESCE(completed_via, 'paid'),
              overpayment_amount = $1,
              refund_status = $2,
              updated_at = NOW()
