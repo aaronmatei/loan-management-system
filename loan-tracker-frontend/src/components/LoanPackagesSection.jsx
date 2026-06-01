@@ -32,6 +32,9 @@ function LoanPackagesSection() {
     name: "",
     description: "",
     annual_interest_rate: "",
+    // Display companion — kept in sync with annual_interest_rate.
+    // Backend only stores annual; this is purely UI sugar.
+    monthly_interest_rate: "",
     processing_fee_rate: "",
     interest_method: "flat",
     min_amount: "",
@@ -60,6 +63,24 @@ function LoanPackagesSection() {
   };
   useEffect(load, []);
 
+  // Annual ⇄ monthly two-way sync. Whichever field the admin types is
+  // kept verbatim; the other is derived (annual = monthly × 12).
+  // Rounding trims trailing zeros so "1.5" doesn't display as
+  // "1.5000". Same shape as the Loan Policy form for consistency.
+  const roundRate = (n) => Math.round(Number(n) * 10000) / 10000;
+  const onAnnualRateChange = (v) =>
+    setForm((p) => ({
+      ...p,
+      annual_interest_rate: v,
+      monthly_interest_rate: v === "" ? "" : String(roundRate(parseFloat(v) / 12)),
+    }));
+  const onMonthlyRateChange = (v) =>
+    setForm((p) => ({
+      ...p,
+      monthly_interest_rate: v,
+      annual_interest_rate: v === "" ? "" : String(roundRate(parseFloat(v) * 12)),
+    }));
+
   // Toggle a value in/out of an array field on the form.
   const toggleInArray = (field, value) => {
     setForm((prev) => {
@@ -82,10 +103,15 @@ function LoanPackagesSection() {
   const startEdit = (p) => {
     setAdding(false);
     setEditingId(p.id);
+    const annual = p.annual_interest_rate ?? "";
     setForm({
       name: p.name || "",
       description: p.description || "",
-      annual_interest_rate: p.annual_interest_rate ?? "",
+      annual_interest_rate: annual,
+      monthly_interest_rate:
+        annual === "" || annual == null
+          ? ""
+          : String(roundRate(parseFloat(annual) / 12)),
       processing_fee_rate: p.processing_fee_rate ?? "",
       interest_method: p.interest_method || "flat",
       min_amount: p.min_amount ?? "",
@@ -285,7 +311,7 @@ function LoanPackagesSection() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-semibold mb-1">
                 Annual Interest Rate (%) *
@@ -295,13 +321,29 @@ function LoanPackagesSection() {
                 min="0"
                 step="0.01"
                 value={form.annual_interest_rate}
-                onChange={(e) =>
-                  setForm({ ...form, annual_interest_rate: e.target.value })
-                }
+                onChange={(e) => onAnnualRateChange(e.target.value)}
                 required
                 placeholder="18"
                 className={fld}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-1">
+                Monthly Interest Rate (%) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.monthly_interest_rate}
+                onChange={(e) => onMonthlyRateChange(e.target.value)}
+                required
+                placeholder="1.5"
+                className={fld}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Synced with annual (annual ÷ 12). Edit either one.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-semibold mb-1">
