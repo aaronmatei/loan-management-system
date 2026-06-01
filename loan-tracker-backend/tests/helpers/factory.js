@@ -40,7 +40,14 @@ export async function createTenant(overrides = {}) {
       o.billing_base_fee,
     ],
   );
-  return res.rows[0];
+  const tenant = res.rows[0];
+  // Mirror migration 036: every tenant has a default "Main" branch.
+  await query(
+    `INSERT INTO branches (tenant_id, name, is_default, active)
+     VALUES ($1, 'Main', TRUE, TRUE)`,
+    [tenant.id],
+  );
+  return tenant;
 }
 
 export async function createUser(tenantId, overrides = {}) {

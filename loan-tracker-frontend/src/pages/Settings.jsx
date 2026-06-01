@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Building2, Landmark, CheckCircle, Percent } from "lucide-react";
 import api from "../services/api";
+import BranchesSection from "../components/BranchesSection";
 
 function Settings() {
   const [settings, setSettings] = useState({
@@ -429,6 +430,10 @@ function Settings() {
           {savingPolicy ? "Saving..." : <span className="inline-flex items-center gap-1.5"><CheckCircle size={16} /> Save Loan Policy</span>}
         </button>
       </form>
+
+      <div className="mt-6">
+        <BranchesSection />
+      </div>
     </div>
   );
 }

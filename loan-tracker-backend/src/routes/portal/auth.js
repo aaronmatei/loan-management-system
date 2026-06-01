@@ -64,13 +64,19 @@ async function autoLinkToTenant(customer, tenantId) {
     clientId = ec.rows[0].id;
   } else {
     const clientCode = await nextClientCode(query, tenantId);
+    // Portal-side onboarding lands new clients in the tenant's
+    // default branch — the customer doesn't pick one at signup.
     clientId = (
       await query(
         `INSERT INTO clients (
            tenant_id, client_code, first_name, last_name, phone_number, id_number,
            email, business_name, business_type, city, county, address,
-           date_of_birth, gender, signup_promo_code, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'active')
+           date_of_birth, gender, signup_promo_code, branch_id, status
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+           (SELECT id FROM branches WHERE tenant_id = $1 AND is_default LIMIT 1),
+           'active'
+         )
          RETURNING id`,
         [
           tenantId, clientCode, customer.first_name, customer.last_name,
@@ -659,8 +665,12 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
            tenant_id, client_code, first_name, last_name,
            phone_number, id_number, email,
            business_name, business_type, city, county, address,
-           date_of_birth, gender, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active')
+           date_of_birth, gender, branch_id, status
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
+           (SELECT id FROM branches WHERE tenant_id = $1 AND is_default LIMIT 1),
+           'active'
+         )
          RETURNING id`,
         [
           targetTenant.id,

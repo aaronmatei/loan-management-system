@@ -244,8 +244,27 @@ CREATE TABLE public.clients (
     tenant_id integer NOT NULL,
     gender character varying(10),
     date_of_birth date,
-    signup_promo_code character varying(40)
+    signup_promo_code character varying(40),
+    branch_id integer
 );
+
+CREATE TABLE public.branches (
+    id serial PRIMARY KEY,
+    tenant_id integer NOT NULL,
+    name character varying(80) NOT NULL,
+    code character varying(20),
+    location character varying(120),
+    phone character varying(20),
+    is_default boolean NOT NULL DEFAULT false,
+    active boolean NOT NULL DEFAULT true,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX branches_tenant_name_active_unique
+    ON public.branches (tenant_id, lower((name)::text)) WHERE active;
+CREATE UNIQUE INDEX branches_tenant_default_unique
+    ON public.branches (tenant_id) WHERE is_default;
+CREATE INDEX idx_branches_tenant ON public.branches (tenant_id);
 
 CREATE TABLE public.promo_codes (
     id serial PRIMARY KEY,
@@ -2441,6 +2460,12 @@ ALTER TABLE ONLY public.capital_transactions
 
 ALTER TABLE ONLY public.clients
     ADD CONSTRAINT clients_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+ALTER TABLE ONLY public.clients
+    ADD CONSTRAINT clients_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id) ON DELETE SET NULL;
+
+ALTER TABLE ONLY public.branches
+    ADD CONSTRAINT branches_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
 
 
 --

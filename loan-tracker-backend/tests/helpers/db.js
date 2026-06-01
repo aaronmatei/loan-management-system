@@ -54,7 +54,16 @@ export async function seedTenant(overrides = {}) {
       t.contact_email,
     ],
   );
-  return rows[0];
+  const tenant = rows[0];
+  // Mirror migration 036: every new tenant gets a default "Main"
+  // branch so client-create flows that fall back to the tenant's
+  // default branch don't fail.
+  await query(
+    `INSERT INTO branches (tenant_id, name, is_default, active)
+     VALUES ($1, 'Main', TRUE, TRUE)`,
+    [tenant.id],
+  );
+  return tenant;
 }
 
 // Insert a user with a bcrypt-hashed password. Returns the row plus the

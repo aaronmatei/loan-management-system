@@ -42,11 +42,25 @@ function Clients() {
     county: "",
     date_of_birth: "",
     gender: "",
+    branch_id: "",
   });
+  const [branches, setBranches] = useState([]);
 
   useEffect(() => {
     fetchClients();
+    fetchBranches();
   }, []);
+
+  // Only ACTIVE branches go in the create-client dropdown — archived
+  // ones stay visible in Settings but can no longer be assigned.
+  const fetchBranches = async () => {
+    try {
+      const r = await api.get("/branches");
+      setBranches((r.data.data || []).filter((b) => b.active));
+    } catch {
+      // Non-fatal — form still works (backend falls back to default).
+    }
+  };
 
   // Reset to the first page whenever the search changes
   useEffect(() => {
@@ -93,6 +107,7 @@ function Clients() {
         county: "",
         date_of_birth: "",
         gender: "",
+        branch_id: "",
       });
       setShowForm(false);
       fetchClients();
@@ -400,6 +415,32 @@ function Clients() {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Optional — powers borrower-age analytics
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Branch
+                </label>
+                <select
+                  name="branch_id"
+                  value={formData.branch_id}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                >
+                  <option value="">
+                    {branches.length === 0
+                      ? "— Default branch —"
+                      : "— Default branch —"}
+                  </option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                      {b.is_default ? " (default)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Add branches in Settings to assign new clients here.
                 </p>
               </div>
             </div>

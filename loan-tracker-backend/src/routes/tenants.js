@@ -126,6 +126,16 @@ router.post("/signup", async (req, res) => {
     );
     const tenant = tRes.rows[0];
 
+    // Seed the default "Main" branch — every tenant must have at
+    // least one, since create-client flows fall back to the default
+    // when no branch is picked. Mirrors migration 036's existing-
+    // tenant seed for fresh signups.
+    await client.query(
+      `INSERT INTO branches (tenant_id, name, is_default, active)
+       VALUES ($1, 'Main', TRUE, TRUE)`,
+      [tenant.id],
+    );
+
     const [firstName, ...rest] = contact_name.trim().split(/\s+/);
     const lastName = rest.join(" ") || "User";
 

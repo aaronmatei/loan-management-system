@@ -19,6 +19,29 @@ const router = express.Router();
 // All routes require authentication
 router.use(verifyToken);
 
+// Resolve a branch_id supplied by a create/update request:
+//   - explicit value: must belong to `tid` AND be active → return its id
+//   - falsy / unknown: fall back to the tenant's default branch
+// Returns null if an explicit branch_id was given but isn't valid for
+// this tenant — callers should respond 400 in that case.
+async function resolveBranchId(tid, requestedBranchId) {
+  if (requestedBranchId) {
+    const r = await query(
+      `SELECT id FROM branches
+        WHERE id = $1 AND tenant_id = $2 AND active`,
+      [requestedBranchId, tid],
+    );
+    return r.rows.length ? r.rows[0].id : null;
+  }
+  const def = await query(
+    `SELECT id FROM branches
+      WHERE tenant_id = $1 AND is_default
+      LIMIT 1`,
+    [tid],
+  );
+  return def.rows.length ? def.rows[0].id : null;
+}
+
 // ============================================================
 // GET ALL CLIENTS
 // ============================================================
@@ -27,7 +50,11 @@ router.get("/", async (req, res) => {
     const { search, status, page = 1, limit = 10000 } = req.query;
     const offset = (page - 1) * limit;
 
-    let queryText = "SELECT * FROM clients WHERE 1=1";
+    let queryText = `
+      SELECT c.*, b.name AS branch_name
+        FROM clients c
+        LEFT JOIN branches b ON b.id = c.branch_id
+       WHERE 1=1`;
     const params = [];
     let paramCount = 0;
 
@@ -35,10 +62,10 @@ router.get("/", async (req, res) => {
     if (search) {
       paramCount++;
       queryText += ` AND (
-        first_name ILIKE $${paramCount} 
-        OR last_name ILIKE $${paramCount} 
-        OR phone_number ILIKE $${paramCount}
-        OR email ILIKE $${paramCount}
+        c.first_name ILIKE $${paramCount}
+        OR c.last_name ILIKE $${paramCount}
+        OR c.phone_number ILIKE $${paramCount}
+        OR c.email ILIKE $${paramCount}
       )`;
       params.push(`%${search}%`);
     }
@@ -46,19 +73,19 @@ router.get("/", async (req, res) => {
     // Filter by status
     if (status) {
       paramCount++;
-      queryText += ` AND status = $${paramCount}`;
+      queryText += ` AND c.status = $${paramCount}`;
       params.push(status);
     }
 
     // Tenant scope (no-op for platform admins / pre-migration tokens)
-    const ts = tenantClause(req, paramCount);
+    const ts = tenantClause(req, paramCount, "c.tenant_id");
     if (ts.clause) {
       paramCount++;
       queryText += ts.clause;
     }
 
     // Add pagination
-    queryText += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    queryText += ` ORDER BY c.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(...ts.params, limit, offset);
 
     const result = await query(queryText, params);
@@ -377,6 +404,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       county,
       date_of_birth,
       gender,
+      branch_id,
     } = req.body;
 
     // Validation
@@ -431,6 +459,18 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       }
     }
 
+    // Branch: caller may pick one (must belong to the tenant and be
+    // active); otherwise we fall back to the tenant's default branch
+    // seeded by migration 036. This keeps the column effectively-
+    // required without forcing the frontend to know about branches
+    // before Settings → Branches is opened.
+    const branchId = await resolveBranchId(tid, branch_id);
+    if (branchId === null) {
+      return res
+        .status(400)
+        .json({ error: "Selected branch is invalid or archived" });
+    }
+
     // Per-tenant client_code via shared helper. Produces
     // CLT-<PREFIX>-<YEAR>-<NNNNN> using MAX(suffix)+1 — safe even if
     // earlier rows were deleted (unlike the old COUNT(*)+1 path).
@@ -441,8 +481,8 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       `INSERT INTO clients (
         tenant_id, client_code, first_name, last_name, phone_number, email,
         id_number, business_name, business_type, address, city, county,
-        date_of_birth, gender, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active')
+        date_of_birth, gender, branch_id, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'active')
       RETURNING *`,
       [
         tid,
@@ -459,6 +499,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         county || null,
         date_of_birth || null,
         gender || null,
+        branchId,
       ],
     );
 
@@ -514,6 +555,7 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
       date_of_birth,
       gender,
       status,
+      branch_id,
     } = req.body;
 
     // Check client exists (tenant-scoped; platform admin sees all)
@@ -592,6 +634,19 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
       }
     }
 
+    // Branch reassignment is optional on PUT. When supplied, validate
+    // it belongs to this tenant and is active; when omitted, leave
+    // the existing branch_id unchanged (COALESCE below).
+    let resolvedBranchId = null;
+    if (branch_id !== undefined && branch_id !== null && branch_id !== "") {
+      resolvedBranchId = await resolveBranchId(ctid, branch_id);
+      if (resolvedBranchId === null) {
+        return res
+          .status(400)
+          .json({ error: "Selected branch is invalid or archived" });
+      }
+    }
+
     const result = await query(
       `UPDATE clients SET
         first_name = $1,
@@ -607,8 +662,9 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         date_of_birth = COALESCE($11, date_of_birth),
         gender = COALESCE($12, gender),
         status = COALESCE($13, status),
+        branch_id = COALESCE($14, branch_id),
         updated_at = NOW()
-      WHERE id = $14 AND tenant_id = $15
+      WHERE id = $15 AND tenant_id = $16
       RETURNING *`,
       [
         first_name,
@@ -624,6 +680,7 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         date_of_birth || null,
         gender || null,
         status || null,
+        resolvedBranchId,
         id,
         ctid,
       ],
