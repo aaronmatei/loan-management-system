@@ -13,6 +13,7 @@ import {
   checkEligibility,
   isRated,
 } from "../utils/creditScore.js";
+import { recomputeCreditScore } from "../services/creditScoreService.js";
 
 const router = express.Router();
 
@@ -354,19 +355,10 @@ router.get("/:id/credit-profile", async (req, res) => {
 
     // Cache the score back on the client row so the Clients list
     // can show it without re-running this expensive aggregate per
-    // row. Best-effort — never fail the profile fetch if the cache
-    // write hiccups. Skipped for platform admins viewing a client
-    // from outside their own tenant (req.user.tenant_id absent).
-    if (creditScore !== null && req.user?.tenant_id) {
-      try {
-        await query(
-          `UPDATE clients SET credit_score = $1
-            WHERE id = $2 AND tenant_id = $3`,
-          [creditScore, id, req.user.tenant_id],
-        );
-      } catch (err) {
-        logger.error("Failed to cache credit_score on client:", err);
-      }
+    // row. Recompute goes through the shared service (single write
+    // path) and is best-effort — never fails the profile fetch.
+    if (req.user?.tenant_id) {
+      await recomputeCreditScore(id, req.user.tenant_id);
     }
 
     res.json({

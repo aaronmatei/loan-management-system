@@ -33,6 +33,7 @@ import {
   notifyRefundPending,
 } from "./notificationService.js";
 import logger from "../config/logger.js";
+import { recomputeCreditScore } from "./creditScoreService.js";
 
 // Typed error so the route can map to the right HTTP status while the
 // M-Pesa caller can just catch and log.
@@ -533,6 +534,12 @@ export async function recordLoanPayment({
     loan.tenant_id,
     transaction,
   );
+
+  // Keep clients.credit_score fresh — best-effort. A payment is one
+  // of the few writes that materially changes a client's standing
+  // (new on-time/late mark, possible auto-completion). Failures are
+  // logged inside the service; never block the payment response.
+  await recomputeCreditScore(loan.client_id, loan.tenant_id);
 
   return {
     message:

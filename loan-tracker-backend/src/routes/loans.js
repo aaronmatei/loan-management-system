@@ -11,6 +11,7 @@ import {
   validateAgainstPackage,
 } from "../utils/loanMath.js";
 import { evaluatePackageEligibility } from "../utils/packageEligibility.js";
+import { recomputeCreditScoreForLoan } from "../services/creditScoreService.js";
 import {
   notifyApplicationSubmitted,
   notifyApplicationApproved,
@@ -2273,6 +2274,12 @@ router.put("/:id/status", authorize("admin", "manager"), async (req, res) => {
       req,
     });
 
+    // A defaulted (or un-defaulted) loan changes the client's credit
+    // standing — recompute their cached score. Best-effort.
+    if (prev.status !== status) {
+      await recomputeCreditScoreForLoan(id);
+    }
+
     res.json({
       success: true,
       message: "Loan status updated",
@@ -2339,6 +2346,13 @@ router.post(
            WHERE loan_id = ANY($1) AND status = 'pending'${psdT.clause}`,
           [loan_ids, ...psdT.params],
         );
+      }
+
+      // Recompute cached credit scores for every affected loan's
+      // client — best-effort, never blocks. Sequential is fine here
+      // (bulk lists rarely exceed a few dozen).
+      for (const row of result.rows) {
+        await recomputeCreditScoreForLoan(row.id);
       }
 
       await logAudit({
@@ -2415,6 +2429,9 @@ router.post(
             newValues: { status: "defaulted" },
             req,
           });
+          // Recompute the client's cached credit score — a default
+          // is the biggest single negative the formula reacts to.
+          await recomputeCreditScoreForLoan(r.id);
         }
       }
       res.json({

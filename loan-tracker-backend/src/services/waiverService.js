@@ -11,6 +11,7 @@
 
 import { query } from "../config/database.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
+import { recomputeCreditScoreForLoan } from "./creditScoreService.js";
 
 /**
  * Apply a waiver of `amount` to a loan. Returns the allocation snapshot
@@ -338,6 +339,11 @@ export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
     allocation.loan_completed = true;
   }
 
+  // Recompute the client's cached credit score — a completed loan
+  // (which the waiver may have just triggered) is a positive signal.
+  // Best-effort; never blocks the caller.
+  await recomputeCreditScoreForLoan(loanId);
+
   return allocation;
 }
 
@@ -403,6 +409,11 @@ export async function reverseWaiver(loanId, tenantId, allocation) {
   // 'completed' with a positive balance owed. We now check
   // settlement directly instead of trusting the historical flag.
   await syncLoanStateAfterUnwind(loanId, tenantId);
+
+  // Reversal can flip a 'completed' loan back to 'active' and
+  // demote 'paid' schedules to 'overdue' — recompute the client's
+  // cached credit score so the dashboard reflects the new reality.
+  await recomputeCreditScoreForLoan(loanId);
 }
 
 /**
