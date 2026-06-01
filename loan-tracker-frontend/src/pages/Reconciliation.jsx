@@ -22,6 +22,10 @@ import {
   ArrowUpRight,
   ArrowDownToLine,
   Coins,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Inbox,
 } from "lucide-react";
 import api from "../services/api";
 
@@ -67,20 +71,32 @@ const COLOR_CLS = {
   slate: { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-100" },
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const daysAgo = (n) => {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+// Local-time YYYY-MM-DD so the navigator matches the user's calendar
+// rather than UTC (Africa/Nairobi is +3, and toISOString().slice(0,10)
+// rolls a day too soon before midnight UTC).
+const isoLocal = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+const today = () => isoLocal(new Date());
+const shiftDays = (iso, delta) => {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + delta);
+  return isoLocal(d);
 };
 
 function Reconciliation() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("register");
 
-  // Date window — defaults to today.
-  const [from, setFrom] = useState(today());
-  const [to, setTo] = useState(today());
+  // Single-day navigator — cashier's "what came in today/yesterday" is
+  // the dominant reconciliation pattern, and stepping ±1 day is the
+  // natural review motion. For longer windows the user can paste a
+  // wider window into the date input directly (still a date input,
+  // just defaults to single-day stepping via the chevrons).
+  const [date, setDate] = useState(today());
 
   const [data, setData] = useState(null);
   const [overpayments, setOverpayments] = useState(null);
@@ -91,7 +107,8 @@ function Reconciliation() {
     if (silent) setRefreshing(true);
     else setLoading(true);
     try {
-      const r = await api.get(`/reconciliation?from=${from}&to=${to}`);
+      // Single-day window — from and to both = selected date.
+      const r = await api.get(`/reconciliation?from=${date}&to=${date}`);
       setData(r.data.data);
     } catch (err) {
       console.error("Failed to load reconciliation:", err);
@@ -119,9 +136,10 @@ function Reconciliation() {
 
   useEffect(() => {
     if (tab === "register") loadRegister();
-    else loadOverpayments();
+    else if (tab === "overpayments") loadOverpayments();
+    // 'unmatched' tab is a placeholder until C2B ships — no fetch yet.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, from, to]);
+  }, [tab, date]);
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -159,7 +177,8 @@ function Reconciliation() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — Cash Register (default), Overpayments, Unmatched
+          Payments (placeholder until M-Pesa C2B is wired). */}
       <div className="flex flex-wrap gap-1 border-b border-slate-200 mb-6">
         <button
           onClick={() => setTab("register")}
@@ -181,58 +200,76 @@ function Reconciliation() {
         >
           <Coins size={15} /> Overpayments
         </button>
+        <button
+          onClick={() => setTab("unmatched")}
+          className={`relative inline-flex items-center gap-2 px-4 py-2.5 -mb-px text-sm font-semibold transition border-b-2 ${
+            tab === "unmatched"
+              ? "border-sky-600 text-sky-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <Inbox size={15} /> Unmatched M-Pesa
+          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 uppercase">
+            soon
+          </span>
+        </button>
       </div>
 
       {tab === "register" && (
         <>
-          {/* Date window + quick picks */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4 flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-xs uppercase tracking-wide font-semibold text-slate-500 mb-1">
-                From
-              </label>
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-              />
+          {/* Single-day navigator. ← steps back one day, → steps
+              forward one day, the date input opens a calendar for
+              jumping further. "Today" chip stays as a one-click
+              return-to-today since stepping back through a long
+              window manually would be painful. */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDate(shiftDays(date, -1))}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                title="Previous day"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <div className="relative">
+                <Calendar
+                  size={14}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                />
+                <input
+                  type="date"
+                  value={date}
+                  max={today()}
+                  onChange={(e) => setDate(e.target.value || today())}
+                  className="pl-8 pr-3 py-2 border-2 border-slate-200 rounded-lg focus:border-ocean-500 focus:outline-none font-semibold text-slate-700"
+                />
+              </div>
+              <button
+                onClick={() => setDate(shiftDays(date, +1))}
+                disabled={date >= today()}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Next day"
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wide font-semibold text-slate-500 mb-1">
-                To
-              </label>
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                min={from}
-                className="px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-              />
-            </div>
-            <div className="flex gap-1.5 ml-auto">
-              {[
-                { label: "Today", from: today(), to: today() },
-                { label: "Yesterday", from: daysAgo(1), to: daysAgo(1) },
-                { label: "Last 7d", from: daysAgo(6), to: today() },
-                { label: "Last 30d", from: daysAgo(29), to: today() },
-              ].map((quick) => (
-                <button
-                  key={quick.label}
-                  onClick={() => {
-                    setFrom(quick.from);
-                    setTo(quick.to);
-                  }}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                    from === quick.from && to === quick.to
-                      ? "bg-ocean-100 text-ocean-700"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {quick.label}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => setDate(today())}
+              disabled={date === today()}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                date === today()
+                  ? "bg-ocean-100 text-ocean-700 cursor-default"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Today
+            </button>
+            <p className="text-xs text-slate-500 ml-auto">
+              Showing transactions for{" "}
+              <span className="font-semibold text-slate-700">
+                {fmtDate(date)}
+              </span>
+            </p>
           </div>
 
           {loading ? (
@@ -280,15 +317,15 @@ function Reconciliation() {
               <div className="bg-ocean-gradient-soft border border-ocean-100 rounded-xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider font-semibold text-ocean-700">
-                    Window total
+                    Day total
                   </p>
                   <p className="text-2xl font-extrabold text-ocean-700 mt-0.5">
                     {fmt2(data.totals.gross)}
                   </p>
                   <p className="text-xs text-slate-600 mt-0.5">
                     {data.totals.count} transaction
-                    {data.totals.count !== 1 ? "s" : ""} between{" "}
-                    {fmtDate(data.from)} and {fmtDate(data.to)}
+                    {data.totals.count !== 1 ? "s" : ""} on{" "}
+                    {fmtDate(data.from)}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm">
@@ -327,11 +364,11 @@ function Reconciliation() {
                     className="text-slate-300 mx-auto mb-3"
                   />
                   <h3 className="text-lg font-bold text-slate-700">
-                    No transactions in this window
+                    No transactions on {fmtDate(date)}
                   </h3>
                   <p className="text-sm text-slate-500 mt-1">
-                    Pick a wider date range, or check Today / Yesterday quick
-                    picks above.
+                    Use the arrows above to step through other days, or jump
+                    to a specific date with the picker.
                   </p>
                 </div>
               ) : (
@@ -585,6 +622,64 @@ function Reconciliation() {
             </>
           )}
         </>
+      )}
+
+      {/* Unmatched M-Pesa C2B — placeholder while we don't yet have
+          a C2B ingest. When it lands, M-Pesa payments arriving
+          without a borrower attribution (or with one that doesn't
+          match a known phone / loan code) will queue here for human
+          review. The empty state below explains what the surface
+          will do; the route already exists at /api/reconciliation
+          and a future commit can add a /unmatched sub-route plus
+          this tab's table without restructuring the page. */}
+      {tab === "unmatched" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 lg:p-14">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto mb-5">
+              <Inbox size={28} className="text-sky-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-navy-900 mb-2">
+              Unmatched M-Pesa payments
+            </h3>
+            <p className="text-slate-600 leading-relaxed mb-6">
+              When M-Pesa C2B is enabled, any incoming payment that
+              can't be auto-attributed to a loan — wrong phone, missing
+              account reference, ambiguous amount — will queue here for
+              a human to assign or refund. Until C2B is wired up, this
+              tab stays empty.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">
+                  What it'll show
+                </p>
+                <p className="text-xs text-slate-700">
+                  M-Pesa txn code, sender phone, amount, time received
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">
+                  Actions per row
+                </p>
+                <p className="text-xs text-slate-700">
+                  Attach to a loan · Refund · Mark as ignored
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">
+                  Source
+                </p>
+                <p className="text-xs text-slate-700">
+                  Daraja C2B callback (Paybill / Till)
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mt-6">
+              Tab is wired into the reconciliation page already — the
+              backend route will plug in here when C2B ships.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
