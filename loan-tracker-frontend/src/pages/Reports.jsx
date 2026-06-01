@@ -189,7 +189,26 @@ function Reports() {
   }
   if (!data) return null;
 
-  const { kpis, par, snapshot, expenseStats, cashFlow } = data;
+  const { kpis, par, snapshot, expenseStats, cashFlow,
+          collectionTrend, disbursementTrend } = data;
+
+  // Merge the disbursement + collection time series on month so we can
+  // render them in one chart. Both series share the "month" key from
+  // analyticsService (e.g. "Mar 2026" or "12 Mar" in daily mode), so a
+  // map-by-month merge produces clean rows. Missing values default to
+  // zero — the absent series just renders as a flat bar that month.
+  const disbursedVsCollected = (() => {
+    const byMonth = new Map();
+    (disbursementTrend || []).forEach((d) => {
+      byMonth.set(d.month, { month: d.month, disbursed: d.disbursed || 0, collected: 0 });
+    });
+    (collectionTrend || []).forEach((c) => {
+      const existing = byMonth.get(c.month) || { month: c.month, disbursed: 0, collected: 0 };
+      existing.collected = c.collected || 0;
+      byMonth.set(c.month, existing);
+    });
+    return Array.from(byMonth.values());
+  })();
 
   const expensesWindow = parseFloat(expenseStats?.total_in_window || 0);
   // Income = interest portion of payments + fines + processing fees
@@ -785,6 +804,90 @@ function Reports() {
                   stroke="#0086cc"
                   strokeWidth={2.5}
                   dot={{ r: 3, fill: "#0086cc" }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* ── Loans Disbursed vs Collections trend ──────────────── */}
+        {/* Money-out (disbursements, principal lent) vs money-in
+            (collections, cash received). The stakeholder view — were
+            we lending faster than we collected this period? A line
+            for the difference makes the gap pop, similar to the Net
+            line on Income vs Expenses above. */}
+        {disbursedVsCollected.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center">
+                <ArrowUpDown size={18} className="text-ocean-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">
+                  Disbursed vs Collected
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Principal lent versus cash received, by period. The Net
+                  line is collections minus disbursements — positive means
+                  more came back than went out.
+                </p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart
+                data={disbursedVsCollected.map((r) => ({
+                  ...r,
+                  net: (r.collected || 0) - (r.disbursed || 0),
+                }))}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#eef2f6"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tickFormatter={fmtK}
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={50}
+                />
+                <Tooltip
+                  formatter={(v, n) => [fmt(v), n]}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 12,
+                  }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Bar
+                  dataKey="disbursed"
+                  name="Disbursed"
+                  fill="#f59e0b"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Bar
+                  dataKey="collected"
+                  name="Collected"
+                  fill="#0086cc"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="net"
+                  name="Net (in − out)"
+                  stroke="#10b981"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: "#10b981" }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
