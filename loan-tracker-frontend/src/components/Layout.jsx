@@ -27,6 +27,7 @@ import {
   Handshake,
   AlertOctagon,
   Scale,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
@@ -71,6 +72,9 @@ const navGroups = [
       { path: "/defaulted", label: "Defaulted", icon: AlertOctagon, permission: "loans:view" },
       { path: "/waivers", label: "Waivers", icon: HandCoins, roles: ["admin"], badgeKey: "pendingWaivers" },
       { path: "/promises", label: "Promises to Pay", icon: Handshake, permission: "loans:view" },
+      // Loan policy + packages — config for the LOANS workflow,
+      // separated from /settings (company / payment details).
+      { path: "/loan-settings", label: "Loan Settings", icon: SlidersHorizontal, roles: ["admin"] },
     ],
   },
   {

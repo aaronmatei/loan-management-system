@@ -53,6 +53,7 @@ import Reports from "./pages/Reports";
 import SMS from "./pages/SMS";
 import Email from "./pages/Email";
 import Settings from "./pages/Settings";
+import LoanSettings from "./pages/LoanSettings";
 import Billing from "./pages/Billing";
 import Expenses from "./pages/Expenses";
 import Waivers from "./pages/Waivers";
@@ -244,6 +245,7 @@ function App() {
               <Route path="/sms" element={<SMS />} />
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/loan-settings" element={<LoanSettings />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/waivers" element={<Waivers />} />
