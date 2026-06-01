@@ -532,6 +532,8 @@ router.get("/all-loans", async (req, res) => {
          t.subdomain       AS tenant_subdomain,
          t.brand_color     AS tenant_brand_color,
          c.client_code,
+         pk.name              AS package_name,
+         pk.interest_method   AS package_interest_method,
          COALESCE(SUM(tx.amount_paid),0) AS total_paid,
          (SELECT json_build_object(
             'amount_due', ps.amount_due,
@@ -544,10 +546,11 @@ router.get("/all-loans", async (req, res) => {
        FROM loans l
        JOIN tenants t ON l.tenant_id = t.id
        JOIN clients c ON l.client_id = c.id
+       LEFT JOIN loan_packages pk ON pk.id = l.package_id
        LEFT JOIN transactions tx
          ON tx.loan_id = l.id AND tx.payment_status = 'completed'
        WHERE ${where}
-       GROUP BY l.id, t.id, c.id
+       GROUP BY l.id, t.id, c.id, pk.id
        ORDER BY ${orderBy}`,
       params,
     );
@@ -1031,14 +1034,18 @@ router.get("/loans/:id", async (req, res) => {
               c.phone_number AS client_phone,
               tn.business_type AS tenant_business_type,
               tn.brand_color   AS tenant_brand_color,
+              pk.name              AS package_name,
+              pk.description       AS package_description,
+              pk.interest_method   AS package_interest_method,
               COALESCE(SUM(t.amount_paid),0) AS total_paid
        FROM loans l
        JOIN clients c ON l.client_id = c.id
        JOIN tenants tn ON l.tenant_id = tn.id
+       LEFT JOIN loan_packages pk ON pk.id = l.package_id
        LEFT JOIN transactions t
          ON l.id = t.loan_id AND t.payment_status = 'completed'
        WHERE l.id = $1 AND l.client_id = $2 AND l.tenant_id = $3
-       GROUP BY l.id, c.id, tn.id`,
+       GROUP BY l.id, c.id, tn.id, pk.id`,
       [req.params.id, req.currentClientId, req.currentTenantId],
     );
     if (loan.rows.length === 0) {

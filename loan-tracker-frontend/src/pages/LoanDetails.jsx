@@ -825,6 +825,40 @@ function LoanDetails() {
           Loan Information
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          {/* Package — comes from the LEFT JOIN; absent for off-product
+              custom loans (loan.package_name = null). When present,
+              the loan's stored interest_method is the truth source. */}
+          <div>
+            <p className="text-gray-500">Package</p>
+            <p className="font-semibold text-gray-800">
+              {loan.package_name ? (
+                <span className="inline-flex items-center gap-1.5">
+                  {loan.package_name}
+                  {loan.package_active === false && (
+                    <span className="text-xs text-gray-500">
+                      (archived)
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-gray-400">Custom loan</span>
+              )}
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-500">Interest Method</p>
+            <p className="font-semibold text-gray-800">
+              <span
+                className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  loan.interest_method === "reducing"
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {loan.interest_method === "reducing" ? "Reducing" : "Flat"}
+              </span>
+            </p>
+          </div>
           <div>
             <p className="text-gray-500">Interest Rate (Monthly)</p>
             <p className="font-semibold text-gray-800">

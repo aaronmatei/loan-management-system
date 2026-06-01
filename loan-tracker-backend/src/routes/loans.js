@@ -44,6 +44,7 @@ router.get("/", async (req, res) => {
             c.last_name,
             c.phone_number,
             c.client_code,
+            pk.name AS package_name,
             COALESCE(SUM(t.amount_paid), 0) as total_paid,
             COALESCE(SUM(t.penalty_portion), 0) as total_fines_paid,
             COALESCE(wv.waived_toward_balance, 0) as total_waived_toward_balance,
@@ -63,6 +64,7 @@ router.get("/", async (req, res) => {
             COALESCE(od.max_days_late, 0)::int  AS max_days_late
         FROM loans l
         JOIN clients c ON l.client_id = c.id
+        LEFT JOIN loan_packages pk ON pk.id = l.package_id
         LEFT JOIN transactions t ON l.id = t.loan_id AND t.payment_status = 'completed'
         LEFT JOIN (
           SELECT
@@ -118,6 +120,7 @@ router.get("/", async (req, res) => {
 
     queryText += `
       GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code,
+               pk.name,
                od.overdue_count, od.overdue_amount, od.max_days_late,
                wv.waived_toward_balance, wv.total_waived
       ORDER BY l.created_at DESC
@@ -154,17 +157,25 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get loan with client info
+    // Get loan with client info. LEFT JOIN to loan_packages so the
+    // loan detail page can show "Package: <name>" — package_id is
+    // nullable (custom / off-product loans), in which case the JOIN
+    // simply yields NULL columns.
     const loanResult = await query(
-      `SELECT 
+      `SELECT
         l.*,
         c.first_name,
         c.last_name,
         c.phone_number,
         c.email,
-        c.client_code
+        c.client_code,
+        pk.name              AS package_name,
+        pk.description       AS package_description,
+        pk.interest_method   AS package_interest_method,
+        pk.active            AS package_active
       FROM loans l
       JOIN clients c ON l.client_id = c.id
+      LEFT JOIN loan_packages pk ON pk.id = l.package_id
       WHERE l.id = $1${tenantClause(req, 1, "l.tenant_id").clause}`,
       [id, ...tenantClause(req, 1, "l.tenant_id").params],
     );

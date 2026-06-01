@@ -294,6 +294,17 @@ function LoanDetails() {
               <ClipboardList size={18} /> Loan Information
             </h3>
             <div className="space-y-2 text-sm">
+              {/* Loan product — only shown when the loan was applied
+                  via a published package. Custom apply leaves this
+                  row out entirely so the panel stays compact. */}
+              {loan.package_name && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Product</span>
+                  <span className="font-semibold text-navy-900">
+                    {loan.package_name}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Duration</span>
                 <span className="font-semibold">
@@ -303,6 +314,20 @@ function LoanDetails() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Interest Rate</span>
                 <span className="font-semibold">{monthlyRate}% p.m.</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Interest Method</span>
+                <span
+                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    loan.interest_method === "reducing"
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {loan.interest_method === "reducing"
+                    ? "Reducing"
+                    : "Flat"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Start Date</span>
