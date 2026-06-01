@@ -19,6 +19,10 @@ const router = express.Router();
 // All routes require authentication
 router.use(verifyToken);
 
+// Allowed values for clients.client_type. Mirrors the DB CHECK
+// constraint in migration 037 — keep them in sync.
+const CLIENT_TYPES = ["individual", "group", "business"];
+
 // Resolve a branch_id supplied by a create/update request:
 //   - explicit value: must belong to `tid` AND be active → return its id
 //   - falsy / unknown: fall back to the tenant's default branch
@@ -405,7 +409,18 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       date_of_birth,
       gender,
       branch_id,
+      client_type: rawClientType,
     } = req.body;
+
+    // client_type is an enum; default to 'individual' if absent, reject
+    // anything outside the allow-list so the DB CHECK constraint is
+    // never the first to fail.
+    const client_type = (rawClientType || "individual").toLowerCase();
+    if (!CLIENT_TYPES.includes(client_type)) {
+      return res.status(400).json({
+        error: `client_type must be one of: ${CLIENT_TYPES.join(", ")}`,
+      });
+    }
 
     // Validation
     if (!first_name || !last_name || !phone_number) {
@@ -481,8 +496,8 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       `INSERT INTO clients (
         tenant_id, client_code, first_name, last_name, phone_number, email,
         id_number, business_name, business_type, address, city, county,
-        date_of_birth, gender, branch_id, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'active')
+        date_of_birth, gender, branch_id, client_type, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'active')
       RETURNING *`,
       [
         tid,
@@ -500,6 +515,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         date_of_birth || null,
         gender || null,
         branchId,
+        client_type,
       ],
     );
 
@@ -556,7 +572,20 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
       gender,
       status,
       branch_id,
+      client_type: rawClientType,
     } = req.body;
+
+    // Same allow-list as POST. Undefined means "leave alone" (we use
+    // COALESCE below); a supplied value must be valid.
+    let client_type = null;
+    if (rawClientType !== undefined && rawClientType !== null) {
+      client_type = String(rawClientType).toLowerCase();
+      if (!CLIENT_TYPES.includes(client_type)) {
+        return res.status(400).json({
+          error: `client_type must be one of: ${CLIENT_TYPES.join(", ")}`,
+        });
+      }
+    }
 
     // Check client exists (tenant-scoped; platform admin sees all)
     const eTs = tenantClause(req, 1);
@@ -663,8 +692,9 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         gender = COALESCE($12, gender),
         status = COALESCE($13, status),
         branch_id = COALESCE($14, branch_id),
+        client_type = COALESCE($15, client_type),
         updated_at = NOW()
-      WHERE id = $15 AND tenant_id = $16
+      WHERE id = $16 AND tenant_id = $17
       RETURNING *`,
       [
         first_name,
@@ -681,6 +711,7 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
         gender || null,
         status || null,
         resolvedBranchId,
+        client_type,
         id,
         ctid,
       ],

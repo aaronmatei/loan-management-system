@@ -5,6 +5,7 @@ import PasswordInput from "../components/PasswordInput";
 import IdentityUploader from "../components/IdentityUploader";
 import { KENYA_COUNTIES } from "../../utils/counties";
 import { BUSINESS_TYPES } from "../../utils/businessTypes";
+import { CLIENT_TYPES, businessNameLabel } from "../../utils/clientTypes";
 
 // Two-step: details → OTP + password. Portal registration is scoped
 // to a lender (subdomain); in production that comes from the host,
@@ -29,6 +30,7 @@ function CustomerRegister() {
   // backend says it's required. TODO(OTP): re-enable when SMS is configured.
   const [requiresOtp, setRequiresOtp] = useState(false);
   const [form, setForm] = useState({
+    client_type: "individual",
     phone_number: "",
     id_number: "",
     first_name: "",
@@ -71,6 +73,7 @@ function CustomerRegister() {
       // Tenant-less registration — no lender chosen here. The customer
       // adds a lender after logging in.
       const res = await portalApi.post("/portal/auth/register", {
+        client_type: form.client_type,
         phone_number: form.phone_number,
         id_number: form.id_number,
         first_name: form.first_name,
@@ -209,6 +212,36 @@ function CustomerRegister() {
 
         {step === 1 ? (
           <form onSubmit={submitDetails} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold mb-2">
+                I am applying as…
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {CLIENT_TYPES.map((t) => {
+                  const Icon = t.icon;
+                  const selected = form.client_type === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() =>
+                        setForm({ ...form, client_type: t.value })
+                      }
+                      className={`text-center p-2 rounded-lg border-2 transition ${
+                        selected
+                          ? "border-indigo-600 bg-indigo-50"
+                          : "border-gray-200 hover:border-gray-300 bg-white"
+                      }`}
+                    >
+                      <Icon size={18} className="mx-auto text-gray-700" />
+                      <div className="text-xs font-semibold text-gray-800 mt-1">
+                        {t.label}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold mb-1">
@@ -298,38 +331,50 @@ function CustomerRegister() {
             </div>
 
             <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Business &amp; location (optional)
+              {form.client_type === "individual"
+                ? "Location (optional)"
+                : form.client_type === "group"
+                  ? "Group & location"
+                  : "Business & location"}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Business Name
-                </label>
-                <input
-                  value={form.business_name}
-                  onChange={set("business_name")}
-                  placeholder="e.g. Mama Mboga Stores"
-                  className={field}
-                />
+            {form.client_type !== "individual" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold mb-1">
+                    {businessNameLabel(form.client_type)}
+                  </label>
+                  <input
+                    value={form.business_name}
+                    onChange={set("business_name")}
+                    placeholder={
+                      form.client_type === "group"
+                        ? "e.g. Maendeleo Chama"
+                        : "e.g. Mama Mboga Stores"
+                    }
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">
+                    {form.client_type === "group"
+                      ? "Group Activity"
+                      : "Business Type"}
+                  </label>
+                  <select
+                    value={form.business_type}
+                    onChange={set("business_type")}
+                    className={`${field} bg-white`}
+                  >
+                    <option value="">Select type…</option>
+                    {BUSINESS_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Business Type
-                </label>
-                <select
-                  value={form.business_type}
-                  onChange={set("business_type")}
-                  className={`${field} bg-white`}
-                >
-                  <option value="">Select type…</option>
-                  {BUSINESS_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold mb-1">County</label>

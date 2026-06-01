@@ -71,9 +71,9 @@ async function autoLinkToTenant(customer, tenantId) {
         `INSERT INTO clients (
            tenant_id, client_code, first_name, last_name, phone_number, id_number,
            email, business_name, business_type, city, county, address,
-           date_of_birth, gender, signup_promo_code, branch_id, status
+           date_of_birth, gender, signup_promo_code, client_type, branch_id, status
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
            (SELECT id FROM branches WHERE tenant_id = $1 AND is_default LIMIT 1),
            'active'
          )
@@ -85,6 +85,7 @@ async function autoLinkToTenant(customer, tenantId) {
           customer.city || null, customer.county || null, customer.address || null,
           customer.date_of_birth || null, customer.gender || null,
           customer.signup_promo_code || null,
+          customer.client_type || "individual",
         ],
       )
     ).rows[0].id;
@@ -159,6 +160,7 @@ router.post("/register", async (req, res) => {
       gender,
       business_name,
       business_type,
+      client_type: rawClientType,
       city,
       county,
       address,
@@ -169,6 +171,15 @@ router.post("/register", async (req, res) => {
       return res
         .status(400)
         .json({ error: "Name, phone number, and ID number are required" });
+    }
+    // client_type defaults to 'individual'; anything else must match
+    // the enum the DB CHECK constraint enforces.
+    const allowedTypes = ["individual", "group", "business"];
+    const clientType = (rawClientType || "individual").toLowerCase();
+    if (!allowedTypes.includes(clientType)) {
+      return res
+        .status(400)
+        .json({ error: `client_type must be one of: ${allowedTypes.join(", ")}` });
     }
     const fp = formatPhone(phone_number);
     // A promo code OR a referral code attributes the customer to a lender (and
@@ -228,8 +239,9 @@ router.post("/register", async (req, res) => {
                 address = COALESCE($10, address),
                 registration_tenant_id = COALESCE(registration_tenant_id, $11),
                 signup_promo_code = COALESCE(signup_promo_code, $12),
+                client_type = $13,
                 updated_at = NOW()
-          WHERE id = $13`,
+          WHERE id = $14`,
         [
           first_name,
           last_name,
@@ -243,6 +255,7 @@ router.post("/register", async (req, res) => {
           address || null,
           referrerTenantId,
           promoCode,
+          clientType,
           customerId,
         ],
       );
@@ -262,8 +275,8 @@ router.post("/register", async (req, res) => {
            phone_number, id_number, first_name, last_name, email,
            date_of_birth, gender, business_name, business_type,
            city, county, address, registration_tenant_id, signup_promo_code,
-           registration_ip
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+           registration_ip, client_type
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
         [
           fp,
           id_number,
@@ -280,6 +293,7 @@ router.post("/register", async (req, res) => {
           referrerTenantId,
           promoCode,
           ipOf(req),
+          clientType,
         ],
       );
       customerId = nc.rows[0].id;
@@ -665,9 +679,9 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
            tenant_id, client_code, first_name, last_name,
            phone_number, id_number, email,
            business_name, business_type, city, county, address,
-           date_of_birth, gender, branch_id, status
+           date_of_birth, gender, client_type, branch_id, status
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
            (SELECT id FROM branches WHERE tenant_id = $1 AND is_default LIMIT 1),
            'active'
          )
@@ -687,6 +701,7 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
           customer.address || null,
           customer.date_of_birth || null,
           customer.gender || null,
+          customer.client_type || "individual",
         ],
       );
       clientId = ncl.rows[0].id;

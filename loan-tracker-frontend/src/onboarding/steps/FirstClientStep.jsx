@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import api from "../../services/api";
 import { KENYA_COUNTIES } from "../../utils/counties";
 import { BUSINESS_TYPES } from "../../utils/businessTypes";
+import { CLIENT_TYPES, businessNameLabel } from "../../utils/clientTypes";
 import { User, Shuffle } from "lucide-react";
 
 // Mirrors the fields on the staff Clients "Add New Client" form so the
@@ -9,6 +10,7 @@ import { User, Shuffle } from "lucide-react";
 // created later.
 function FirstClientStep({ onNext, onBack, setCreatedClient }) {
   const [form, setForm] = useState({
+    client_type: "individual",
     first_name: "",
     last_name: "",
     phone_number: "",
@@ -43,13 +45,14 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
 
   const useSampleData = () =>
     setForm({
+      client_type: "business",
       first_name: "Mary",
       last_name: "Wanjiku",
       phone_number: "0712345678",
       email: "mary.wanjiku@example.com",
       id_number: "12345678",
       business_name: "Mary's Salon",
-      business_type: "Small Shop",
+      business_type: "Salon / Barber",
       address: "Ngong Road",
       city: "Nairobi",
       county: "Nairobi",
@@ -82,6 +85,37 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
           <Shuffle size={14} /> Fill with Sample Data (Mary Wanjiku)
         </button>
         <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold mb-2">Client Type *</label>
+            <div className="grid grid-cols-3 gap-2">
+              {CLIENT_TYPES.map((t) => {
+                const Icon = t.icon;
+                const selected = form.client_type === t.value;
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() =>
+                      setForm({ ...form, client_type: t.value })
+                    }
+                    className={`text-left p-3 rounded-lg border-2 transition ${
+                      selected
+                        ? "border-ocean-500 bg-ocean-50"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-semibold text-gray-800 text-sm">
+                      <Icon size={14} />
+                      {t.label}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {t.description}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-semibold mb-1">First Name *</label>
@@ -136,43 +170,55 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-semibold mb-1">Gender</label>
-              <select
-                value={form.gender}
-                onChange={setField("gender")}
-                className={`${fld} bg-white`}
-              >
-                <option value="">Select…</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1">Business Type</label>
-              <select
-                value={form.business_type}
-                onChange={setField("business_type")}
-                className={`${fld} bg-white`}
-              >
-                <option value="">Select type…</option>
-                {BUSINESS_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-          </div>
           <div>
-            <label className="block text-sm font-semibold mb-1">Business Name</label>
-            <input
-              value={form.business_name}
-              onChange={setField("business_name")}
-              placeholder="(optional)"
-              className={fld}
-            />
+            <label className="block text-sm font-semibold mb-1">Gender</label>
+            <select
+              value={form.gender}
+              onChange={setField("gender")}
+              className={`${fld} bg-white`}
+            >
+              <option value="">Select…</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="other">Other</option>
+            </select>
           </div>
+          {form.client_type !== "individual" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  {businessNameLabel(form.client_type)}
+                </label>
+                <input
+                  value={form.business_name}
+                  onChange={setField("business_name")}
+                  placeholder={
+                    form.client_type === "group"
+                      ? "Maendeleo Chama"
+                      : "Mary's Salon"
+                  }
+                  className={fld}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  {form.client_type === "group"
+                    ? "Group Activity"
+                    : "Business Type"}
+                </label>
+                <select
+                  value={form.business_type}
+                  onChange={setField("business_type")}
+                  className={`${fld} bg-white`}
+                >
+                  <option value="">Select type…</option>
+                  {BUSINESS_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-sm font-semibold mb-1">Address</label>

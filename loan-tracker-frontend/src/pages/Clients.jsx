@@ -10,6 +10,11 @@ import {
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
 import { BUSINESS_TYPES } from "../utils/businessTypes";
+import {
+  CLIENT_TYPES,
+  businessNameLabel,
+  clientTypeLabel,
+} from "../utils/clientTypes";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
@@ -30,6 +35,7 @@ function Clients() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [formData, setFormData] = useState({
+    client_type: "individual",
     first_name: "",
     last_name: "",
     phone_number: "",
@@ -95,6 +101,7 @@ function Clients() {
         `Client ${response.data.data.client_code} created successfully!`,
       );
       setFormData({
+        client_type: "individual",
         first_name: "",
         last_name: "",
         phone_number: "",
@@ -278,6 +285,42 @@ function Clients() {
             Add New Client
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Type — controls whether the Business Name section shows
+                and adapts its label (Group → Group Name). */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Client Type *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {CLIENT_TYPES.map((t) => {
+                  const Icon = t.icon;
+                  const selected = formData.client_type === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() =>
+                        setFormData({ ...formData, client_type: t.value })
+                      }
+                      className={`text-left p-3 rounded-lg border-2 transition ${
+                        selected
+                          ? "border-ocean-500 bg-ocean-50"
+                          : "border-gray-200 hover:border-gray-300 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold text-gray-800">
+                        <Icon size={16} />
+                        {t.label}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {t.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -351,39 +394,6 @@ function Clients() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Business Name
-                </label>
-                <input
-                  name="business_name"
-                  value={formData.business_name}
-                  onChange={handleInputChange}
-                  placeholder="John's Shop"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Business Type
-                </label>
-                <select
-                  name="business_type"
-                  value={formData.business_type}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
-                >
-                  <option value="">-- Select Type --</option>
-                  {BUSINESS_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Gender
                 </label>
                 <select
@@ -399,6 +409,48 @@ function Clients() {
                 </select>
               </div>
             </div>
+
+            {/* Business / Group block — hidden for individual clients. */}
+            {formData.client_type !== "individual" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    {businessNameLabel(formData.client_type)}
+                  </label>
+                  <input
+                    name="business_name"
+                    value={formData.business_name}
+                    onChange={handleInputChange}
+                    placeholder={
+                      formData.client_type === "group"
+                        ? "Maendeleo Chama"
+                        : "John's Shop"
+                    }
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    {formData.client_type === "group"
+                      ? "Group Activity"
+                      : "Business Type"}
+                  </label>
+                  <select
+                    name="business_type"
+                    value={formData.business_type}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  >
+                    <option value="">-- Select Type --</option>
+                    {BUSINESS_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -626,6 +678,7 @@ function Clients() {
                   {[
                     ["Code", "client_code"],
                     ["Name", "first_name"],
+                    ["Type", "client_type"],
                     ["Phone", "phone_number"],
                     ["Email", "email"],
                     ["Business", "business_name"],
@@ -668,6 +721,19 @@ function Clients() {
                     </td>
                     <td className="px-6 py-4 font-semibold text-gray-800">
                       {client.first_name} {client.last_name}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          client.client_type === "business"
+                            ? "bg-violet-100 text-violet-700"
+                            : client.client_type === "group"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {clientTypeLabel(client.client_type)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-gray-600">
                       {client.phone_number}

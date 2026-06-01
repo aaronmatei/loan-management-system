@@ -245,7 +245,9 @@ CREATE TABLE public.clients (
     gender character varying(10),
     date_of_birth date,
     signup_promo_code character varying(40),
-    branch_id integer
+    branch_id integer,
+    client_type character varying(20) NOT NULL DEFAULT 'individual'
+        CHECK (client_type IN ('individual', 'group', 'business'))
 );
 
 CREATE TABLE public.branches (
@@ -922,7 +924,9 @@ CREATE TABLE public.platform_customers (
     registration_tenant_id integer,
     registration_ip character varying(45),
     created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
+    updated_at timestamp without time zone DEFAULT now(),
+    client_type character varying(20) NOT NULL DEFAULT 'individual'
+        CHECK (client_type IN ('individual', 'group', 'business'))
 );
 
 
