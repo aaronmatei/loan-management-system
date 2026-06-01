@@ -372,6 +372,8 @@ function Overdue() {
   const clearFilters = () => {
     setSearchQuery("");
     setSeverityFilter("all");
+    setPeriodFrom("");
+    setPeriodTo("");
   };
 
   // ── Bulk selection (keyed by loan id — one selection per loan) ──
@@ -465,7 +467,11 @@ function Overdue() {
         <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
           Loading overdue payments...
         </div>
-      ) : overdueList.length === 0 ? (
+      ) : overdueList.length === 0 && !periodFrom && !periodTo ? (
+        // Celebration only when there's truly no overdue debt — not
+        // when a period filter narrowed the result to zero. The
+        // period-zero case keeps the full layout so the user can
+        // try another window without having to navigate back.
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
           <PartyPopper size={56} className="mx-auto mb-4 text-green-400" />
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
@@ -841,14 +847,37 @@ function Overdue() {
 
           {/* Table */}
           {filtered.length === 0 ? (
+            // Empty-state copy adapts to which filter set returned
+            // zero rows. Period filter alone vs search/severity needs
+            // different language so the user knows what to try next.
             <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <Search size={56} className="mx-auto mb-4 text-gray-300" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">
-                No payments match your filters
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Try a different severity range or clear your search
-              </p>
+              {(periodFrom || periodTo) && overdueList.length === 0 ? (
+                <>
+                  <PartyPopper
+                    size={56}
+                    className="mx-auto mb-4 text-green-400"
+                  />
+                  <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                    No overdue installments in this period
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Nothing came due (and went unpaid) between{" "}
+                    {periodFrom || "—"} and {periodTo || "—"}. Try a
+                    different window, or clear the period filter to see
+                    everything.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Search size={56} className="mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                    No payments match your filters
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Try a different severity range or clear your search
+                  </p>
+                </>
+              )}
               <button
                 onClick={clearFilters}
                 className="inline-flex items-center gap-1.5 px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
