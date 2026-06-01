@@ -9,6 +9,8 @@ import {
   MapPin,
   Phone,
   Mail,
+  Package as PackageIcon,
+  TrendingDown,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -22,14 +24,22 @@ function LenderDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [lender, setLender] = useState(null);
+  const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unlinking, setUnlinking] = useState(false);
 
   const load = () => {
     setLoading(true);
-    portalApi
-      .get(`/portal/customer/lenders/${id}`)
-      .then((r) => setLender(r.data.data))
+    Promise.all([
+      portalApi.get(`/portal/customer/lenders/${id}`),
+      portalApi
+        .get(`/portal/customer/lenders/${id}/packages`)
+        .catch(() => ({ data: { data: [] } })),
+    ])
+      .then(([detail, pkgs]) => {
+        setLender(detail.data.data);
+        setPackages(pkgs.data.data || []);
+      })
       .catch((err) => {
         alert(err.response?.data?.error || "Lender not found");
         navigate("/loanfix/lenders");
@@ -39,7 +49,11 @@ function LenderDetail() {
 
   useEffect(load, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const apply = () => {
+  // Stash the lender as the current tenant so ApplyLoan reads it from
+  // localStorage and scopes the session correctly. `packageId` is
+  // optional — when present, ApplyLoan pre-selects the package and
+  // locks its mechanics.
+  const apply = (packageId = null) => {
     localStorage.setItem(
       "portal_current_tenant",
       JSON.stringify({
@@ -48,7 +62,11 @@ function LenderDetail() {
         brand_color: lender.brand_color,
       }),
     );
-    navigate("/loanfix/portal/apply");
+    navigate(
+      packageId
+        ? `/loanfix/portal/apply?package=${packageId}`
+        : "/loanfix/portal/apply",
+    );
   };
 
   const unlink = async () => {
@@ -196,6 +214,86 @@ function LenderDetail() {
             );
           })}
         </div>
+
+        {/* Loan Products — only shown when the lender has published
+            packages. The card-per-product layout lets the customer
+            compare rates, terms, and method at a glance; tapping a
+            card jumps to ApplyLoan with that package pre-selected. */}
+        {lender.is_linked && packages.length > 0 && (
+          <>
+            <h2 className="text-sm font-bold text-navy-900 uppercase tracking-wide mb-2">
+              Loan products
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              {packages.map((p) => (
+                <div
+                  key={p.id}
+                  className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col"
+                >
+                  <div className="flex items-start gap-2 mb-1">
+                    <PackageIcon
+                      size={16}
+                      style={{ color: bc }}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-bold text-navy-900 leading-tight">
+                        {p.name}
+                      </p>
+                      {p.description && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {p.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 my-3">
+                    <div>
+                      <p className="text-slate-500">Rate</p>
+                      <p className="font-semibold">
+                        {(parseFloat(p.annual_interest_rate) / 12).toFixed(2)}%
+                        p.m.
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Method</p>
+                      <p className="font-semibold inline-flex items-center gap-1">
+                        {p.interest_method === "reducing" && (
+                          <TrendingDown
+                            size={12}
+                            className="text-indigo-500"
+                          />
+                        )}
+                        {p.interest_method === "reducing"
+                          ? "Reducing"
+                          : "Flat"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Amount</p>
+                      <p className="font-semibold">
+                        {KES(p.min_amount)} – {KES(p.max_amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Duration</p>
+                      <p className="font-semibold">
+                        {p.min_duration_months}–{p.max_duration_months} mo
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => apply(p.id)}
+                    className="mt-auto py-2 rounded-lg font-semibold text-white text-sm"
+                    style={{ backgroundColor: bc }}
+                  >
+                    Apply with this product
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Contact */}
         {contact.length > 0 && (

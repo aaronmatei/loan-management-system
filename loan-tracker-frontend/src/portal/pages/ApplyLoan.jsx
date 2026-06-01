@@ -13,10 +13,21 @@ import {
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import { computeLoanTotals } from "../../utils/loanMath";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 // Tenants store the rate annually; customers think monthly.
 const PM = (annual) => +(parseFloat(annual || 0) / 12).toFixed(2);
+
+// Snap a preselected duration into the package's allowed range so
+// the user lands on a valid value (rather than rejecting on submit).
+function clampDuration(months, min, max) {
+  const m = parseInt(months, 10);
+  if (Number.isNaN(m)) return String(min);
+  if (m < min) return String(min);
+  if (m > max) return String(max);
+  return String(m);
+}
 
 // Apply is always opened in the context of ONE lender — the one the customer
 // drilled into (its tenant_id is stashed in portal_current_tenant). There is
@@ -29,14 +40,21 @@ function ApplyLoan() {
   const preAmount = searchParams.get("amount") || "";
   const preDuration = searchParams.get("duration") || "6";
 
+  // Optional ?package=<id> hand-off from LenderDetail's product cards.
+  // When present, the package's mechanics override the tenant policy
+  // and lock the rate / fee / method for this application.
+  const prePackageId = searchParams.get("package") || "";
+
   const [lender, setLender] = useState(null);
   const [policy, setPolicy] = useState(null);
+  const [pkg, setPkg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     principal_amount: preAmount,
     loan_duration_months: preDuration,
+    interest_method: "flat",
     purpose: "",
     guarantor_name: "",
     guarantor_phone: "",
@@ -83,12 +101,58 @@ function ApplyLoan() {
           }),
         );
         setLender(row);
-        setPolicy({
+        const basePolicy = {
           default_interest_rate: parseFloat(row.default_interest_rate),
           processing_fee_rate: parseFloat(row.processing_fee_rate || 0),
           min_amount: parseFloat(row.min_amount),
           max_amount: parseFloat(row.max_amount),
-        });
+          min_duration: 1,
+          max_duration: 60,
+        };
+
+        // Package context overrides the tenant policy for this
+        // application. Failing the fetch (e.g. archived since the
+        // card was rendered) bounces the customer back to the lender
+        // detail so they can pick another product.
+        if (prePackageId) {
+          try {
+            const list = await portalApi.get(
+              `/portal/customer/lenders/${row.tenant_id}/packages`,
+            );
+            const found = (list.data.data || []).find(
+              (p) => String(p.id) === String(prePackageId),
+            );
+            if (!found) {
+              alert(
+                "That loan product is no longer available — please pick another.",
+              );
+              navigate(`/loanfix/lenders/${row.tenant_id}`);
+              return;
+            }
+            setPkg(found);
+            setPolicy({
+              default_interest_rate: parseFloat(found.annual_interest_rate),
+              processing_fee_rate: parseFloat(found.processing_fee_rate),
+              min_amount: parseFloat(found.min_amount),
+              max_amount: parseFloat(found.max_amount),
+              min_duration: parseInt(found.min_duration_months, 10),
+              max_duration: parseInt(found.max_duration_months, 10),
+            });
+            setForm((p) => ({
+              ...p,
+              interest_method: found.interest_method || "flat",
+              loan_duration_months: clampDuration(
+                p.loan_duration_months,
+                found.min_duration_months,
+                found.max_duration_months,
+              ),
+            }));
+          } catch {
+            setPolicy(basePolicy);
+          }
+        } else {
+          setPolicy(basePolicy);
+        }
       } catch (err) {
         alert(err.response?.data?.error || "Failed to load lender");
       } finally {
@@ -106,8 +170,15 @@ function ApplyLoan() {
     const principal = parseFloat(form.principal_amount);
     const months = parseInt(form.loan_duration_months, 10);
     const annualRate = policy.default_interest_rate;
-    const totalInterest = principal * (annualRate / 100 / 12) * months;
-    const totalDue = principal + totalInterest;
+    // Shared loanMath — same math the backend will book at create
+    // time, so the live preview matches reality for flat AND reducing.
+    const { totalInterest, totalAmountDue, monthlyPayment } =
+      computeLoanTotals({
+        principal,
+        annualRatePct: annualRate,
+        months,
+        method: form.interest_method,
+      });
     const feeRate = policy.processing_fee_rate || 0;
     const processingFee = Math.round(principal * feeRate) / 100;
     const netDisbursed = principal - processingFee;
@@ -115,17 +186,28 @@ function ApplyLoan() {
       principal,
       annualRate,
       totalInterest,
-      totalDue,
+      totalDue: totalAmountDue,
       feeRate,
       processingFee,
       netDisbursed,
-      monthlyPayment: totalDue / months,
+      monthlyPayment,
     };
   })();
 
   const step1 = (e) => {
     e.preventDefault();
     const p = parseFloat(form.principal_amount);
+    const months = parseInt(form.loan_duration_months, 10);
+    if (
+      !months ||
+      months < policy.min_duration ||
+      months > policy.max_duration
+    ) {
+      alert(
+        `Duration must be ${policy.min_duration}–${policy.max_duration} months`,
+      );
+      return;
+    }
     if (!p || p < policy.min_amount) {
       alert(`Minimum loan amount is ${KES(policy.min_amount)}`);
       return;
@@ -149,7 +231,17 @@ function ApplyLoan() {
   const submit = async () => {
     setSubmitting(true);
     try {
-      const r = await portalApi.post("/portal/customer/applications", form);
+      const payload = {
+        ...form,
+        // Only send package_id when the customer landed here via a
+        // product card. Without it, the backend treats this as a
+        // free-form (custom) application against the tenant policy.
+        package_id: pkg ? pkg.id : undefined,
+      };
+      const r = await portalApi.post(
+        "/portal/customer/applications",
+        payload,
+      );
       alert(`${r.data.message}\n\nLoan Code: ${r.data.data.loan_code}`);
       navigate("/loanfix/portal/applications");
     } catch (err) {
@@ -212,19 +304,38 @@ function ApplyLoan() {
             >
               {lender.business_name?.charAt(0)}
             </div>
-            <div className="min-w-0">
-              <p className="font-bold text-navy-900 truncate">
-                {lender.business_name}
-              </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-bold text-navy-900 truncate">
+                  {lender.business_name}
+                </p>
+                {pkg && (
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded text-white"
+                    style={{ backgroundColor: brand }}
+                  >
+                    {pkg.name}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500">
                 {KES(policy.min_amount)} – {KES(policy.max_amount)} ·{" "}
                 {PM(policy.default_interest_rate)}% p.m.
-                {lender.default_duration_months
-                  ? ` · up to ${lender.default_duration_months} mo`
-                  : ""}
+                {pkg && form.interest_method === "reducing" && " · reducing"}
+                {pkg
+                  ? ` · ${policy.min_duration}–${policy.max_duration} mo`
+                  : lender.default_duration_months
+                    ? ` · up to ${lender.default_duration_months} mo`
+                    : ""}
               </p>
             </div>
           </div>
+          {pkg && (
+            <div className="px-4 pb-3 text-xs text-slate-600">
+              Rate, fee, and interest method are set by this product and
+              can't be changed here.
+            </div>
+          )}
         </div>
 
         <div className="flex items-center mb-6">
@@ -288,23 +399,33 @@ function ApplyLoan() {
                 Repayment Period
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {[1, 3, 6, 12, 18, 24].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() =>
-                      setForm({ ...form, loan_duration_months: String(m) })
-                    }
-                    className={`py-3 rounded-lg font-semibold text-sm ${
-                      form.loan_duration_months === String(m)
-                        ? "bg-[var(--brand)] text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {m}mo
-                  </button>
-                ))}
+                {[1, 3, 6, 12, 18, 24].map((m) => {
+                  const inRange =
+                    m >= policy.min_duration && m <= policy.max_duration;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={!inRange}
+                      onClick={() =>
+                        setForm({ ...form, loan_duration_months: String(m) })
+                      }
+                      className={`py-3 rounded-lg font-semibold text-sm ${
+                        !inRange
+                          ? "bg-gray-50 text-gray-300 cursor-not-allowed"
+                          : form.loan_duration_months === String(m)
+                            ? "bg-[var(--brand)] text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {m}mo
+                    </button>
+                  );
+                })}
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Allowed: {policy.min_duration}–{policy.max_duration} months
+              </p>
             </div>
             {calc && (
               <div className="bg-[var(--brand)]/10 border-2 border-[var(--brand)]/30 rounded-xl p-4 text-sm space-y-2">

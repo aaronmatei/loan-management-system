@@ -8,6 +8,10 @@ import { isKycComplete } from "../../utils/kyc.js";
 import { validatePassword } from "../../utils/validators.js";
 import { getLoanStanding } from "../../utils/loanEligibility.js";
 import {
+  computeLoanTotals,
+  validateAgainstPackage,
+} from "../../utils/loanMath.js";
+import {
   buildLoanStatementPdf,
   buildClientStatementPdf,
   NotFoundError,
@@ -345,6 +349,31 @@ router.get("/lenders/:id", async (req, res) => {
   } catch (error) {
     logger.error("Lender detail error:", error);
     res.status(500).json({ error: "Failed to fetch lender" });
+  }
+});
+
+// Browseable loan products for a single lender. Returns ACTIVE
+// packages only — archived ones still resolve on historical loans via
+// the FK but can't be picked for new applications. No customer-link
+// check here: products are public per-lender info, same surface the
+// /lenders/:id detail uses.
+router.get("/lenders/:id/packages", async (req, res) => {
+  try {
+    const tenantId = parseInt(req.params.id, 10);
+    const r = await query(
+      `SELECT id, name, description,
+              annual_interest_rate, processing_fee_rate, interest_method,
+              min_amount, max_amount,
+              min_duration_months, max_duration_months
+         FROM loan_packages
+        WHERE tenant_id = $1 AND active = TRUE
+        ORDER BY name ASC`,
+      [tenantId],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Portal lender packages error:", error);
+    res.status(500).json({ error: "Failed to fetch loan products" });
   }
 });
 
@@ -1416,6 +1445,8 @@ router.post("/applications", async (req, res) => {
       guarantor_id_number,
       collateral_description,
       review_notes,
+      package_id: bodyPackageId,
+      interest_method: bodyInterestMethod,
     } = req.body || {};
 
     if (!principal_amount || !loan_duration_months || !purpose) {
@@ -1425,25 +1456,64 @@ router.post("/applications", async (req, res) => {
     }
     const principal = parseFloat(principal_amount);
     const months = parseInt(loan_duration_months, 10);
-    if (!(principal >= LOAN_POLICY.min_amount)) {
-      return res.status(400).json({
-        error: `Minimum loan amount is KES ${LOAN_POLICY.min_amount.toLocaleString()}`,
-      });
+
+    // Optional package context. When the customer picked a product
+    // off the lender's "Loan Products" page, package_id flows through
+    // and locks the financial mechanics (rate, fee, method) — the
+    // body's annual_interest_rate / interest_method are ignored for
+    // those cases. The package's amount + duration ranges replace the
+    // global LOAN_POLICY caps for THIS request.
+    let pkg = null;
+    if (bodyPackageId) {
+      const pr = await query(
+        `SELECT * FROM loan_packages
+          WHERE id = $1 AND tenant_id = $2`,
+        [bodyPackageId, req.currentTenantId],
+      );
+      if (pr.rows.length === 0 || !pr.rows[0].active) {
+        return res
+          .status(400)
+          .json({ error: "Selected loan product is no longer available" });
+      }
+      pkg = pr.rows[0];
+      const rangeErr = validateAgainstPackage(pkg, principal, months);
+      if (rangeErr) {
+        return res.status(400).json({ error: rangeErr });
+      }
+    } else {
+      // Free-form (no package): fall back to the global portal policy.
+      if (!(principal >= LOAN_POLICY.min_amount)) {
+        return res.status(400).json({
+          error: `Minimum loan amount is KES ${LOAN_POLICY.min_amount.toLocaleString()}`,
+        });
+      }
+      if (principal > LOAN_POLICY.max_amount) {
+        return res.status(400).json({
+          error: `Maximum loan amount is KES ${LOAN_POLICY.max_amount.toLocaleString()}`,
+        });
+      }
+      if (
+        !(
+          months >= LOAN_POLICY.min_duration &&
+          months <= LOAN_POLICY.max_duration
+        )
+      ) {
+        return res.status(400).json({
+          error: `Duration must be between ${LOAN_POLICY.min_duration}-${LOAN_POLICY.max_duration} months`,
+        });
+      }
     }
-    if (principal > LOAN_POLICY.max_amount) {
-      return res.status(400).json({
-        error: `Maximum loan amount is KES ${LOAN_POLICY.max_amount.toLocaleString()}`,
-      });
-    }
-    if (
-      !(
-        months >= LOAN_POLICY.min_duration &&
-        months <= LOAN_POLICY.max_duration
-      )
-    ) {
-      return res.status(400).json({
-        error: `Duration must be between ${LOAN_POLICY.min_duration}-${LOAN_POLICY.max_duration} months`,
-      });
+
+    // Effective method: package wins; otherwise body or default flat.
+    const interestMethod = (
+      pkg ? pkg.interest_method : bodyInterestMethod || "flat"
+    )
+      .toString()
+      .toLowerCase();
+    if (!["flat", "reducing"].includes(interestMethod)) {
+      return res
+        .status(400)
+        .json({ error: "interest_method must be 'flat' or 'reducing'" });
     }
 
     // Credit eligibility with THIS lender (same gate as approval/disbursement):
@@ -1482,31 +1552,41 @@ router.post("/applications", async (req, res) => {
     }
 
     // App convention: interest_rate is the MONTHLY rate as a percent
-    // (annual % = interest_rate * 12). Store annual/12; do money math
-    // with the fraction so totals match the portal calculator.
-    const annualRate =
-      parseFloat(annual_interest_rate) || LOAN_POLICY.default_interest_rate;
+    // (annual % = interest_rate * 12). When a package is in play it
+    // dictates the annual rate; otherwise the customer's body wins,
+    // and we fall back to the tenant's default policy. The math
+    // itself goes through the shared loanMath helper so flat vs
+    // reducing-balance produces the same totals here as in staff
+    // loans.js and the live form preview.
+    const annualRate = pkg
+      ? parseFloat(pkg.annual_interest_rate)
+      : parseFloat(annual_interest_rate) || LOAN_POLICY.default_interest_rate;
     const monthlyPct = parseFloat((annualRate / 12).toFixed(4));
-    const monthlyFraction = annualRate / 100 / 12;
-    const totalInterest = parseFloat(
-      (principal * monthlyFraction * months).toFixed(2),
-    );
-    const totalAmountDue = parseFloat(
-      (principal + totalInterest).toFixed(2),
-    );
+    const { totalInterest, totalAmountDue } = computeLoanTotals({
+      principal,
+      annualRatePct: annualRate,
+      months,
+      method: interestMethod,
+    });
 
     // Canonical loan_code (LN-<PREFIX>-<YEAR>-<NNNNN>) via shared
     // helper — same code generator the staff loans.js uses, so
     // customer apps remain indistinguishable in the shared queue.
     const loanCode = await nextLoanCode(query, req.currentTenantId);
 
-    // Processing fee snapshot from the tenant's policy — a % of the principal
-    // deducted from what the borrower receives (net disbursed).
-    const feeRow = await query(
-      `SELECT COALESCE(processing_fee_rate, 0) AS rate FROM tenants WHERE id = $1`,
-      [req.currentTenantId],
-    );
-    const processingFeeRate = parseFloat(feeRow.rows[0]?.rate || 0);
+    // Processing fee snapshot: package overrides tenant policy when
+    // present, otherwise we pull the tenant's configured rate. % of
+    // the principal, deducted from what the borrower receives.
+    let processingFeeRate;
+    if (pkg) {
+      processingFeeRate = parseFloat(pkg.processing_fee_rate);
+    } else {
+      const feeRow = await query(
+        `SELECT COALESCE(processing_fee_rate, 0) AS rate FROM tenants WHERE id = $1`,
+        [req.currentTenantId],
+      );
+      processingFeeRate = parseFloat(feeRow.rows[0]?.rate || 0);
+    }
     const processingFee = Math.round(principal * processingFeeRate) / 100;
     const netDisbursed = Math.round((principal - processingFee) * 100) / 100;
 
@@ -1519,12 +1599,15 @@ router.post("/applications", async (req, res) => {
          collateral_description, late_payment_fee, penalty_rate,
          processing_fee_rate, processing_fee, net_disbursed_amount,
          application_date, application_source, review_notes,
-         submitted_by_customer, platform_customer_id, created_by
+         submitted_by_customer, platform_customer_id, created_by,
+         package_id, interest_method
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11,$12,$13,500,5.00,
-         $14,$15,$16,NOW()::date,'customer_portal',$17,true,$18,NULL)
+         $14,$15,$16,NOW()::date,'customer_portal',$17,true,$18,NULL,
+         $19, $20)
        RETURNING id, loan_code, status, principal_amount,
                  total_amount_due, loan_duration_months,
-                 processing_fee_rate, processing_fee, net_disbursed_amount`,
+                 processing_fee_rate, processing_fee, net_disbursed_amount,
+                 package_id, interest_method`,
       [
         req.currentTenantId,
         loanCode,
@@ -1544,6 +1627,8 @@ router.post("/applications", async (req, res) => {
         netDisbursed,
         review_notes || null,
         req.platformCustomerId,
+        pkg ? pkg.id : null,
+        interestMethod,
       ],
     );
     const loan = result.rows[0];
