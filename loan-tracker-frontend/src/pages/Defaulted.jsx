@@ -4,7 +4,7 @@
 // admins don't have to navigate Loans → filter → status → defaulted
 // every time.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertOctagon,
@@ -13,6 +13,7 @@ import {
   Eye,
   ArrowUpRight,
   X,
+  Flame,
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
@@ -31,15 +32,15 @@ const fmtDate = (d) => {
   });
 };
 
-const daysSince = (d) => {
-  if (!d) return null;
-  const ms = Date.now() - new Date(d).getTime();
-  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-};
-
 function Defaulted() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
+  // Per-installment overdue rows — fetched alongside the defaulted
+  // loans so we can roll up accrued penalty by loan. /overdue already
+  // computes the live penalty figure per row (same formula the
+  // schedule + Overdue page use), so grouping by loan_id here is the
+  // cheapest way to surface a correct penalty on the defaulted view.
+  const [overdueRows, setOverdueRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [reactivating, setReactivating] = useState(null); // loan row
@@ -50,16 +51,36 @@ function Defaulted() {
     if (silent) setRefreshing(true);
     else setLoading(true);
     try {
-      const r = await api.get("/loans?status=defaulted&limit=10000");
-      setRows(r.data.data || []);
+      const [loansRes, overdueRes] = await Promise.all([
+        api.get("/loans?status=defaulted&limit=10000"),
+        api.get("/overdue?limit=10000"),
+      ]);
+      setRows(loansRes.data.data || []);
+      setOverdueRows(overdueRes.data.data || []);
     } catch (err) {
       console.error("Failed to load defaulted loans:", err);
       setRows([]);
+      setOverdueRows([]);
     } finally {
       if (silent) setRefreshing(false);
       else setLoading(false);
     }
   };
+
+  // Per-loan accrued penalty = Σ penalty_outstanding across that loan's
+  // overdue installments. penalty_outstanding falls back to
+  // penalty_total when missing (same precedence Overdue.jsx uses).
+  const penaltyByLoan = useMemo(() => {
+    const m = new Map();
+    for (const o of overdueRows) {
+      const p = parseFloat(
+        o.penalty_outstanding ?? o.penalty_total ?? 0,
+      );
+      if (!p) continue;
+      m.set(o.loan_id, (m.get(o.loan_id) || 0) + p);
+    }
+    return m;
+  }, [overdueRows]);
 
   useEffect(() => {
     load();
@@ -80,22 +101,30 @@ function Defaulted() {
     }
   };
 
-  // Summary tiles — count, total balance at risk, oldest defaulted loan.
-  // balance_due on each row already accounts for waivers (the loans-list
-  // fix we shipped earlier), so summing it gives the cash-equivalent
-  // exposure that's still on the book.
+  // Summary tiles — count, total balance at risk, accrued penalty,
+  // oldest defaulted loan. balance_due on each row already accounts
+  // for waivers (the loans-list fix we shipped earlier), so summing it
+  // gives the cash-equivalent exposure that's still on the book.
   const totalCount = rows.length;
   const totalAtRisk = rows.reduce(
     (s, r) => s + parseFloat(r.balance_due || 0),
+    0,
+  );
+  const totalPenalty = rows.reduce(
+    (s, r) => s + (penaltyByLoan.get(r.id) || 0),
     0,
   );
   const totalPrincipal = rows.reduce(
     (s, r) => s + parseFloat(r.principal_amount || 0),
     0,
   );
+  // "Oldest default days" = longest overdue installment across the
+  // defaulted book. max_days_late comes from the loans-list overdue
+  // subquery and represents the per-loan max — taking max-of-max
+  // across rows gives portfolio-level worst.
   const oldest = rows.reduce((acc, r) => {
-    const d = daysSince(r.updated_at);
-    return d != null && (acc == null || d > acc) ? d : acc;
+    const d = parseInt(r.max_days_late, 10) || 0;
+    return d > 0 && (acc == null || d > acc) ? d : acc;
   }, null);
 
   return (
@@ -130,7 +159,7 @@ function Defaulted() {
       </div>
 
       {/* Summary tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
             Defaulted
@@ -149,6 +178,17 @@ function Defaulted() {
           </p>
           <p className="text-xs text-slate-500 mt-1">
             still owed (post-waiver, post-cash)
+          </p>
+        </div>
+        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5">
+            <Flame size={12} className="text-orange-600" /> Penalty Accrued
+          </p>
+          <p className="text-3xl font-bold text-orange-600 mt-2">
+            {fmt(totalPenalty)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            outstanding fines on these loans
           </p>
         </div>
         <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
@@ -190,20 +230,38 @@ function Defaulted() {
                   <th className="px-4 py-3">Client</th>
                   <th className="px-4 py-3 text-right">Principal</th>
                   <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3 text-right">Days</th>
+                  <th className="px-4 py-3 text-right">Penalty</th>
+                  <th className="px-4 py-3 text-right" title="Days since the oldest unpaid installment came due">
+                    Days
+                  </th>
                   <th className="px-4 py-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {rows
                   .slice()
-                  .sort(
-                    (a, b) =>
+                  // Sort by days-late DESC (deepest defaults first) —
+                  // that's the natural collections-side ordering.
+                  // Ties broken by balance at risk so big-money rows
+                  // still sit above smaller ones at the same age.
+                  .sort((a, b) => {
+                    const da = parseInt(a.max_days_late, 10) || 0;
+                    const db = parseInt(b.max_days_late, 10) || 0;
+                    if (db !== da) return db - da;
+                    return (
                       parseFloat(b.balance_due || 0) -
-                      parseFloat(a.balance_due || 0),
-                  )
+                      parseFloat(a.balance_due || 0)
+                    );
+                  })
                   .map((loan) => {
-                    const days = daysSince(loan.updated_at);
+                    // max_days_late comes from the loans-list overdue
+                    // subquery — days since the OLDEST unpaid
+                    // installment came due, not since the loan row
+                    // was last updated (which my earlier draft used
+                    // and was both stale + misleading after any
+                    // recent edit bumped updated_at).
+                    const days = parseInt(loan.max_days_late, 10) || 0;
+                    const penalty = penaltyByLoan.get(loan.id) || 0;
                     return (
                       <tr
                         key={loan.id}
@@ -239,9 +297,36 @@ function Defaulted() {
                           </p>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <p className="text-sm text-slate-700">
-                            {days != null ? `${days}d` : "—"}
-                          </p>
+                          {penalty > 0 ? (
+                            <p
+                              className="font-semibold text-orange-600 text-sm"
+                              title="Sum of penalty_outstanding across this loan's overdue installments"
+                            >
+                              {fmt(penalty)}
+                            </p>
+                          ) : (
+                            <p className="text-slate-300 text-sm">—</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {days > 0 ? (
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
+                                days > 90
+                                  ? "bg-red-200 text-red-900"
+                                  : days >= 31
+                                    ? "bg-red-100 text-red-700"
+                                    : days >= 8
+                                      ? "bg-orange-100 text-orange-700"
+                                      : "bg-yellow-100 text-yellow-700"
+                              }`}
+                              title="Days since the oldest unpaid installment came due"
+                            >
+                              {days}d
+                            </span>
+                          ) : (
+                            <span className="text-sm text-slate-400">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
