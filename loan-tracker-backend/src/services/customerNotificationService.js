@@ -30,6 +30,37 @@ async function generate(pcId = null) {
     p,
   );
 
+  // Application picked up for review (staff clicked "Start Review"
+  // or otherwise transitioned the loan to under_review). reviewed_at
+  // is set on direct-approve too via COALESCE in the approve route,
+  // so this also fires for fast-track approvals — fine, the customer
+  // sees "your application is being reviewed" before "approved",
+  // which is the right narrative.
+  await query(
+    `INSERT INTO customer_notifications
+       (platform_customer_id, tenant_id, loan_id, type, amount, dedupe_key, created_at)
+     SELECT ctl.platform_customer_id, l.tenant_id, l.id, 'under_review', l.principal_amount,
+            'under_review:' || l.id, l.reviewed_at
+     FROM loans l ${LINK}
+     WHERE l.reviewed_at IS NOT NULL ${filter}
+     ON CONFLICT (platform_customer_id, dedupe_key) DO NOTHING`,
+    p,
+  );
+
+  // Counter-offer received from the lender. amount is the offered
+  // (counter) figure — what the lender is willing to give — so the
+  // customer sees the new number in the bell directly.
+  await query(
+    `INSERT INTO customer_notifications
+       (platform_customer_id, tenant_id, loan_id, type, amount, dedupe_key, created_at)
+     SELECT ctl.platform_customer_id, l.tenant_id, l.id, 'counter_offered', l.offered_amount,
+            'counter_offered:' || l.id, l.counter_offered_at
+     FROM loans l ${LINK}
+     WHERE l.counter_offered_at IS NOT NULL ${filter}
+     ON CONFLICT (platform_customer_id, dedupe_key) DO NOTHING`,
+    p,
+  );
+
   // Application approved
   await query(
     `INSERT INTO customer_notifications

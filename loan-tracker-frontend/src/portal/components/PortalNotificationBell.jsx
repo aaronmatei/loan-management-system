@@ -1,10 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, X, Coins, CheckCircle, Landmark, AlertTriangle, Clock } from "lucide-react";
+import {
+  Bell,
+  X,
+  Coins,
+  CheckCircle,
+  Landmark,
+  AlertTriangle,
+  Clock,
+  Eye,
+  Banknote,
+} from "lucide-react";
 import portalApi from "../services/portalApi";
 
 const META = {
   payment: { Icon: Coins, label: "Payment received" },
+  under_review: { Icon: Eye, label: "Application under review" },
+  counter_offered: { Icon: Banknote, label: "Counter-offer received" },
   approved: { Icon: CheckCircle, label: "Application approved" },
   disbursed: { Icon: Landmark, label: "Loan disbursed" },
   rejected: { Icon: X, label: "Application declined" },
