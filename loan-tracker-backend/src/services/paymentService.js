@@ -618,7 +618,9 @@ export async function buildReceiptBlock(loanId, tenantId, transaction = null) {
       : 0;
 
     const nextRes = await query(
-      `SELECT payment_number, due_date, amount_due, amount_paid
+      `SELECT payment_number, due_date, amount_due, amount_paid,
+              (SELECT COUNT(*) FROM payment_schedules WHERE loan_id = $1)::int
+                AS total_installments
          FROM payment_schedules
         WHERE loan_id = $1 AND status IN ('pending', 'overdue')
         ORDER BY due_date ASC
@@ -626,12 +628,25 @@ export async function buildReceiptBlock(loanId, tenantId, transaction = null) {
       [loanId],
     );
     const next = nextRes.rows[0] || null;
-    const nextAmount = next
-      ? Math.max(
-          0,
-          parseFloat(next.amount_due) - parseFloat(next.amount_paid || 0),
-        )
-      : 0;
+    // "Next payment" = the standard EMI the borrower should plan for,
+    // not the residual on a partially-paid row. Surplus payments still
+    // shrink the headline `remaining_balance` (the borrower sees the
+    // benefit there), but the per-installment ask stays at the EMI —
+    // matching how banks render mortgages after an extra payment.
+    //
+    // Exception: on the FINAL installment, the residual is whatever's
+    // actually left after rounding-pin amortization (might be a cent
+    // or two off the EMI), so use the residual to avoid suggesting a
+    // payment slightly larger than what's owed.
+    let nextAmount = 0;
+    if (next) {
+      const emi = parseFloat(next.amount_due);
+      const residual = Math.max(0, emi - parseFloat(next.amount_paid || 0));
+      const isFinal =
+        parseInt(next.payment_number, 10) ===
+        parseInt(next.total_installments, 10);
+      nextAmount = isFinal ? residual : emi;
+    }
 
     return {
       loan_id: l.id,
