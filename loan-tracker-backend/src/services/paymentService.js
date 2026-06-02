@@ -106,19 +106,27 @@ async function recomputeReducingBalanceSchedule(loanId) {
     // Walk paid/waived rows to derive the current actual principal
     // balance. principal_portion on those rows is the *actual* amount
     // of principal consumed (may include excess principal payments
-    // bumped in by the cascade-stop logic below).
+    // bumped in by the cascade-stop logic below). We also rewrite
+    // balance_after on each paid row to reflect the post-prepayment
+    // running balance — without this, a paid row that received excess
+    // principal would still display the stale snapshot balance.
     let balance = originalPrincipal;
     let firstUnpaidIdx = -1;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (row.status === "paid" || row.status === "waived") {
-        balance -= parseFloat(row.principal_portion || 0);
+        const consumed = parseFloat(row.principal_portion || 0);
+        balance = round2(balance - consumed);
+        if (balance < 0) balance = 0;
+        await query(
+          `UPDATE payment_schedules SET balance_after = $1, updated_at = NOW() WHERE id = $2`,
+          [balance, row.id],
+        );
       } else {
         firstUnpaidIdx = i;
         break;
       }
     }
-    balance = round2(Math.max(0, balance));
 
     // Recompute every unpaid row from this point forward.
     if (firstUnpaidIdx !== -1) {
@@ -511,6 +519,37 @@ export async function recordLoanPayment({
   // loan is reducing-balance. Best-effort; never throws.
   if (isReducing) {
     await recomputeReducingBalanceSchedule(loanId);
+
+    // The recompute may have shrunk total_amount_due below the cash
+    // already paid (prepayment knocked principal way down). Surface
+    // the post-recompute surplus on THIS transaction's
+    // overpayment_portion — the initial pre-payment overpayment check
+    // sees the OLD total and can't detect the new excess. Without
+    // this, the loan-level overpayment_amount comes out short.
+    const surplusRes = await query(
+      `SELECT
+         (SELECT COALESCE(SUM(amount_paid
+                            - COALESCE(penalty_portion, 0)
+                            - COALESCE(overpayment_portion, 0)), 0)
+            FROM transactions
+           WHERE loan_id = $1 AND payment_status = 'completed') AS cash_to_due,
+         (SELECT total_amount_due FROM loans WHERE id = $1) AS total_due`,
+      [loanId],
+    );
+    const cashToDue = parseFloat(surplusRes.rows[0].cash_to_due);
+    const newTotalDue = parseFloat(surplusRes.rows[0].total_due);
+    const additionalSurplus = round2(cashToDue - newTotalDue);
+    if (additionalSurplus >= 0.01) {
+      await query(
+        `UPDATE transactions
+            SET overpayment_portion =
+                  COALESCE(overpayment_portion, 0) + $1,
+                updated_at = NOW()
+          WHERE id = $2`,
+        [additionalSurplus, transaction.id],
+      );
+      overpayment = round2(overpayment + additionalSurplus);
+    }
   }
 
   // Recalculate totals after this payment. Three figures matter:
