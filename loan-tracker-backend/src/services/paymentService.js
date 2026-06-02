@@ -43,6 +43,159 @@ function httpError(status, message) {
   return e;
 }
 
+const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+/**
+ * Reducing-balance re-amortization helper.
+ *
+ * Mary's prepayment example illustrates the model: she pays 20k on a
+ * 50k loan with 11,263.25 monthly EMI. The 11,263.25 settles row 1
+ * (interest 10,000 + scheduled principal 1,263.25). The remaining
+ * 8,736.75 reduces the principal balance DIRECTLY — not by partially
+ * filling row 2's amount_paid, but by knocking the actual outstanding
+ * principal from 48,736.75 down to 40,000. The schedule's remaining
+ * unpaid rows then re-amortize from that new balance: row 2's
+ * interest becomes 8,000 (= 40,000 × 20%) instead of the originally-
+ * scheduled 9,747.35, and the curve continues from there. If the
+ * borrower keeps paying the original EMI, the loan closes early; the
+ * tail rows reach amount_due = 0 when the balance hits zero.
+ *
+ * Flat-rate loans don't get this — for flat the interest is locked
+ * at disbursement (principal × rate × years) and isn't accrued on a
+ * balance, so prepayment doesn't save interest. The caller decides
+ * whether to invoke this based on loan.interest_method.
+ *
+ * Updates: every unpaid schedule row's interest_portion /
+ * principal_portion / balance_after / amount_due, and the loan's
+ * total_amount_due + total_interest. Best-effort: errors are logged
+ * but never re-thrown (this runs AFTER the user-facing payment
+ * acknowledgment, never block the response).
+ */
+async function recomputeReducingBalanceSchedule(loanId) {
+  try {
+    const loanRes = await query(`SELECT * FROM loans WHERE id = $1`, [loanId]);
+    const loan = loanRes.rows[0];
+    if (!loan || loan.interest_method !== "reducing") return;
+
+    const monthlyRate = parseFloat(loan.interest_rate) / 100;
+    const originalPrincipal = parseFloat(loan.principal_amount);
+
+    // Original EMI for the loan — the contractual per-installment ask
+    // that the borrower agreed to on disburse. We hold this constant
+    // through the loan's life; early payments knock down principal
+    // but don't shrink the regular EMI ask.
+    const n = parseInt(loan.loan_duration_months, 10);
+    const r = monthlyRate;
+    const plannedEMI =
+      r > 0
+        ? round2(
+            (originalPrincipal * r * Math.pow(1 + r, n)) /
+              (Math.pow(1 + r, n) - 1),
+          )
+        : round2(originalPrincipal / n);
+
+    const schedRes = await query(
+      `SELECT * FROM payment_schedules
+        WHERE loan_id = $1
+        ORDER BY payment_number ASC`,
+      [loanId],
+    );
+    const rows = schedRes.rows;
+    if (rows.length === 0) return;
+
+    // Walk paid/waived rows to derive the current actual principal
+    // balance. principal_portion on those rows is the *actual* amount
+    // of principal consumed (may include excess principal payments
+    // bumped in by the cascade-stop logic below).
+    let balance = originalPrincipal;
+    let firstUnpaidIdx = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.status === "paid" || row.status === "waived") {
+        balance -= parseFloat(row.principal_portion || 0);
+      } else {
+        firstUnpaidIdx = i;
+        break;
+      }
+    }
+    balance = round2(Math.max(0, balance));
+
+    // Recompute every unpaid row from this point forward.
+    if (firstUnpaidIdx !== -1) {
+      for (let i = firstUnpaidIdx; i < rows.length; i++) {
+        const row = rows[i];
+        if (balance <= 0.005) {
+          // Loan principal paid off — zero out remaining rows.
+          await query(
+            `UPDATE payment_schedules SET
+               amount_due = 0,
+               interest_portion = 0,
+               principal_portion = 0,
+               balance_after = 0,
+               status = 'paid',
+               amount_paid = 0,
+               actual_payment_date = COALESCE(actual_payment_date, CURRENT_DATE),
+               updated_at = NOW()
+             WHERE id = $1`,
+            [row.id],
+          );
+          continue;
+        }
+
+        const interest = round2(balance * monthlyRate);
+        let principal = round2(plannedEMI - interest);
+        let amountDue = plannedEMI;
+        let balanceAfter;
+
+        if (principal >= balance) {
+          // Final row that pays the loan off — amount_due shrinks to
+          // exactly interest + remaining principal.
+          principal = balance;
+          amountDue = round2(interest + principal);
+          balanceAfter = 0;
+        } else {
+          balanceAfter = round2(balance - principal);
+        }
+
+        await query(
+          `UPDATE payment_schedules SET
+             amount_due = $1,
+             interest_portion = $2,
+             principal_portion = $3,
+             balance_after = $4,
+             updated_at = NOW()
+           WHERE id = $5`,
+          [amountDue, interest, principal, balanceAfter, row.id],
+        );
+
+        balance = balanceAfter;
+      }
+    }
+
+    // Sync the loan's headline totals to the recomputed schedule so
+    // total_amount_due / total_interest reflect actual (reducing)
+    // interest, not the original snapshot.
+    await query(
+      `UPDATE loans l SET
+         total_amount_due = COALESCE(t.total_due, l.total_amount_due),
+         total_interest   = COALESCE(t.total_int, l.total_interest),
+         updated_at       = NOW()
+        FROM (
+          SELECT SUM(amount_due)       AS total_due,
+                 SUM(interest_portion) AS total_int
+            FROM payment_schedules WHERE loan_id = $1
+        ) t
+        WHERE l.id = $1`,
+      [loanId],
+    );
+  } catch (err) {
+    logger.error(
+      `recomputeReducingBalanceSchedule failed for loan ${loanId}:`,
+      err.message,
+    );
+  }
+}
+
 /**
  * Record a completed loan payment.
  *
@@ -264,42 +417,100 @@ export async function recordLoanPayment({
     [loanId],
   );
 
-  for (const schedule of scheduleResult.rows) {
-    if (remainingAmount <= 0) break;
+  // Reducing-balance loans stop the cascade at the first row. Excess
+  // payment beyond the row's amount_due reduces the principal balance
+  // DIRECTLY (recorded as extra principal_portion on that row) — then
+  // recomputeReducingBalanceSchedule re-amortizes the remaining rows
+  // off the lower balance. Flat-rate loans keep the legacy cascade:
+  // their interest is fixed at disbursement, so excess just rolls
+  // forward through the existing schedule.
+  const isReducing = loan.interest_method === "reducing";
 
-    const amountDue = parseFloat(schedule.amount_due);
-    const alreadyPaidOnSchedule = parseFloat(schedule.amount_paid || 0);
-    const interestPaidOnSchedule = parseFloat(schedule.interest_paid || 0);
-    // Interest already covered by waiver counts toward "this row is
-    // settled" too — without this, a row whose interest had been
-    // waived would need extra cash to flip to 'paid' (the cash sum
-    // would have to reach amount_due even though interest_paid is
-    // already covering part of it).
-    const stillOwed = Math.max(
-      0,
-      amountDue - alreadyPaidOnSchedule - interestPaidOnSchedule,
-    );
+  if (isReducing) {
+    const schedule = scheduleResult.rows[0];
+    if (schedule && remainingAmount > 0) {
+      const amountDue = parseFloat(schedule.amount_due);
+      const alreadyPaidOnSchedule = parseFloat(schedule.amount_paid || 0);
+      const interestPaidOnSchedule = parseFloat(schedule.interest_paid || 0);
+      const scheduledPrincipal = parseFloat(schedule.principal_portion || 0);
+      const stillOwed = Math.max(
+        0,
+        amountDue - alreadyPaidOnSchedule - interestPaidOnSchedule,
+      );
 
-    if (remainingAmount >= stillOwed) {
-      // Full payment of this installment — bump amount_paid by the
-      // cash slice needed to close it, leaving interest_paid intact.
-      await query(
-        `UPDATE payment_schedules
-           SET amount_paid = $1, status = 'paid', actual_payment_date = $2, updated_at = NOW()
-           WHERE id = $3`,
-        [alreadyPaidOnSchedule + stillOwed, paymentDate, schedule.id],
-      );
-      remainingAmount -= stillOwed;
-    } else {
-      // Partial payment
-      await query(
-        `UPDATE payment_schedules
-           SET amount_paid = $1, updated_at = NOW()
-           WHERE id = $2`,
-        [alreadyPaidOnSchedule + remainingAmount, schedule.id],
-      );
-      remainingAmount = 0;
+      if (remainingAmount >= stillOwed) {
+        // Full EMI cash payment for this row. Any excess past the
+        // EMI knocks down principal directly: bump the row's
+        // principal_portion + amount_paid by the excess, mark paid.
+        const excess = round2(remainingAmount - stillOwed);
+        const newAmountPaid = round2(alreadyPaidOnSchedule + stillOwed + excess);
+        const newPrincipalPortion = round2(scheduledPrincipal + excess);
+        await query(
+          `UPDATE payment_schedules
+              SET amount_paid = $1,
+                  principal_portion = $2,
+                  status = 'paid',
+                  actual_payment_date = $3,
+                  updated_at = NOW()
+            WHERE id = $4`,
+          [newAmountPaid, newPrincipalPortion, paymentDate, schedule.id],
+        );
+        remainingAmount = 0;
+      } else {
+        // Partial — fits in this row, no principal-knockdown.
+        await query(
+          `UPDATE payment_schedules
+              SET amount_paid = $1, updated_at = NOW()
+            WHERE id = $2`,
+          [alreadyPaidOnSchedule + remainingAmount, schedule.id],
+        );
+        remainingAmount = 0;
+      }
     }
+  } else {
+    for (const schedule of scheduleResult.rows) {
+      if (remainingAmount <= 0) break;
+
+      const amountDue = parseFloat(schedule.amount_due);
+      const alreadyPaidOnSchedule = parseFloat(schedule.amount_paid || 0);
+      const interestPaidOnSchedule = parseFloat(schedule.interest_paid || 0);
+      // Interest already covered by waiver counts toward "this row is
+      // settled" too — without this, a row whose interest had been
+      // waived would need extra cash to flip to 'paid' (the cash sum
+      // would have to reach amount_due even though interest_paid is
+      // already covering part of it).
+      const stillOwed = Math.max(
+        0,
+        amountDue - alreadyPaidOnSchedule - interestPaidOnSchedule,
+      );
+
+      if (remainingAmount >= stillOwed) {
+        // Full payment of this installment — bump amount_paid by the
+        // cash slice needed to close it, leaving interest_paid intact.
+        await query(
+          `UPDATE payment_schedules
+             SET amount_paid = $1, status = 'paid', actual_payment_date = $2, updated_at = NOW()
+             WHERE id = $3`,
+          [alreadyPaidOnSchedule + stillOwed, paymentDate, schedule.id],
+        );
+        remainingAmount -= stillOwed;
+      } else {
+        // Partial payment
+        await query(
+          `UPDATE payment_schedules
+             SET amount_paid = $1, updated_at = NOW()
+             WHERE id = $2`,
+          [alreadyPaidOnSchedule + remainingAmount, schedule.id],
+        );
+        remainingAmount = 0;
+      }
+    }
+  }
+
+  // Re-amortize the remaining schedule + sync loan totals when the
+  // loan is reducing-balance. Best-effort; never throws.
+  if (isReducing) {
+    await recomputeReducingBalanceSchedule(loanId);
   }
 
   // Recalculate totals after this payment. Three figures matter:
@@ -344,7 +555,20 @@ export async function recordLoanPayment({
   );
   const newOverpayment = parseFloat(newTotalsResult.rows[0].total_overpayment);
   const newTotalPaid = cashToAmountDue + waivedToAmountDue;
-  const isFullyPaid = newTotalPaid >= totalDue;
+  // For reducing-balance loans, recomputeReducingBalanceSchedule may
+  // have shrunk loan.total_amount_due (when prepayment knocks down
+  // principal, future interest accrues on a lower balance, so the
+  // contractual sum drops). Re-read the post-recompute total so the
+  // auto-complete check fires against the new reality, not the
+  // pre-payment snapshot held in `totalDue`.
+  const totalDueRes = await query(
+    `SELECT total_amount_due FROM loans WHERE id = $1`,
+    [loanId],
+  );
+  const effectiveTotalDue = parseFloat(
+    totalDueRes.rows[0]?.total_amount_due ?? totalDue,
+  );
+  const isFullyPaid = newTotalPaid >= effectiveTotalDue;
 
   // Update loan status based on actual amounts
   if (isFullyPaid) {
