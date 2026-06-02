@@ -1063,6 +1063,12 @@ function LoanDetails() {
                 </th>
                 <th
                   className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  title="Interest actually settled on this installment (cash + interest waivers)"
+                >
+                  Interest Paid
+                </th>
+                <th
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
                   title="Principal portion of this installment per the amortization schedule"
                 >
                   Principal
@@ -1132,6 +1138,14 @@ function LoanDetails() {
                     >
                       {parseFloat(item.interest_portion || 0) > 0
                         ? `KES ${parseFloat(item.interest_portion).toLocaleString()}`
+                        : "—"}
+                    </td>
+                    <td
+                      className="px-6 py-3 text-right text-emerald-700 font-semibold"
+                      title="Interest actually settled on this row by cash + interest waivers"
+                    >
+                      {parseFloat(item.interest_paid || 0) > 0
+                        ? `KES ${parseFloat(item.interest_paid).toLocaleString()}`
                         : "—"}
                     </td>
                     <td
@@ -1255,6 +1269,7 @@ function LoanDetails() {
               const totalAmountDue = sum("amount_due");
               const totalAmountPaid = sum("amount_paid");
               const totalInterest = sum("interest_portion");
+              const totalInterestPaid = sum("interest_paid");
               const totalPrincipal = sum("principal_portion");
               // Roll up late fee + penalty interest only over rows that
               // actually carry a penalty (skip never-overdue installments
@@ -1301,6 +1316,9 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-emerald-700 text-sm">
                       {fmt(totalInterest)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-bold text-emerald-700 text-sm">
+                      {fmt(totalInterestPaid)}
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-ocean-700 text-sm">
                       {fmt(totalPrincipal)}
