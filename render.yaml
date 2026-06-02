@@ -27,10 +27,13 @@ services:
         generateValue: true
       - key: JWT_EXPIRE
         value: 7d
-      # Comma-separated allowed browser origins. Both the app subdomain and
-      # the apex (the landing page lives in the same SPA) call this API.
+      # Comma-separated allowed browser origins. Apex (landing + app), the
+      # app subdomain, and every tenant customer portal (kuwazo.loanfix.net,
+      # payoneerr.loanfix.net, …) all hit this API. The wildcard entry tells
+      # the CORS matcher (app.js) to accept any one-label subdomain of
+      # loanfix.net.
       - key: CORS_ORIGINS
-        value: https://app.loanfix.co.ke,https://loanfix.co.ke
+        value: https://loanfix.net,https://www.loanfix.net,https://app.loanfix.net,https://*.loanfix.net
       # External integrations OFF by default; flip the flag + add the secrets
       # in the dashboard when ready.
       - key: SMS_ENABLED
@@ -65,6 +68,6 @@ services:
       - key: MPESA_PASSKEY
         sync: false
       - key: MPESA_CALLBACK_URL
-        value: https://api.loanfix.co.ke/api/mpesa/callback
+        value: https://api.loanfix.net/api/mpesa/callback
       - key: BACKUP_SCHEDULE_ENABLED
         value: "false"

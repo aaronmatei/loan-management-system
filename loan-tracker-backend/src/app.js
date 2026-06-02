@@ -50,19 +50,35 @@ import widgetRoutes from "./routes/widget.js";
 
 const app = express();
 
-// CORS - local dev origins plus any extra origins from CORS_ORIGINS
-// (comma-separated): used for E2E on an alt port and for the deployed
-// frontend origin in production.
-const allowedOrigins = [
+// CORS — local dev origins plus any extra origins from CORS_ORIGINS
+// (comma-separated). Each CORS_ORIGINS entry may be an exact origin
+// (https://app.loanfix.net) OR a single-wildcard subdomain pattern
+// (https://*.loanfix.net) — needed because tenant customer portals
+// live at <subdomain>.loanfix.net and new subdomains appear every
+// time a lender signs up. The * matches one DNS label (no dots).
+const corsEntries = [
   "http://localhost:5173",
   "http://localhost:3000",
   ...(process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
     : []),
 ];
+const corsExact = new Set(corsEntries.filter((e) => !e.includes("*")));
+const corsPatterns = corsEntries
+  .filter((e) => e.includes("*"))
+  .map((e) => new RegExp(
+    "^" + e.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^.]+") + "$",
+  ));
+const corsOriginCheck = (origin, cb) => {
+  // No-origin requests (curl, same-origin, server-to-server) are allowed.
+  if (!origin) return cb(null, true);
+  if (corsExact.has(origin)) return cb(null, true);
+  if (corsPatterns.some((re) => re.test(origin))) return cb(null, true);
+  return cb(new Error(`CORS: origin ${origin} not allowed`));
+};
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: corsOriginCheck,
     credentials: true,
     allowedHeaders: [
       "Content-Type",
