@@ -257,14 +257,17 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         penaltyInterestCharged > 0
           ? penaltyInterestCharged
           : computed.penalty_interest;
-      // Display interest_portion = waiver-covered interest + cash
-      // share of interest (by contract ratio), capped at the
-      // installment's interest portion. So a row whose interest is
-      // fully covered by waiver reads as 500/500 even if subsequent
-      // cash also lands — the cash slice goes to principal, which is
-      // what's still owed on that row.
+      // "Interest earned" on this row to date — waiver-covered
+      // interest + cash share of interest (by contract ratio), capped
+      // at the installment's flat-share. A row whose interest is fully
+      // covered by waiver reads as 500/500 even if subsequent cash
+      // also lands — the cash slice goes to principal. This is the
+      // pre-migration-042 "interest_portion" semantic; kept under a
+      // new name so the row's true SCHEDULED interest_portion (from
+      // the DB column, which carries the proper reducing-balance
+      // amortization for those loans) can flow through untouched.
       const paidRatio = due > 0 ? Math.min(1, cashPaid / due) : 0;
-      const interest_portion = Math.round(
+      const interest_earned = Math.round(
         Math.min(
           interestPerInstallment,
           interestPaid + interestPerInstallment * paidRatio,
@@ -280,7 +283,7 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         penalty_total: penaltyTotal,
         penalty_paid: penaltyPaid,
         penalty_outstanding: outstanding,
-        interest_portion,
+        interest_earned,
       };
     });
 
