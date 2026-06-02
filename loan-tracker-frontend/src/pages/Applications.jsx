@@ -1124,24 +1124,66 @@ function Applications() {
                   </strong>
                 </>
               )}
+              {selectedLoan.package_name && selectedLoan.package_min_amount != null && (
+                <>
+                  <br />
+                  Package <strong>{selectedLoan.package_name}</strong> range:{" "}
+                  <strong>
+                    KES {parseFloat(selectedLoan.package_min_amount).toLocaleString()}
+                    {" – "}
+                    KES {parseFloat(selectedLoan.package_max_amount).toLocaleString()}
+                  </strong>
+                </>
+              )}
             </p>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold mb-1">
-                Offer Amount (KES) *
-              </label>
-              <input
-                type="number"
-                value={counterAmount}
-                onChange={(e) => setCounterAmount(e.target.value)}
-                min="1"
-                placeholder="e.g. 30000"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Must be less than the requested amount. The client accepts or
-                declines this offer in their portal.
-              </p>
-            </div>
+            {(() => {
+              // Live range check. Mirrors the backend gate so admins
+              // see the problem before they click Send.
+              const amt = parseFloat(counterAmount);
+              const pkgMin = selectedLoan.package_min_amount
+                ? parseFloat(selectedLoan.package_min_amount)
+                : null;
+              const pkgMax = selectedLoan.package_max_amount
+                ? parseFloat(selectedLoan.package_max_amount)
+                : null;
+              let warn = null;
+              if (Number.isFinite(amt)) {
+                if (pkgMin != null && amt < pkgMin) {
+                  warn = `Below ${selectedLoan.package_name} minimum (KES ${pkgMin.toLocaleString()})`;
+                } else if (pkgMax != null && amt > pkgMax) {
+                  warn = `Above ${selectedLoan.package_name} maximum (KES ${pkgMax.toLocaleString()})`;
+                }
+              }
+              return (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold mb-1">
+                    Offer Amount (KES) *
+                  </label>
+                  <input
+                    type="number"
+                    value={counterAmount}
+                    onChange={(e) => setCounterAmount(e.target.value)}
+                    min={pkgMin ?? 1}
+                    max={pkgMax ?? undefined}
+                    placeholder={pkgMin ? String(pkgMin) : "e.g. 30000"}
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                      warn
+                        ? "border-rose-300 focus:border-rose-500"
+                        : "border-gray-200 focus:border-amber-500"
+                    }`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Must be less than the requested amount. The client accepts or
+                    declines this offer in their portal.
+                  </p>
+                  {warn && (
+                    <p className="text-xs text-rose-600 mt-1 font-semibold">
+                      {warn}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             <div className="mb-4">
               <label className="block text-sm font-semibold mb-1">
                 Note to client (optional)
@@ -1163,7 +1205,20 @@ function Applications() {
               </button>
               <button
                 onClick={handleCounterOffer}
-                disabled={submitting || !counterAmount}
+                disabled={(() => {
+                  if (submitting || !counterAmount) return true;
+                  const amt = parseFloat(counterAmount);
+                  if (!Number.isFinite(amt) || amt <= 0) return true;
+                  const pkgMin = selectedLoan.package_min_amount
+                    ? parseFloat(selectedLoan.package_min_amount)
+                    : null;
+                  const pkgMax = selectedLoan.package_max_amount
+                    ? parseFloat(selectedLoan.package_max_amount)
+                    : null;
+                  if (pkgMin != null && amt < pkgMin) return true;
+                  if (pkgMax != null && amt > pkgMax) return true;
+                  return false;
+                })()}
                 className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50"
               >
                 {submitting ? "Sending..." : <span className="inline-flex items-center gap-2"><Banknote size={16}/> Send Offer</span>}

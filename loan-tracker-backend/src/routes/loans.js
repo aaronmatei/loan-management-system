@@ -1161,6 +1161,34 @@ router.post(
           ).toLocaleString()}`,
         });
       }
+      // If the loan was applied via a package, the counter-offer must
+      // still respect the package's amount range — otherwise the
+      // contractual product is broken (a "Premium 50k–200k" loan can't
+      // counter-offer at 30k). Load the package and clamp.
+      if (loan.package_id) {
+        const pkgRes = await query(
+          `SELECT name, min_amount, max_amount FROM loan_packages
+            WHERE id = $1 AND tenant_id = $2`,
+          [loan.package_id, loan.tenant_id],
+        );
+        const pkg = pkgRes.rows[0];
+        if (pkg) {
+          const min = parseFloat(pkg.min_amount);
+          const max = parseFloat(pkg.max_amount);
+          if (amount < min) {
+            return res.status(400).json({
+              error: `Counter-offer below ${pkg.name} minimum (KES ${min.toLocaleString()})`,
+              blocker: "package_range",
+            });
+          }
+          if (amount > max) {
+            return res.status(400).json({
+              error: `Counter-offer above ${pkg.name} maximum (KES ${max.toLocaleString()})`,
+              blocker: "package_range",
+            });
+          }
+        }
+      }
 
       const result = await query(
         `UPDATE loans SET
@@ -1599,7 +1627,9 @@ router.get("/applications/queue", async (req, res) => {
     let queryText = `
       SELECT l.*,
         c.first_name, c.last_name, c.phone_number, c.client_code, c.county,
-        pk.name AS package_name,
+        pk.name       AS package_name,
+        pk.min_amount AS package_min_amount,
+        pk.max_amount AS package_max_amount,
         creator.first_name AS created_by_name,
         reviewer.first_name AS reviewed_by_name,
         approver.first_name AS approved_by_name
