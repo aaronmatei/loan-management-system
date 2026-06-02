@@ -29,7 +29,7 @@ function CustomerLogin() {
       // which lists every linked lender (or shows the "add your first
       // lender" empty state). The customer drills into a lender from there.
       localStorage.removeItem("portal_current_tenant");
-      navigate("/loanfix/portal/dashboard");
+      navigate("/portal/dashboard");
     } catch (err) {
       alert(err.response?.data?.error || "Login failed");
     } finally {
@@ -86,7 +86,7 @@ function CustomerLogin() {
           </button>
           <div className="text-center text-sm space-y-2">
             <Link
-              to="/loanfix/portal/forgot-password"
+              to="/portal/forgot-password"
               className="text-indigo-600 block"
             >
               Forgot password?
@@ -94,7 +94,7 @@ function CustomerLogin() {
             <p>
               New here?{" "}
               <Link
-                to="/loanfix/portal/register"
+                to="/portal/register"
                 className="text-indigo-600 font-semibold"
               >
                 Register

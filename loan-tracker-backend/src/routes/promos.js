@@ -1,6 +1,6 @@
 // Promo / campaign codes API (tenant-scoped, except the public validate route).
 //
-// A tenant creates named codes and shares /loanfix/portal/register?promo=<code>.
+// A tenant creates named codes and shares /portal/register?promo=<code>.
 // Customers who sign up with a code are auto-linked to the tenant (see
 // routes/portal/auth.js) and tagged with the code on their client record, so the
 // tenant can see who came from each campaign.

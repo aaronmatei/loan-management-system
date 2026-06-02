@@ -14,7 +14,7 @@ function TenantPicker() {
     );
     const c = JSON.parse(localStorage.getItem("portal_customer") || "{}");
     if (stored.length === 0) {
-      navigate("/loanfix/portal/login");
+      navigate("/portal/login");
       return;
     }
     setTenants(stored);
@@ -32,7 +32,7 @@ function TenantPicker() {
         "portal_current_tenant",
         JSON.stringify(res.data.current_tenant),
       );
-      navigate("/loanfix/portal/dashboard");
+      navigate("/portal/dashboard");
     } catch {
       alert("Failed to select tenant");
       setSelecting(null);
@@ -106,7 +106,7 @@ function TenantPicker() {
           <button
             onClick={() => {
               localStorage.removeItem("portal_token");
-              navigate("/loanfix/portal/login");
+              navigate("/portal/login");
             }}
             className="text-indigo-100 hover:text-white text-sm"
           >

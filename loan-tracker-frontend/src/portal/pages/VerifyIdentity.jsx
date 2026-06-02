@@ -26,7 +26,7 @@ function VerifyIdentity() {
         </div>
 
         <IdentityUploader
-          onComplete={() => navigate(next || "/loanfix/portal/dashboard")}
+          onComplete={() => navigate(next || "/portal/dashboard")}
           onCancel={next ? () => navigate(next) : undefined}
         />
       </div>

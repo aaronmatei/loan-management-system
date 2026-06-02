@@ -14,7 +14,7 @@ import { Navigate } from "react-router-dom";
 function PortalProtectedRoute({ children, allowIncompleteKyc = false }) {
   const token = localStorage.getItem("portal_token");
   if (!token) {
-    return <Navigate to="/loanfix/portal/login" replace />;
+    return <Navigate to="/portal/login" replace />;
   }
   if (!allowIncompleteKyc) {
     let needsKyc = false;
@@ -26,7 +26,7 @@ function PortalProtectedRoute({ children, allowIncompleteKyc = false }) {
       /* ignore malformed storage */
     }
     if (needsKyc) {
-      return <Navigate to="/loanfix/portal/verify-identity" replace />;
+      return <Navigate to="/portal/verify-identity" replace />;
     }
   }
   return children;

@@ -69,7 +69,7 @@ function ForgotPassword() {
         new_password: password,
       });
       alert("Password reset. Please log in.");
-      navigate("/loanfix/portal/login");
+      navigate("/portal/login");
     } catch (err) {
       alert(err.response?.data?.error || "Reset failed");
     } finally {
@@ -183,7 +183,7 @@ function ForgotPassword() {
           )}
 
           <p className="text-center text-sm mt-6">
-            <Link to="/loanfix/portal/login" className="text-indigo-600 font-semibold">
+            <Link to="/portal/login" className="text-indigo-600 font-semibold">
               ← Back to login
             </Link>
           </p>

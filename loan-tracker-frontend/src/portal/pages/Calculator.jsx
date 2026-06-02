@@ -41,7 +41,7 @@ function CustomerCalculator() {
       })
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/loanfix/portal/dashboard");
+          navigate("/portal/dashboard");
         }
       })
       .finally(() => setLoading(false));
@@ -80,10 +80,10 @@ function CustomerCalculator() {
 
   const apply = async () => {
     // If they're calculating for a different tenant than currently
-    // selected, switch session first so /loanfix/portal/apply lands in the
+    // selected, switch session first so /portal/apply lands in the
     // right tenant.
     const goApply = () =>
-      navigate(`/loanfix/portal/apply?amount=${amount}&duration=${duration}`);
+      navigate(`/portal/apply?amount=${amount}&duration=${duration}`);
     if (selected && selected.tenant_id !== currentTenant?.id) {
       try {
         const r = await portalApi.post("/portal/auth/select-tenant", {

@@ -91,7 +91,7 @@ function CustomerRegister() {
       });
       if (res.data.action === "login") {
         alert("You already have an account. Please log in.");
-        navigate("/loanfix/portal/login");
+        navigate("/portal/login");
         return;
       }
       // Step 2 collects the password; the OTP field appears only if the
@@ -165,11 +165,11 @@ function CustomerRegister() {
   const finishSignup = () => {
     const dest =
       fromWidget && widgetAmount
-        ? `/loanfix/portal/apply?${new URLSearchParams({
+        ? `/portal/apply?${new URLSearchParams({
             amount: widgetAmount,
             ...(widgetDuration ? { duration: widgetDuration } : {}),
           })}`
-        : "/loanfix/portal/dashboard";
+        : "/portal/dashboard";
     navigate(dest);
   };
 
@@ -488,7 +488,7 @@ function CustomerRegister() {
           <p className="text-center text-sm mt-6">
             Already have an account?{" "}
             <Link
-              to="/loanfix/portal/login"
+              to="/portal/login"
               className="text-indigo-600 font-semibold"
             >
               Login

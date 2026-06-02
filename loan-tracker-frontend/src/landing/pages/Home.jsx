@@ -76,7 +76,7 @@ function LandingHome() {
               <a href="#pricing" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Pricing</a>
               <a href="#faq" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">FAQ</a>
               <span className="h-5 w-px bg-slate-200" />
-              <Link to="/loanfix/portal/login" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Borrower Login</Link>
+              <Link to="/portal/login" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Borrower Login</Link>
               <Link to="/login" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Lender Login</Link>
               <Link
                 to="/signup"
@@ -105,7 +105,7 @@ function LandingHome() {
               <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Pricing</a>
               <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">FAQ</a>
               <div className="border-t my-2" />
-              <Link to="/loanfix/portal/login" className="block px-3 py-2 hover:bg-slate-100 rounded">Borrower Login</Link>
+              <Link to="/portal/login" className="block px-3 py-2 hover:bg-slate-100 rounded">Borrower Login</Link>
               <Link to="/login" className="block px-3 py-2 hover:bg-slate-100 rounded">Lender Login</Link>
               <Link
                 to="/signup"
@@ -176,14 +176,14 @@ function LandingHome() {
               <p className="mt-5 text-sm text-gray-600 border-t border-slate-200 pt-5 flex items-start gap-1.5">
                 <User size={14} className="mt-0.5 shrink-0" /> Borrowing from a LoanFix lender?{" "}
                 <Link
-                  to="/loanfix/portal/register"
+                  to="/portal/register"
                   className="font-bold text-ocean-600 hover:text-ocean-700"
                 >
                   Create a free account
                 </Link>{" "}
                 or{" "}
                 <Link
-                  to="/loanfix/portal/login"
+                  to="/portal/login"
                   className="font-bold text-ocean-600 hover:text-ocean-700"
                 >
                   log in
@@ -390,13 +390,13 @@ function LandingHome() {
               </ul>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
-                  to="/loanfix/portal/register"
+                  to="/portal/register"
                   className="px-7 py-3.5 bg-white text-navy-900 rounded-xl font-bold shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 text-center"
                 >
                   Create free account →
                 </Link>
                 <Link
-                  to="/loanfix/portal/login"
+                  to="/portal/login"
                   className="px-7 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-bold hover:bg-white/15 transition text-center"
                 >
                   Borrower login
@@ -629,7 +629,7 @@ function LandingHome() {
           <p className="mt-4 text-ocean-100 text-sm">
             Just here to manage your loans?{" "}
             <Link
-              to="/loanfix/portal/register"
+              to="/portal/register"
               className="underline font-semibold text-white hover:text-ocean-100"
             >
               Create a free borrower account
@@ -659,7 +659,7 @@ function LandingHome() {
                 <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
                 <li><a href="#how-it-works" className="hover:text-white">How It Works</a></li>
                 <li><Link to="/signup" className="hover:text-white">Become a Lender</Link></li>
-                <li><Link to="/loanfix/portal/login" className="hover:text-white">Borrower Portal</Link></li>
+                <li><Link to="/portal/login" className="hover:text-white">Borrower Portal</Link></li>
               </ul>
             </div>
             <div>

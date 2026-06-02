@@ -20,13 +20,13 @@ import PortalNotificationBell from "./PortalNotificationBell";
 // NOT a tenant brand. Per-lender brand colors live inside the page content
 // (lender cards, loan rows, receipts), never in this shell.
 const MENU = [
-  { path: "/loanfix/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
-  { path: "/loanfix/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
-  { path: "/loanfix/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
-  { path: "/loanfix/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
-  { path: "/loanfix/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
-  { path: "/loanfix/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
-  { path: "/loanfix/portal/profile", label: "Profile", icon: User, variant: "indigo" },
+  { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
+  { path: "/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
+  { path: "/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
+  { path: "/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
+  { path: "/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
+  { path: "/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
+  { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
 
 function PortalLayout({ children }) {
@@ -53,7 +53,7 @@ function PortalLayout({ children }) {
       "portal_current_tenant",
       "portal_tenants",
     ].forEach((k) => localStorage.removeItem(k));
-    navigate("/loanfix/portal/login");
+    navigate("/portal/login");
   };
 
   const isActive = (item) =>

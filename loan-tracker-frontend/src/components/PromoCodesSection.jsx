@@ -3,7 +3,7 @@ import { Ticket, Copy, CheckCircle, Users, Plus, X } from "lucide-react";
 import api from "../services/api";
 
 // Promo / campaign codes for the customer sign-up link. A tenant creates named
-// codes and shares /loanfix/portal/register?promo=<code>; customers who sign up
+// codes and shares /portal/register?promo=<code>; customers who sign up
 // with a code are auto-linked to the tenant AND tagged, so the tenant can see
 // who came from each campaign.
 function PromoCodesSection() {
@@ -19,7 +19,7 @@ function PromoCodesSection() {
 
   const baseUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
   const linkFor = (code) =>
-    `${baseUrl}/loanfix/portal/register?promo=${code}`;
+    `${baseUrl}/portal/register?promo=${code}`;
 
   const load = () => {
     api

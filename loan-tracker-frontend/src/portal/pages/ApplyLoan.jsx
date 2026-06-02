@@ -75,7 +75,7 @@ function ApplyLoan() {
     }
     // No lender chosen → send them to pick one.
     if (!current?.tenant_id) {
-      navigate("/loanfix/lenders");
+      navigate("/lenders");
       return;
     }
     (async () => {
@@ -86,7 +86,7 @@ function ApplyLoan() {
         );
         // Not linked to this lender (shouldn't happen via the normal flow).
         if (!row) {
-          navigate("/loanfix/lenders");
+          navigate("/lenders");
           return;
         }
         // Scope the session to this lender so the submission files there.
@@ -127,7 +127,7 @@ function ApplyLoan() {
               alert(
                 "That loan product is no longer available — please pick another.",
               );
-              navigate(`/loanfix/lenders/${row.tenant_id}`);
+              navigate(`/lenders/${row.tenant_id}`);
               return;
             }
             setPkg(found);
@@ -254,7 +254,7 @@ function ApplyLoan() {
         payload,
       );
       alert(`${r.data.message}\n\nLoan Code: ${r.data.data.loan_code}`);
-      navigate("/loanfix/portal/applications");
+      navigate("/portal/applications");
     } catch (err) {
       alert(err.response?.data?.error || "Failed to submit application");
     } finally {
@@ -275,7 +275,7 @@ function ApplyLoan() {
         <div className="p-8 text-center text-gray-500">
           Couldn't load this lender.{" "}
           <button
-            onClick={() => navigate("/loanfix/lenders")}
+            onClick={() => navigate("/lenders")}
             className="text-ocean-600 font-semibold"
           >
             Back to Lenders
@@ -292,7 +292,7 @@ function ApplyLoan() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto" style={{ "--brand": brand }}>
         <button
-          onClick={() => navigate(`/loanfix/lenders/${lender.tenant_id}`)}
+          onClick={() => navigate(`/lenders/${lender.tenant_id}`)}
           className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-navy-900 mb-3"
         >
           <ArrowLeft size={16} /> {lender.business_name}

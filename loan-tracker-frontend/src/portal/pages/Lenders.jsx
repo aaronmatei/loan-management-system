@@ -327,7 +327,7 @@ function Lenders() {
                       <tr
                         key={l.tenant_id}
                         onClick={() =>
-                          navigate(`/loanfix/lenders/${l.tenant_id}`)
+                          navigate(`/lenders/${l.tenant_id}`)
                         }
                         className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 cursor-pointer"
                       >

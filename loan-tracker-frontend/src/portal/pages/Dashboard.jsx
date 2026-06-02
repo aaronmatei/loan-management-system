@@ -89,7 +89,7 @@ function CustomerDashboard() {
         "portal_current_tenant",
         JSON.stringify({ ...r.data.current_tenant, brand_color: l.brand_color }),
       );
-      navigate(`/loanfix/portal/loans/${l.loan_id}`);
+      navigate(`/portal/loans/${l.loan_id}`);
     } catch {
       alert("Failed to open loan");
     }
@@ -119,7 +119,7 @@ function CustomerDashboard() {
               dashboard.
             </p>
             <button
-              onClick={() => navigate("/loanfix/lenders")}
+              onClick={() => navigate("/lenders")}
               className="inline-flex items-center gap-2 px-6 py-3 bg-ocean-gradient text-white font-bold rounded-xl shadow-tile hover:shadow-lg transition"
             >
               Browse lenders <ArrowRight size={18} />
@@ -166,7 +166,7 @@ function CustomerDashboard() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/loanfix/lenders")}
+            onClick={() => navigate("/lenders")}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-bold rounded-xl shadow-tile hover:shadow-lg transition"
           >
             <PlusCircle size={18} /> Apply for a loan

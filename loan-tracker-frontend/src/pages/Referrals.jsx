@@ -47,7 +47,7 @@ function Referrals() {
     import.meta.env.VITE_FRONTEND_URL || window.location.origin;
   // Invite your CUSTOMERS to the borrower portal — anyone who signs up with
   // your link is automatically added to your client list.
-  const referralLink = `${baseUrl}/loanfix/portal/register?ref=${data.referral_code || ""}`;
+  const referralLink = `${baseUrl}/portal/register?ref=${data.referral_code || ""}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralLink);

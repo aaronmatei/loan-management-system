@@ -5,7 +5,17 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
+
+// Strips the legacy /loanfix prefix off the current URL and forwards
+// to the equivalent new path, preserving the query string. Used as
+// the element for the /loanfix/* compat route.
+function LoanfixLegacyRedirect() {
+  const loc = useLocation();
+  const stripped = loc.pathname.replace(/^\/loanfix/, "") || "/";
+  return <Navigate to={stripped + loc.search + loc.hash} replace />;
+}
 import { AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -275,18 +285,18 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/loanfix/portal/login" element={<CustomerLogin />} />
-            <Route path="/loanfix/portal/register" element={<CustomerRegister />} />
+            <Route path="/portal/login" element={<CustomerLogin />} />
+            <Route path="/portal/register" element={<CustomerRegister />} />
             <Route
-              path="/loanfix/portal/forgot-password"
+              path="/portal/forgot-password"
               element={<CustomerForgotPassword />}
             />
             <Route
-              path="/loanfix/portal/select-tenant"
+              path="/portal/select-tenant"
               element={<TenantPicker />}
             />
             <Route
-              path="/loanfix/portal/verify-identity"
+              path="/portal/verify-identity"
               element={
                 <PortalProtectedRoute allowIncompleteKyc>
                   <CustomerVerifyIdentity />
@@ -294,7 +304,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/add-lender"
+              path="/portal/add-lender"
               element={
                 <PortalProtectedRoute>
                   <CustomerAddLender />
@@ -302,7 +312,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/dashboard"
+              path="/portal/dashboard"
               element={
                 <PortalProtectedRoute>
                   <CustomerDashboard />
@@ -310,7 +320,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/lenders"
+              path="/lenders"
               element={
                 <PortalProtectedRoute>
                   <CustomerLenders />
@@ -318,7 +328,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/lenders/:id"
+              path="/lenders/:id"
               element={
                 <PortalProtectedRoute>
                   <CustomerLenderDetail />
@@ -326,7 +336,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/apply"
+              path="/portal/apply"
               element={
                 <PortalProtectedRoute>
                   <CustomerApplyLoan />
@@ -334,7 +344,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/applications"
+              path="/portal/applications"
               element={
                 <PortalProtectedRoute>
                   <CustomerApplications />
@@ -342,7 +352,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/loans"
+              path="/portal/loans"
               element={
                 <PortalProtectedRoute>
                   <CustomerMyLoans />
@@ -350,7 +360,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/payments"
+              path="/portal/payments"
               element={
                 <PortalProtectedRoute>
                   <CustomerPayments />
@@ -358,7 +368,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/loans/:id"
+              path="/portal/loans/:id"
               element={
                 <PortalProtectedRoute>
                   <CustomerLoanDetails />
@@ -366,7 +376,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/calculator"
+              path="/portal/calculator"
               element={
                 <PortalProtectedRoute>
                   <CustomerCalculator />
@@ -374,7 +384,7 @@ function App() {
               }
             />
             <Route
-              path="/loanfix/portal/profile"
+              path="/portal/profile"
               element={
                 <PortalProtectedRoute>
                   <CustomerProfile />
@@ -382,6 +392,12 @@ function App() {
               }
             />
             <Route path="/" element={<LandingHome />} />
+            {/* Backwards compat — the customer portal used to live
+                under /loanfix/portal/* and /loanfix/lenders/*. Old
+                bookmarks, promo links, and referral URLs still hit
+                those paths, so we strip the prefix and redirect to
+                the new shorter path (preserves query string). */}
+            <Route path="/loanfix/*" element={<LoanfixLegacyRedirect />} />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         )}

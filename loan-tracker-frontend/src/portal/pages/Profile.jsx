@@ -61,7 +61,7 @@ function Profile() {
       })
       .catch((err) => {
         if (err.response?.data?.action === "select_tenant") {
-          navigate("/loanfix/portal/dashboard");
+          navigate("/portal/dashboard");
         } else {
           alert(err.response?.data?.error || "Failed to load profile");
         }
@@ -279,7 +279,7 @@ function Profile() {
             <button
               onClick={() =>
                 navigate(
-                  "/loanfix/portal/verify-identity?next=/loanfix/portal/profile",
+                  "/portal/verify-identity?next=/portal/profile",
                 )
               }
               className="text-sm font-semibold text-[var(--brand)]"

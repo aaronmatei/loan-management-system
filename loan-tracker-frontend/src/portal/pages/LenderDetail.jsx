@@ -45,7 +45,7 @@ function LenderDetail() {
       })
       .catch((err) => {
         alert(err.response?.data?.error || "Lender not found");
-        navigate("/loanfix/lenders");
+        navigate("/lenders");
       })
       .finally(() => setLoading(false));
   };
@@ -67,8 +67,8 @@ function LenderDetail() {
     );
     navigate(
       packageId
-        ? `/loanfix/portal/apply?package=${packageId}`
-        : "/loanfix/portal/apply",
+        ? `/portal/apply?package=${packageId}`
+        : "/portal/apply",
     );
   };
 
@@ -153,7 +153,7 @@ function LenderDetail() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto">
         <button
-          onClick={() => navigate("/loanfix/lenders")}
+          onClick={() => navigate("/lenders")}
           className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-navy-900 mb-4"
         >
           <ArrowLeft size={16} /> Lenders
@@ -395,7 +395,7 @@ function LenderDetail() {
                 <button
                   onClick={() =>
                     navigate(
-                      `/loanfix/portal/loans?tenant_id=${lender.tenant_id}`,
+                      `/portal/loans?tenant_id=${lender.tenant_id}`,
                     )
                   }
                   className="flex-1 py-3 rounded-xl font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -421,7 +421,7 @@ function LenderDetail() {
           ) : lender.can_self_signup ? (
             <button
               onClick={() =>
-                navigate(`/loanfix/portal/add-lender?tenant=${lender.tenant_id}`)
+                navigate(`/portal/add-lender?tenant=${lender.tenant_id}`)
               }
               className="w-full py-3 rounded-xl font-bold text-white"
               style={{ backgroundColor: bc }}

@@ -80,7 +80,7 @@ function CalculatorWidget() {
       }
     }
     track("apply_clicked", { amount, duration });
-    const url = `${base}/loanfix/portal/register?${params}`;
+    const url = `${base}/portal/register?${params}`;
     // If we're inside an iframe, open in new tab; otherwise navigate.
     if (window.parent !== window) window.open(url, "_blank");
     else window.location.href = url;

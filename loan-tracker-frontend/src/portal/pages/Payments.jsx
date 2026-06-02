@@ -75,7 +75,7 @@ function Payments() {
           brand_color: p.tenant_brand_color,
         }),
       );
-      navigate(`/loanfix/portal/loans/${p.loan_id}`);
+      navigate(`/portal/loans/${p.loan_id}`);
     } catch {
       alert("Failed to open loan");
     }

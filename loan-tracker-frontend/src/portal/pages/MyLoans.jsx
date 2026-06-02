@@ -93,7 +93,7 @@ function MyLoans() {
           brand_color: loan.tenant_brand_color,
         }),
       );
-      navigate(`/loanfix/portal/loans/${loan.id}`);
+      navigate(`/portal/loans/${loan.id}`);
     } catch {
       alert("Failed to open loan");
     }
@@ -151,7 +151,7 @@ function MyLoans() {
               per-lender, so a generic "Apply" button here can't
               skip the lender choice. */}
           <button
-            onClick={() => navigate("/loanfix/lenders")}
+            onClick={() => navigate("/lenders")}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 shadow-sm hover:shadow-md transition shrink-0"
           >
             <Plus size={16} /> Apply for a loan

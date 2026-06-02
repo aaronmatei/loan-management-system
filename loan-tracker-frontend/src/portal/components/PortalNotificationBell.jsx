@@ -91,7 +91,7 @@ function PortalNotificationBell() {
         "portal_current_tenant",
         JSON.stringify({ ...r.data.current_tenant, brand_color: n.brand_color }),
       );
-      navigate(`/loanfix/portal/loans/${n.loan_id}`);
+      navigate(`/portal/loans/${n.loan_id}`);
     } catch {
       /* ignore */
     }
