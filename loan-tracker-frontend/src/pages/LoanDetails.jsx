@@ -900,6 +900,83 @@ function LoanDetails() {
         </div>
       </div>
 
+      {/* What's Remaining — quick "where does this loan stand right
+          now" strip above the schedule. Gives staff the answers to
+          "how much is left", "when is the next payment due", and
+          "how many installments to go" without reading the whole
+          schedule. Pending counts include 'overdue' since those are
+          still unpaid installments. */}
+      {(() => {
+        const pending = schedule.filter(
+          (s) => s.status !== "paid" && s.status !== "waived",
+        );
+        const next = pending[0];
+        const installmentsLeft = pending.length;
+        const installmentsTotal = schedule.length;
+        if (installmentsTotal === 0) return null;
+        return (
+          <div className="bg-white rounded-xl shadow-md p-5 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                Balance Remaining
+              </p>
+              <p className="text-xl font-bold text-orange-600">
+                KES {parseFloat(summary.balance).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                Next Installment
+              </p>
+              <p className="text-xl font-bold text-gray-800">
+                {next
+                  ? `KES ${parseFloat(next.amount_due).toLocaleString()}`
+                  : "—"}
+              </p>
+              {next && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Due{" "}
+                  {new Date(next.due_date).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                Installments Left
+              </p>
+              <p className="text-xl font-bold text-gray-800">
+                {installmentsLeft}{" "}
+                <span className="text-sm font-medium text-gray-500">
+                  of {installmentsTotal}
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                Interest Method
+              </p>
+              <p className="text-xl">
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-sm font-semibold ${
+                    loan.interest_method === "reducing"
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {loan.interest_method === "reducing"
+                    ? "Reducing"
+                    : "Flat"}
+                </span>
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Payment Schedule */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
         <div className="p-6 border-b border-gray-200">
@@ -978,8 +1055,23 @@ function LoanDetails() {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   Amount Paid
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                <th
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  title="Interest portion of this installment per the amortization schedule"
+                >
                   Interest
+                </th>
+                <th
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  title="Principal portion of this installment per the amortization schedule"
+                >
+                  Principal
+                </th>
+                <th
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  title="Principal balance projected after this installment"
+                >
+                  Balance After
                 </th>
                 <th
                   className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
@@ -1036,11 +1128,30 @@ function LoanDetails() {
                     </td>
                     <td
                       className="px-6 py-3 text-right text-emerald-700 font-semibold"
-                      title="Interest earned from this installment (policy share × % paid)"
+                      title="Interest portion of this installment (declines over time on reducing balance)"
                     >
                       {parseFloat(item.interest_portion || 0) > 0
                         ? `KES ${parseFloat(item.interest_portion).toLocaleString()}`
                         : "—"}
+                    </td>
+                    <td
+                      className="px-6 py-3 text-right text-ocean-700 font-semibold"
+                      title="Principal portion of this installment (rises over time on reducing balance)"
+                    >
+                      {parseFloat(item.principal_portion || 0) > 0
+                        ? `KES ${parseFloat(item.principal_portion).toLocaleString()}`
+                        : "—"}
+                    </td>
+                    <td
+                      className="px-6 py-3 text-right text-gray-700 font-semibold"
+                      title="Projected principal balance after this installment"
+                    >
+                      {parseFloat(item.balance_after || 0) > 0
+                        ? `KES ${parseFloat(item.balance_after).toLocaleString()}`
+                        : item.payment_number ===
+                          schedule[schedule.length - 1]?.payment_number
+                          ? "KES 0"
+                          : "—"}
                     </td>
                     {/* Late Fee + Penalty Interest sub-cells. Backend
                         prefers the persisted snapshot (taken at the
@@ -1144,6 +1255,7 @@ function LoanDetails() {
               const totalAmountDue = sum("amount_due");
               const totalAmountPaid = sum("amount_paid");
               const totalInterest = sum("interest_portion");
+              const totalPrincipal = sum("principal_portion");
               // Roll up late fee + penalty interest only over rows that
               // actually carry a penalty (skip never-overdue installments
               // so the totals match the visible "KES X" cells).
@@ -1189,6 +1301,16 @@ function LoanDetails() {
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-emerald-700 text-sm">
                       {fmt(totalInterest)}
+                    </td>
+                    <td className="px-6 py-3 text-right font-bold text-ocean-700 text-sm">
+                      {fmt(totalPrincipal)}
+                    </td>
+                    {/* Balance After totals row reads "—" because a
+                        running balance doesn't sum the way the other
+                        columns do; the value at the bottom is just
+                        the projected final balance (0 by design). */}
+                    <td className="px-6 py-3 text-right font-bold text-gray-500 text-sm">
+                      KES 0
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm">
                       {fmt(totalLateFee)}

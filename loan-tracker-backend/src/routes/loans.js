@@ -1306,16 +1306,26 @@ async function performDisburse(req, loan, opts) {
     const dueDate = new Date(scheduleAnchor);
     dueDate.setMonth(dueDate.getMonth() + (i - 1));
     const row = schedule[i - 1];
+    // Persist the amortization breakdown alongside amount_due so the
+    // schedule grid can show "Interest / Principal / Balance After"
+    // per installment. For flat loans these come out as constants;
+    // for reducing they're the declining-interest, rising-principal
+    // amortization snapshot.
     await query(
       `INSERT INTO payment_schedules (
-        tenant_id, loan_id, payment_number, due_date, amount_due, status
-      ) VALUES ($1, $2, $3, $4, $5, 'pending')`,
+        tenant_id, loan_id, payment_number, due_date,
+        amount_due, interest_portion, principal_portion, balance_after,
+        status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
       [
         loan.tenant_id,
         loan.id,
         i,
         dueDate.toISOString().split("T")[0],
         row.amountDue.toFixed(2),
+        row.interestPortion.toFixed(2),
+        row.principalPortion.toFixed(2),
+        row.balanceAfter.toFixed(2),
       ],
     );
   }
@@ -2058,7 +2068,16 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       const scheduleAnchor = new Date(
         updated.start_date || updated.disbursed_at,
       );
-      const monthlyPay = newTotalDue / newMonths;
+      // Regenerate via the shared loanMath helper so reducing-balance
+      // edits get a proper amortized schedule (matching the original
+      // disburse path). Flat loans still come out evenly split.
+      const editMonthlyRatePct = parseFloat(updated.interest_rate) || 0;
+      const { schedule: newSchedule } = computeLoanTotals({
+        principal: parseFloat(updated.principal_amount),
+        annualRatePct: editMonthlyRatePct * 12,
+        months: newMonths,
+        method: updated.interest_method || "flat",
+      });
       // How much of the new total has already been credited as
       // principal+interest (penalty/overpayment excluded) — needed so
       // already-paid installments come back marked paid.
@@ -2076,7 +2095,8 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       for (let i = 1; i <= newMonths; i++) {
         const dueDate = new Date(scheduleAnchor);
         dueDate.setMonth(dueDate.getMonth() + (i - 1));
-        const installmentAmount = Math.round(monthlyPay * 100) / 100;
+        const row = newSchedule[i - 1];
+        const installmentAmount = row.amountDue;
         let amountPaid = 0;
         let status = "pending";
         if (remainingPaid >= installmentAmount) {
@@ -2091,14 +2111,18 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
         await query(
           `INSERT INTO payment_schedules
              (tenant_id, loan_id, payment_number, due_date, amount_due,
+              interest_portion, principal_portion, balance_after,
               amount_paid, status, actual_payment_date)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
           [
             tid,
             id,
             i,
             dueDate.toISOString().split("T")[0],
             installmentAmount,
+            row.interestPortion,
+            row.principalPortion,
+            row.balanceAfter,
             amountPaid,
             status,
             status === "paid"

@@ -402,42 +402,77 @@ function LoanDetails() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {schedule.map((s) => (
-                    <div
-                      key={s.id}
-                      className={`flex justify-between items-center p-3 rounded-lg ${
-                        s.status === "paid"
-                          ? "bg-green-50"
-                          : s.status === "overdue"
-                            ? "bg-red-50"
-                            : "bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center justify-center w-7 h-7 shrink-0">
-                          {s.status === "paid"
-                            ? <CheckCircle size={20} className="text-green-500" />
+                  {schedule.map((s) => {
+                    // For reducing-balance loans the per-row split is
+                    // the headline story (declining interest, rising
+                    // principal). For flat loans interest_portion is
+                    // constant across rows — still useful to see, so
+                    // we show the breakdown either way when populated.
+                    const interest = parseFloat(s.interest_portion || 0);
+                    const principal = parseFloat(s.principal_portion || 0);
+                    const balanceAfter = parseFloat(s.balance_after || 0);
+                    const hasBreakdown = interest > 0 || principal > 0;
+                    return (
+                      <div
+                        key={s.id}
+                        className={`p-3 rounded-lg ${
+                          s.status === "paid"
+                            ? "bg-green-50"
                             : s.status === "overdue"
-                              ? <AlertTriangle size={20} className="text-red-500" />
-                              : <Clock size={20} className="text-yellow-500" />}
-                        </span>
-                        <div>
-                          <p className="font-semibold">
-                            Payment #{s.payment_number}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Due: {day(s.due_date)}
-                          </p>
+                              ? "bg-red-50"
+                              : "bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center justify-center w-7 h-7 shrink-0">
+                              {s.status === "paid"
+                                ? <CheckCircle size={20} className="text-green-500" />
+                                : s.status === "overdue"
+                                  ? <AlertTriangle size={20} className="text-red-500" />
+                                  : <Clock size={20} className="text-yellow-500" />}
+                            </span>
+                            <div>
+                              <p className="font-semibold">
+                                Payment #{s.payment_number}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Due: {day(s.due_date)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold">{KES(s.amount_due)}</p>
+                            <p className="text-xs capitalize text-gray-600">
+                              {s.status}
+                            </p>
+                          </div>
                         </div>
+                        {hasBreakdown && (
+                          <div className="mt-2 pt-2 border-t border-gray-200/60 grid grid-cols-3 gap-2 text-xs">
+                            <div>
+                              <p className="text-gray-500">Interest</p>
+                              <p className="font-semibold text-emerald-700">
+                                {KES(interest)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Principal</p>
+                              <p className="font-semibold text-[var(--brand)]">
+                                {KES(principal)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Balance After</p>
+                              <p className="font-semibold text-gray-700">
+                                {balanceAfter > 0 ? KES(balanceAfter) : "KES 0"}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold">{KES(s.amount_due)}</p>
-                        <p className="text-xs capitalize text-gray-600">
-                          {s.status}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

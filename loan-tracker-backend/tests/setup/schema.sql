@@ -896,7 +896,10 @@ CREATE TABLE public.payment_schedules (
     penalty_paid numeric(12,2) DEFAULT 0,
     late_fee_charged numeric(15,2) DEFAULT 0,
     penalty_interest_charged numeric(15,2) DEFAULT 0,
-    interest_paid numeric(12,2) DEFAULT 0
+    interest_paid numeric(12,2) DEFAULT 0,
+    interest_portion numeric(12,2) NOT NULL DEFAULT 0,
+    principal_portion numeric(12,2) NOT NULL DEFAULT 0,
+    balance_after numeric(12,2) NOT NULL DEFAULT 0
 );
 
 
