@@ -669,17 +669,51 @@ router.get("/analytics", async (req, res) => {
       )
     ).rows[0];
 
+    // Customer-facing repayment totals:
+    //
+    //   total_repaid: cash repaid net of any refund-pending
+    //     overpayment. amount_paid alone over-states what the
+    //     borrower has actually given the lender (overpayments
+    //     are owed back as refunds).
+    //
+    //   interest_paid: cash interest the borrower has actually
+    //     parted with — derived per-row so waivers shift
+    //     interest income to 0 on the rows they cover, and
+    //     subsequent cash on those rows correctly counts as
+    //     principal not interest.
+    //     The OLD formula was SUM(amount_paid × interest_ratio):
+    //       • Treated the full gross cash (including penalty
+    //         cash and refundable overpayment) as the base
+    //       • Used a loan-level ratio that couldn't see per-row
+    //         waivers — a row whose interest was 100% waived
+    //         still got its cash share booked as interest
+    //     For loan 314 it returned 7,200 (12,000 × 7,500/12,500)
+    //     when the borrower actually paid 3,000 of interest in
+    //     cash (3 rows had interest waived; cash there was 100%
+    //     principal). Same waiver-aware LEAST(LEAST(cash_to_row,
+    //     interest_room)) formula the capital pool now uses, so
+    //     the customer's "Interest paid" matches the lender's
+    //     "Interest earned" on the staff side.
     const repaid = (
       await query(
         `SELECT
-           COALESCE(SUM(t.amount_paid),0) AS total_repaid,
-           COALESCE(SUM(
-             t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due,0))
-           ),0) AS interest_paid
-         FROM transactions t
-         JOIN loans l ON t.loan_id = l.id
-         WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
-           AND t.payment_status = 'completed'`,
+           COALESCE((
+             SELECT SUM(t.amount_paid - COALESCE(t.overpayment_portion, 0))
+               FROM transactions t
+               JOIN loans la ON la.id = t.loan_id
+              WHERE la.client_id = ANY($1::int[]) AND la.tenant_id = ANY($2::int[])
+                AND t.payment_status = 'completed'
+           ), 0) AS total_repaid,
+           COALESCE((
+             SELECT SUM(LEAST(
+               LEAST(ps.amount_paid, ps.amount_due),
+               GREATEST(0, COALESCE(ps.interest_portion, 0)
+                           - COALESCE(ps.interest_paid, 0))
+             ))
+               FROM payment_schedules ps
+               JOIN loans lb ON lb.id = ps.loan_id
+              WHERE lb.client_id = ANY($1::int[]) AND lb.tenant_id = ANY($2::int[])
+           ), 0) AS interest_paid`,
         ids,
       )
     ).rows[0];
