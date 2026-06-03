@@ -1365,8 +1365,35 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   doc.text("Date: _________________________________________");
   doc.moveDown();
   doc.text("Official Stamp:");
-  doc.rect(50, doc.y + 5, 150, 80).stroke("#999");
-  doc.moveDown(7);
+  // Square box sized to fit the circular stamp comfortably.
+  // 120×120 leaves a 5pt margin on each side around a 110pt
+  // stamp — the stamp reads as "inside the box" instead of
+  // "drifting across the page" (which was the earlier 130pt
+  // bottom-right placement).
+  const stampBoxX = 50;
+  const stampBoxY = doc.y + 5;
+  const stampBoxSize = 120;
+  doc.rect(stampBoxX, stampBoxY, stampBoxSize, stampBoxSize).stroke("#999");
+  // Centre the stamp inside the box with a tiny margin so the
+  // outer ring doesn't graze the box border.
+  const stampSize = 110;
+  drawPdfStamp(doc, {
+    x: stampBoxX + (stampBoxSize - stampSize) / 2,
+    y: stampBoxY + (stampBoxSize - stampSize) / 2,
+    size: stampSize,
+    tenant: {
+      business_name: tenant.business_name || company.company_name,
+      city: tenant.city,
+      country: tenant.country,
+    },
+  });
+  // Advance past the box + extra breathing room before the
+  // WITNESS section. Was moveDown(7) which left the witness
+  // label overlapping with the box on tall stamps; now we
+  // jump explicitly to (box bottom + 30pt) so there's a clean
+  // gap between sections regardless of the page's prior
+  // cursor position.
+  doc.y = stampBoxY + stampBoxSize + 30;
 
   doc.fontSize(11).font("Helvetica-Bold").text("WITNESS:");
   doc.moveDown(0.5);
@@ -1389,20 +1416,8 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
     { align: "center" },
   );
 
-  // Official stamp on the agreement — bottom-right, well clear
-  // of the witness/signature lines. Uses the tenant business
-  // name (matches the company letterhead) so the agreement
-  // bears the same brand twice.
-  drawPdfStamp(doc, {
-    x: 420,
-    y: 660,
-    size: 130,
-    tenant: {
-      business_name: tenant.business_name || company.company_name,
-      city: tenant.city,
-      country: tenant.country,
-    },
-  });
+  // (Stamp lives inside the "Official Stamp:" box above —
+  // no second bottom-right stamp, that would be redundant.)
 
   doc.end();
   const buffer = await done;

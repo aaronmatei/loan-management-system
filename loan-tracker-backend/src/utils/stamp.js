@@ -38,13 +38,42 @@ function locationFor(tenant = {}) {
   return "";
 }
 
-// Truncate long lender names so they don't overflow the top arc.
-// 24 characters at the stamp's letter spacing reaches the arc
-// endpoints; anything longer would wrap awkwardly under the
-// outer ring.
+// Truncate REALLY long lender names so they don't wrap past the
+// outer ring. The arc has hard width limits even with shrunken
+// type, so anything past ~38 chars gets an ellipsis. Most
+// businesses fit; this catches the pathological cases.
 function fitTopArc(name) {
   const upper = (name || "").toUpperCase();
-  return upper.length > 24 ? upper.slice(0, 23) + "…" : upper;
+  return upper.length > 38 ? upper.slice(0, 37) + "…" : upper;
+}
+
+// Pick a (fontSize, letterSpacing) pair that fits `text` inside
+// the stamp's top arc (radius 120, ~π·r = 377pt of arc length).
+// Defaults match the original "LOANFIX LTD" hand-tuned spec;
+// progressively shrunken as the name gets longer so a 24-char
+// "PAYONEER LIMITED COMPANY" renders complete instead of
+// overflowing past the rings. Arial Bold uppercase width is
+// roughly fontSize × 0.62 per glyph.
+function topArcType(text) {
+  const len = text.length;
+  if (len <= 14) return { fontSize: 23, letterSpacing: 4 };
+  if (len <= 18) return { fontSize: 21, letterSpacing: 3 };
+  if (len <= 22) return { fontSize: 18, letterSpacing: 2 };
+  if (len <= 28) return { fontSize: 16, letterSpacing: 1.5 };
+  if (len <= 34) return { fontSize: 14, letterSpacing: 1 };
+  return { fontSize: 12, letterSpacing: 0.5 };
+}
+
+// Same dial for the (shorter, smaller-set) bottom arc — "NAIROBI ·
+// KENYA" is the canonical short example; long region strings
+// like "DAR ES SALAAM · TANZANIA" shrink to keep the dot
+// separator centred.
+function botArcType(text) {
+  const len = text.length;
+  if (len <= 16) return { fontSize: 16, letterSpacing: 5 };
+  if (len <= 22) return { fontSize: 14, letterSpacing: 3 };
+  if (len <= 28) return { fontSize: 12, letterSpacing: 2 };
+  return { fontSize: 11, letterSpacing: 1 };
 }
 
 // Build the stamp's SVG markup with the lender's name, location,
@@ -59,6 +88,8 @@ export function buildStampSvg({
 } = {}) {
   const top = fitTopArc(lenderName);
   const bot = (location || "").toUpperCase();
+  const topType = topArcType(top);
+  const botType = botArcType(bot);
   const stamp = formatStampDate(date);
   return `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${top} stamp">
   <defs>
@@ -71,8 +102,8 @@ export function buildStampSvg({
     <circle cx="150" cy="150" r="103" stroke-width="2"/>
   </g>
   <g fill="#0A183F" font-family="Arial, Helvetica, sans-serif" font-weight="700">
-    <text font-size="23" letter-spacing="4" text-anchor="middle"><textPath href="#topArc" startOffset="50%">${escapeXml(top)}</textPath></text>
-    <text font-size="16" letter-spacing="5" text-anchor="middle"><textPath href="#botArc" startOffset="50%">${escapeXml(bot)}</textPath></text>
+    <text font-size="${topType.fontSize}" letter-spacing="${topType.letterSpacing}" text-anchor="middle"><textPath href="#topArc" startOffset="50%">${escapeXml(top)}</textPath></text>
+    <text font-size="${botType.fontSize}" letter-spacing="${botType.letterSpacing}" text-anchor="middle"><textPath href="#botArc" startOffset="50%">${escapeXml(bot)}</textPath></text>
   </g>
   <polygon points="30,144 36,150 30,156 24,150" fill="#0A183F"/>
   <polygon points="270,144 276,150 270,156 264,150" fill="#0A183F"/>
