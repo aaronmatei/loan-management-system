@@ -537,7 +537,8 @@ router.post("/select-tenant", async (req, res) => {
     }
 
     const l = await query(
-      `SELECT ctl.tenant_id, ctl.client_id, t.business_name, t.subdomain
+      `SELECT ctl.tenant_id, ctl.client_id, t.business_name, t.subdomain,
+              t.city, t.country, t.brand_color
        FROM customer_tenant_links ctl
        JOIN tenants t ON ctl.tenant_id = t.id
        WHERE ctl.platform_customer_id = $1 AND ctl.tenant_id = $2
@@ -576,6 +577,12 @@ router.post("/select-tenant", async (req, res) => {
         tenant_id: link.tenant_id,
         business_name: link.business_name,
         subdomain: link.subdomain,
+        // city + country power the bottom arc on the in-system
+        // payment receipt stamp. Cheap to ship here so the
+        // portal doesn't need a second tenant fetch.
+        city: link.city,
+        country: link.country,
+        brand_color: link.brand_color,
       },
     });
   } catch (error) {

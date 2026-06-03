@@ -11,6 +11,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { LENDER_TYPES } from "../portal/lenderType";
+import Stamp from "./Stamp";
 
 // Shared, premium payment receipt — used by the tenant admin
 // (post-payment modal in pages/Payments.jsx) AND the customer portal
@@ -400,6 +401,26 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
               <p className="text-[10px] uppercase tracking-[0.14em] text-stone-400 mt-2">
                 This is a system-generated document and requires no signature.
               </p>
+              {/* Official lender stamp — same artwork as the PDF
+                  receipt's stamp (src/utils/stamp.js) so on-screen
+                  and printed receipts look identical. Falls back
+                  to just the name if the tenant has no
+                  city/country on file. Date is the txn's
+                  payment_date — a re-opened receipt always shows
+                  the day the payment landed, not "today". */}
+              {tenant?.business_name && (
+                <div className="mt-4 flex justify-center">
+                  <Stamp
+                    lenderName={tenant.business_name}
+                    location={[tenant.city, tenant.country]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    date={payment?.payment_date || new Date()}
+                    size={110}
+                    className="opacity-90"
+                  />
+                </div>
+              )}
               {!tenant?.hide_platform_branding && (
                 <p className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-3">
                   Powered by{" "}

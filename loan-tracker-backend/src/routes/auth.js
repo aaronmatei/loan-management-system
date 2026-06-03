@@ -82,7 +82,7 @@ router.post("/login", async (req, res) => {
         `SELECT u.tenant_id, u.is_platform_admin,
                 tn.subdomain, tn.business_name, tn.business_type,
                 tn.plan AS tenant_plan, tn.status AS tenant_status,
-                tn.brand_color
+                tn.brand_color, tn.city, tn.country
          FROM users u
          LEFT JOIN tenants tn ON u.tenant_id = tn.id
          WHERE u.id = $1`,
@@ -160,6 +160,12 @@ router.post("/login", async (req, res) => {
               business_type: t.business_type,
               plan: t.tenant_plan,
               brand_color: t.brand_color,
+              // city + country drive the bottom arc on the
+              // in-system Payment Receipt stamp. Cheap to
+              // include here so receipts don't need a separate
+              // tenant fetch at render time.
+              city: t.city,
+              country: t.country,
             }
           : null,
       },

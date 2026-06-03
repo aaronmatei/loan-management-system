@@ -2,7 +2,7 @@ import express from "express";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import { query } from "../config/database.js";
-import { stampExcelSheet } from "../utils/stamp.js";
+import { stampExcelSheet, drawPdfStamp } from "../utils/stamp.js";
 import { verifyToken } from "../middleware/auth.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import analyticsService from "../services/analyticsService.js";
@@ -882,6 +882,25 @@ router.get("/export/pdf", async (req, res) => {
           );
         });
       }
+    }
+
+    // Official stamp — fetched lazily so the PDF body doesn't
+    // depend on a tenant SELECT succeeding. Best-effort try/catch
+    // inside drawPdfStamp keeps the report printable even if the
+    // lookup fails. Bottom-right of the last rendered page.
+    try {
+      const t = await query(
+        "SELECT business_name, city, country FROM tenants WHERE id = $1",
+        [tid],
+      );
+      drawPdfStamp(doc, {
+        x: 420,
+        y: 660,
+        size: 130,
+        tenant: t.rows[0] || {},
+      });
+    } catch (e) {
+      logger.warn("Report PDF stamp lookup failed:", e?.message || e);
     }
 
     doc.end();
