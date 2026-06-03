@@ -447,12 +447,37 @@ export async function recordLoanPayment({
       );
 
       if (remainingAmount >= stillOwed) {
-        // Full EMI cash payment for this row. Any excess past the
-        // EMI knocks down principal directly: bump the row's
-        // principal_portion + amount_paid by the excess, mark paid.
-        const excess = round2(remainingAmount - stillOwed);
-        const newAmountPaid = round2(alreadyPaidOnSchedule + stillOwed + excess);
-        const newPrincipalPortion = round2(scheduledPrincipal + excess);
+        // Full EMI cash payment for this row. Excess past the EMI
+        // knocks down principal directly — but only up to the
+        // remaining loan principal. Anything beyond that has no debt
+        // to settle and becomes true overpayment recorded on the
+        // transaction now (no "ghost principal" landing on the row).
+        const rawExcess = round2(remainingAmount - stillOwed);
+        const balRes = await query(
+          `SELECT GREATEST(0,
+              l.principal_amount
+              - COALESCE((
+                  SELECT SUM(principal_portion) FROM payment_schedules
+                   WHERE loan_id = $1
+                     AND (status = 'paid' OR status = 'waived')
+                     AND id != $2
+                ), 0)
+              - $3
+            ) AS principal_room
+            FROM loans l WHERE l.id = $1`,
+          [loanId, schedule.id, scheduledPrincipal],
+        );
+        const principalRoom = parseFloat(
+          balRes.rows[0]?.principal_room || 0,
+        );
+        const principalKnockdown = Math.min(rawExcess, principalRoom);
+        const cashOverpayment = round2(rawExcess - principalKnockdown);
+        const newAmountPaid = round2(
+          alreadyPaidOnSchedule + stillOwed + principalKnockdown,
+        );
+        const newPrincipalPortion = round2(
+          scheduledPrincipal + principalKnockdown,
+        );
         await query(
           `UPDATE payment_schedules
               SET amount_paid = $1,
@@ -463,6 +488,17 @@ export async function recordLoanPayment({
             WHERE id = $4`,
           [newAmountPaid, newPrincipalPortion, paymentDate, schedule.id],
         );
+        if (cashOverpayment >= 0.01) {
+          await query(
+            `UPDATE transactions
+                SET overpayment_portion =
+                      COALESCE(overpayment_portion, 0) + $1,
+                    updated_at = NOW()
+              WHERE id = $2`,
+            [cashOverpayment, transaction.id],
+          );
+          overpayment = round2(overpayment + cashOverpayment);
+        }
         remainingAmount = 0;
       } else {
         // Partial — fits in this row, no principal-knockdown.
