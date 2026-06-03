@@ -334,9 +334,108 @@ class AnalyticsService {
   // = SUM(amount) from the expenses ledger. Both bucketed by their
   // respective dates, joined to a months series so empty months still
   // render as zero.
-  async getIncomeVsExpensesTrend(tenantId, months = 6) {
+  // Monthly income vs expenses trend. When `from`/`to` is supplied
+  // the series buckets within that range (daily for a single month,
+  // monthly otherwise); without a range it falls back to the last
+  // N months ending today. Mirrors getCollectionTrend's daily/
+  // monthly split so the Reports page lines up across charts.
+  //
+  // Income per bucket = interest portion of cash receipts + penalty
+  // income. Interest uses the per-transaction LEAST cap (cumulative
+  // cash before this txn vs. the loan's remaining amount-due space)
+  // so reducing-balance principal knockdown — cash that overshot
+  // the row to wipe future installments — doesn't get ratio-split
+  // into phantom interest income. Same fix as interest_earned in
+  // getTenantPortfolioKPIs.
+  async getIncomeVsExpensesTrend(tenantId, months = 6, from = null, to = null) {
+    // Helper builds the txn-running CTE used in both branches —
+    // window-function cap on each txn's cash, capped at the loan's
+    // remaining amount-due space (post-waiver, post-prior-cash) so
+    // knockdown is naturally excluded from the interest base.
+    const txnCte = `
+      txn_running AS (
+        SELECT
+          t.id, t.payment_date,
+          l.total_amount_due, l.total_interest,
+          COALESCE(w.waived_total, 0) AS waived_total,
+          (t.amount_paid
+             - COALESCE(t.penalty_portion, 0)
+             - COALESCE(t.overpayment_portion, 0)) AS this_cash,
+          COALESCE(t.penalty_portion, 0) AS this_penalty,
+          COALESCE(SUM(
+            t.amount_paid
+              - COALESCE(t.penalty_portion, 0)
+              - COALESCE(t.overpayment_portion, 0)
+          ) OVER (
+            PARTITION BY t.loan_id
+            ORDER BY t.payment_date, t.id
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+          ), 0) AS cash_before
+        FROM transactions t
+        JOIN loans l ON t.loan_id = l.id
+        LEFT JOIN (
+          SELECT loan_id,
+                 SUM(COALESCE((allocation->>'amount_total')::float, 0)) AS waived_total
+            FROM loan_waivers WHERE status = 'approved'
+           GROUP BY loan_id
+        ) w ON w.loan_id = l.id
+        WHERE t.tenant_id = $1
+          AND t.payment_status = 'completed'
+      )`;
+    const incomePerTxn = `
+      GREATEST(0, LEAST(
+        this_cash,
+        GREATEST(0, total_amount_due - waived_total - cash_before)
+      )) * (total_interest / NULLIF(total_amount_due, 0))
+      + this_penalty`;
+
+    // Daily series within an explicit [from, to] range. Buckets by
+    // day so a "single month" period chart shows per-day shape.
+    if (from && to) {
+      const r = await query(
+        `WITH ${txnCte},
+         days AS (
+           SELECT generate_series($2::date, $3::date, '1 day'::interval)::date AS d
+         ),
+         income AS (
+           SELECT payment_date::date AS d,
+                  COALESCE(SUM(${incomePerTxn}), 0)::float AS amount
+           FROM txn_running
+           WHERE payment_date >= $2::date AND payment_date <= $3::date
+           GROUP BY 1
+         ),
+         outflow AS (
+           SELECT expense_date::date AS d,
+                  COALESCE(SUM(amount), 0)::float AS amount
+           FROM expenses
+           WHERE tenant_id = $1
+             AND expense_date >= $2::date AND expense_date <= $3::date
+           GROUP BY 1
+         )
+         SELECT
+           TO_CHAR(days.d, 'DD Mon')     AS month,
+           days.d                        AS month_sort,
+           COALESCE(income.amount, 0)    AS income,
+           COALESCE(outflow.amount, 0)   AS expenses,
+           COALESCE(income.amount, 0) - COALESCE(outflow.amount, 0) AS net
+         FROM days
+         LEFT JOIN income  ON income.d  = days.d
+         LEFT JOIN outflow ON outflow.d = days.d
+         ORDER BY days.d`,
+        [tenantId, from, to],
+      );
+      return r.rows.map((x) => ({
+        month: x.month,
+        income: parseFloat(x.income) || 0,
+        expenses: parseFloat(x.expenses) || 0,
+        net: parseFloat(x.net) || 0,
+      }));
+    }
+
+    // Monthly series — last N months ending today.
     const r = await query(
-      `WITH months AS (
+      `WITH ${txnCte},
+       months AS (
          SELECT generate_series(
            date_trunc('month', CURRENT_DATE) - (INTERVAL '1 month' * ($2 - 1)),
            date_trunc('month', CURRENT_DATE),
@@ -344,19 +443,10 @@ class AnalyticsService {
          ) AS m
        ),
        income AS (
-         SELECT
-           date_trunc('month', t.payment_date) AS m,
-           COALESCE(SUM(
-             (t.amount_paid
-                - COALESCE(t.overpayment_portion, 0)
-                - COALESCE(t.penalty_portion, 0))
-             * (l.total_interest / NULLIF(l.total_amount_due, 0))
-             + COALESCE(t.penalty_portion, 0)
-           ), 0)::float AS amount
-         FROM transactions t
-         JOIN loans l ON l.id = t.loan_id
-         WHERE t.tenant_id = $1 AND t.payment_status = 'completed'
-         GROUP BY 1
+         SELECT date_trunc('month', payment_date) AS m,
+                COALESCE(SUM(${incomePerTxn}), 0)::float AS amount
+           FROM txn_running
+          GROUP BY 1
        ),
        outflow AS (
          SELECT date_trunc('month', expense_date) AS m,

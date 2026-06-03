@@ -514,7 +514,7 @@ router.get("/tenant", async (req, res) => {
       analyticsService.getLoanOfficerPerformance(tid),
       analyticsService.getLoanStatusDistribution(tid),
       analyticsService.getExpenseStats(tid, from, to),
-      analyticsService.getIncomeVsExpensesTrend(tid, months),
+      analyticsService.getIncomeVsExpensesTrend(tid, months, from, to),
     ]);
 
     res.json({
