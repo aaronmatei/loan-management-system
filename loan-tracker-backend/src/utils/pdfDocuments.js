@@ -93,13 +93,26 @@ export const buildClientStatementPdf = async (clientId, tid) => {
   const client = clientResult.rows[0];
 
   const loansResult = await query(
+    // total_paid here is the SETTLED amount: cash applied to
+    // amount_due (per-row LEAST cap excludes principal knockdown)
+    // + amount_due-side waivers. Same formula the staff
+    // /payments/loan/:id/summary uses, so the client statement
+    // shows what the borrower actually owes — the prior
+    // SUM(t.amount_paid) reported gross cash and produced a
+    // non-zero balance on loans that had been settled partly by
+    // waiver, even when status=COMPLETED.
     `
       SELECT l.*,
-        COALESCE(SUM(t.amount_paid), 0) as total_paid
+        (
+          (SELECT COALESCE(SUM(LEAST(amount_paid, amount_due)), 0)
+             FROM payment_schedules WHERE loan_id = l.id)
+          +
+          (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+             FROM loan_waivers
+            WHERE loan_id = l.id AND status = 'approved')
+        ) AS total_paid
       FROM loans l
-      LEFT JOIN transactions t ON l.id = t.loan_id AND t.payment_status = 'completed'
       WHERE l.client_id = $1
-      GROUP BY l.id
       ORDER BY l.created_at DESC
     `,
     [clientId],
@@ -302,6 +315,21 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
     [loanId, "completed"],
   );
 
+  // Approved waivers + per-row waiver attribution. Both feed the
+  // LOAN DETAILS settlement breakdown — the prior version showed
+  // "Total Paid: 12,000 / Balance: 500" with Status COMPLETED
+  // because it used SUM(amount_paid) (gross cash) and ignored the
+  // waiver-settled portion of amount_due. After the fix, the
+  // statement reports cash and waivers separately and the balance
+  // matches the loan's actual closed state.
+  const waiversResult = await query(
+    `SELECT id, amount, allocation, type, approved_at, reason
+       FROM loan_waivers
+      WHERE loan_id = $1 AND status = 'approved'
+      ORDER BY approved_at NULLS LAST, created_at`,
+    [loanId],
+  );
+
   const doc = new PDFDocument({ size: "A4", margin: 50 });
   const filename = `loan_statement_${loan.loan_code}_${new Date().toISOString().split("T")[0]}.pdf`;
   const done = streamToBuffer(doc);
@@ -328,11 +356,45 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
   doc.y = boxY + 80;
   doc.moveDown();
 
-  const totalPaid = transactionsResult.rows.reduce(
-    (sum, t) => sum + parseFloat(t.amount_paid),
+  const totalDue = parseFloat(loan.total_amount_due) || 0;
+  // Cash leg: gross cash received less any refundable
+  // overpayment. amount_paid alone over-states what the borrower
+  // actually parted with when a refund is pending.
+  const grossCashPaid = transactionsResult.rows.reduce(
+    (sum, t) =>
+      sum
+      + parseFloat(t.amount_paid || 0)
+      - parseFloat(t.overpayment_portion || 0),
     0,
   );
-  const balance = parseFloat(loan.total_amount_due) - totalPaid;
+  // Penalty cash + amount-due cash split — useful in the
+  // breakdown because customers reading the statement otherwise
+  // can't see why the schedule rows' "Amount Paid" sum to a
+  // smaller number than the gross cash.
+  const penaltyCashPaid = transactionsResult.rows.reduce(
+    (sum, t) => sum + parseFloat(t.penalty_portion || 0),
+    0,
+  );
+  const cashToAmountDue = Math.max(0, grossCashPaid - penaltyCashPaid);
+  // Waivers applied to amount_due vs penalty. allocation.amount_total
+  // covers interest+principal (the amount_due side); allocation.penalty_total
+  // covers fines. Pulled from approved waivers only — pending/reversed
+  // don't count toward settlement.
+  const waivedAmountDue = waiversResult.rows.reduce(
+    (s, w) => s + parseFloat(w.allocation?.amount_total || 0),
+    0,
+  );
+  const waivedPenalty = waiversResult.rows.reduce(
+    (s, w) => s + parseFloat(w.allocation?.penalty_total || 0),
+    0,
+  );
+  // "Total settled" = what the borrower no longer owes, regardless
+  // of source. This is the number that must agree with the
+  // loan.status ("COMPLETED" only when settled >= due). Capped at
+  // total_due so an overpayment (refundable) doesn't push it
+  // above the contract.
+  const totalSettled = Math.min(totalDue, cashToAmountDue + waivedAmountDue);
+  const balance = Math.max(0, totalDue - totalSettled);
 
   doc
     .fontSize(14)
@@ -349,8 +411,38 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
   doc.text(`Interest Rate: ${loan.interest_rate}% per month`);
   doc.text(`Duration: ${loan.loan_duration_months} months`);
   doc.text(`Total Interest: ${formatCurrency(loan.total_interest)}`);
-  doc.text(`Total Amount Due: ${formatCurrency(loan.total_amount_due)}`);
-  doc.text(`Total Paid: ${formatCurrency(totalPaid)}`);
+  doc.text(`Total Amount Due: ${formatCurrency(totalDue)}`);
+  doc.text(`Cash Paid: ${formatCurrency(grossCashPaid)}`);
+  // Sub-line breaks the cash into where it landed (amount_due vs
+  // penalty) so the row totals reconcile when the customer adds
+  // up the schedule's "Amount Paid" column. Only show when there's
+  // actually penalty cash to separate.
+  if (penaltyCashPaid > 0) {
+    doc
+      .fontSize(9)
+      .fillColor("#555")
+      .text(
+        `   • To amount due: ${formatCurrency(cashToAmountDue)}   • To penalty: ${formatCurrency(penaltyCashPaid)}`,
+        { indent: 10 },
+      )
+      .fontSize(10)
+      .fillColor("#000");
+  }
+  if (waivedAmountDue > 0 || waivedPenalty > 0) {
+    doc.text(
+      `Waivers Applied: ${formatCurrency(waivedAmountDue + waivedPenalty)}`,
+    );
+    doc
+      .fontSize(9)
+      .fillColor("#555")
+      .text(
+        `   • To amount due: ${formatCurrency(waivedAmountDue)}   • To penalty: ${formatCurrency(waivedPenalty)}`,
+        { indent: 10 },
+      )
+      .fontSize(10)
+      .fillColor("#000");
+  }
+  doc.text(`Total Settled: ${formatCurrency(totalSettled)}`);
   doc
     .fontSize(12)
     .fillColor(balance > 0 ? "#DC2626" : "#059669")
@@ -378,12 +470,18 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
   doc.moveTo(50, y + 15).lineTo(545, y + 15).stroke();
   y += 20;
 
+  let scheduleSumDue = 0;
+  let scheduleSumPaid = 0;
   scheduleResult.rows.forEach((s) => {
+    const due = parseFloat(s.amount_due || 0);
+    const paid = parseFloat(s.amount_paid || 0);
+    scheduleSumDue += due;
+    scheduleSumPaid += paid;
     doc.fontSize(8);
     doc.text(`${s.payment_number}/${loan.loan_duration_months}`, 50, y);
     doc.text(formatDate(s.due_date), 130, y);
-    doc.text(formatCurrency(s.amount_due), 220, y);
-    doc.text(formatCurrency(s.amount_paid || 0), 310, y);
+    doc.text(formatCurrency(due), 220, y);
+    doc.text(formatCurrency(paid), 310, y);
     doc.fillColor(
       s.status === "paid"
         ? "#059669"
@@ -400,6 +498,19 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
       y = 50;
     }
   });
+  // Schedule totals row so the customer can verify the column
+  // sums match the LOAN DETAILS breakdown above. The "Amount Paid"
+  // total here equals cash_to_amount_due — which is normally
+  // LESS than Total Settled when waivers covered part of the
+  // amount_due (the rest came from waivers, listed in LOAN
+  // DETAILS as "Waivers Applied · To amount due").
+  doc.moveTo(50, y).lineTo(545, y).stroke();
+  y += 4;
+  doc.fontSize(9).fillColor("#000");
+  doc.text("TOTALS", 50, y);
+  doc.text(formatCurrency(scheduleSumDue), 220, y);
+  doc.text(formatCurrency(scheduleSumPaid), 310, y);
+  y += 15;
 
   doc.end();
   const buffer = await done;
