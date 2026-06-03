@@ -146,6 +146,9 @@ function LoanDetails() {
   // written for.
   const contractedInterest = parseFloat(loan.total_interest || 0);
   const contractedPrincipal = parseFloat(loan.principal_amount || 0);
+  const due = parseFloat(loan.total_amount_due || 0);
+  const paid = parseFloat(loan.total_paid || 0);
+  const balance = Math.max(0, due - paid);
   // Cash actually paid (net of any refundable overpayment) vs
   // total settled against amount_due (which adds waiver coverage
   // on top of cash). The "Paid So Far" tile shows the SETTLED
@@ -154,6 +157,13 @@ function LoanDetails() {
   // and reconciling. cashAmountDue = cash that went to
   // principal+interest (not penalty, not refunded). cashPenalty
   // = cash that went to late-fee + penalty-interest.
+  //
+  // ORDER MATTERS: declared after `paid` because
+  // waiverAmountDue derives from it. Inlining these above the
+  // paid declaration earlier triggered a TDZ
+  // "Cannot access 'paid' before initialization" error in the
+  // production bundle — minified to a bare `j=N-A` reference
+  // that hoisted out of order.
   const cashPaidTotal = (transactions || []).reduce(
     (s, t) =>
       s +
@@ -170,9 +180,6 @@ function LoanDetails() {
   );
   const cashAmountDuePaid = Math.max(0, cashPaidTotal - cashPenaltyPaid);
   const waiverAmountDue = paid - cashAmountDuePaid; // amount_due settled by waivers
-  const due = parseFloat(loan.total_amount_due || 0);
-  const paid = parseFloat(loan.total_paid || 0);
-  const balance = Math.max(0, due - paid);
   const progress = due > 0 ? Math.min((paid / due) * 100, 100) : 0;
   // interest_rate is stored as the MONTHLY rate (percent) — show it as-is.
   const monthlyRate = parseFloat(loan.interest_rate || 0).toFixed(2);
