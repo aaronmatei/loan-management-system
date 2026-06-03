@@ -72,47 +72,68 @@ class AnalyticsService {
       [tenantId, dateFrom || null, dateTo || null],
     );
 
-    // Interest earned — per-row attribution, summed for rows
-    // settled in the window. Matches the capital-pool booking
-    // formula in paymentService.recordLoanPayment so the
-    // Dashboard's NET INTEREST tile and Reports' INTEREST FROM
-    // LOANS read the same number.
+    // Interest earned — for each transaction in the window,
+    // attribute a share of its loan's lifetime cash-interest based
+    // on the transaction's cash share. Per-loan cash-interest =
+    // per-row LEAST(LEAST(amount_paid, amount_due), interest_room)
+    // — the same waiver-aware formula the capital-pool booking
+    // uses, so Reports and Dashboard agree.
     //
-    // Per row, cash interest earned = min(
-    //   cash applied to this row (LEAST(amount_paid, amount_due)
-    //     — excludes knockdown),
-    //   interest room not already covered by a waiver
-    //     (interest_portion − interest_paid)
-    // )
+    // Why share-by-cash, not by ps.actual_payment_date:
+    // schedule rows' actual_payment_date is unreliable as a
+    // window key — the loan-reschedule path (loans.js) sets it
+    // to the row's DUE date for already-paid rows, not to the
+    // transaction's payment_date. Loan 317 example: cash arrived
+    // 2022-04-27, row 1's actual_payment_date got stamped
+    // 2022-05-05 (its due date), so the 500 of April interest
+    // fell into May. transactions.payment_date is the cash
+    // truth, so window the txns and prorate each one's share
+    // of the loan's lifetime interest by its cash share.
     //
-    // The min(·, interest_room) step is what keeps the loan-level
-    // ratio from inflating interest on rows where a waiver has
-    // already settled the interest side — the cash that fills
-    // those rows is pure principal. For loan 313 row 1 (10k
-    // interest waived), the 1,263 cash settling the row was 0
-    // interest + 1,263 principal; the OLD ratio booked 83% of it
-    // as interest (~1,053), overstating Reports' interest by ~2k
-    // and creating the dashboard-vs-reports gap.
-    //
-    // Window filter: ps.actual_payment_date, set by the cascade
-    // when a row is fully closed. Partial-pay rows (rare) don't
-    // surface until the row closes — accepted limitation.
+    // Accepted approximation: on multi-txn loans, each txn gets
+    // an equal interest density (interest_earned ÷ total_cash).
+    // Reality may skew interest toward early txns (when balance
+    // is higher under reducing-balance), but cash-share is
+    // accurate on aggregate and well-defined in SQL.
     const interest = await query(
-      `SELECT COALESCE(SUM(
-         LEAST(
-           LEAST(ps.amount_paid, ps.amount_due),
-           GREATEST(
-             0,
-             COALESCE(ps.interest_portion, 0) - COALESCE(ps.interest_paid, 0)
-           )
-         )
+      `WITH loan_interest AS (
+         SELECT ps.loan_id,
+                SUM(LEAST(
+                  LEAST(ps.amount_paid, ps.amount_due),
+                  GREATEST(
+                    0,
+                    COALESCE(ps.interest_portion, 0) - COALESCE(ps.interest_paid, 0)
+                  )
+                )) AS earned
+         FROM payment_schedules ps GROUP BY ps.loan_id
+       ),
+       loan_cash AS (
+         SELECT loan_id,
+                SUM(amount_paid
+                    - COALESCE(penalty_portion, 0)
+                    - COALESCE(overpayment_portion, 0)) AS total_cash
+         FROM transactions
+         WHERE payment_status = 'completed'
+         GROUP BY loan_id
+       )
+       SELECT COALESCE(SUM(
+         CASE
+           WHEN COALESCE(lc.total_cash, 0) > 0
+           THEN COALESCE(li.earned, 0)
+                * (t.amount_paid
+                   - COALESCE(t.penalty_portion, 0)
+                   - COALESCE(t.overpayment_portion, 0))
+                / lc.total_cash
+           ELSE 0
+         END
        ), 0)::float AS interest_earned
-       FROM payment_schedules ps
-       JOIN loans l ON l.id = ps.loan_id
-       WHERE l.tenant_id = $1
-         AND ps.actual_payment_date IS NOT NULL
-         AND ($2::date IS NULL OR ps.actual_payment_date >= $2)
-         AND ($3::date IS NULL OR ps.actual_payment_date <= $3)`,
+       FROM transactions t
+       LEFT JOIN loan_interest li ON li.loan_id = t.loan_id
+       LEFT JOIN loan_cash lc ON lc.loan_id = t.loan_id
+       WHERE t.tenant_id = $1
+         AND t.payment_status = 'completed'
+         AND ($2::date IS NULL OR t.payment_date >= $2)
+         AND ($3::date IS NULL OR t.payment_date <= $3)`,
       [tenantId, dateFrom || null, dateTo || null],
     );
 
@@ -342,26 +363,53 @@ class AnalyticsService {
   // into phantom interest income. Same fix as interest_earned in
   // getTenantPortfolioKPIs.
   async getIncomeVsExpensesTrend(tenantId, months = 6, from = null, to = null) {
-    // Income sources joined to a single date column so they can be
-    // bucketed together: per-row cash interest (by
-    // ps.actual_payment_date) and per-txn penalty (by t.payment_date).
-    // The per-row interest formula matches the capital pool's
-    // per-row attribution in paymentService — so the chart, the
-    // KPI tile, and the dashboard agree.
+    // Income sources joined to a single date column so they can
+    // be bucketed together: cash interest (each transaction gets
+    // a share of its loan's lifetime cash-interest proportional
+    // to its cash share) plus penalty income. Dated by
+    // t.payment_date — the actual cash date, not the schedule's
+    // actual_payment_date which can be stamped to the row's due
+    // date by the loan-reschedule path (loans.js).
     const incomeCte = `
-      income_events AS (
-        SELECT
-          ps.actual_payment_date::date AS d,
-          LEAST(
-            LEAST(ps.amount_paid, ps.amount_due),
-            GREATEST(
-              0,
-              COALESCE(ps.interest_portion, 0) - COALESCE(ps.interest_paid, 0)
-            )
-          ) AS amount
+      loan_interest AS (
+        SELECT ps.loan_id,
+               SUM(LEAST(
+                 LEAST(ps.amount_paid, ps.amount_due),
+                 GREATEST(
+                   0,
+                   COALESCE(ps.interest_portion, 0) - COALESCE(ps.interest_paid, 0)
+                 )
+               )) AS earned
         FROM payment_schedules ps
         JOIN loans l ON l.id = ps.loan_id
-        WHERE l.tenant_id = $1 AND ps.actual_payment_date IS NOT NULL
+        WHERE l.tenant_id = $1
+        GROUP BY ps.loan_id
+      ),
+      loan_cash AS (
+        SELECT t.loan_id,
+               SUM(t.amount_paid
+                   - COALESCE(t.penalty_portion, 0)
+                   - COALESCE(t.overpayment_portion, 0)) AS total_cash
+        FROM transactions t
+        WHERE t.tenant_id = $1 AND t.payment_status = 'completed'
+        GROUP BY t.loan_id
+      ),
+      income_events AS (
+        SELECT
+          t.payment_date::date AS d,
+          CASE
+            WHEN COALESCE(lc.total_cash, 0) > 0
+            THEN COALESCE(li.earned, 0)
+                 * (t.amount_paid
+                    - COALESCE(t.penalty_portion, 0)
+                    - COALESCE(t.overpayment_portion, 0))
+                 / lc.total_cash
+            ELSE 0
+          END AS amount
+        FROM transactions t
+        LEFT JOIN loan_interest li ON li.loan_id = t.loan_id
+        LEFT JOIN loan_cash     lc ON lc.loan_id = t.loan_id
+        WHERE t.tenant_id = $1 AND t.payment_status = 'completed'
         UNION ALL
         SELECT
           t.payment_date::date AS d,

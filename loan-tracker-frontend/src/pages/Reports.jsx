@@ -581,6 +581,15 @@ function Reports() {
               // admin-declared waivers don't.
               const interestCash = parseFloat(kpis.interest_earned) || 0;
               const finesCash = parseFloat(kpis.fines_collected) || 0;
+              // "Contract" = lifetime contractual interest on loans
+              // disbursed in this period (SUM(l.total_interest)).
+              // It's a property of the LOAN, not the WINDOW — so on
+              // a single-month view this routinely dwarfs the
+              // headline cash interest. The label was "Initial"
+              // which read as "expected this period" and confused
+              // users (April 2022 PAY: headline 500, "Initial"
+              // 86,733). Same shape for fines: accrued so far on
+              // these loans.
               const initialInterest =
                 parseFloat(kpis.total_interest_expected) || 0;
               const initialFines = finesCash + waiversPenalty;
@@ -594,8 +603,11 @@ function Reports() {
                       {fmt(interestCash)}
                     </p>
                     <div className="mt-2 pt-2 border-t border-gray-100 space-y-0.5 text-[11px]">
-                      <div className="flex justify-between text-gray-500">
-                        <span>Initial</span>
+                      <div
+                        className="flex justify-between text-gray-500"
+                        title="Total lifetime contractual interest on loans disbursed in this period — a property of the loans, not of this window."
+                      >
+                        <span>Contract</span>
                         <span className="font-semibold text-gray-700">
                           {fmt(initialInterest)}
                         </span>
@@ -617,7 +629,10 @@ function Reports() {
                       {fmt(finesCash)}
                     </p>
                     <div className="mt-2 pt-2 border-t border-gray-100 space-y-0.5 text-[11px]">
-                      <div className="flex justify-between text-gray-500">
+                      <div
+                        className="flex justify-between text-gray-500"
+                        title="Total late-fee + penalty interest accrued on these loans before any waivers."
+                      >
                         <span>Accrued</span>
                         <span className="font-semibold text-gray-700">
                           {fmt(initialFines)}
