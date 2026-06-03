@@ -16,6 +16,33 @@ const poolFor = (tid) => ({
   values: [tid],
 });
 
+// Fetch operating expenses for a tenant. Returns 0 on any error so
+// the dashboard never breaks if the expenses table isn't there
+// (single-tenant migration not run yet).
+async function totalExpensesFor(tid) {
+  try {
+    const r = await query(
+      "SELECT COALESCE(SUM(amount), 0)::float AS total FROM expenses WHERE tenant_id = $1",
+      [tid],
+    );
+    return parseFloat(r.rows[0].total) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+// Apply operating-expense + utilization adjustments to a raw
+// buildStatus() result. Centralized so /status and /adjust both
+// reflect the same view of the pool.
+function applyExpensesToStatus(status, totalExpenses) {
+  const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+  status.total_expenses = round2(totalExpenses);
+  status.available_pool = round2(status.available_pool - totalExpenses);
+  status.total_pool_value = round2(status.total_pool_value - totalExpenses);
+  status.can_lend = status.available_pool > 0;
+  return status;
+}
+
 function buildStatus(pool, activeLoans) {
   const initial = parseFloat(pool.initial_capital);
   const disbursed = parseFloat(pool.total_disbursed);
@@ -254,6 +281,23 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
       status.total_interest_earned - totalExpenses - principalWrittenOff;
     status.net_profit_lifetime = zeroish(round2(status.net_profit_lifetime));
 
+    // Subtract operating expenses from the cash side of the pool.
+    // The expense INSERT only writes to the expenses table — it
+    // never decremented capital_pool — so before this fix you
+    // could log KES 30k of rent and the "Available Capital" tile
+    // didn't move (even though that cash genuinely left the
+    // account). Net Profit already debited expenses; this brings
+    // available_pool into the same cash-flow lens so the
+    // identity holds:
+    //   available_pool − initial_capital
+    //     ≡ net_profit_lifetime
+    //         − outstanding_principal           (loans still out)
+    //         − principal_written_off           (forgiven principal)
+    //         − overpayment_liability_pending   (refunds owed)
+    // and "can_lend" goes false the moment expenses eat the
+    // pool, even with no active loans.
+    applyExpensesToStatus(status, totalExpenses);
+
     status.outstanding_principal = Math.max(
       0,
       zeroish(round2(status.outstanding_principal - principalWrittenOff)),
@@ -312,7 +356,11 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
     const disbursed = parseFloat(pool.total_disbursed);
     const collected = parseFloat(pool.total_collected);
     const interest = parseFloat(pool.total_interest_earned);
-    const availablePool = initial - disbursed + collected + interest;
+    // Withdraw validity reflects expense-aware available cash —
+    // can't withdraw money that's already gone to rent/salaries.
+    const expenses = await totalExpensesFor(tid);
+    const availablePool =
+      initial - disbursed + collected + interest - expenses;
 
     if (type === "withdraw" && value > availablePool) {
       return res.status(400).json({
@@ -367,10 +415,13 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
     try {
       const u = updated.rows[0];
       if (u) {
+        // Expense-aware avail so the low-capital threshold reflects
+        // actual lendable cash, not pre-expense gross.
         const avail =
           parseFloat(u.initial_capital) -
           parseFloat(u.total_disbursed) +
-          parseFloat(u.total_collected);
+          parseFloat(u.total_collected) -
+          expenses;
         await notifyCapitalLow(tid, avail, u.initial_capital);
       }
     } catch (err) {
@@ -380,9 +431,12 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
     res.json({
       success: true,
       message: `Capital ${type === "add" ? "added" : "withdrawn"}: KES ${value.toLocaleString()}`,
-      data: buildStatus(
-        updated.rows[0],
-        parseInt(activeResult.rows[0].count, 10),
+      data: applyExpensesToStatus(
+        buildStatus(
+          updated.rows[0],
+          parseInt(activeResult.rows[0].count, 10),
+        ),
+        expenses,
       ),
     });
   } catch (error) {

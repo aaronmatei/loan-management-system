@@ -695,7 +695,9 @@ router.post(
       let available = Infinity;
       if (tid) {
         const pr = await query(
-          `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned) AS a
+          `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned
+                   - COALESCE((SELECT SUM(amount) FROM expenses WHERE tenant_id = capital_pool.tenant_id), 0)
+                  ) AS a
              FROM capital_pool WHERE tenant_id = $1`,
           [tid],
         );
@@ -959,7 +961,9 @@ router.post(
 
       // Per-tenant capital pool (NOT the global "latest" row).
       const poolCheck = await query(
-        `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned) AS available
+        `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned
+                 - COALESCE((SELECT SUM(amount) FROM expenses WHERE tenant_id = capital_pool.tenant_id), 0)
+                ) AS available
          FROM capital_pool WHERE tenant_id = $1`,
         [loan.tenant_id],
       );
@@ -1390,7 +1394,9 @@ async function performDisburse(req, loan, opts) {
     try {
       const cp = await query(
         `SELECT initial_capital,
-                (initial_capital - total_disbursed + total_collected + total_interest_earned) AS available
+                (initial_capital - total_disbursed + total_collected + total_interest_earned
+                 - COALESCE((SELECT SUM(amount) FROM expenses WHERE tenant_id = capital_pool.tenant_id), 0)
+                ) AS available
          FROM capital_pool WHERE tenant_id = $1`,
         [loan.tenant_id],
       );
@@ -1489,7 +1495,9 @@ router.post(
       let available = Infinity;
       if (tid) {
         const pr = await query(
-          `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned) AS a
+          `SELECT (initial_capital - total_disbursed + total_collected + total_interest_earned
+                   - COALESCE((SELECT SUM(amount) FROM expenses WHERE tenant_id = capital_pool.tenant_id), 0)
+                  ) AS a
              FROM capital_pool WHERE tenant_id = $1`,
           [tid],
         );
