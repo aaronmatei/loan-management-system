@@ -320,12 +320,22 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const ascTxns = [...transactionsResult.rows].reverse();
     let running = totalWaivedAmountDue;
     const annotated = ascTxns.map((t) => {
-      const principalToward =
-        parseFloat(t.amount_paid || 0) - parseFloat(t.penalty_portion || 0);
-      const owedBefore = Math.max(0, totalDue - running);
-      const principalApplied = Math.min(principalToward, owedBefore);
-      const overpaidThis = Math.max(0, principalToward - principalApplied);
-      running += principalApplied;
+      // Per-transaction overpayment comes straight from the row —
+      // recordLoanPayment already capped it correctly (cash beyond
+      // remaining principal balance + outstanding amount_due). The
+      // OLD derivation (cash − (totalDue − running)) treated any
+      // cash above the contractual residual as overpayment, which
+      // double-counted reducing-balance knockdowns: cash that went
+      // to extra principal would show up in BOTH principal_portion
+      // on the schedule AND overpaidThis in the receipt.
+      const overpaidThis = parseFloat(t.overpayment_portion || 0);
+      const towardBalance = Math.max(
+        0,
+        parseFloat(t.amount_paid || 0)
+          - parseFloat(t.penalty_portion || 0)
+          - overpaidThis,
+      );
+      running += towardBalance;
       const remaining = Math.max(0, totalDue - running);
       return {
         ...t,
