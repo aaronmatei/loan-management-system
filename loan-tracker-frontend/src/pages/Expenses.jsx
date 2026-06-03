@@ -221,8 +221,16 @@ function Expenses() {
     if (categoryFilter !== "all" && String(e.category_id) !== categoryFilter) {
       return false;
     }
-    if (dateFrom && e.expense_date < dateFrom) return false;
-    if (dateTo && e.expense_date > dateTo) return false;
+    // Slice expense_date to its YYYY-MM-DD prefix before
+    // comparing against the picker's dateFrom/dateTo strings.
+    // Backend returns ISO timestamps ("2022-04-30T00:00:00.000Z"),
+    // and "2022-04-30T..." > "2022-04-30" evaluates TRUE in
+    // string comparison because the T is lexicographically
+    // greater than the empty suffix — every row gets filtered
+    // out when dateTo is set without this slice.
+    const d = String(e.expense_date || "").slice(0, 10);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
     if (recurringFilter === "yes" && !e.is_recurring) return false;
     if (recurringFilter === "no" && e.is_recurring) return false;
     return true;
