@@ -30,6 +30,10 @@ import {
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 import Spinner from "../components/Spinner";
+import PeriodNavigator, {
+  periodToRange,
+  usePersistentPeriod,
+} from "../components/PeriodNavigator";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -63,8 +67,13 @@ function Expenses() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  // Month/Year period picker (with back/forward arrows). Drives
+  // dateFrom/dateTo automatically — when the user picks April
+  // 2026, the period resolves to 2026-04-01 / 2026-04-30 and
+  // the table shows only expenses in that range. Persisted in
+  // localStorage + URL so a refresh keeps the same window.
+  const [period, setPeriod] = usePersistentPeriod();
+  const { from: dateFrom, to: dateTo } = periodToRange(period);
   const [recurringFilter, setRecurringFilter] = useState("all");
 
   // Modals
@@ -224,18 +233,20 @@ function Expenses() {
     0,
   );
 
+  // Period is ALWAYS set (defaults to current year, persisted in
+  // localStorage), so it's not part of "filters active" — that
+  // banner is for non-default search/category/recurring picks.
+  // Clearing the filters doesn't reset the period for the same
+  // reason: the picker is the primary control, not a filter you
+  // turn on and off.
   const filtersActive =
     searchQuery ||
     categoryFilter !== "all" ||
-    dateFrom ||
-    dateTo ||
     recurringFilter !== "all";
 
   const clearFilters = () => {
     setSearchQuery("");
     setCategoryFilter("all");
-    setDateFrom("");
-    setDateTo("");
     setRecurringFilter("all");
   };
 
@@ -495,27 +506,17 @@ function Expenses() {
                 ))}
             </select>
           </div>
-          <div>
+          {/* Period picker — Month/Year toggle with back/forward
+              arrows. Replaces the previous From/To date pair so
+              the user can step through periods with one click
+              instead of manually picking two dates. Spans 2
+              columns to keep the filter row balanced (Search 2 +
+              Category 1 + Period 2 = 5). */}
+          <div className="lg:col-span-2">
             <label className="block text-xs font-semibold text-stone-600 uppercase mb-1">
-              From
+              Period
             </label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-stone-600 uppercase mb-1">
-              To
-            </label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
-            />
+            <PeriodNavigator value={period} onChange={setPeriod} />
           </div>
         </div>
         <div className="flex items-center justify-between flex-wrap gap-3 mt-3 pt-3 border-t border-stone-100">
