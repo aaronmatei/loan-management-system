@@ -146,6 +146,30 @@ function LoanDetails() {
   // written for.
   const contractedInterest = parseFloat(loan.total_interest || 0);
   const contractedPrincipal = parseFloat(loan.principal_amount || 0);
+  // Cash actually paid (net of any refundable overpayment) vs
+  // total settled against amount_due (which adds waiver coverage
+  // on top of cash). The "Paid So Far" tile shows the SETTLED
+  // figure (paid), but customers who paid in cash want to see
+  // their cash number — relevant when they're holding receipts
+  // and reconciling. cashAmountDue = cash that went to
+  // principal+interest (not penalty, not refunded). cashPenalty
+  // = cash that went to late-fee + penalty-interest.
+  const cashPaidTotal = (transactions || []).reduce(
+    (s, t) =>
+      s +
+      Math.max(
+        0,
+        parseFloat(t.amount_paid || 0) -
+          parseFloat(t.overpayment_portion || 0),
+      ),
+    0,
+  );
+  const cashPenaltyPaid = (transactions || []).reduce(
+    (s, t) => s + parseFloat(t.penalty_portion || 0),
+    0,
+  );
+  const cashAmountDuePaid = Math.max(0, cashPaidTotal - cashPenaltyPaid);
+  const waiverAmountDue = paid - cashAmountDuePaid; // amount_due settled by waivers
   const due = parseFloat(loan.total_amount_due || 0);
   const paid = parseFloat(loan.total_paid || 0);
   const balance = Math.max(0, due - paid);
@@ -242,6 +266,12 @@ function LoanDetails() {
             <div>
               <p className="text-white/75 text-xs">Paid So Far</p>
               <p className="text-lg font-bold">{KES(paid)}</p>
+              {waiverAmountDue > 0.01 && (
+                <p className="text-white/70 text-[10px] leading-tight mt-0.5">
+                  {KES(cashAmountDuePaid)} cash
+                  <br />+ {KES(waiverAmountDue)} waived
+                </p>
+              )}
             </div>
             <div>
               <p className="text-white/75 text-xs">Balance</p>
@@ -770,7 +800,12 @@ function LoanDetails() {
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-500">Total Paid</p>
+                              <p
+                                className="text-gray-500"
+                                title="Includes amount settled by lender waivers, not just cash"
+                              >
+                                Settled
+                              </p>
                               <p className="font-bold text-green-600">
                                 {KES(t.receipt.total_paid_after_this)}
                               </p>
@@ -792,6 +827,11 @@ function LoanDetails() {
                           <p className="font-bold text-green-600">
                             {KES(receiptSummary.total_paid)}
                           </p>
+                          {waiverAmountDue > 0.01 && (
+                            <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                              {KES(cashAmountDuePaid)} cash + {KES(waiverAmountDue)} waived
+                            </p>
+                          )}
                         </div>
                         <div>
                           <p className="text-xs text-gray-500">Remaining</p>
