@@ -73,19 +73,33 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     // (loan interest + processing fees + penalty income). Split out the
     // two interest-style components — same formulas Reports uses, so
     // figures agree across pages.
+    //
+    // loan_interest_earned uses per-loan (cash applied to amount_due)
+    // × interest ratio, computed from payment_schedules via per-row
+    // LEAST(amount_paid, amount_due). The OLD formula computed the
+    // cash base from transactions as (amount_paid − penalty −
+    // overpayment), which on reducing-balance loans wrongly included
+    // principal knockdown (cash that overshot the row to wipe future
+    // installments). Knockdown is 100% principal — ratioing it
+    // produced phantom interest income.
     const breakdown = await query(
       `SELECT
          COALESCE(SUM(
-           (t.amount_paid
-              - COALESCE(t.overpayment_portion, 0)
-              - COALESCE(t.penalty_portion, 0))
-           * (l.total_interest / NULLIF(l.total_amount_due, 0))
+           COALESCE(per_loan.cash_to_amount_due, 0)
+             * (l.total_interest / NULLIF(l.total_amount_due, 0))
          ), 0)::float                                              AS loan_interest_earned,
-         COALESCE(SUM(COALESCE(t.penalty_portion, 0)), 0)::float   AS fines_collected
-       FROM transactions t
-       JOIN loans l ON t.loan_id = l.id
-       WHERE t.tenant_id = $1
-         AND t.payment_status = 'completed'`,
+         (SELECT COALESCE(SUM(COALESCE(t.penalty_portion, 0)), 0)::float
+            FROM transactions t
+           WHERE t.tenant_id = $1
+             AND t.payment_status = 'completed')                   AS fines_collected
+       FROM loans l
+       LEFT JOIN (
+         SELECT loan_id, SUM(LEAST(amount_paid, amount_due)) AS cash_to_amount_due
+         FROM payment_schedules
+         GROUP BY loan_id
+       ) per_loan ON per_loan.loan_id = l.id
+       WHERE l.tenant_id = $1
+         AND l.status IN ('active', 'completed', 'defaulted')`,
       [tid],
     );
 

@@ -72,19 +72,37 @@ class AnalyticsService {
       [tenantId, dateFrom || null, dateTo || null],
     );
 
+    // Interest earned = per-loan (cash actually applied to amount_due) ×
+    // interest-share-ratio, summed across loans in window. The OLD
+    // formula used (amount_paid − penalty − overpayment) as the cash
+    // base from the transactions table, which on reducing-balance loans
+    // includes the principal knockdown (cash that overshot the row's
+    // amount_due to wipe future installments via recompute). Knockdown
+    // is 100% principal recovery — multiplying it by the loan's
+    // interest ratio invented phantom interest income. Loan 313
+    // example: 40,599 knockdown × 0.83 ratio = +33.7k of fake interest.
+    //
+    // The cash base now comes from payment_schedules with a per-row
+    // LEAST(amount_paid, amount_due) cap, which excludes knockdown by
+    // construction. Window filter is loan disbursal date (same filter
+    // as total_disbursed above), giving the correct figure when a
+    // loan's payments all sit in the window — accepted limitation when
+    // payments span windows.
     const interest = await query(
       `SELECT COALESCE(SUM(
-         (t.amount_paid
-            - COALESCE(t.overpayment_portion, 0)
-            - COALESCE(t.penalty_portion, 0))
-         * (l.total_interest / NULLIF(l.total_amount_due, 0))
+         COALESCE(per_loan.cash_to_amount_due, 0)
+           * (l.total_interest / NULLIF(l.total_amount_due, 0))
        ), 0)::float AS interest_earned
-       FROM transactions t
-       JOIN loans l ON t.loan_id = l.id
-       WHERE t.tenant_id = $1
-         AND t.payment_status = 'completed'
-         AND ($2::date IS NULL OR t.payment_date >= $2)
-         AND ($3::date IS NULL OR t.payment_date <= $3)`,
+       FROM loans l
+       LEFT JOIN (
+         SELECT loan_id, SUM(LEAST(amount_paid, amount_due)) AS cash_to_amount_due
+         FROM payment_schedules
+         GROUP BY loan_id
+       ) per_loan ON per_loan.loan_id = l.id
+       WHERE l.tenant_id = $1
+         AND l.status IN ('active', 'completed', 'defaulted')
+         AND ($2::date IS NULL OR l.disbursed_at::date >= $2)
+         AND ($3::date IS NULL OR l.disbursed_at::date <= $3)`,
       [tenantId, dateFrom || null, dateTo || null],
     );
 
