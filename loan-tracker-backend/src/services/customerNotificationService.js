@@ -33,14 +33,35 @@ async function generate(pcId = null) {
   // Application picked up for review (staff clicked "Start Review"
   // or otherwise transitioned the loan to under_review). reviewed_at
   // is set on direct-approve too via COALESCE in the approve route,
-  // so this also fires for fast-track approvals — fine, the customer
-  // sees "your application is being reviewed" before "approved",
-  // which is the right narrative.
+  // so this also fires for fast-track approvals.
+  //
+  // created_at is capped at the EARLIEST later milestone so the
+  // bell stays chronologically sane even when reviewed_at gets
+  // backfilled after disbursement. Example seen in prod: a loan
+  // disbursed at 00:00 (date-only field), then staff later
+  // clicked "Start Review" at 23:07 — review row's reviewed_at
+  // jumped to 23:07. Without the LEAST() cap, the notification
+  // showed "under review · 3 min ago" above "disbursed · 23 h
+  // ago", which reads backwards. With the cap it pins the
+  // under_review timestamp to the disbursed_at it can't logically
+  // come after.
+  // Subtracting 1-second offsets so the cap doesn't just *tie* the
+  // pre-terminal event with the milestone (which leaves the bell's
+  // ORDER BY ambiguous), but visibly precedes it. Customer reads
+  // "under review · 25 h ago / disbursed · 23 h ago" instead of two
+  // events stamped at the same moment.
   await query(
     `INSERT INTO customer_notifications
        (platform_customer_id, tenant_id, loan_id, type, amount, dedupe_key, created_at)
      SELECT ctl.platform_customer_id, l.tenant_id, l.id, 'under_review', l.principal_amount,
-            'under_review:' || l.id, l.reviewed_at
+            'under_review:' || l.id,
+            LEAST(
+              l.reviewed_at,
+              COALESCE(l.counter_offered_at - INTERVAL '1 second', l.reviewed_at),
+              COALESCE(l.approved_at        - INTERVAL '1 second', l.reviewed_at),
+              COALESCE(l.disbursed_at       - INTERVAL '1 second', l.reviewed_at),
+              COALESCE(l.rejected_at        - INTERVAL '1 second', l.reviewed_at)
+            )
      FROM loans l ${LINK}
      WHERE l.reviewed_at IS NOT NULL ${filter}
      ON CONFLICT (platform_customer_id, dedupe_key) DO NOTHING`,
@@ -49,24 +70,38 @@ async function generate(pcId = null) {
 
   // Counter-offer received from the lender. amount is the offered
   // (counter) figure — what the lender is willing to give — so the
-  // customer sees the new number in the bell directly.
+  // customer sees the new number in the bell directly. Same
+  // chronological cap as under_review.
   await query(
     `INSERT INTO customer_notifications
        (platform_customer_id, tenant_id, loan_id, type, amount, dedupe_key, created_at)
      SELECT ctl.platform_customer_id, l.tenant_id, l.id, 'counter_offered', l.offered_amount,
-            'counter_offered:' || l.id, l.counter_offered_at
+            'counter_offered:' || l.id,
+            LEAST(
+              l.counter_offered_at,
+              COALESCE(l.approved_at  - INTERVAL '1 second', l.counter_offered_at),
+              COALESCE(l.disbursed_at - INTERVAL '1 second', l.counter_offered_at),
+              COALESCE(l.rejected_at  - INTERVAL '1 second', l.counter_offered_at)
+            )
      FROM loans l ${LINK}
      WHERE l.counter_offered_at IS NOT NULL ${filter}
      ON CONFLICT (platform_customer_id, dedupe_key) DO NOTHING`,
     p,
   );
 
-  // Application approved
+  // Application approved — capped at disbursed_at so an approval
+  // backfilled after disbursement can't bubble above the disburse
+  // notification. Same 1-second offset trick to enforce strict
+  // ordering in the bell.
   await query(
     `INSERT INTO customer_notifications
        (platform_customer_id, tenant_id, loan_id, type, amount, dedupe_key, created_at)
      SELECT ctl.platform_customer_id, l.tenant_id, l.id, 'approved', l.principal_amount,
-            'approved:' || l.id, l.approved_at
+            'approved:' || l.id,
+            LEAST(
+              l.approved_at,
+              COALESCE(l.disbursed_at - INTERVAL '1 second', l.approved_at)
+            )
      FROM loans l ${LINK}
      WHERE l.status = 'approved' AND l.approved_at IS NOT NULL ${filter}
      ON CONFLICT (platform_customer_id, dedupe_key) DO NOTHING`,
