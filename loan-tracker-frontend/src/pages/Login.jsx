@@ -27,6 +27,24 @@ function Login() {
       }
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(u));
+      // Subdomain self-correction: if the user authenticated on the
+      // wrong *.loanfix.net subdomain (e.g. landed on kuwazo's URL
+      // but credentials belong to payoneer), hop to the right one
+      // BEFORE handing control to setUser/navigate so the post-login
+      // load happens on the correct host. Skipped for hosts outside
+      // loanfix.net (localhost / IP / preview) so dev isn't affected.
+      const desired = u?.tenant?.subdomain;
+      const host = window.location.hostname;
+      if (
+        desired
+        && host.endsWith('.loanfix.net')
+        && host.slice(0, -('.loanfix.net'.length)) !== desired
+      ) {
+        window.location.replace(
+          `https://${desired}.loanfix.net/`,
+        );
+        return;
+      }
       setUser(u);
       navigate('/');
     } catch (err) {

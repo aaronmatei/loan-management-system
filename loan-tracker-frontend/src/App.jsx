@@ -106,6 +106,34 @@ function App() {
     localStorage.removeItem("loanfix:period");
   };
 
+  // Subdomain self-correction. If the URL says "kuwazo.loanfix.net"
+  // but the signed JWT/user belongs to a different tenant (e.g. you
+  // logged in via the wrong subdomain), redirect to the user's own
+  // subdomain so the URL, branding, and tenant always agree. The
+  // backend already scopes data by JWT — never by subdomain — so
+  // this is purely a UX fix; data was never crossed.
+  //
+  // Guards:
+  //   • only acts on *.loanfix.net hosts (skips localhost / preview
+  //     / IP / bare loanfix.net so dev + landing aren't redirected)
+  //   • skips platform admins (they're meant to roam tenants)
+  //   • preserves the current path + query so the user lands where
+  //     they were trying to go, just on the right subdomain
+  useEffect(() => {
+    if (!user) return;
+    const desired = user?.tenant?.subdomain;
+    if (!desired) return; // pre-tenant accounts: no subdomain to enforce
+    if (user.is_platform_admin) return;
+    const host = window.location.hostname;
+    if (!host.endsWith(".loanfix.net")) return;
+    const current = host.slice(0, host.length - ".loanfix.net".length);
+    // Ignore the reserved labels — landing/api shouldn't redirect.
+    if (["www", "api", ""].includes(current)) return;
+    if (current === desired) return;
+    const target = `https://${desired}.loanfix.net${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(target);
+  }, [user]);
+
   // Apply tenant's white-label favicon + tab title when an authed
   // staff session loads. Falls back silently when the endpoint isn't
   // available (basic tier / favicon unset). No-op for guests.
