@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Search, ChevronRight } from "lucide-react";
+import { Building2, Search, ChevronRight, Info, Link2 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
@@ -128,6 +128,27 @@ function Lenders() {
         <p className="text-slate-500 mb-3">
           Browse every lender on LoanFix and compare their terms.
         </p>
+        {/* Borrowing rule — front-and-centre so a customer doesn't
+            tap a lender expecting a one-tap apply and bounce off the
+            "Link to apply" prompt. Stays visible above the filter
+            chips because the answer to "why can't I apply here?"
+            should be on the page that triggers the question, not
+            on the next screen. */}
+        <div
+          role="note"
+          className="mb-5 flex items-start gap-3 rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-sm text-sky-900"
+        >
+          <Info size={18} className="mt-0.5 shrink-0 text-sky-600" />
+          <p className="leading-relaxed">
+            <span className="font-semibold">You can only borrow from lenders you've linked.</span>{" "}
+            Tap a lender to view their terms and{" "}
+            <span className="inline-flex items-center gap-1 font-semibold text-sky-700">
+              <Link2 size={13} /> Link
+            </span>{" "}
+            them — applications and repayments open up once the link
+            is active.
+          </p>
+        </div>
 
         {/* Filter by lender type. Each chip's colour matches the row colour,
             so this doubles as the colour legend. */}
