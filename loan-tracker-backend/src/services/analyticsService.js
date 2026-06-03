@@ -72,37 +72,70 @@ class AnalyticsService {
       [tenantId, dateFrom || null, dateTo || null],
     );
 
-    // Interest earned = per-loan (cash actually applied to amount_due) ×
-    // interest-share-ratio, summed across loans in window. The OLD
-    // formula used (amount_paid − penalty − overpayment) as the cash
-    // base from the transactions table, which on reducing-balance loans
-    // includes the principal knockdown (cash that overshot the row's
-    // amount_due to wipe future installments via recompute). Knockdown
-    // is 100% principal recovery — multiplying it by the loan's
-    // interest ratio invented phantom interest income. Loan 313
-    // example: 40,599 knockdown × 0.83 ratio = +33.7k of fake interest.
+    // Interest earned = sum across transactions IN THE WINDOW of
+    // (this txn's cash that went into amount_due) × loan interest
+    // ratio. Two things needed for correctness:
     //
-    // The cash base now comes from payment_schedules with a per-row
-    // LEAST(amount_paid, amount_due) cap, which excludes knockdown by
-    // construction. Window filter is loan disbursal date (same filter
-    // as total_disbursed above), giving the correct figure when a
-    // loan's payments all sit in the window — accepted limitation when
-    // payments span windows.
+    //   a) "Cash into amount_due" must exclude principal knockdown
+    //      (reducing-balance prepayments that overshoot the row's
+    //      amount_due to wipe future installments). Knockdown is
+    //      100% principal — multiplying it by the interest ratio
+    //      invents phantom interest income (loan 313 example:
+    //      40,599 knockdown × 0.83 ratio = +33.7k fake interest).
+    //
+    //   b) Window filter on t.payment_date, NOT loan disbursal —
+    //      a payment that lands in May is May income even if the
+    //      loan was disbursed in April. (Earlier disbursal-date
+    //      filter was a regression: May reports showed 113k
+    //      collected but 0 interest.)
+    //
+    // Per-txn cap: each transaction's cash counts up to the loan's
+    // remaining amount-due space at the time the txn lands, in
+    // payment_date order. Cumulatively this can't exceed
+    // total_amount_due − waived_total per loan — anything beyond
+    // is principal knockdown (or overpayment, already excluded).
+    // Window function computes "cash applied before this txn" per
+    // loan so each txn knows how much room is left.
     const interest = await query(
-      `SELECT COALESCE(SUM(
-         COALESCE(per_loan.cash_to_amount_due, 0)
-           * (l.total_interest / NULLIF(l.total_amount_due, 0))
+      `WITH txn_running AS (
+         SELECT
+           t.id,
+           t.payment_date,
+           l.total_amount_due,
+           l.total_interest,
+           COALESCE(w.waived_total, 0) AS waived_total,
+           (t.amount_paid
+              - COALESCE(t.penalty_portion, 0)
+              - COALESCE(t.overpayment_portion, 0)) AS this_cash,
+           COALESCE(SUM(
+             t.amount_paid
+               - COALESCE(t.penalty_portion, 0)
+               - COALESCE(t.overpayment_portion, 0)
+           ) OVER (
+             PARTITION BY t.loan_id
+             ORDER BY t.payment_date, t.id
+             ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+           ), 0) AS cash_before
+         FROM transactions t
+         JOIN loans l ON t.loan_id = l.id
+         LEFT JOIN (
+           SELECT loan_id,
+                  SUM(COALESCE((allocation->>'amount_total')::float, 0)) AS waived_total
+             FROM loan_waivers WHERE status = 'approved'
+            GROUP BY loan_id
+         ) w ON w.loan_id = l.id
+         WHERE t.tenant_id = $1
+           AND t.payment_status = 'completed'
+       )
+       SELECT COALESCE(SUM(
+         GREATEST(0, LEAST(
+           this_cash,
+           GREATEST(0, total_amount_due - waived_total - cash_before)
+         )) * (total_interest / NULLIF(total_amount_due, 0))
        ), 0)::float AS interest_earned
-       FROM loans l
-       LEFT JOIN (
-         SELECT loan_id, SUM(LEAST(amount_paid, amount_due)) AS cash_to_amount_due
-         FROM payment_schedules
-         GROUP BY loan_id
-       ) per_loan ON per_loan.loan_id = l.id
-       WHERE l.tenant_id = $1
-         AND l.status IN ('active', 'completed', 'defaulted')
-         AND ($2::date IS NULL OR l.disbursed_at::date >= $2)
-         AND ($3::date IS NULL OR l.disbursed_at::date <= $3)`,
+       FROM txn_running
+       WHERE ($2::date IS NULL OR payment_date >= $2)
+         AND ($3::date IS NULL OR payment_date <= $3)`,
       [tenantId, dateFrom || null, dateTo || null],
     );
 
