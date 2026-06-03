@@ -79,9 +79,16 @@ import Applications from "./pages/Applications";
 import Notifications from "./pages/Notifications";
 import Referrals from "./pages/Referrals";
 import Layout from "./components/Layout";
+import { buildAuthHandoff, consumeAuthHandoff } from "./utils/authHandoff";
 
 function App() {
   const [user, setUser] = useState(() => {
+    // Hash handoff wins over localStorage so a cross-subdomain
+    // redirect overwrites whatever stale session this subdomain
+    // had — kills the ping-pong loop noted above.
+    const handoffUser = consumeAuthHandoff();
+    if (handoffUser) return handoffUser;
+
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
 
@@ -130,7 +137,20 @@ function App() {
     // Ignore the reserved labels — landing/api shouldn't redirect.
     if (["www", "api", ""].includes(current)) return;
     if (current === desired) return;
-    const target = `https://${desired}.loanfix.net${window.location.pathname}${window.location.search}${window.location.hash}`;
+    // Hand the current token+user to the target subdomain via the
+    // fragment so its (possibly stale) localStorage doesn't
+    // immediately redirect us back here. Falls back to a plain
+    // redirect if the handoff can't be built — at worst we hit
+    // the login screen on the right subdomain.
+    const token = localStorage.getItem("token");
+    const handoff = token ? buildAuthHandoff(token, user) : null;
+    const existingHash = window.location.hash || "";
+    const targetHash = handoff
+      ? existingHash
+        ? `${existingHash}&${handoff}`
+        : `#${handoff}`
+      : existingHash;
+    const target = `https://${desired}.loanfix.net${window.location.pathname}${window.location.search}${targetHash}`;
     window.location.replace(target);
   }, [user]);
 

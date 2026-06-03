@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { buildAuthHandoff } from '../utils/authHandoff';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -30,9 +31,14 @@ function Login() {
       // Subdomain self-correction: if the user authenticated on the
       // wrong *.loanfix.net subdomain (e.g. landed on kuwazo's URL
       // but credentials belong to payoneer), hop to the right one
-      // BEFORE handing control to setUser/navigate so the post-login
-      // load happens on the correct host. Skipped for hosts outside
-      // loanfix.net (localhost / IP / preview) so dev isn't affected.
+      // BEFORE handing control to setUser/navigate. The auth token +
+      // user are passed via fragment (#__lf_auth=…) so the target
+      // subdomain's localStorage gets overwritten with this fresh
+      // session before its App.jsx reads it — without that, any
+      // stale session under a different tenant on the target would
+      // immediately bounce us back here in an infinite ping-pong.
+      // Skipped on non-loanfix.net hosts so dev/preview aren't
+      // affected.
       const desired = u?.tenant?.subdomain;
       const host = window.location.hostname;
       if (
@@ -40,8 +46,10 @@ function Login() {
         && host.endsWith('.loanfix.net')
         && host.slice(0, -('.loanfix.net'.length)) !== desired
       ) {
+        const handoff = buildAuthHandoff(response.data.token, u);
+        const hash = handoff ? `#${handoff}` : '';
         window.location.replace(
-          `https://${desired}.loanfix.net/`,
+          `https://${desired}.loanfix.net/${hash}`,
         );
         return;
       }
