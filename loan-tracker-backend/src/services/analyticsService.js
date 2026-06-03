@@ -168,18 +168,31 @@ class AnalyticsService {
            COALESCE(
              (w.allocation->>'principal_total')::float,
              COALESCE((w.allocation->>'amount_total')::float, 0)
-               * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+               * GREATEST(
+                   0,
+                   l.total_amount_due - COALESCE(l.total_interest, 0)
+                 ) / NULLIF(l.total_amount_due, 0)
            )
          ), 0)::float                                         AS waivers_principal,
-         -- Contract-ratio principal write-off (treasury lens, used by
-         -- Reports' Net Profit calc). Always uses the principal/total
-         -- ratio against amount_total, regardless of the admin's
-         -- declared waiver type — same lens capital.js applies to
-         -- outstanding_principal. Penalty-only waivers contribute
-         -- zero here because they don't touch amount_due at all.
+         -- Principal write-off (treasury lens, used by Reports'
+         -- Net Profit calc). Prefers the admin's declared
+         -- principal_total on the waiver allocation; falls back
+         -- to (total_amount_due − total_interest) / total_amount_due
+         -- — the row-composition ratio that stays correct after
+         -- reducing-balance recompute, unlike the old
+         -- principal_amount/total_amount_due ratio which inflated
+         -- writeoff once a knockdown shrunk total_amount_due.
+         -- Penalty-only waivers contribute zero here because they
+         -- don't touch amount_due at all.
          COALESCE(SUM(
-           COALESCE((w.allocation->>'amount_total')::float, 0)
-             * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+           COALESCE(
+             (w.allocation->>'principal_total')::float,
+             COALESCE((w.allocation->>'amount_total')::float, 0)
+               * GREATEST(
+                   0,
+                   l.total_amount_due - COALESCE(l.total_interest, 0)
+                 ) / NULLIF(l.total_amount_due, 0)
+           )
          ), 0)::float                                         AS principal_written_off_by_ratio,
          -- Same contract-ratio lens for the interest side — used by
          -- Reports' "Interest from Loans" tile so that

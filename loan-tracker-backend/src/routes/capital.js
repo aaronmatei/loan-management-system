@@ -185,7 +185,10 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
            COALESCE(
              (w.allocation->>'principal_total')::float,
              COALESCE((w.allocation->>'amount_total')::float, 0)
-               * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+               * GREATEST(
+                   0,
+                   l.total_amount_due - COALESCE(l.total_interest, 0)
+                 ) / NULLIF(l.total_amount_due, 0)
            )
          ), 0)::float                                           AS principal_waived
        FROM loan_waivers w
@@ -224,17 +227,44 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     status.total_expenses = totalExpenses;
     status.total_waived = totalWaived;
 
-    // Contract-ratio principal write-off — drives BOTH the
-    // "Loaned Out" tile (subtract from outstanding_principal) AND
-    // net_profit_lifetime (the only real cash loss not already
-    // implicit in lower cash receipts). Treasury lens: a waiver
-    // against amount_due forgives principal in lockstep with
-    // interest no matter how the admin labelled it, because the
-    // borrower will not be paying that principal back either way.
+    // Principal write-off — drives BOTH the "Loaned Out" tile
+    // (subtract from outstanding_principal) AND net_profit_lifetime
+    // (the only real cash loss not already implicit in lower cash
+    // receipts).
+    //
+    // Two-tier formula:
+    //   1) If the waiver allocation declares principal_total
+    //      (newer waivers from waiverService), use it verbatim —
+    //      it's the admin's intent. An interest-only waiver
+    //      declares principal_total = 0 so nothing is written off,
+    //      which is correct: the principal is still owed/recoverable.
+    //   2) Otherwise fall back to a row-based ratio using the loan's
+    //      CURRENT total_interest / total_amount_due. The old
+    //      formula used l.principal_amount / l.total_amount_due
+    //      which broke after reducing-balance recompute — once a
+    //      knockdown shrinks total_amount_due, l.principal_amount
+    //      (which doesn't change) no longer reflects the principal
+    //      share in the remaining rows, and the ratio overstates
+    //      writeoff dramatically. For loan 313 (50k principal,
+    //      40.6k knocked down) the broken ratio attributed 10,654
+    //      of a 12k interest waiver as principal write-off vs. the
+    //      ~2,003 the row composition actually supports. That
+    //      8,651 over-count was exactly the gap between pool
+    //      growth and net profit on the dashboard.
+    //
+    // After this, the cash-flow identity holds:
+    //   available_pool − initial_capital ≡ net_profit_lifetime
+    //   (when there's no outstanding principal and no pending refund).
     const principalWriteOff = await query(
       `SELECT COALESCE(SUM(
-         COALESCE((w.allocation->>'amount_total')::float, 0)
-           * (l.principal_amount / NULLIF(l.total_amount_due, 0))
+         COALESCE(
+           (w.allocation->>'principal_total')::float,
+           COALESCE((w.allocation->>'amount_total')::float, 0)
+             * GREATEST(
+                 0,
+                 l.total_amount_due - COALESCE(l.total_interest, 0)
+               ) / NULLIF(l.total_amount_due, 0)
+         )
        ), 0)::float AS principal_written_off
        FROM loan_waivers w
        JOIN loans l ON l.id = w.loan_id

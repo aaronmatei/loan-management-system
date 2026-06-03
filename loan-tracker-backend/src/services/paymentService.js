@@ -416,24 +416,37 @@ export async function recordLoanPayment({
   );
   const transaction = txnResult.rows[0];
 
-  // Snapshot schedule totals BEFORE cascade so we can compute this
-  // transaction's contribution to (cash-applied-to-amount_due) and
-  // (principal-knockdown) by subtracting later. Booking to the
-  // capital pool needs these deltas to split principal recovery
-  // correctly: knockdown is 100% principal recovery; only the
-  // amount-due-settling cash gets ratio-split into principal /
-  // interest. Without the snapshot we'd either over-attribute
-  // interest (the old bug) or have to instrument the cascade with
-  // per-iteration tracking, which fragments the math.
-  const preCascadeSnap = await query(
-    `SELECT
-        COALESCE(SUM(LEAST(amount_paid, amount_due)), 0) AS cash_to_due_pre,
-        COALESCE(SUM(GREATEST(0, amount_paid - amount_due)), 0) AS knockdown_pre
+  // Snapshot every schedule row BEFORE the cascade so the pool
+  // booking can do per-row attribution of cash → principal vs
+  // interest. A loan-level ratio (interest_total / amount_due)
+  // is correct on aggregate but wrong on a row that's been
+  // partially settled by a waiver: when 10k of interest is
+  // waived on a row whose amount_due is 11,263, the remaining
+  // 1,263 of cash is pure principal — ratio-splitting it
+  // overstates interest income and understates principal
+  // recovery by the principal share of the waiver. Carrying
+  // (amount_due, amount_paid, interest_paid, interest_portion,
+  //  principal_portion) lets us replay per-row settlement after
+  // the cascade with full waiver visibility.
+  const preCascadeRows = await query(
+    `SELECT id, amount_due, amount_paid, COALESCE(interest_paid, 0) AS interest_paid,
+            COALESCE(interest_portion, 0) AS interest_portion,
+            COALESCE(principal_portion, 0) AS principal_portion
        FROM payment_schedules WHERE loan_id = $1`,
     [loanId],
   );
-  const cashToDuePre = parseFloat(preCascadeSnap.rows[0].cash_to_due_pre);
-  const knockdownPre = parseFloat(preCascadeSnap.rows[0].knockdown_pre);
+  const preRowMap = new Map(
+    preCascadeRows.rows.map((r) => [
+      r.id,
+      {
+        amount_due: parseFloat(r.amount_due),
+        amount_paid: parseFloat(r.amount_paid),
+        interest_paid: parseFloat(r.interest_paid),
+        interest_portion: parseFloat(r.interest_portion),
+        principal_portion: parseFloat(r.principal_portion),
+      },
+    ]),
+  );
 
   // Update payment schedule — only the post-penalty portion reduces amount_due.
   let remainingAmount = amountTowardSchedule;
@@ -708,70 +721,55 @@ export async function recordLoanPayment({
     // logging consistent and gated by tenant prefs.
   }
 
-  // Capital pool booking — split this transaction's cash into
-  // principal recovery, interest earned, and penalty income.
+  // Capital pool booking — per-row attribution of this txn's
+  // cash to interest income vs. principal recovery.
   //
-  // Reducing-balance loans split THIS payment's effect on the
-  // schedule into two cash streams:
-  //   1) cash that settled amount_due on schedule rows
-  //      (capped at each row's amount_due) — gets ratio-split
-  //      principal / interest using the loan's CURRENT
-  //      total_interest / total_amount_due (post-recompute).
-  //   2) principal knockdown (cash that overshot a row's
-  //      amount_due to wipe future installments via recompute) —
-  //      booked as 100% principal recovery. Knockdown is by
-  //      definition extra principal payment; ratio-splitting it
-  //      would invent phantom interest income (the old bug —
-  //      loan 313's 40,599 knockdown × 0.83 ratio inflated
-  //      interest earned by 33.7k).
+  // For each row this txn touched (post.amount_paid changed):
+  //   cash_added           = post.amount_paid − pre.amount_paid
+  //   cash_to_amount_due   = min(cash_added, pre.amount_due − pre.amount_paid)
+  //   knockdown            = cash_added − cash_to_amount_due (100% principal)
+  //   interest_room        = max(0, pre.interest_portion − pre.interest_paid)
+  //   cash_to_interest     = min(cash_to_amount_due, interest_room)
+  //   cash_to_principal    = cash_to_amount_due − cash_to_interest + knockdown
   //
-  // Overpayment is NOT booked to the pool — it's a refund
-  // liability tracked on loans.overpayment_amount. Available_pool
-  // therefore reflects "lendable cash" (gross cash net of
-  // refunds-pending), not raw cash position.
+  // Sum across rows for the txn's totals. This gives the right
+  // split when waivers have settled the interest side of a row
+  // and the cash that arrives is pure principal — a loan-level
+  // ratio can't see that, and inflates interest income by the
+  // principal share of the waiver. For loan 313, the ratio
+  // approach booked 47,996.90 principal / 39,919.76 interest;
+  // per-row attribution books 50,000 / 37,915.87 — which is the
+  // composition that actually settled (interest = sum of
+  // (cash to fill interest_portion − waiver_interest) per row).
   //
-  // Compute this txn's deltas by subtracting the pre-cascade
-  // snapshot from the current (post-cascade, post-recompute)
-  // state. Post-recompute is correct: total_interest / total_due
-  // already reflects the smaller, post-knockdown contract.
-  const postCascadeSnap = await query(
-    `SELECT
-        COALESCE(SUM(LEAST(amount_paid, amount_due)), 0) AS cash_to_due_post,
-        COALESCE(SUM(GREATEST(0, amount_paid - amount_due)), 0) AS knockdown_post
-       FROM payment_schedules WHERE loan_id = $1`,
+  // Knockdown still books as 100% principal — it's by definition
+  // extra principal payment beyond contractual amount_due.
+  //
+  // Overpayment is NOT booked to the pool; it stays a refund
+  // liability on loans.overpayment_amount so available_pool
+  // reflects lendable cash, not gross cash received.
+  const postCascadeRows = await query(
+    `SELECT id, amount_paid FROM payment_schedules WHERE loan_id = $1`,
     [loanId],
   );
-  const cashToDueDelta = Math.max(
-    0,
-    parseFloat(postCascadeSnap.rows[0].cash_to_due_post) - cashToDuePre,
-  );
-  const knockdownDelta = Math.max(
-    0,
-    parseFloat(postCascadeSnap.rows[0].knockdown_post) - knockdownPre,
-  );
-
-  // Re-read total_amount_due / total_interest post-recompute so the
-  // ratio reflects the loan's current contract, not the stale
-  // snapshot in `loan`.
-  const loanNowRes = await query(
-    `SELECT total_amount_due, total_interest FROM loans WHERE id = $1`,
-    [loanId],
-  );
-  const loanTotalDue = parseFloat(loanNowRes.rows[0].total_amount_due);
-  const loanTotalInterest = parseFloat(loanNowRes.rows[0].total_interest || 0);
-  // Interest share of amount_due. Falls back to 0 on degenerate
-  // contracts (interest > total_due or total_due === 0) — gracefully
-  // skips the split rather than throwing.
-  const interestRatio =
-    loanTotalDue > 0
-      ? Math.max(0, Math.min(1, loanTotalInterest / loanTotalDue))
-      : 0;
-  const principalRatio = 1 - interestRatio;
-
-  const principalFromAmountDue = round2(cashToDueDelta * principalRatio);
-  const interestFromAmountDue = round2(cashToDueDelta * interestRatio);
-  const principalPortion = round2(principalFromAmountDue + knockdownDelta);
-  const interestPortion = interestFromAmountDue;
+  let principalDelta = 0;
+  let interestDelta = 0;
+  for (const post of postCascadeRows.rows) {
+    const pre = preRowMap.get(post.id);
+    if (!pre) continue;
+    const cashAdded = round2(parseFloat(post.amount_paid) - pre.amount_paid);
+    if (cashAdded <= 0) continue;
+    const room = Math.max(0, pre.amount_due - pre.amount_paid);
+    const cashToAmountDue = Math.min(cashAdded, room);
+    const knockdown = round2(cashAdded - cashToAmountDue);
+    const interestRoom = Math.max(0, pre.interest_portion - pre.interest_paid);
+    const cashToInterest = Math.min(cashToAmountDue, interestRoom);
+    const cashToPrincipal = cashToAmountDue - cashToInterest + knockdown;
+    interestDelta += cashToInterest;
+    principalDelta += cashToPrincipal;
+  }
+  const principalPortion = round2(principalDelta);
+  const interestPortion = round2(interestDelta);
 
   await query(
     `UPDATE capital_pool
