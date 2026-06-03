@@ -4,6 +4,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { buildLoanAgreementPdf } from "../utils/pdfDocuments.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
+import { stampExcelSheet } from "../utils/stamp.js";
 import { nextLoanCode } from "../utils/clientCode.js";
 import { getLoanStanding } from "../utils/loanEligibility.js";
 import {
@@ -2608,6 +2609,7 @@ router.post("/bulk/export", async (req, res) => {
     );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
+    await stampExcelSheet(query, sheet, tenantId(req));
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {

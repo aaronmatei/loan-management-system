@@ -10,6 +10,7 @@
 
 import PDFDocument from "pdfkit";
 import { query } from "../config/database.js";
+import { drawPdfStamp } from "./stamp.js";
 
 // Thrown when the primary record (client/loan/transaction) does
 // not exist, so callers can map it to an HTTP 404.
@@ -84,7 +85,13 @@ const receiptTheme = (brandColor) => {
 export const buildClientStatementPdf = async (clientId, tid) => {
   const ct = tClause(tid, 1);
   const clientResult = await query(
-    `SELECT * FROM clients WHERE id = $1${ct.clause}`,
+    `SELECT c.*,
+            tn.business_name AS tenant_name,
+            tn.city AS tenant_city,
+            tn.country AS tenant_country
+       FROM clients c
+       LEFT JOIN tenants tn ON tn.id = c.tenant_id
+      WHERE c.id = $1${ct.clause}`,
     [clientId, ...ct.params],
   );
   if (clientResult.rows.length === 0) {
@@ -280,6 +287,21 @@ export const buildClientStatementPdf = async (clientId, tid) => {
     { align: "center", width: 495 },
   );
 
+  // Official stamp — bottom-right, doesn't shift the system-
+  // generated footer text. Anchored to a fixed page coordinate
+  // so it sits in the same spot whether the LOAN HISTORY table
+  // ran short or long.
+  drawPdfStamp(doc, {
+    x: 420,
+    y: 640,
+    size: 130,
+    tenant: {
+      business_name: client.tenant_name,
+      city: client.tenant_city,
+      country: client.tenant_country,
+    },
+  });
+
   doc.end();
   const buffer = await done;
   return { buffer, filename };
@@ -292,9 +314,14 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
   const lt = tClause(tid, 1, "l.tenant_id");
   const loanResult = await query(
     `
-      SELECT l.*, c.first_name, c.last_name, c.phone_number, c.email, c.client_code
+      SELECT l.*,
+             c.first_name, c.last_name, c.phone_number, c.email, c.client_code,
+             tn.business_name AS tenant_name,
+             tn.city AS tenant_city,
+             tn.country AS tenant_country
       FROM loans l
       JOIN clients c ON l.client_id = c.id
+      JOIN tenants tn ON tn.id = l.tenant_id
       WHERE l.id = $1${lt.clause}
     `,
     [loanId, ...lt.params],
@@ -512,6 +539,20 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
   doc.text(formatCurrency(scheduleSumPaid), 310, y);
   y += 15;
 
+  // Official stamp — bottom-right of the page so it sits below
+  // the data. Uses the lender's name + city + country so each
+  // tenant brands its own documents.
+  drawPdfStamp(doc, {
+    x: 410,
+    y: Math.min(y + 10, 670),
+    size: 130,
+    tenant: {
+      business_name: loan.tenant_name,
+      city: loan.tenant_city,
+      country: loan.tenant_country,
+    },
+  });
+
   doc.end();
   const buffer = await done;
   return { buffer, filename };
@@ -528,7 +569,8 @@ export const buildReceiptPdf = async (transactionId, tid) => {
       SELECT t.*,
         l.loan_code, l.principal_amount, l.total_amount_due,
         c.first_name, c.last_name, c.phone_number, c.client_code,
-        tn.brand_color, tn.business_name, tn.hide_platform_branding
+        tn.brand_color, tn.business_name, tn.hide_platform_branding,
+        tn.city AS tenant_city, tn.country AS tenant_country
       FROM transactions t
       JOIN loans l ON t.loan_id = l.id
       JOIN clients c ON t.client_id = c.id
@@ -898,6 +940,21 @@ export const buildReceiptPdf = async (transactionId, tid) => {
       .text("Powered by LoanFix", PAD, by, { width: CW, align: "center" });
   }
 
+  // Stamp the receipt — A5 page (420×595pt), so use a small
+  // stamp (~80pt) tucked under the "system-generated" notice.
+  // Centered on the card horizontally.
+  drawPdfStamp(doc, {
+    x: (420 - 80) / 2,
+    y: Math.min(by + 18, 495),
+    size: 80,
+    tenant: {
+      business_name: txn.business_name,
+      city: txn.tenant_city,
+      country: txn.tenant_country,
+    },
+    date: txn.payment_date || new Date(),
+  });
+
   doc.end();
   const buffer = await done;
   return { buffer, filename };
@@ -934,6 +991,11 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
     "SELECT * FROM company_settings WHERE tenant_id = $1",
     [loan.tenant_id],
   );
+  const tenantResult = await query(
+    "SELECT business_name, city, country FROM tenants WHERE id = $1",
+    [loan.tenant_id],
+  );
+  const tenant = tenantResult.rows[0] || {};
   const company = companyResult.rows[0] || {
     company_name: "Your Company",
     company_address: "P.O Box 12345-00100, Nairobi",
@@ -1326,6 +1388,21 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
     `Loan Code: ${loan.loan_code} | Generated: ${new Date().toLocaleString()}`,
     { align: "center" },
   );
+
+  // Official stamp on the agreement — bottom-right, well clear
+  // of the witness/signature lines. Uses the tenant business
+  // name (matches the company letterhead) so the agreement
+  // bears the same brand twice.
+  drawPdfStamp(doc, {
+    x: 420,
+    y: 660,
+    size: 130,
+    tenant: {
+      business_name: tenant.business_name || company.company_name,
+      city: tenant.city,
+      country: tenant.country,
+    },
+  });
 
   doc.end();
   const buffer = await done;

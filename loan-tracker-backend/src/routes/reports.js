@@ -11,6 +11,7 @@ import {
   buildLoanAgreementPdf,
   NotFoundError,
 } from "../utils/pdfDocuments.js";
+import { stampExcelSheet } from "../utils/stamp.js";
 
 const router = express.Router();
 
@@ -134,6 +135,7 @@ router.get("/export/clients", async (req, res) => {
     );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
+    await stampExcelSheet(query, sheet, tenantId(req));
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
@@ -288,6 +290,7 @@ router.get("/export/loans", async (req, res) => {
     );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
+    await stampExcelSheet(query, sheet, tenantId(req));
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
@@ -383,6 +386,7 @@ router.get("/export/payments", async (req, res) => {
     );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
+    await stampExcelSheet(query, sheet, tenantId(req));
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
@@ -462,6 +466,7 @@ router.get("/export/overdue", async (req, res) => {
     );
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
+    await stampExcelSheet(query, sheet, tenantId(req));
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {

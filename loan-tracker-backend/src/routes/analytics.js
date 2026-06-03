@@ -2,6 +2,7 @@ import express from "express";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import { query } from "../config/database.js";
+import { stampExcelSheet } from "../utils/stamp.js";
 import { verifyToken } from "../middleware/auth.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import analyticsService from "../services/analyticsService.js";
@@ -1115,6 +1116,12 @@ router.get("/export/excel", async (req, res) => {
       pattern: "solid",
       fgColor: { argb: "FFE5E7EB" },
     };
+
+    // Official stamp on each sheet so a downloaded report
+    // carries the lender's brand on every tab. Tenant-scoped
+    // (no-op for platform admins without a tenant context).
+    await stampExcelSheet(query, summary, tid);
+    await stampExcelSheet(query, loansSheet, tid);
 
     const periodSlug = isMonthMode
       ? `${from}_to_${to}`

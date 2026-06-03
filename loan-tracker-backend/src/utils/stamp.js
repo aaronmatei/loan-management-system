@@ -1,0 +1,202 @@
+// Reusable lender "official stamp" for downloadable documents
+// (PDFs + Excels). One source of truth for the artwork — every
+// loan statement, client statement, receipt, and exported sheet
+// pulls the same shape, so the brand reads consistently across
+// every channel.
+//
+// PDF rendering uses svg-to-pdfkit which respects textPath/arc
+// (PDFKit natively can't curve text). Excel rendering is text-
+// only — ExcelJS doesn't render SVG and rasterising would need
+// `sharp` which is heavy native deps; a bordered cell range
+// with name + location + date keeps Excels feeling official
+// without the install footprint.
+import SVGtoPDF from "svg-to-pdfkit";
+
+// Render a Date to the "04 JUN 2026" form the stamp uses.
+// Pulled out so PDF + Excel surfaces print the exact same
+// string, regardless of locale.
+export function formatStampDate(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = d
+    .toLocaleString("en-GB", { month: "short" })
+    .toUpperCase();
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
+// Build the location string from a tenant row. Defaults are
+// blank rather than "NAIROBI · KENYA" so a tenant without
+// address data renders just the business_name + date, not
+// somebody else's city.
+function locationFor(tenant = {}) {
+  const city = (tenant.city || "").trim();
+  const country = (tenant.country || "").trim();
+  if (city && country) return `${city.toUpperCase()} · ${country.toUpperCase()}`;
+  if (city) return city.toUpperCase();
+  if (country) return country.toUpperCase();
+  return "";
+}
+
+// Truncate long lender names so they don't overflow the top arc.
+// 24 characters at the stamp's letter spacing reaches the arc
+// endpoints; anything longer would wrap awkwardly under the
+// outer ring.
+function fitTopArc(name) {
+  const upper = (name || "").toUpperCase();
+  return upper.length > 24 ? upper.slice(0, 23) + "…" : upper;
+}
+
+// Build the stamp's SVG markup with the lender's name, location,
+// and the stamp date substituted in. Output is a complete <svg>
+// element ready to hand to SVGtoPDF or to drop into an HTML
+// document. The viewBox stays 300x300 so callers can size it via
+// `width` when drawing.
+export function buildStampSvg({
+  lenderName = "",
+  location = "",
+  date = new Date(),
+} = {}) {
+  const top = fitTopArc(lenderName);
+  const bot = (location || "").toUpperCase();
+  const stamp = formatStampDate(date);
+  return `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${top} stamp">
+  <defs>
+    <path id="topArc" d="M41,99 A120,120 0 0 1 259,99"/>
+    <path id="botArc" d="M52,219 A120,120 0 0 0 248,219"/>
+  </defs>
+  <g fill="none" stroke="#0A183F">
+    <circle cx="150" cy="150" r="146" stroke-width="2.5"/>
+    <circle cx="150" cy="150" r="138" stroke-width="5"/>
+    <circle cx="150" cy="150" r="103" stroke-width="2"/>
+  </g>
+  <g fill="#0A183F" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text font-size="23" letter-spacing="4" text-anchor="middle"><textPath href="#topArc" startOffset="50%">${escapeXml(top)}</textPath></text>
+    <text font-size="16" letter-spacing="5" text-anchor="middle"><textPath href="#botArc" startOffset="50%">${escapeXml(bot)}</textPath></text>
+  </g>
+  <polygon points="30,144 36,150 30,156 24,150" fill="#0A183F"/>
+  <polygon points="270,144 276,150 270,156 264,150" fill="#0A183F"/>
+  <g fill="#0A183F">
+    <rect x="121" y="92" width="15" height="86" rx="3.5"/>
+    <rect x="121" y="162" width="44" height="16" rx="3.5"/>
+    <rect x="149" y="92" width="14" height="70" rx="3.5"/>
+    <rect x="149" y="92" width="30" height="16" rx="3.5"/>
+    <rect x="149" y="111" width="24" height="14" rx="3.5"/>
+  </g>
+  <rect x="96" y="196" width="108" height="26" rx="5" fill="none" stroke="#0A183F" stroke-width="2"/>
+  <text x="150" y="214" fill="#0A183F" font-family="Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="2" text-anchor="middle">${escapeXml(stamp)}</text>
+</svg>`;
+}
+
+// Tiny escape for the three XML metacharacters that could appear
+// in a business name. We don't need a full HTML encoder here
+// because we control the source set (no scripts, no quotes in
+// text nodes that we use).
+function escapeXml(s) {
+  return String(s).replace(/[<>&]/g, (c) =>
+    c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&amp;",
+  );
+}
+
+// Draw the stamp on a PDFKit document at (x, y) at the given
+// size in PDF points. `tenant` should expose business_name +
+// city + country; falls back gracefully when fields are blank.
+//
+// Catches its own errors — a stamp rendering failure must NOT
+// take down the entire PDF generation, since the document is
+// usable without the stamp. Logs the failure so we notice but
+// keeps the receipt printable.
+export function drawPdfStamp(doc, { x, y, size = 110, tenant = {}, date } = {}) {
+  try {
+    const svg = buildStampSvg({
+      lenderName: tenant.business_name,
+      location: locationFor(tenant),
+      date: date || new Date(),
+    });
+    SVGtoPDF(doc, svg, x, y, { width: size, height: size, assumePt: true });
+  } catch (err) {
+    // Best-effort — never block the PDF on stamp rendering.
+    // (The caller still has the rest of the document.)
+    // eslint-disable-next-line no-console
+    console.warn("drawPdfStamp failed:", err?.message || err);
+  }
+}
+
+// Append a text-based stamp to an ExcelJS worksheet. Excel
+// doesn't render SVG and embedding a rasterised image would
+// drag in `sharp` (heavy native deps) for marginal value — a
+// styled 3-line cell block reads as "officially stamped"
+// without the install cost.
+//
+// Lands two rows below the last data row of `sheet`, styled
+// as a small bordered block:
+//
+//   ┌──────────────────────────────┐
+//   │  STAMPED                     │
+//   │  LOANFIX LTD · NAIROBI · KE  │
+//   │  04 JUN 2026                 │
+//   └──────────────────────────────┘
+export function addExcelStamp(sheet, { tenant = {}, date } = {}) {
+  if (!sheet) return;
+  try {
+    const stampDate = formatStampDate(date || new Date());
+    const name = (tenant.business_name || "").toUpperCase();
+    const loc = locationFor(tenant);
+    const lineTwo = [name, loc].filter(Boolean).join(" · ");
+    const startRow = (sheet.lastRow?.number || 0) + 3;
+    const label = sheet.getCell(`A${startRow}`);
+    label.value = "STAMPED";
+    label.font = { bold: true, size: 9, color: { argb: "FF0A183F" } };
+    const id = sheet.getCell(`A${startRow + 1}`);
+    id.value = lineTwo;
+    id.font = { bold: true, size: 11, color: { argb: "FF0A183F" } };
+    const when = sheet.getCell(`A${startRow + 2}`);
+    when.value = stampDate;
+    when.font = { size: 10, color: { argb: "FF0A183F" } };
+    // Light box around the three cells so it reads as one unit.
+    for (let r = startRow; r <= startRow + 2; r++) {
+      const cell = sheet.getCell(`A${r}`);
+      cell.border = {
+        top: r === startRow
+          ? { style: "thin", color: { argb: "FF0A183F" } }
+          : undefined,
+        bottom: r === startRow + 2
+          ? { style: "thin", color: { argb: "FF0A183F" } }
+          : undefined,
+        left: { style: "thin", color: { argb: "FF0A183F" } },
+        right: { style: "thin", color: { argb: "FF0A183F" } },
+      };
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("addExcelStamp failed:", err?.message || err);
+  }
+}
+
+// Convenience: fetch the tenant's stamp inputs (business_name +
+// city + country) from the DB given a tenant id, then stamp the
+// supplied Excel worksheet. Centralises the SELECT so individual
+// export endpoints don't each duplicate the query. Silently
+// degrades to no-op on missing tenant id / failed lookup —
+// stamping is presentation, not auth.
+export async function stampExcelSheet(query, sheet, tenantId, date) {
+  if (!sheet || !tenantId) return;
+  try {
+    const r = await query(
+      "SELECT business_name, city, country FROM tenants WHERE id = $1",
+      [tenantId],
+    );
+    addExcelStamp(sheet, { tenant: r.rows[0] || {}, date });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("stampExcelSheet failed:", err?.message || err);
+  }
+}
+
+export default {
+  formatStampDate,
+  buildStampSvg,
+  drawPdfStamp,
+  addExcelStamp,
+  stampExcelSheet,
+};
