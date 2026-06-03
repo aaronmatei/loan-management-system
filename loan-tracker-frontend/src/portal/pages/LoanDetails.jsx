@@ -22,6 +22,16 @@ import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const day = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A");
+// % of (part / whole) for waiver context — rendered as "(45%)".
+// Returns "" when whole is 0 so we don't divide-by-zero into NaN
+// when a row has no contracted interest or no penalty accrued.
+const pct = (part, whole) => {
+  const p = parseFloat(part) || 0;
+  const w = parseFloat(whole) || 0;
+  if (w <= 0 || p <= 0) return "";
+  const v = (p / w) * 100;
+  return v >= 99.5 ? "100%" : `${v.toFixed(v < 10 ? 1 : 0)}%`;
+};
 
 function LoanDetails() {
   const { id } = useParams();
@@ -130,6 +140,12 @@ function LoanDetails() {
     (s, r) => s + (parseFloat(r.penalty_outstanding) || 0),
     0,
   );
+  // Lifetime contractual interest on this loan — the denominator
+  // for "what % of your interest did the lender forgive". Comes
+  // straight from the loan record; same number the contract was
+  // written for.
+  const contractedInterest = parseFloat(loan.total_interest || 0);
+  const contractedPrincipal = parseFloat(loan.principal_amount || 0);
   const due = parseFloat(loan.total_amount_due || 0);
   const paid = parseFloat(loan.total_paid || 0);
   const balance = Math.max(0, due - paid);
@@ -584,20 +600,73 @@ function LoanDetails() {
                           </div>
                         )}
                         {hasWaiver && (
-                          <div className="mt-2 pt-2 border-t border-fuchsia-200/60 flex flex-wrap items-center gap-2 text-[11px]">
-                            <span className="inline-flex items-center gap-1 text-fuchsia-700 font-semibold">
-                              <HandHeart size={12} /> Waived:
-                            </span>
-                            {interestWaived > 0 && (
-                              <span className="px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 font-semibold">
-                                Interest {KES(interestWaived)}
+                          <div className="mt-2 pt-2 border-t border-fuchsia-200/60 text-[11px] space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-fuchsia-700 font-semibold">
+                                <HandHeart size={12} /> Waived:
                               </span>
-                            )}
-                            {penaltyWaived > 0 && (
-                              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold">
-                                Penalty {KES(penaltyWaived)}
-                              </span>
-                            )}
+                              {interestWaived > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 font-semibold">
+                                  Interest {KES(interestWaived)}
+                                  {interest > 0 && (
+                                    <span className="opacity-70 font-normal">
+                                      {" "}· {pct(interestWaived, interest)}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                              {penaltyWaived > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold">
+                                  Penalty {KES(penaltyWaived)}
+                                  {penaltyTotal > 0 && (
+                                    <span className="opacity-70 font-normal">
+                                      {" "}· {pct(penaltyWaived, penaltyTotal)}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                            {/* "Before vs after" line — shows what
+                                the row would have cost without the
+                                waiver, so the borrower sees the
+                                actual relief in concrete shillings.
+                                Before = amount_due + penalty_total
+                                (the latter already historical-max'd
+                                on the backend, so it captures the
+                                penalty that ever existed). After =
+                                before − (interest + penalty)
+                                waivers. */}
+                            {(() => {
+                              const before =
+                                parseFloat(s.amount_due || 0) + penaltyTotal;
+                              const totalWaived =
+                                interestWaived + penaltyWaived;
+                              const after = Math.max(0, before - totalWaived);
+                              return (
+                                before > 0 && totalWaived > 0 && (
+                                  <p className="text-gray-600 pl-4">
+                                    <span className="line-through text-gray-400">
+                                      {KES(before)}
+                                    </span>
+                                    {" "}
+                                    <span className="font-semibold text-emerald-700">
+                                      → {KES(after)}
+                                    </span>
+                                    <span className="text-gray-500">
+                                      {" "}you save{" "}
+                                      <span className="font-semibold text-emerald-700">
+                                        {KES(totalWaived)}
+                                      </span>
+                                      {before > 0 && (
+                                        <span className="ml-1 text-emerald-700 font-semibold">
+                                          ({pct(totalWaived, before)})
+                                        </span>
+                                      )}
+                                    </span>
+                                  </p>
+                                )
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
@@ -750,6 +819,13 @@ function LoanDetails() {
                   They've already been applied to your balance — no
                   further action needed.
                 </p>
+                {/* Each bucket shows what was contracted (the
+                    denominator), what's been waived, and the % of
+                    the contract the waiver represents. The penalty
+                    bucket uses penaltyAccrued (sum of every row's
+                    historical penalty_total) as its denominator —
+                    that's the total penalty bill that ever existed
+                    on this loan. */}
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-white/70 rounded-lg p-2">
                     <p className="text-[10px] uppercase tracking-wider text-gray-500">
@@ -758,6 +834,14 @@ function LoanDetails() {
                     <p className="font-bold text-fuchsia-700 text-sm">
                       {KES(waiversSummary.total_interest)}
                     </p>
+                    {contractedInterest > 0 && (
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        of {KES(contractedInterest)}{" "}
+                        <span className="font-semibold text-fuchsia-700">
+                          {pct(waiversSummary.total_interest, contractedInterest)}
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <div className="bg-white/70 rounded-lg p-2">
                     <p className="text-[10px] uppercase tracking-wider text-gray-500">
@@ -766,6 +850,14 @@ function LoanDetails() {
                     <p className="font-bold text-rose-700 text-sm">
                       {KES(waiversSummary.total_penalty)}
                     </p>
+                    {penaltyAccrued > 0 && (
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        of {KES(penaltyAccrued)}{" "}
+                        <span className="font-semibold text-rose-700">
+                          {pct(waiversSummary.total_penalty, penaltyAccrued)}
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <div className="bg-white/70 rounded-lg p-2">
                     <p className="text-[10px] uppercase tracking-wider text-gray-500">
@@ -774,6 +866,14 @@ function LoanDetails() {
                     <p className="font-bold text-[var(--brand)] text-sm">
                       {KES(waiversSummary.total_principal)}
                     </p>
+                    {contractedPrincipal > 0 && (
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        of {KES(contractedPrincipal)}{" "}
+                        <span className="font-semibold text-[var(--brand)]">
+                          {pct(waiversSummary.total_principal, contractedPrincipal)}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -794,12 +894,22 @@ function LoanDetails() {
                       : w.type === "principal"
                         ? "border-[var(--brand)]/30 bg-[var(--brand)]/5"
                         : "border-fuchsia-200 bg-fuchsia-50/50";
-                  const Pill = ({ label, value, klass }) =>
+                  // Pill shows the bucket value and (when a
+                  // contract denominator is supplied) the % it
+                  // represents — gives the borrower instant
+                  // context on whether a 1k waiver was small
+                  // potatoes or a near-full forgiveness.
+                  const Pill = ({ label, value, denom, klass }) =>
                     value > 0 && (
                       <span
                         className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${klass}`}
                       >
                         {label} {KES(value)}
+                        {denom > 0 && (
+                          <span className="opacity-70 font-normal">
+                            {" "}· {pct(value, denom)}
+                          </span>
+                        )}
                       </span>
                     );
                   return (
@@ -833,16 +943,19 @@ function LoanDetails() {
                           <Pill
                             label="Interest"
                             value={intT}
+                            denom={contractedInterest}
                             klass="bg-fuchsia-100 text-fuchsia-700"
                           />
                           <Pill
                             label="Penalty"
                             value={penT}
+                            denom={penaltyAccrued}
                             klass="bg-rose-100 text-rose-700"
                           />
                           <Pill
                             label="Principal"
                             value={prnT}
+                            denom={contractedPrincipal}
                             klass="bg-[var(--brand)]/10 text-[var(--brand)]"
                           />
                         </div>
