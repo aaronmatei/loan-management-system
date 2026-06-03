@@ -556,36 +556,18 @@ export async function recordLoanPayment({
   if (isReducing) {
     await recomputeReducingBalanceSchedule(loanId);
 
-    // The recompute may have shrunk total_amount_due below the cash
-    // already paid (prepayment knocked principal way down). Surface
-    // the post-recompute surplus on THIS transaction's
-    // overpayment_portion — the initial pre-payment overpayment check
-    // sees the OLD total and can't detect the new excess. Without
-    // this, the loan-level overpayment_amount comes out short.
-    const surplusRes = await query(
-      `SELECT
-         (SELECT COALESCE(SUM(amount_paid
-                            - COALESCE(penalty_portion, 0)
-                            - COALESCE(overpayment_portion, 0)), 0)
-            FROM transactions
-           WHERE loan_id = $1 AND payment_status = 'completed') AS cash_to_due,
-         (SELECT total_amount_due FROM loans WHERE id = $1) AS total_due`,
-      [loanId],
-    );
-    const cashToDue = parseFloat(surplusRes.rows[0].cash_to_due);
-    const newTotalDue = parseFloat(surplusRes.rows[0].total_due);
-    const additionalSurplus = round2(cashToDue - newTotalDue);
-    if (additionalSurplus >= 0.01) {
-      await query(
-        `UPDATE transactions
-            SET overpayment_portion =
-                  COALESCE(overpayment_portion, 0) + $1,
-                updated_at = NOW()
-          WHERE id = $2`,
-        [additionalSurplus, transaction.id],
-      );
-      overpayment = round2(overpayment + additionalSurplus);
-    }
+    // No post-recompute surplus credit needed. The cascade-stop above
+    // already capped principal_portion at the actual remaining loan
+    // principal and recorded any cash beyond that as
+    // transaction.overpayment_portion in the same step. After the
+    // recompute the difference between cash_to_amount_due and
+    // total_amount_due is NOT additional overpayment — it's cash that
+    // legitimately reduced principal (and therefore future interest),
+    // which is why total_amount_due dropped. Adding that gap to
+    // overpayment would double-count: the cash was already accounted
+    // for both as principal_portion on the row AND would also become
+    // a refund — the borrower can't get a refund for cash they used
+    // to pay down their loan.
   }
 
   // Recalculate totals after this payment. Three figures matter:
