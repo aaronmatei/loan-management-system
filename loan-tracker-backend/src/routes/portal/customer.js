@@ -1228,10 +1228,33 @@ router.get("/loans/:id", async (req, res) => {
       // Prefer the persisted late-fee / penalty-interest snapshot
       // (set when penalty was paid via migration 030); fall back to
       // the live formula for unpaid rows.
-      const lateFeeCharged = parseFloat(s.late_fee_charged || 0);
-      const penaltyInterestCharged = parseFloat(
+      //
+      // Edge case: when the row went from overdue → paid via a
+      // PENALTY WAIVER (rather than cash), neither the snapshot
+      // columns were set (the waiver path didn't write them) nor
+      // does the live formula return non-zero (status='paid'
+      // forces days_late=0). The row ends up with penalty_total
+      // = 1,437.50 but the breakdown shows "Late fee 0 / Penalty
+      // interest 0" — contradictory. When that happens, derive
+      // the breakdown from the policy: late_fee is the flat
+      // policy fee; penalty_interest is the residual. This won't
+      // be exact when months_late > 1 at the moment of waiver
+      // (penalty_interest accrues monthly), but the totals always
+      // reconcile and the customer sees an honest split instead
+      // of "0 + 0 = 1,437.50".
+      let lateFeeCharged = parseFloat(s.late_fee_charged || 0);
+      let penaltyInterestCharged = parseFloat(
         s.penalty_interest_charged || 0,
       );
+      if (
+        penaltyPaid > 0
+        && lateFeeCharged === 0
+        && penaltyInterestCharged === 0
+      ) {
+        const policyLateFee = parseFloat(loanRow.late_payment_fee || 0);
+        lateFeeCharged = Math.min(policyLateFee, penaltyTotal);
+        penaltyInterestCharged = Math.max(0, penaltyTotal - lateFeeCharged);
+      }
       const w = waiverPerRow.get(s.id) || {
         interest_waived: 0,
         penalty_waived: 0,

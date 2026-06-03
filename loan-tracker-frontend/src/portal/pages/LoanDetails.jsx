@@ -479,7 +479,7 @@ function LoanDetails() {
                       onClick={() => setTab("waivers")}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-fuchsia-50 border border-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-100 transition"
                     >
-                      <HandHeart size={12} /> {KES(waiversSummary.total_amount + waiversSummary.total_penalty)} waived
+                      <HandHeart size={12} /> {KES(waiversSummary.total_amount)} waived
                     </button>
                   )}
                 </div>
