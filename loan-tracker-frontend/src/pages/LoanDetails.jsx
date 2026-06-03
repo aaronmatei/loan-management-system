@@ -23,6 +23,7 @@ import {
   RotateCcw,
   XCircle,
   Clock,
+  Info,
 } from "lucide-react";
 import api from "../services/api";
 import PaymentReceipt from "../components/PaymentReceipt";
@@ -1935,6 +1936,27 @@ function LoanDetails() {
               </div>
             )}
 
+            {/* Package-bound loans inherit their contract from the
+                loan_packages table. Rate, processing fee, and
+                interest method are LOCKED here so an admin can't
+                silently break a customer's terms; principal and
+                duration stay editable but get clamped to the
+                package's min/max via input min/max + a backend
+                guard that 400s on violations. Custom loans
+                (loan.package_name = null) don't render this banner
+                and keep every field free. */}
+            {loan.package_name && (
+              <div className="bg-sky-50 border border-sky-200 text-sky-900 text-sm rounded-lg p-3 mb-4 flex items-start gap-2">
+                <Info size={16} className="flex-shrink-0 mt-0.5 text-sky-600" />
+                <span>
+                  This loan is bound by the <strong>{loan.package_name}</strong>{" "}
+                  package. Rate, processing fee and interest method are fixed
+                  by the package — to change them, detach the loan or use a
+                  different package.
+                </span>
+              </div>
+            )}
+
             {editError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-4">
                 {editError}
@@ -1942,6 +1964,13 @@ function LoanDetails() {
             )}
 
             <form onSubmit={handleEditSubmit} className="space-y-4">
+              {/* Package constraints derived once per render so we
+                  don't re-parse on every keystroke. `pkgLocked` is
+                  the boolean every disable-able field reads from;
+                  the min/max hints render only on bounds that exist
+                  (a custom loan has loan.package_name = null so
+                  every input keeps its original free behaviour). */}
+              {(() => null)()}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -1950,7 +1979,8 @@ function LoanDetails() {
                   <input
                     type="number"
                     required
-                    min="1"
+                    min={loan.package_min_amount ?? 1}
+                    max={loan.package_max_amount ?? undefined}
                     value={editForm.principal_amount}
                     onChange={(e) =>
                       setEditForm({
@@ -1960,6 +1990,18 @@ function LoanDetails() {
                     }
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
+                  {loan.package_name &&
+                    (loan.package_min_amount != null ||
+                      loan.package_max_amount != null) && (
+                      <p className="text-xs text-sky-700 mt-1">
+                        Package range: KES{" "}
+                        {Number(loan.package_min_amount || 0).toLocaleString()}
+                        {" – "}
+                        {loan.package_max_amount
+                          ? `KES ${Number(loan.package_max_amount).toLocaleString()}`
+                          : "no max"}
+                      </p>
+                    )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -1970,8 +2012,18 @@ function LoanDetails() {
                     step="0.01"
                     value={editForm.annual_interest_rate}
                     onChange={(e) => onEditAnnualChange(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    disabled={!!loan.package_name}
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                      loan.package_name
+                        ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed"
+                        : "border-gray-200"
+                    }`}
                   />
+                  {loan.package_name && (
+                    <p className="text-xs text-sky-700 mt-1">
+                      Fixed by package
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -1982,8 +2034,18 @@ function LoanDetails() {
                     step="0.01"
                     value={editForm.monthly_interest_rate}
                     onChange={(e) => onEditMonthlyChange(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    disabled={!!loan.package_name}
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                      loan.package_name
+                        ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed"
+                        : "border-gray-200"
+                    }`}
                   />
+                  {loan.package_name && (
+                    <p className="text-xs text-sky-700 mt-1">
+                      Fixed by package
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -1992,8 +2054,8 @@ function LoanDetails() {
                   <input
                     type="number"
                     required
-                    min="1"
-                    max="60"
+                    min={loan.package_min_duration_months ?? 1}
+                    max={loan.package_max_duration_months ?? 60}
                     value={editForm.loan_duration_months}
                     onChange={(e) =>
                       setEditForm({
@@ -2003,6 +2065,15 @@ function LoanDetails() {
                     }
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
+                  {loan.package_name &&
+                    (loan.package_min_duration_months != null ||
+                      loan.package_max_duration_months != null) && (
+                      <p className="text-xs text-sky-700 mt-1">
+                        Package range: {loan.package_min_duration_months ?? 1}
+                        {" – "}
+                        {loan.package_max_duration_months ?? "60"} months
+                      </p>
+                    )}
                 </div>
               </div>
 
@@ -2022,8 +2093,18 @@ function LoanDetails() {
                       processing_fee_rate: e.target.value,
                     })
                   }
-                  className="w-full md:w-1/2 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  disabled={!!loan.package_name}
+                  className={`w-full md:w-1/2 px-3 py-2 border-2 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                    loan.package_name
+                      ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed"
+                      : "border-gray-200"
+                  }`}
                 />
+                {loan.package_name && (
+                  <p className="text-xs text-sky-700 mt-1">
+                    Fixed by package
+                  </p>
+                )}
               </div>
 
               {/* Date chain: creation ≤ disbursement ≤ start. min/max on

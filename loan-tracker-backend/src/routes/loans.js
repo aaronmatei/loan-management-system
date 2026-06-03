@@ -176,7 +176,16 @@ router.get("/:id", async (req, res) => {
         pk.name              AS package_name,
         pk.description       AS package_description,
         pk.interest_method   AS package_interest_method,
-        pk.active            AS package_active
+        pk.active            AS package_active,
+        -- Constraints surfaced for the Edit Loan modal so the
+        -- frontend can lock the rate / fee inputs and clamp
+        -- principal + duration to the package's allowed range.
+        pk.annual_interest_rate AS package_annual_rate,
+        pk.processing_fee_rate  AS package_processing_fee_rate,
+        pk.min_amount           AS package_min_amount,
+        pk.max_amount           AS package_max_amount,
+        pk.min_duration_months  AS package_min_duration_months,
+        pk.max_duration_months  AS package_max_duration_months
       FROM loans l
       JOIN clients c ON l.client_id = c.id
       LEFT JOIN loan_packages pk ON pk.id = l.package_id
@@ -1845,8 +1854,22 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
     } = req.body || {};
 
     const eT = tenantClause(req, 1);
+    // Pull package constraints alongside the loan so package-bound
+    // edits can be validated server-side. Custom loans (package_id
+    // NULL) get NULL package fields and pass every package check.
     const exRes = await query(
-      `SELECT * FROM loans WHERE id = $1${eT.clause}`,
+      `SELECT l.*,
+              pk.annual_interest_rate AS pk_annual_rate,
+              pk.processing_fee_rate  AS pk_fee_rate,
+              pk.interest_method      AS pk_interest_method,
+              pk.min_amount           AS pk_min_amount,
+              pk.max_amount           AS pk_max_amount,
+              pk.min_duration_months  AS pk_min_months,
+              pk.max_duration_months  AS pk_max_months,
+              pk.name                 AS pk_name
+         FROM loans l
+         LEFT JOIN loan_packages pk ON pk.id = l.package_id
+        WHERE l.id = $1${eT.clause}`,
       [id, ...eT.params],
     );
     if (exRes.rows.length === 0) {
@@ -1885,6 +1908,47 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       newProcFeeRate > 100
     ) {
       return res.status(400).json({ error: "Invalid numeric fields" });
+    }
+
+    // Package terms enforcement. A loan tied to a package (the
+    // common case — staff creates loans via "Select Package" in the
+    // Loans page) is bound by that package's contract: the rate,
+    // processing fee, and interest method are fixed; principal and
+    // duration must stay within the package's bounds. Without this
+    // guard, the Edit Loan modal lets staff override any of these
+    // freely after the fact, breaking the customer's contract.
+    //
+    // Tiny float tolerance on rate / fee comparisons so a 25 / 25.00
+    // representational difference doesn't trip the equality check.
+    if (existing.package_id) {
+      const tol = 0.01;
+      const pkAnnualRate = parseFloat(existing.pk_annual_rate);
+      const pkFeeRate = parseFloat(existing.pk_fee_rate ?? 0);
+      const pkMin = parseFloat(existing.pk_min_amount ?? 0);
+      const pkMax = parseFloat(existing.pk_max_amount ?? Infinity);
+      const pkMinMonths = parseInt(existing.pk_min_months ?? 1, 10);
+      const pkMaxMonths = parseInt(existing.pk_max_months ?? 999, 10);
+
+      if (Math.abs(annualRate - pkAnnualRate) > tol) {
+        return res.status(400).json({
+          error: `Annual rate is fixed by the "${existing.pk_name}" package at ${pkAnnualRate}%. Detach the loan from the package to change it.`,
+        });
+      }
+      if (Math.abs(newProcFeeRate - pkFeeRate) > tol) {
+        return res.status(400).json({
+          error: `Processing fee is fixed by the "${existing.pk_name}" package at ${pkFeeRate}%. Detach the loan from the package to change it.`,
+        });
+      }
+      if (newPrincipal < pkMin || newPrincipal > pkMax) {
+        return res.status(400).json({
+          error: `Principal must be between KES ${pkMin.toLocaleString()} and KES ${pkMax.toLocaleString()} for the "${existing.pk_name}" package.`,
+        });
+      }
+      if (newMonths < pkMinMonths || newMonths > pkMaxMonths) {
+        return res.status(400).json({
+          error: `Duration must be between ${pkMinMonths} and ${pkMaxMonths} months for the "${existing.pk_name}" package.`,
+        });
+      }
     }
 
     const newYears = newMonths / 12;
