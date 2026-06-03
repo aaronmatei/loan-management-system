@@ -474,12 +474,38 @@ function LoanDetails() {
                       </span>
                     </>
                   )}
-                  {waiversSummary.count > 0 && (
+                  {/* Per-bucket waived pills — split so the
+                      borrower sees what kind of forgiveness was
+                      extended (interest vs penalty vs principal)
+                      at a glance, not just a single grand total.
+                      Each pill is a button that jumps to the
+                      Waivers tab; each only renders when its
+                      bucket is non-zero. */}
+                  {waiversSummary.total_interest > 0 && (
                     <button
                       onClick={() => setTab("waivers")}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-fuchsia-50 border border-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-100 transition"
                     >
-                      <HandHeart size={12} /> {KES(waiversSummary.total_amount)} waived
+                      <HandHeart size={12} />
+                      {KES(waiversSummary.total_interest)} interest waived
+                    </button>
+                  )}
+                  {waiversSummary.total_penalty > 0 && (
+                    <button
+                      onClick={() => setTab("waivers")}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 border border-rose-100 text-rose-700 hover:bg-rose-100 transition"
+                    >
+                      <HandHeart size={12} />
+                      {KES(waiversSummary.total_penalty)} penalty waived
+                    </button>
+                  )}
+                  {waiversSummary.total_principal > 0 && (
+                    <button
+                      onClick={() => setTab("waivers")}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--brand)]/10 border border-[var(--brand)]/20 text-[var(--brand)] hover:bg-[var(--brand)]/15 transition"
+                    >
+                      <HandHeart size={12} />
+                      {KES(waiversSummary.total_principal)} principal waived
                     </button>
                   )}
                 </div>
