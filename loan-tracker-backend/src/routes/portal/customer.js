@@ -12,6 +12,7 @@ import {
   validateAgainstPackage,
 } from "../../utils/loanMath.js";
 import { evaluatePackageEligibility } from "../../utils/packageEligibility.js";
+import { computeInstallmentPenalty } from "../../utils/penalty.js";
 import {
   buildLoanStatementPdf,
   buildClientStatementPdf,
@@ -1072,9 +1073,46 @@ router.get("/loans/:id", async (req, res) => {
       return res.status(404).json({ error: "Loan not found" });
     }
     const schedule = await query(
-      "SELECT * FROM payment_schedules WHERE loan_id = $1 ORDER BY payment_number",
+      `SELECT *, (CURRENT_DATE - due_date::date) AS days_late
+         FROM payment_schedules
+        WHERE loan_id = $1
+        ORDER BY payment_number`,
       [req.params.id],
     );
+    // Approved waivers on this loan — shown to the borrower so they
+    // can see what the lender forgave (interest, penalty). Returned
+    // both as a list AND per-row attribution so each installment can
+    // render its own "Waived" badges. Status filter excludes pending
+    // and reversed so customers only see effective relief.
+    const waiversRes = await query(
+      `SELECT id, type, amount, allocation, reason, approved_at, created_at
+         FROM loan_waivers
+        WHERE loan_id = $1 AND status = 'approved'
+        ORDER BY approved_at NULLS LAST, created_at`,
+      [req.params.id],
+    );
+    // Per-row waiver attribution: walk each approved waiver's
+    // allocation.schedules array and sum interest_paid_delta /
+    // penalty_paid_delta per schedule_id. This matches what the
+    // waiver path actually wrote, so the rendered "Interest waived"
+    // / "Penalty waived" line aligns exactly with the row's
+    // interest_paid / penalty_paid bumps. amount_paid_delta is also
+    // tracked (rare — would correspond to a principal waiver).
+    const waiverPerRow = new Map();
+    for (const w of waiversRes.rows) {
+      const allocSchedules = w.allocation?.schedules || [];
+      for (const s of allocSchedules) {
+        const acc = waiverPerRow.get(s.schedule_id) || {
+          interest_waived: 0,
+          penalty_waived: 0,
+          amount_waived: 0,
+        };
+        acc.interest_waived += parseFloat(s.interest_paid_delta || 0);
+        acc.penalty_waived += parseFloat(s.penalty_paid_delta || 0);
+        acc.amount_waived += parseFloat(s.amount_paid_delta || 0);
+        waiverPerRow.set(s.schedule_id, acc);
+      }
+    }
     const txns = await query(
       `SELECT * FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'
@@ -1155,11 +1193,99 @@ router.get("/loans/:id", async (req, res) => {
 
     const nextPayment = schedule.rows.find((s) => s.status === "pending");
 
+    // Annotate each schedule row with live penalty + per-row waiver
+    // attribution so the customer's Schedule view can show the same
+    // "what do I really owe right now, and what was already forgiven"
+    // breakdown as the staff page (utils/penalty + waiver allocator).
+    const scheduleWithExtras = schedule.rows.map((s) => {
+      const due = parseFloat(s.amount_due) || 0;
+      const cashPaid = parseFloat(s.amount_paid || 0);
+      const interestPaid = parseFloat(s.interest_paid || 0);
+      const penaltyPaid = parseFloat(s.penalty_paid || 0);
+      // Penalty accrues against the contractually overdue amount
+      // (due − cash). Interest waivers don't shrink the penalty
+      // base — the installment was still missed at its full
+      // amount. Same lens the staff endpoint uses so the two
+      // views never disagree.
+      const penaltyBal = Math.max(0, due - cashPaid);
+      const daysLate =
+        s.status === "paid" ? 0 : parseInt(s.days_late, 10) || 0;
+      const computed = computeInstallmentPenalty({
+        balance: penaltyBal,
+        daysLate,
+        lateFee: loanRow.late_payment_fee,
+        penaltyRate: loanRow.penalty_rate,
+      });
+      // "Penalty total" is the headline charge for this row. The
+      // live formula recomputes against current balance, so a paid
+      // row reads as 0; max with what's already been paid so the
+      // history never disputes a previous charge.
+      const penaltyTotal = Math.max(computed.penalty_total, penaltyPaid);
+      const penaltyOutstanding = Math.max(
+        0,
+        Math.round((penaltyTotal - penaltyPaid) * 100) / 100,
+      );
+      // Prefer the persisted late-fee / penalty-interest snapshot
+      // (set when penalty was paid via migration 030); fall back to
+      // the live formula for unpaid rows.
+      const lateFeeCharged = parseFloat(s.late_fee_charged || 0);
+      const penaltyInterestCharged = parseFloat(
+        s.penalty_interest_charged || 0,
+      );
+      const w = waiverPerRow.get(s.id) || {
+        interest_waived: 0,
+        penalty_waived: 0,
+        amount_waived: 0,
+      };
+      // Cash balance left for the borrower to settle this row =
+      // amount_due − cash − waiver-coverered interest. Shrinks
+      // when interest is waived. Drives the "still owed" badge.
+      const balance_due = Math.max(0, due - cashPaid - interestPaid);
+      return {
+        ...s,
+        balance_due: Math.round(balance_due * 100) / 100,
+        late_fee:
+          lateFeeCharged > 0 ? lateFeeCharged : computed.late_fee,
+        penalty_interest:
+          penaltyInterestCharged > 0
+            ? penaltyInterestCharged
+            : computed.penalty_interest,
+        penalty_total: Math.round(penaltyTotal * 100) / 100,
+        penalty_paid: penaltyPaid,
+        penalty_outstanding: penaltyOutstanding,
+        interest_waived: Math.round(w.interest_waived * 100) / 100,
+        penalty_waived: Math.round(w.penalty_waived * 100) / 100,
+        amount_waived: Math.round(w.amount_waived * 100) / 100,
+      };
+    });
+
+    // Loan-level waiver totals so the UI can show a single
+    // "Goodwill from your lender" summary at the top.
+    const waivers_summary = waiversRes.rows.reduce(
+      (acc, w) => {
+        acc.total_interest += parseFloat(w.allocation?.interest_total || 0);
+        acc.total_penalty += parseFloat(w.allocation?.penalty_total || 0);
+        acc.total_principal += parseFloat(w.allocation?.principal_total || 0);
+        acc.total_amount += parseFloat(w.amount || 0);
+        acc.count += 1;
+        return acc;
+      },
+      {
+        count: 0,
+        total_amount: 0,
+        total_interest: 0,
+        total_penalty: 0,
+        total_principal: 0,
+      },
+    );
+
     res.json({
       success: true,
       data: {
         loan: loanRow,
-        schedule: schedule.rows,
+        schedule: scheduleWithExtras,
+        waivers: waiversRes.rows,
+        waivers_summary,
         transactions: transactionsWithReceipt,
         receipt_summary: {
           total_paid: totalPaid,

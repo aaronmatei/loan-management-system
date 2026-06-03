@@ -12,6 +12,7 @@ import {
   BarChart3,
   PartyPopper,
   RotateCcw,
+  HandHeart,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -103,8 +104,32 @@ function LoanDetails() {
     loan,
     schedule,
     transactions,
+    waivers = [],
+    waivers_summary: waiversSummary = {
+      count: 0,
+      total_amount: 0,
+      total_interest: 0,
+      total_penalty: 0,
+      total_principal: 0,
+    },
     receipt_summary: receiptSummary,
   } = data;
+  // Headline penalty figures across the loan, derived from the
+  // schedule rows the backend already annotated. Shown so the
+  // borrower sees the overall late-fee bill at a glance, with
+  // outstanding flagged when there's something to pay down.
+  const penaltyAccrued = (schedule || []).reduce(
+    (s, r) => s + (parseFloat(r.penalty_total) || 0),
+    0,
+  );
+  const penaltyPaidTotal = (schedule || []).reduce(
+    (s, r) => s + (parseFloat(r.penalty_paid) || 0),
+    0,
+  );
+  const penaltyOutstanding = (schedule || []).reduce(
+    (s, r) => s + (parseFloat(r.penalty_outstanding) || 0),
+    0,
+  );
   const due = parseFloat(loan.total_amount_due || 0);
   const paid = parseFloat(loan.total_paid || 0);
   const balance = Math.max(0, due - paid);
@@ -393,10 +418,56 @@ function LoanDetails() {
             >
               <CreditCard size={16} /> Payment History
             </button>
+            {waiversSummary.count > 0 && (
+              <button
+                onClick={() => setTab("waivers")}
+                className={`flex-1 py-3 px-4 font-semibold inline-flex items-center justify-center gap-1.5 ${
+                  tab === "waivers"
+                    ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
+                    : "text-gray-600"
+                }`}
+              >
+                <HandHeart size={16} /> Waivers
+                <span className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-fuchsia-100 text-fuchsia-700 text-[10px] font-bold">
+                  {waiversSummary.count}
+                </span>
+              </button>
+            )}
           </div>
 
           {tab === "schedule" && (
             <div className="p-4">
+              {(penaltyAccrued > 0 || waiversSummary.count > 0) && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                  {penaltyAccrued > 0 && (
+                    <>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 border border-amber-100 text-amber-800">
+                        <AlertTriangle size={12} /> {KES(penaltyAccrued)} penalty
+                        accrued
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border ${
+                          penaltyOutstanding > 0
+                            ? "bg-red-50 border-red-100 text-red-700"
+                            : "bg-emerald-50 border-emerald-100 text-emerald-700"
+                        }`}
+                      >
+                        {penaltyOutstanding > 0
+                          ? `${KES(penaltyOutstanding)} outstanding`
+                          : `${KES(penaltyPaidTotal)} paid`}
+                      </span>
+                    </>
+                  )}
+                  {waiversSummary.count > 0 && (
+                    <button
+                      onClick={() => setTab("waivers")}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-fuchsia-50 border border-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-100 transition"
+                    >
+                      <HandHeart size={12} /> {KES(waiversSummary.total_amount + waiversSummary.total_penalty)} waived
+                    </button>
+                  )}
+                </div>
+              )}
               {(schedule || []).length === 0 ? (
                 <p className="text-center text-gray-500 py-6">
                   No schedule (loan not yet disbursed).
@@ -413,6 +484,15 @@ function LoanDetails() {
                     const principal = parseFloat(s.principal_portion || 0);
                     const balanceAfter = parseFloat(s.balance_after || 0);
                     const hasBreakdown = interest > 0 || principal > 0;
+                    const penaltyTotal = parseFloat(s.penalty_total || 0);
+                    const penaltyPaid = parseFloat(s.penalty_paid || 0);
+                    const penaltyOut = parseFloat(s.penalty_outstanding || 0);
+                    const lateFee = parseFloat(s.late_fee || 0);
+                    const penaltyInterest = parseFloat(s.penalty_interest || 0);
+                    const interestWaived = parseFloat(s.interest_waived || 0);
+                    const penaltyWaived = parseFloat(s.penalty_waived || 0);
+                    const hasPenalty = penaltyTotal > 0;
+                    const hasWaiver = interestWaived > 0 || penaltyWaived > 0;
                     return (
                       <div
                         key={s.id}
@@ -469,6 +549,55 @@ function LoanDetails() {
                                 {balanceAfter > 0 ? KES(balanceAfter) : "KES 0"}
                               </p>
                             </div>
+                          </div>
+                        )}
+                        {hasPenalty && (
+                          <div className="mt-2 pt-2 border-t border-amber-200/60 grid grid-cols-3 gap-2 text-xs">
+                            <div>
+                              <p className="text-gray-500 inline-flex items-center gap-1">
+                                <AlertTriangle size={11} /> Late fee
+                              </p>
+                              <p className="font-semibold text-amber-700">
+                                {KES(lateFee)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Penalty interest</p>
+                              <p className="font-semibold text-amber-700">
+                                {KES(penaltyInterest)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">
+                                {penaltyOut > 0 ? "Penalty owed" : "Penalty paid"}
+                              </p>
+                              <p
+                                className={`font-semibold ${
+                                  penaltyOut > 0 ? "text-red-600" : "text-emerald-700"
+                                }`}
+                              >
+                                {penaltyOut > 0
+                                  ? KES(penaltyOut)
+                                  : KES(penaltyPaid)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {hasWaiver && (
+                          <div className="mt-2 pt-2 border-t border-fuchsia-200/60 flex flex-wrap items-center gap-2 text-[11px]">
+                            <span className="inline-flex items-center gap-1 text-fuchsia-700 font-semibold">
+                              <HandHeart size={12} /> Waived:
+                            </span>
+                            {interestWaived > 0 && (
+                              <span className="px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 font-semibold">
+                                Interest {KES(interestWaived)}
+                              </span>
+                            )}
+                            {penaltyWaived > 0 && (
+                              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-semibold">
+                                Penalty {KES(penaltyWaived)}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -599,6 +728,134 @@ function LoanDetails() {
                   )}
                 </>
               )}
+            </div>
+          )}
+
+          {tab === "waivers" && (
+            <div className="p-4">
+              {/* Header summary: counts + per-bucket totals. The
+                  three buckets come straight from the backend
+                  (waivers_summary.total_interest + total_penalty +
+                  total_principal) so the totals are admin-declared,
+                  not ratio-derived. */}
+              <div className="rounded-xl bg-fuchsia-50 border border-fuchsia-100 p-3 mb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <HandHeart size={16} className="text-fuchsia-600" />
+                  <p className="font-semibold text-fuchsia-800">
+                    Goodwill from your lender
+                  </p>
+                </div>
+                <p className="text-xs text-fuchsia-700/80 mb-2">
+                  These are amounts your lender chose not to collect.
+                  They've already been applied to your balance — no
+                  further action needed.
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-white/70 rounded-lg p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      Interest waived
+                    </p>
+                    <p className="font-bold text-fuchsia-700 text-sm">
+                      {KES(waiversSummary.total_interest)}
+                    </p>
+                  </div>
+                  <div className="bg-white/70 rounded-lg p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      Penalty waived
+                    </p>
+                    <p className="font-bold text-rose-700 text-sm">
+                      {KES(waiversSummary.total_penalty)}
+                    </p>
+                  </div>
+                  <div className="bg-white/70 rounded-lg p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                      Principal waived
+                    </p>
+                    <p className="font-bold text-[var(--brand)] text-sm">
+                      {KES(waiversSummary.total_principal)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* One card per approved waiver. type + reason come
+                  from the staff side; the per-row breakdown of which
+                  installments were touched comes from allocation. */}
+              <div className="space-y-2">
+                {waivers.map((w) => {
+                  const a = w.allocation || {};
+                  const intT = parseFloat(a.interest_total || 0);
+                  const penT = parseFloat(a.penalty_total || 0);
+                  const prnT = parseFloat(a.principal_total || 0);
+                  const rowsTouched = (a.schedules || []).length;
+                  const tone =
+                    w.type === "penalty"
+                      ? "border-rose-200 bg-rose-50/50"
+                      : w.type === "principal"
+                        ? "border-[var(--brand)]/30 bg-[var(--brand)]/5"
+                        : "border-fuchsia-200 bg-fuchsia-50/50";
+                  const Pill = ({ label, value, klass }) =>
+                    value > 0 && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${klass}`}
+                      >
+                        {label} {KES(value)}
+                      </span>
+                    );
+                  return (
+                    <div
+                      key={w.id}
+                      className={`rounded-xl border p-3 ${tone}`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-gray-800 capitalize inline-flex items-center gap-1.5">
+                            <HandHeart size={14} className="shrink-0" />
+                            {w.type} waiver
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {day(w.approved_at || w.created_at)}
+                            {rowsTouched > 0 && (
+                              <>
+                                {" · "}
+                                {rowsTouched} installment
+                                {rowsTouched !== 1 ? "s" : ""} affected
+                              </>
+                            )}
+                          </p>
+                        </div>
+                        <p className="font-bold text-fuchsia-700 shrink-0">
+                          {KES(w.amount)}
+                        </p>
+                      </div>
+                      {(intT > 0 || penT > 0 || prnT > 0) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <Pill
+                            label="Interest"
+                            value={intT}
+                            klass="bg-fuchsia-100 text-fuchsia-700"
+                          />
+                          <Pill
+                            label="Penalty"
+                            value={penT}
+                            klass="bg-rose-100 text-rose-700"
+                          />
+                          <Pill
+                            label="Principal"
+                            value={prnT}
+                            klass="bg-[var(--brand)]/10 text-[var(--brand)]"
+                          />
+                        </div>
+                      )}
+                      {w.reason && (
+                        <p className="mt-2 text-xs text-gray-600 italic border-t border-gray-200/60 pt-2">
+                          “{w.reason}”
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
