@@ -334,11 +334,15 @@ class AnalyticsService {
   // = SUM(amount) from the expenses ledger. Both bucketed by their
   // respective dates, joined to a months series so empty months still
   // render as zero.
-  // Monthly income vs expenses trend. When `from`/`to` is supplied
-  // the series buckets within that range (daily for a single month,
-  // monthly otherwise); without a range it falls back to the last
-  // N months ending today. Mirrors getCollectionTrend's daily/
-  // monthly split so the Reports page lines up across charts.
+  // Income vs expenses trend. Bucket granularity depends on the
+  // selected range:
+  //   • from/to spanning > 31 days (e.g. a Year-mode period) →
+  //     monthly buckets so the x-axis reads "Jan/Feb/Mar…"
+  //     instead of 365 daily ticks (the bug the user spotted:
+  //     selecting "2026" rendered "07 Jan, 21 Jan, 04 Feb…")
+  //   • from/to ≤ 31 days (a Month-mode period) → daily buckets
+  //     so per-day shape is visible
+  //   • no range → fall back to last N months ending today.
   //
   // Income per bucket = interest portion of cash receipts + penalty
   // income. Interest uses the per-transaction LEAST cap (cumulative
@@ -389,23 +393,34 @@ class AnalyticsService {
       )) * (total_interest / NULLIF(total_amount_due, 0))
       + this_penalty`;
 
-    // Daily series within an explicit [from, to] range. Buckets by
-    // day so a "single month" period chart shows per-day shape.
     if (from && to) {
+      // Decide bucketing from the range span (inclusive of both ends).
+      const spanDays =
+        Math.round(
+          (Date.parse(to) - Date.parse(from)) / (1000 * 60 * 60 * 24),
+        ) + 1;
+      const useMonthlyBuckets = spanDays > 31;
+      const bucket = useMonthlyBuckets
+        ? { trunc: "month", step: "1 month", fmt: "Mon YYYY" }
+        : { trunc: "day", step: "1 day", fmt: "DD Mon" };
       const r = await query(
         `WITH ${txnCte},
-         days AS (
-           SELECT generate_series($2::date, $3::date, '1 day'::interval)::date AS d
+         buckets AS (
+           SELECT generate_series(
+             date_trunc('${bucket.trunc}', $2::date),
+             date_trunc('${bucket.trunc}', $3::date),
+             '${bucket.step}'::interval
+           ) AS b
          ),
          income AS (
-           SELECT payment_date::date AS d,
+           SELECT date_trunc('${bucket.trunc}', payment_date) AS b,
                   COALESCE(SUM(${incomePerTxn}), 0)::float AS amount
            FROM txn_running
            WHERE payment_date >= $2::date AND payment_date <= $3::date
            GROUP BY 1
          ),
          outflow AS (
-           SELECT expense_date::date AS d,
+           SELECT date_trunc('${bucket.trunc}', expense_date) AS b,
                   COALESCE(SUM(amount), 0)::float AS amount
            FROM expenses
            WHERE tenant_id = $1
@@ -413,15 +428,15 @@ class AnalyticsService {
            GROUP BY 1
          )
          SELECT
-           TO_CHAR(days.d, 'DD Mon')     AS month,
-           days.d                        AS month_sort,
-           COALESCE(income.amount, 0)    AS income,
-           COALESCE(outflow.amount, 0)   AS expenses,
+           TO_CHAR(buckets.b, '${bucket.fmt}') AS month,
+           buckets.b                           AS month_sort,
+           COALESCE(income.amount, 0)          AS income,
+           COALESCE(outflow.amount, 0)         AS expenses,
            COALESCE(income.amount, 0) - COALESCE(outflow.amount, 0) AS net
-         FROM days
-         LEFT JOIN income  ON income.d  = days.d
-         LEFT JOIN outflow ON outflow.d = days.d
-         ORDER BY days.d`,
+         FROM buckets
+         LEFT JOIN income  ON income.b  = buckets.b
+         LEFT JOIN outflow ON outflow.b = buckets.b
+         ORDER BY buckets.b`,
         [tenantId, from, to],
       );
       return r.rows.map((x) => ({
@@ -474,23 +489,30 @@ class AnalyticsService {
     }));
   }
 
-  // Collection trend. When `from`/`to` is supplied the series is DAILY
-  // within that range (so a "specific month" view shows day-by-day
-  // collections); otherwise it's monthly over the last N months.
+  // Collection trend. Granularity follows the range:
+  //   • from/to > 31 days → monthly buckets (Year-mode period)
+  //   • from/to ≤ 31 days → daily buckets (Month-mode period)
+  //   • no range → last N months ending today.
   async getCollectionTrend(tenantId, months = 6, from = null, to = null) {
     if (from && to) {
+      const spanDays =
+        Math.round(
+          (Date.parse(to) - Date.parse(from)) / (1000 * 60 * 60 * 24),
+        ) + 1;
+      const trunc = spanDays > 31 ? "month" : "day";
+      const fmt = spanDays > 31 ? "Mon YYYY" : "DD Mon";
       const result = await query(
         `SELECT
-           TO_CHAR(t.payment_date, 'DD Mon')         AS month,
-           t.payment_date                            AS month_sort,
+           TO_CHAR(date_trunc('${trunc}', t.payment_date), '${fmt}') AS month,
+           date_trunc('${trunc}', t.payment_date)                    AS month_sort,
            COALESCE(SUM(t.amount_paid - COALESCE(t.overpayment_portion, 0)), 0)::float AS collected
          FROM transactions t
          WHERE t.tenant_id = $1
            AND t.payment_status = 'completed'
            AND t.payment_date >= $2::date
            AND t.payment_date <= $3::date
-         GROUP BY t.payment_date
-         ORDER BY t.payment_date`,
+         GROUP BY date_trunc('${trunc}', t.payment_date)
+         ORDER BY date_trunc('${trunc}', t.payment_date)`,
         [tenantId, from, to],
       );
       return result.rows.map((r) => ({
@@ -525,20 +547,26 @@ class AnalyticsService {
   // Dashboard's /dashboard/monthly-trends loansTrend query.
   async getDisbursementTrend(tenantId, months = 6, from = null, to = null) {
     if (from && to) {
+      const spanDays =
+        Math.round(
+          (Date.parse(to) - Date.parse(from)) / (1000 * 60 * 60 * 24),
+        ) + 1;
+      const trunc = spanDays > 31 ? "month" : "day";
+      const fmt = spanDays > 31 ? "Mon YYYY" : "DD Mon";
       const result = await query(
         `SELECT
-           TO_CHAR(disbursed_at, 'DD Mon')            AS month,
-           disbursed_at                               AS month_sort,
-           COUNT(*)::int                              AS loan_count,
-           COALESCE(SUM(principal_amount), 0)::float  AS disbursed
+           TO_CHAR(date_trunc('${trunc}', disbursed_at), '${fmt}') AS month,
+           date_trunc('${trunc}', disbursed_at)                    AS month_sort,
+           COUNT(*)::int                                           AS loan_count,
+           COALESCE(SUM(principal_amount), 0)::float               AS disbursed
          FROM loans
          WHERE tenant_id = $1
            AND status IN ('active', 'completed', 'defaulted')
            AND disbursed_at IS NOT NULL
            AND disbursed_at::date >= $2::date
            AND disbursed_at::date <= $3::date
-         GROUP BY disbursed_at
-         ORDER BY disbursed_at`,
+         GROUP BY date_trunc('${trunc}', disbursed_at)
+         ORDER BY date_trunc('${trunc}', disbursed_at)`,
         [tenantId, from, to],
       );
       return result.rows.map((r) => ({
