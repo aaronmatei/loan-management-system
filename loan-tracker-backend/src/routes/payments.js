@@ -149,19 +149,39 @@ router.get("/loan/:loanId/summary", async (req, res) => {
 
     const loan = loanResult.rows[0];
 
-    // total_paid    = principal+interest settled against amount_due
-    //                 (cash via transactions + amount_due-side waivers).
-    //                 This drives the headline balance + progress %.
-    // total_cash_paid = the cash leg only (transactions, ex penalty/overpayment).
-    // total_collected = what the lender actually kept (gross − overpayment).
+    // total_cash_paid  = cash actually APPLIED to amount_due on the
+    //                    schedule (per-row amount_paid capped at the
+    //                    row's amount_due). For reducing-balance
+    //                    loans, the cascade allocator can park
+    //                    surplus cash on a row as "principal
+    //                    knockdown" (amount_paid > amount_due) and
+    //                    then zero future rows via recompute — that
+    //                    knockdown cash isn't applied to amount_due
+    //                    (it eliminated future amount_due instead),
+    //                    so summing it would double-count: once via
+    //                    the row excess AND again via the lower
+    //                    total_amount_due. Capping per row keeps
+    //                    total_paid + balance == total_due exactly.
+    // total_collected  = what the lender actually kept on this loan
+    //                    (gross cash − refunds), straight from
+    //                    transactions.
+    // total_overpayment = refunded surplus (loans.overpayment_amount
+    //                    leg derived from transactions).
     // total_waived_amount_due / total_waived_penalty surfaced so the
     // UI can break "Paid So Far" into cash vs. waived if it wants.
     const paidResult = await query(
       `SELECT
-         COALESCE(SUM(amount_paid - COALESCE(penalty_portion, 0) - COALESCE(overpayment_portion, 0)), 0) AS total_cash_paid,
-         COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0)                                 AS total_collected,
-         COALESCE(SUM(COALESCE(penalty_portion, 0)), 0)                                                    AS total_penalty_paid,
-         COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0)                                                AS total_overpayment
+         COALESCE(SUM(LEAST(amount_paid, amount_due)), 0)                              AS total_cash_paid,
+         COALESCE(SUM(GREATEST(0, amount_paid - amount_due)), 0)                       AS total_principal_knockdown
+       FROM payment_schedules
+       WHERE loan_id = $1`,
+      [loanId],
+    );
+    const txnAggregate = await query(
+      `SELECT
+         COALESCE(SUM(amount_paid - COALESCE(overpayment_portion, 0)), 0)              AS total_collected,
+         COALESCE(SUM(COALESCE(penalty_portion, 0)), 0)                                AS total_penalty_paid,
+         COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0)                            AS total_overpayment
        FROM transactions
        WHERE loan_id = $1 AND payment_status = 'completed'`,
       [loanId],
@@ -296,17 +316,24 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     );
 
     const totalCashPaid = parseFloat(paidResult.rows[0].total_cash_paid);
-    const totalCollected = parseFloat(paidResult.rows[0].total_collected);
-    const totalPenaltyPaid = parseFloat(paidResult.rows[0].total_penalty_paid);
-    const totalOverpayment = parseFloat(paidResult.rows[0].total_overpayment);
+    const totalPrincipalKnockdown = parseFloat(
+      paidResult.rows[0].total_principal_knockdown,
+    );
+    const totalCollected = parseFloat(txnAggregate.rows[0].total_collected);
+    const totalPenaltyPaid = parseFloat(txnAggregate.rows[0].total_penalty_paid);
+    const totalOverpayment = parseFloat(txnAggregate.rows[0].total_overpayment);
     const totalWaivedAmountDue = parseFloat(
       waiverResult.rows[0].total_waived_amount_due,
     );
     const totalWaivedPenalty = parseFloat(
       waiverResult.rows[0].total_waived_penalty,
     );
-    // Settled = cash applied to amount_due + waivers applied to amount_due.
-    // This is what the borrower no longer owes, regardless of source.
+    // Settled = cash applied to amount_due (per-row LEAST cap above,
+    // so knockdown is excluded) + waivers applied to amount_due.
+    // This is what the borrower no longer owes, regardless of source,
+    // and is guaranteed to fit inside total_amount_due (the cap
+    // above plus the recompute that zeroes future rows after a
+    // knockdown means totalPaid + balance always == totalDue).
     const totalPaid = totalCashPaid + totalWaivedAmountDue;
     const totalDue = parseFloat(loan.total_amount_due);
     const overpayment = parseFloat(loan.overpayment_amount || 0);
@@ -336,14 +363,25 @@ router.get("/loan/:loanId/summary", async (req, res) => {
           - overpaidThis,
       );
       running += towardBalance;
-      const remaining = Math.max(0, totalDue - running);
+      // Cap the cumulative tally at totalDue for the receipt display.
+      // For reducing-balance loans, towardBalance includes principal
+      // knockdown — cash that REDUCES future amount_due rather than
+      // settling current amount_due. The recompute then zeroes those
+      // future rows, so they vanish from totalDue. Without the cap,
+      // total_paid_after_this would race past totalDue and the
+      // completion bar would render >100%. Capping keeps the receipt
+      // tally consistent with the headline PAID tile (which is built
+      // from per-row LEAST(amount_paid, amount_due) and already
+      // excludes knockdown).
+      const runningCapped = Math.min(running, totalDue);
+      const remaining = Math.max(0, totalDue - runningCapped);
       return {
         ...t,
         receipt: {
-          total_paid_after_this: running,
+          total_paid_after_this: runningCapped,
           remaining_balance_after_this: remaining,
           completion_percentage_after_this:
-            totalDue > 0 ? ((running / totalDue) * 100).toFixed(1) : "0",
+            totalDue > 0 ? ((runningCapped / totalDue) * 100).toFixed(1) : "0",
           overpayment_for_this: Math.round(overpaidThis * 100) / 100,
         },
       };

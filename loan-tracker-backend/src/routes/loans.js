@@ -45,17 +45,13 @@ router.get("/", async (req, res) => {
             c.phone_number,
             c.client_code,
             pk.name AS package_name,
-            COALESCE(SUM(t.amount_paid), 0) as total_paid,
+            (COALESCE(sp.cash_to_amount_due, 0) + COALESCE(wv.waived_toward_balance, 0)) as total_paid,
             COALESCE(SUM(t.penalty_portion), 0) as total_fines_paid,
             COALESCE(wv.waived_toward_balance, 0) as total_waived_toward_balance,
             COALESCE(wv.total_waived, 0) as total_waived,
             GREATEST(
               l.total_amount_due
-              - (
-                  COALESCE(SUM(t.amount_paid), 0)
-                  - COALESCE(SUM(t.penalty_portion), 0)
-                  - COALESCE(SUM(t.overpayment_portion), 0)
-                )
+              - COALESCE(sp.cash_to_amount_due, 0)
               - COALESCE(wv.waived_toward_balance, 0),
               0
             ) as balance_due,
@@ -66,6 +62,12 @@ router.get("/", async (req, res) => {
         JOIN clients c ON l.client_id = c.id
         LEFT JOIN loan_packages pk ON pk.id = l.package_id
         LEFT JOIN transactions t ON l.id = t.loan_id AND t.payment_status = 'completed'
+        LEFT JOIN (
+          SELECT loan_id,
+                 SUM(LEAST(amount_paid, amount_due)) AS cash_to_amount_due
+          FROM payment_schedules
+          GROUP BY loan_id
+        ) sp ON sp.loan_id = l.id
         LEFT JOIN (
           SELECT
             loan_id,
@@ -122,6 +124,7 @@ router.get("/", async (req, res) => {
       GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code,
                pk.name,
                od.overdue_count, od.overdue_amount, od.max_days_late,
+               sp.cash_to_amount_due,
                wv.waived_toward_balance, wv.total_waived
       ORDER BY l.created_at DESC
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
@@ -2540,10 +2543,15 @@ router.post("/bulk/export", async (req, res) => {
       `SELECT
         l.*,
         c.first_name, c.last_name, c.phone_number, c.client_code,
-        (SELECT COALESCE(SUM(t.amount_paid), 0)
-           FROM transactions t
-           WHERE t.loan_id = l.id
-             AND t.payment_status = 'completed') AS total_paid
+        (
+          (SELECT COALESCE(SUM(LEAST(amount_paid, amount_due)), 0)
+             FROM payment_schedules
+            WHERE loan_id = l.id)
+          +
+          (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+             FROM loan_waivers
+            WHERE loan_id = l.id AND status = 'approved')
+        ) AS total_paid
       FROM loans l
       JOIN clients c ON l.client_id = c.id
       WHERE l.id = ANY($1)${tenantClause(req, 1, "l.tenant_id").clause}

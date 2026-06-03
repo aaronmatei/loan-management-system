@@ -534,7 +534,15 @@ router.get("/all-loans", async (req, res) => {
          c.client_code,
          pk.name              AS package_name,
          pk.interest_method   AS package_interest_method,
-         COALESCE(SUM(tx.amount_paid),0) AS total_paid,
+         (
+           (SELECT COALESCE(SUM(LEAST(amount_paid, amount_due)), 0)
+              FROM payment_schedules
+             WHERE loan_id = l.id)
+           +
+           (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+              FROM loan_waivers
+             WHERE loan_id = l.id AND status = 'approved')
+         ) AS total_paid,
          (SELECT json_build_object(
             'amount_due', ps.amount_due,
             'due_date', ps.due_date,
@@ -547,10 +555,7 @@ router.get("/all-loans", async (req, res) => {
        JOIN tenants t ON l.tenant_id = t.id
        JOIN clients c ON l.client_id = c.id
        LEFT JOIN loan_packages pk ON pk.id = l.package_id
-       LEFT JOIN transactions tx
-         ON tx.loan_id = l.id AND tx.payment_status = 'completed'
        WHERE ${where}
-       GROUP BY l.id, t.id, c.id, pk.id
        ORDER BY ${orderBy}`,
       params,
     );
@@ -579,13 +584,21 @@ router.get("/all-loans", async (req, res) => {
            COUNT(l.id) FILTER (WHERE l.status='active')::int AS active_loans,
            COALESCE(SUM(l.total_amount_due) FILTER (WHERE l.status='active'),0) AS total_due,
            COALESCE((
-             SELECT SUM(tx.amount_paid)
-             FROM transactions tx
-             JOIN loans la ON tx.loan_id = la.id
+             SELECT SUM(LEAST(ps.amount_paid, ps.amount_due))
+             FROM payment_schedules ps
+             JOIN loans la ON ps.loan_id = la.id
              WHERE la.tenant_id = t.id
                AND la.client_id = ANY($1::int[])
                AND la.status = 'active'
-               AND tx.payment_status = 'completed'
+           ),0)
+           + COALESCE((
+             SELECT SUM(COALESCE((wv.allocation->>'amount_total')::float, 0))
+             FROM loan_waivers wv
+             JOIN loans la ON wv.loan_id = la.id
+             WHERE la.tenant_id = t.id
+               AND la.client_id = ANY($1::int[])
+               AND la.status = 'active'
+               AND wv.status = 'approved'
            ),0) AS total_paid
          FROM tenants t
          LEFT JOIN loans l
@@ -723,20 +736,26 @@ router.get("/analytics", async (req, res) => {
     ).rows;
 
     // Repayment progress for each active loan (largest outstanding first).
+    // Paid = cash applied to amount_due (per-row LEAST cap excludes
+    // principal knockdown) + amount_due-side waivers. Matches /summary.
     const loanProgress = (
       await query(
         `SELECT l.id, l.loan_code, l.total_amount_due,
-                COALESCE(p.paid,0) AS total_paid,
+                (COALESCE(sp.cash_paid,0) + COALESCE(wv.waived,0)) AS total_paid,
                 tn.id AS tenant_id, tn.business_name AS lender, tn.brand_color
          FROM loans l
          JOIN tenants tn ON l.tenant_id = tn.id
          LEFT JOIN (
-           SELECT loan_id, SUM(amount_paid) AS paid
-           FROM transactions WHERE payment_status='completed' GROUP BY loan_id
-         ) p ON p.loan_id = l.id
+           SELECT loan_id, SUM(LEAST(amount_paid, amount_due)) AS cash_paid
+           FROM payment_schedules GROUP BY loan_id
+         ) sp ON sp.loan_id = l.id
+         LEFT JOIN (
+           SELECT loan_id, SUM(COALESCE((allocation->>'amount_total')::float, 0)) AS waived
+           FROM loan_waivers WHERE status='approved' GROUP BY loan_id
+         ) wv ON wv.loan_id = l.id
          WHERE l.client_id = ANY($1::int[]) AND l.tenant_id = ANY($2::int[])
            AND l.status = 'active'
-         ORDER BY (l.total_amount_due - COALESCE(p.paid,0)) DESC
+         ORDER BY (l.total_amount_due - COALESCE(sp.cash_paid,0) - COALESCE(wv.waived,0)) DESC
          LIMIT 6`,
         ids,
       )
@@ -937,12 +956,17 @@ router.get("/dashboard", async (req, res) => {
     const tid = req.currentTenantId;
 
     const loans = await query(
-      `SELECT l.*, COALESCE(SUM(t.amount_paid),0) AS total_paid
+      `SELECT l.*,
+              (
+                (SELECT COALESCE(SUM(LEAST(amount_paid, amount_due)), 0)
+                   FROM payment_schedules WHERE loan_id = l.id)
+                +
+                (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+                   FROM loan_waivers WHERE loan_id = l.id AND status='approved')
+              ) AS total_paid
        FROM loans l
-       LEFT JOIN transactions t
-         ON l.id = t.loan_id AND t.payment_status = 'completed'
        WHERE l.client_id = $1 AND l.tenant_id = $2 AND l.status = 'active'
-       GROUP BY l.id ORDER BY l.created_at DESC`,
+       ORDER BY l.created_at DESC`,
       [cid, tid],
     );
     const nextPayment = await query(
@@ -1036,16 +1060,12 @@ router.get("/loans/:id", async (req, res) => {
               tn.brand_color   AS tenant_brand_color,
               pk.name              AS package_name,
               pk.description       AS package_description,
-              pk.interest_method   AS package_interest_method,
-              COALESCE(SUM(t.amount_paid),0) AS total_paid
+              pk.interest_method   AS package_interest_method
        FROM loans l
        JOIN clients c ON l.client_id = c.id
        JOIN tenants tn ON l.tenant_id = tn.id
        LEFT JOIN loan_packages pk ON pk.id = l.package_id
-       LEFT JOIN transactions t
-         ON l.id = t.loan_id AND t.payment_status = 'completed'
-       WHERE l.id = $1 AND l.client_id = $2 AND l.tenant_id = $3
-       GROUP BY l.id, c.id, tn.id, pk.id`,
+       WHERE l.id = $1 AND l.client_id = $2 AND l.tenant_id = $3`,
       [req.params.id, req.currentClientId, req.currentTenantId],
     );
     if (loan.rows.length === 0) {
@@ -1072,27 +1092,62 @@ router.get("/loans/:id", async (req, res) => {
         JSON.stringify({ loan_id: req.params.id }),
       ],
     );
+    // total_paid = cash applied to amount_due (per-row LEAST cap
+    // excludes principal knockdown) + amount_due-side waivers.
+    // Matches the staff /payments/loan/:id/summary so customer + staff
+    // see the same "PAID" headline.
+    const paidRes = await query(
+      `SELECT
+         COALESCE(SUM(LEAST(amount_paid, amount_due)), 0) AS cash_to_amount_due,
+         (SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)
+            FROM loan_waivers
+           WHERE loan_id = $1 AND status = 'approved') AS waived_to_amount_due
+       FROM payment_schedules
+       WHERE loan_id = $1`,
+      [req.params.id],
+    );
+    const cashToAmountDue = parseFloat(paidRes.rows[0].cash_to_amount_due || 0);
+    const waivedToAmountDue = parseFloat(
+      paidRes.rows[0].waived_to_amount_due || 0,
+    );
     // Annotate each transaction with running balance / % complete +
     // build the loan-level receipt_summary. Same shape as the staff
     // /payments/loan/:id/summary endpoint so the portal frontend can
     // share rendering logic.
-    const loanRow = loan.rows[0];
+    const loanRow = { ...loan.rows[0], total_paid: cashToAmountDue + waivedToAmountDue };
     const totalDue = parseFloat(loanRow.total_amount_due);
     const totalPaid = parseFloat(loanRow.total_paid || 0);
     const balance = Math.max(0, totalDue - totalPaid);
 
     const ascTxns = [...txns.rows].reverse();
-    let running = 0;
+    // Start the running tally at the waiver-settled amount so the
+    // first-cash-after-waiver receipt reads "Remaining 0" when the
+    // two together cover the loan. Mirrors staff summary.
+    let running = waivedToAmountDue;
     const annotated = ascTxns.map((t) => {
-      running += parseFloat(t.amount_paid || 0);
-      const remaining = Math.max(0, totalDue - running);
+      // Toward-balance = cash that reduced the obligation = gross
+      // − penalty − refund. Includes principal knockdown (which
+      // does reduce the borrower's obligation, by eliminating
+      // future installments).
+      const towardBalance = Math.max(
+        0,
+        parseFloat(t.amount_paid || 0)
+          - parseFloat(t.penalty_portion || 0)
+          - parseFloat(t.overpayment_portion || 0),
+      );
+      running += towardBalance;
+      // Cap at totalDue: knockdown reduces future amount_due via
+      // recompute, so totalDue already shrinks — without the cap
+      // the running display races past 100%.
+      const runningCapped = Math.min(running, totalDue);
+      const remaining = Math.max(0, totalDue - runningCapped);
       return {
         ...t,
         receipt: {
-          total_paid_after_this: running,
+          total_paid_after_this: runningCapped,
           remaining_balance_after_this: remaining,
           completion_percentage_after_this:
-            totalDue > 0 ? ((running / totalDue) * 100).toFixed(1) : "0",
+            totalDue > 0 ? ((runningCapped / totalDue) * 100).toFixed(1) : "0",
         },
       };
     });
