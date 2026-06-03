@@ -133,12 +133,29 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const { loanId } = req.params;
 
     const lt = tenantClause(req, 1, "l.tenant_id");
+    // Package constraints (rate, fee, principal/duration bounds)
+    // surfaced so the Edit Loan modal can lock the inputs that
+    // the package fixes — this endpoint is what populates the
+    // page's `loan` state, the lower-traffic /loans/:id route
+    // isn't consulted. Custom loans get NULL for every pk.*
+    // field via LEFT JOIN.
     const loanResult = await query(
       `SELECT
         l.*,
-        c.first_name, c.last_name, c.phone_number, c.client_code, c.email
+        c.first_name, c.last_name, c.phone_number, c.client_code, c.email,
+        pk.name                AS package_name,
+        pk.description         AS package_description,
+        pk.interest_method     AS package_interest_method,
+        pk.active              AS package_active,
+        pk.annual_interest_rate AS package_annual_rate,
+        pk.processing_fee_rate  AS package_processing_fee_rate,
+        pk.min_amount           AS package_min_amount,
+        pk.max_amount           AS package_max_amount,
+        pk.min_duration_months  AS package_min_duration_months,
+        pk.max_duration_months  AS package_max_duration_months
       FROM loans l
       JOIN clients c ON l.client_id = c.id
+      LEFT JOIN loan_packages pk ON pk.id = l.package_id
       WHERE l.id = $1${lt.clause}`,
       [loanId, ...lt.params],
     );
