@@ -6,6 +6,7 @@ import PortalLayout from "../components/PortalLayout";
 import SortHeader from "../components/SortHeader";
 import Pager from "../components/Pager";
 import { lenderColor } from "../lenderColor";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 15;
@@ -92,8 +93,8 @@ function Payments() {
         </p>
 
         {loading ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
-            Loading…
+          <div className="bg-white rounded-xl p-12">
+            <Spinner centered label="Loading…" />
           </div>
         ) : sorted.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">

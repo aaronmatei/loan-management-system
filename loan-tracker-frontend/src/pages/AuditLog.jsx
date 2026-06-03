@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 function AuditLog() {
   const [logs, setLogs] = useState([]);
@@ -174,7 +175,7 @@ function AuditLog() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center">Loading audit logs...</div>;
+    return <Spinner centered className="py-20" label="Loading audit logs…" />;
   }
 
   return (

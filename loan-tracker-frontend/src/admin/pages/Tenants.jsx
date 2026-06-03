@@ -5,6 +5,7 @@ import PlatformLayout from "../components/PlatformLayout";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
 import { Building2, Search } from "lucide-react";
+import Spinner from "../../components/Spinner";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
 
@@ -101,8 +102,8 @@ function PlatformTenants() {
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
-            Loading…
+          <div className="bg-white rounded-xl p-12">
+            <Spinner centered label="Loading…" />
           </div>
         ) : tenants.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center text-gray-500">

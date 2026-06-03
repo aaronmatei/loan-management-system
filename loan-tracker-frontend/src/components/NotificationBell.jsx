@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Trash2, Megaphone } from "lucide-react";
 import api from "../services/api";
+import Spinner from "./Spinner";
 
 function NotificationBell() {
   const navigate = useNavigate();
@@ -151,7 +152,7 @@ function NotificationBell() {
 
           <div className="max-h-96 overflow-y-auto">
             {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading...</div>
+              <Spinner centered className="py-8" size={28} label="Loading…" />
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center">
                 <div className="flex justify-center mb-2">

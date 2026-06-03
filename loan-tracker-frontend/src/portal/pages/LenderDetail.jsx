@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -104,7 +105,7 @@ function LenderDetail() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-slate-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PortalLayout>
     );
   }

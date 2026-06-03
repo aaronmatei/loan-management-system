@@ -17,6 +17,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import MpesaPayButton from "../../components/MpesaPayButton";
 import PaymentReceipt from "../../components/PaymentReceipt";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const day = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A");
@@ -92,7 +93,7 @@ function LoanDetails() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PortalLayout>
     );
   }

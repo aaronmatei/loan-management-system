@@ -13,6 +13,7 @@ import {
   Info,
 } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 const fld =
   "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
@@ -48,7 +49,7 @@ function WhiteLabelSettings() {
   };
 
   if (loading)
-    return <div className="p-8 text-center text-gray-500">Loading…</div>;
+    return <Spinner centered className="py-20" label="Loading…" />;
   if (!s) return null;
 
   const tier = s.white_label_tier || "basic";

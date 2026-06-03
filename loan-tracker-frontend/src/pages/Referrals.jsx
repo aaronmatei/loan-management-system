@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import PromoCodesSection from "../components/PromoCodesSection";
+import Spinner from "../components/Spinner";
 
 // Refer & Earn dashboard. Every tenant has a deterministic referral
 // code stamped at signup (routes/tenants.js) and a credit balance
@@ -36,7 +37,7 @@ function Referrals() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading…</div>;
+    return <Spinner centered className="py-20" label="Loading…" />;
   }
   if (!data) return null;
 

@@ -6,6 +6,7 @@ import MonthNavigator from "../components/MonthNavigator";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
 import { Coins, RotateCcw, ClipboardList, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import Spinner from "../../components/Spinner";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(1)}K`;
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
@@ -108,7 +109,7 @@ function BillingDashboard() {
   if (loading) {
     return (
       <PlatformLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PlatformLayout>
     );
   }

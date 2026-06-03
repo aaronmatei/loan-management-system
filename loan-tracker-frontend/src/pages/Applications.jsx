@@ -19,6 +19,7 @@ import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
+import Spinner from "../components/Spinner";
 
 // Format a date (Date | YYYY-MM-DD string) as "DD/MM/YYYY". Native
 // <input type="date"> displays in the browser's locale, which may not
@@ -681,7 +682,7 @@ function Applications() {
     </div>
   );
 
-  if (loading) return <div className="p-4 lg:p-8">Loading...</div>;
+  if (loading) return <Spinner centered className="py-20" label="Loading…" />;
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">

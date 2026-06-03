@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
 import { Crown, BarChart3, Briefcase, Trophy, UserPlus } from "lucide-react";
+import Spinner from "../../components/Spinner";
 
 const M = (v) => `KES ${(parseFloat(v || 0) / 1_000_000).toFixed(1)}M`;
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
@@ -23,7 +24,7 @@ function PlatformDashboard() {
   if (loading) {
     return (
       <PlatformLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PlatformLayout>
     );
   }

@@ -15,6 +15,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import { computeLoanTotals } from "../../utils/loanMath";
 import { purposesForPackage } from "../../utils/loanPurposes";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 // Tenants store the rate annually; customers think monthly.
@@ -265,7 +266,7 @@ function ApplyLoan() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PortalLayout>
     );
   }

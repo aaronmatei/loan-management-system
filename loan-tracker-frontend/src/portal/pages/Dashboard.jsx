@@ -28,6 +28,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
 import { lenderColor } from "../lenderColor";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const kCompact = (v) =>
@@ -98,7 +99,7 @@ function CustomerDashboard() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-slate-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PortalLayout>
     );
   }

@@ -45,6 +45,7 @@ import PeriodNavigator, {
   periodLabel,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
+import Spinner from "../components/Spinner";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -184,7 +185,7 @@ function Reports() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-gray-500">Loading analytics…</div>
+      <Spinner centered label="Loading analytics…" className="py-20" />
     );
   }
   if (!data) return null;

@@ -13,6 +13,7 @@ import {
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import { lenderColor } from "../lenderColor";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -129,7 +130,7 @@ function CustomerApplications() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PortalLayout>
     );
   }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
 import { AlertTriangle, BarChart3, Phone, Users, Gem, Percent } from "lucide-react";
+import Spinner from "../../components/Spinner";
 
 const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
 
@@ -50,7 +51,7 @@ function TenantDetail() {
   if (loading) {
     return (
       <PlatformLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PlatformLayout>
     );
   }

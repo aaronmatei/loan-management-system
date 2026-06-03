@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Receipt, AlertTriangle, CheckCircle, Smartphone } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 const KES = (v) => `KES ${Number(v || 0).toLocaleString()}`;
 const MONTHS = [
@@ -87,8 +88,8 @@ function Billing() {
       )}
 
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading…
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading…" />
         </div>
       ) : (
         <>

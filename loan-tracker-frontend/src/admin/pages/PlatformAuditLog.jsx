@@ -19,6 +19,7 @@ import {
   MapPin,
   ShieldCheck,
 } from "lucide-react";
+import Spinner from "../../components/Spinner";
 
 // Cross-tenant audit log for platform admins. Backed by
 // /api/platform/audit (different from the tenant-scoped /api/audit
@@ -189,7 +190,7 @@ function PlatformAuditLog() {
 
         {/* Log list */}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading…</div>
+          <Spinner centered className="py-8" label="Loading…" />
         ) : logs.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-12 text-center">
             <ClipboardList size={48} className="mx-auto mb-3 text-gray-300" />

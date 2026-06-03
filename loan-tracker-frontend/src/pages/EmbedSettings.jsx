@@ -12,6 +12,7 @@ import {
   Calculator,
 } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 function EmbedSettings() {
   const [tenant, setTenant] = useState(null);
@@ -28,7 +29,7 @@ function EmbedSettings() {
   }, []);
 
   if (loading)
-    return <div className="p-8 text-center text-gray-500">Loading…</div>;
+    return <Spinner centered className="py-20" label="Loading…" />;
   if (!tenant) return null;
 
   const baseUrl =

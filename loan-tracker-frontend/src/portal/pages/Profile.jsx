@@ -15,6 +15,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
 import { getPortalBrand } from "../brand";
+import Spinner from "../../components/Spinner";
 
 const field =
   "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none";
@@ -134,7 +135,7 @@ function Profile() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PortalLayout>
     );
   }

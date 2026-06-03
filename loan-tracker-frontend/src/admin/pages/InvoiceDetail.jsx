@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
 import { BarChart3, Coins, CreditCard, Check } from "lucide-react";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -54,7 +55,7 @@ function InvoiceDetail() {
   if (loading) {
     return (
       <PlatformLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PlatformLayout>
     );
   }

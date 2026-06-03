@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Building2, Landmark, CheckCircle } from "lucide-react";
 import api from "../services/api";
 import BranchesSection from "../components/BranchesSection";
+import Spinner from "../components/Spinner";
 
 // Company-level settings only. Loan policy + Loan packages live at
 // /loan-settings (LOANS sidebar group) since they configure the loan
@@ -55,7 +56,7 @@ function Settings() {
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <Spinner centered className="py-20" label="Loading…" />;
   }
 
   return (

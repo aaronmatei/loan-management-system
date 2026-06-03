@@ -10,6 +10,7 @@ import FirstClientStep from "./steps/FirstClientStep";
 import FirstLoanStep from "./steps/FirstLoanStep";
 import InviteTeamStep from "./steps/InviteTeamStep";
 import CompletionStep from "./steps/CompletionStep";
+import Spinner from "../components/Spinner";
 
 const STEPS = [
   { component: WelcomeStep, title: "Welcome" },
@@ -84,10 +85,7 @@ function OnboardingWizard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ocean-600 mx-auto"></div>
-          <p className="mt-3 text-gray-600">Loading…</p>
-        </div>
+        <Spinner centered size={48} label="Loading…" />
       </div>
     );
   }

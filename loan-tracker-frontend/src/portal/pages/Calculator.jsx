@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Calculator, Coins, BarChart3, Calendar, Lightbulb } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) =>
   `KES ${parseFloat(v || 0).toLocaleString(undefined, {
@@ -106,7 +107,7 @@ function CustomerCalculator() {
   if (loading) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PortalLayout>
     );
   }

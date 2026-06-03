@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Ticket, Copy, CheckCircle, Users, Plus, X } from "lucide-react";
 import api from "../services/api";
+import Spinner from "./Spinner";
 
 // Promo / campaign codes for the customer sign-up link. A tenant creates named
 // codes and shares /portal/register?promo=<code>; customers who sign up
@@ -115,7 +116,7 @@ function PromoCodesSection() {
 
       {/* List */}
       {loading ? (
-        <p className="text-sm text-gray-400 py-4">Loading…</p>
+        <Spinner centered className="py-4" size={28} label="Loading…" />
       ) : codes.length === 0 ? (
         <p className="text-sm text-gray-400 py-4">
           No promo codes yet. Create one above to start tracking sign-ups.
@@ -209,7 +210,7 @@ function PromoCodesSection() {
             </div>
             <div className="overflow-y-auto p-2">
               {clientsLoading ? (
-                <p className="text-sm text-gray-400 p-4">Loading…</p>
+                <Spinner centered className="p-4" size={28} label="Loading…" />
               ) : clients.length === 0 ? (
                 <p className="text-sm text-gray-400 p-4">No sign-ups yet.</p>
               ) : (

@@ -9,6 +9,7 @@ import {
   Info,
 } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 function Backup() {
   const [backups, setBackups] = useState([]);
@@ -152,7 +153,7 @@ function Backup() {
     return mb > 1 ? `${mb.toFixed(2)} MB` : `${(bytes / 1024).toFixed(2)} KB`;
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) return <Spinner centered className="py-20" label="Loading backups…" />;
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">

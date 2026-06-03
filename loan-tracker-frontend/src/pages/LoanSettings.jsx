@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Percent, CheckCircle, SlidersHorizontal } from "lucide-react";
 import api from "../services/api";
 import LoanPackagesSection from "../components/LoanPackagesSection";
+import Spinner from "../components/Spinner";
 
 // Loan-only configuration: tenant-wide policy (default rate + fee)
 // and the catalog of pre-configured loan packages. Lives under the
@@ -73,7 +74,7 @@ function LoanSettings() {
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <Spinner centered className="py-20" label="Loading…" />;
   }
 
   return (

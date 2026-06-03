@@ -14,6 +14,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
 import { getPortalBrand } from "../brand";
+import Spinner from "../../components/Spinner";
 
 function AddLender() {
   const navigate = useNavigate();
@@ -167,8 +168,8 @@ function AddLender() {
         </h2>
 
         {loading ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
-            Loading…
+          <div className="bg-white rounded-xl p-12">
+            <Spinner centered label="Loading…" />
           </div>
         ) : available.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-12 text-center">

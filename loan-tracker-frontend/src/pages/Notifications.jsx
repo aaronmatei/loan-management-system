@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Trash2, Check, Mail } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 function Notifications() {
   const navigate = useNavigate();
@@ -120,7 +121,9 @@ function Notifications() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-xl p-12 text-center">Loading...</div>
+        <div className="bg-white rounded-xl p-12 text-center">
+          <Spinner centered label="Loading…" />
+        </div>
       ) : notifications.length === 0 ? (
         <div className="bg-white rounded-xl p-12 text-center">
           <Mail size={56} className="mx-auto mb-4 text-gray-300" />

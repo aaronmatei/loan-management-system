@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { BarChart3, Download, Banknote, Trophy } from "lucide-react";
+import Spinner from "../../components/Spinner";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -84,7 +85,7 @@ function PlatformReports() {
   if (loading) {
     return (
       <PlatformLayout>
-        <div className="p-8 text-center text-gray-500">Loading…</div>
+        <Spinner centered className="py-20" label="Loading…" />
       </PlatformLayout>
     );
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Zap, Clock, BellRing, RotateCcw, CheckCircle } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 function Automation() {
   const [settings, setSettings] = useState({
@@ -74,7 +75,7 @@ function Automation() {
     }
   };
 
-  if (loading) return <div className="p-4 lg:p-8">Loading…</div>;
+  if (loading) return <Spinner centered className="py-20" label="Loading…" />;
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">

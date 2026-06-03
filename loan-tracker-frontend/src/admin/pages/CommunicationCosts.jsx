@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { MessageSquare, Mail, Coins } from "lucide-react";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
+import Spinner from "../../components/Spinner";
 
 const KES = (v) => `KES ${Number(v || 0).toLocaleString()}`;
 const today = () => new Date().toISOString().split("T")[0];
@@ -93,8 +94,8 @@ function CommunicationCosts() {
         )}
 
         {loading ? (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-            Loading…
+          <div className="bg-white rounded-xl shadow-md p-12">
+            <Spinner centered label="Loading…" />
           </div>
         ) : !data ? null : (
           <>
