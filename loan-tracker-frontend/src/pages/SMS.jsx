@@ -19,6 +19,7 @@ import {
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
+import Spinner from "../components/Spinner";
 
 function SMS() {
   const [stats, setStats] = useState(null);
@@ -202,8 +203,8 @@ function SMS() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading SMS data...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading SMS data…" />
         </div>
       </div>
     );

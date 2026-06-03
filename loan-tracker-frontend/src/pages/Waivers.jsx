@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -267,8 +268,8 @@ function Waivers() {
 
       {/* List */}
       {loading ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-500">
-          Loading {tab} waivers…
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12">
+          <Spinner centered label={`Loading ${tab} waivers…`} />
         </div>
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
