@@ -72,70 +72,47 @@ class AnalyticsService {
       [tenantId, dateFrom || null, dateTo || null],
     );
 
-    // Interest earned = sum across transactions IN THE WINDOW of
-    // (this txn's cash that went into amount_due) × loan interest
-    // ratio. Two things needed for correctness:
+    // Interest earned — per-row attribution, summed for rows
+    // settled in the window. Matches the capital-pool booking
+    // formula in paymentService.recordLoanPayment so the
+    // Dashboard's NET INTEREST tile and Reports' INTEREST FROM
+    // LOANS read the same number.
     //
-    //   a) "Cash into amount_due" must exclude principal knockdown
-    //      (reducing-balance prepayments that overshoot the row's
-    //      amount_due to wipe future installments). Knockdown is
-    //      100% principal — multiplying it by the interest ratio
-    //      invents phantom interest income (loan 313 example:
-    //      40,599 knockdown × 0.83 ratio = +33.7k fake interest).
+    // Per row, cash interest earned = min(
+    //   cash applied to this row (LEAST(amount_paid, amount_due)
+    //     — excludes knockdown),
+    //   interest room not already covered by a waiver
+    //     (interest_portion − interest_paid)
+    // )
     //
-    //   b) Window filter on t.payment_date, NOT loan disbursal —
-    //      a payment that lands in May is May income even if the
-    //      loan was disbursed in April. (Earlier disbursal-date
-    //      filter was a regression: May reports showed 113k
-    //      collected but 0 interest.)
+    // The min(·, interest_room) step is what keeps the loan-level
+    // ratio from inflating interest on rows where a waiver has
+    // already settled the interest side — the cash that fills
+    // those rows is pure principal. For loan 313 row 1 (10k
+    // interest waived), the 1,263 cash settling the row was 0
+    // interest + 1,263 principal; the OLD ratio booked 83% of it
+    // as interest (~1,053), overstating Reports' interest by ~2k
+    // and creating the dashboard-vs-reports gap.
     //
-    // Per-txn cap: each transaction's cash counts up to the loan's
-    // remaining amount-due space at the time the txn lands, in
-    // payment_date order. Cumulatively this can't exceed
-    // total_amount_due − waived_total per loan — anything beyond
-    // is principal knockdown (or overpayment, already excluded).
-    // Window function computes "cash applied before this txn" per
-    // loan so each txn knows how much room is left.
+    // Window filter: ps.actual_payment_date, set by the cascade
+    // when a row is fully closed. Partial-pay rows (rare) don't
+    // surface until the row closes — accepted limitation.
     const interest = await query(
-      `WITH txn_running AS (
-         SELECT
-           t.id,
-           t.payment_date,
-           l.total_amount_due,
-           l.total_interest,
-           COALESCE(w.waived_total, 0) AS waived_total,
-           (t.amount_paid
-              - COALESCE(t.penalty_portion, 0)
-              - COALESCE(t.overpayment_portion, 0)) AS this_cash,
-           COALESCE(SUM(
-             t.amount_paid
-               - COALESCE(t.penalty_portion, 0)
-               - COALESCE(t.overpayment_portion, 0)
-           ) OVER (
-             PARTITION BY t.loan_id
-             ORDER BY t.payment_date, t.id
-             ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-           ), 0) AS cash_before
-         FROM transactions t
-         JOIN loans l ON t.loan_id = l.id
-         LEFT JOIN (
-           SELECT loan_id,
-                  SUM(COALESCE((allocation->>'amount_total')::float, 0)) AS waived_total
-             FROM loan_waivers WHERE status = 'approved'
-            GROUP BY loan_id
-         ) w ON w.loan_id = l.id
-         WHERE t.tenant_id = $1
-           AND t.payment_status = 'completed'
-       )
-       SELECT COALESCE(SUM(
-         GREATEST(0, LEAST(
-           this_cash,
-           GREATEST(0, total_amount_due - waived_total - cash_before)
-         )) * (total_interest / NULLIF(total_amount_due, 0))
+      `SELECT COALESCE(SUM(
+         LEAST(
+           LEAST(ps.amount_paid, ps.amount_due),
+           GREATEST(
+             0,
+             COALESCE(ps.interest_portion, 0) - COALESCE(ps.interest_paid, 0)
+           )
+         )
        ), 0)::float AS interest_earned
-       FROM txn_running
-       WHERE ($2::date IS NULL OR payment_date >= $2)
-         AND ($3::date IS NULL OR payment_date <= $3)`,
+       FROM payment_schedules ps
+       JOIN loans l ON l.id = ps.loan_id
+       WHERE l.tenant_id = $1
+         AND ps.actual_payment_date IS NOT NULL
+         AND ($2::date IS NULL OR ps.actual_payment_date >= $2)
+         AND ($3::date IS NULL OR ps.actual_payment_date <= $3)`,
       [tenantId, dateFrom || null, dateTo || null],
     );
 
@@ -365,46 +342,33 @@ class AnalyticsService {
   // into phantom interest income. Same fix as interest_earned in
   // getTenantPortfolioKPIs.
   async getIncomeVsExpensesTrend(tenantId, months = 6, from = null, to = null) {
-    // Helper builds the txn-running CTE used in both branches —
-    // window-function cap on each txn's cash, capped at the loan's
-    // remaining amount-due space (post-waiver, post-prior-cash) so
-    // knockdown is naturally excluded from the interest base.
-    const txnCte = `
-      txn_running AS (
+    // Income sources joined to a single date column so they can be
+    // bucketed together: per-row cash interest (by
+    // ps.actual_payment_date) and per-txn penalty (by t.payment_date).
+    // The per-row interest formula matches the capital pool's
+    // per-row attribution in paymentService — so the chart, the
+    // KPI tile, and the dashboard agree.
+    const incomeCte = `
+      income_events AS (
         SELECT
-          t.id, t.payment_date,
-          l.total_amount_due, l.total_interest,
-          COALESCE(w.waived_total, 0) AS waived_total,
-          (t.amount_paid
-             - COALESCE(t.penalty_portion, 0)
-             - COALESCE(t.overpayment_portion, 0)) AS this_cash,
-          COALESCE(t.penalty_portion, 0) AS this_penalty,
-          COALESCE(SUM(
-            t.amount_paid
-              - COALESCE(t.penalty_portion, 0)
-              - COALESCE(t.overpayment_portion, 0)
-          ) OVER (
-            PARTITION BY t.loan_id
-            ORDER BY t.payment_date, t.id
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ), 0) AS cash_before
+          ps.actual_payment_date::date AS d,
+          LEAST(
+            LEAST(ps.amount_paid, ps.amount_due),
+            GREATEST(
+              0,
+              COALESCE(ps.interest_portion, 0) - COALESCE(ps.interest_paid, 0)
+            )
+          ) AS amount
+        FROM payment_schedules ps
+        JOIN loans l ON l.id = ps.loan_id
+        WHERE l.tenant_id = $1 AND ps.actual_payment_date IS NOT NULL
+        UNION ALL
+        SELECT
+          t.payment_date::date AS d,
+          COALESCE(t.penalty_portion, 0) AS amount
         FROM transactions t
-        JOIN loans l ON t.loan_id = l.id
-        LEFT JOIN (
-          SELECT loan_id,
-                 SUM(COALESCE((allocation->>'amount_total')::float, 0)) AS waived_total
-            FROM loan_waivers WHERE status = 'approved'
-           GROUP BY loan_id
-        ) w ON w.loan_id = l.id
-        WHERE t.tenant_id = $1
-          AND t.payment_status = 'completed'
+        WHERE t.tenant_id = $1 AND t.payment_status = 'completed'
       )`;
-    const incomePerTxn = `
-      GREATEST(0, LEAST(
-        this_cash,
-        GREATEST(0, total_amount_due - waived_total - cash_before)
-      )) * (total_interest / NULLIF(total_amount_due, 0))
-      + this_penalty`;
 
     if (from && to) {
       // Decide bucketing from the range span (inclusive of both ends).
@@ -417,7 +381,7 @@ class AnalyticsService {
         ? { trunc: "month", step: "1 month", fmt: "Mon YYYY" }
         : { trunc: "day", step: "1 day", fmt: "DD Mon" };
       const r = await query(
-        `WITH ${txnCte},
+        `WITH ${incomeCte},
          buckets AS (
            SELECT generate_series(
              date_trunc('${bucket.trunc}', $2::date),
@@ -426,10 +390,10 @@ class AnalyticsService {
            ) AS b
          ),
          income AS (
-           SELECT date_trunc('${bucket.trunc}', payment_date) AS b,
-                  COALESCE(SUM(${incomePerTxn}), 0)::float AS amount
-           FROM txn_running
-           WHERE payment_date >= $2::date AND payment_date <= $3::date
+           SELECT date_trunc('${bucket.trunc}', d) AS b,
+                  COALESCE(SUM(amount), 0)::float AS amount
+           FROM income_events
+           WHERE d >= $2::date AND d <= $3::date
            GROUP BY 1
          ),
          outflow AS (
@@ -462,7 +426,7 @@ class AnalyticsService {
 
     // Monthly series — last N months ending today.
     const r = await query(
-      `WITH ${txnCte},
+      `WITH ${incomeCte},
        months AS (
          SELECT generate_series(
            date_trunc('month', CURRENT_DATE) - (INTERVAL '1 month' * ($2 - 1)),
@@ -471,9 +435,9 @@ class AnalyticsService {
          ) AS m
        ),
        income AS (
-         SELECT date_trunc('month', payment_date) AS m,
-                COALESCE(SUM(${incomePerTxn}), 0)::float AS amount
-           FROM txn_running
+         SELECT date_trunc('month', d) AS m,
+                COALESCE(SUM(amount), 0)::float AS amount
+           FROM income_events
           GROUP BY 1
        ),
        outflow AS (
