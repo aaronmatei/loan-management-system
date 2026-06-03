@@ -435,8 +435,15 @@ export async function recordLoanPayment({
   const isReducing = loan.interest_method === "reducing";
 
   if (isReducing) {
-    const schedule = scheduleResult.rows[0];
-    if (schedule && remainingAmount > 0) {
+    // Walk OVERDUE rows in order first — they each had their EMI
+    // (interest + principal) accrued at their due date, so cash must
+    // settle them like the flat-rate cascade does. Once we hit the
+    // FIRST PENDING (not-yet-overdue) row, switch to the prepay
+    // model: settle that row's EMI, then knock principal down with
+    // any excess. The recompute zeros remaining rows.
+    for (let i = 0; i < scheduleResult.rows.length; i++) {
+      if (remainingAmount <= 0) break;
+      const schedule = scheduleResult.rows[i];
       const amountDue = parseFloat(schedule.amount_due);
       const alreadyPaidOnSchedule = parseFloat(schedule.amount_paid || 0);
       const interestPaidOnSchedule = parseFloat(schedule.interest_paid || 0);
@@ -445,6 +452,25 @@ export async function recordLoanPayment({
         0,
         amountDue - alreadyPaidOnSchedule - interestPaidOnSchedule,
       );
+      const rowIsOverdue = schedule.status === "overdue";
+
+      // Overdue rows that get fully settled: just cascade onward —
+      // their accrued interest is already earned, cash closes them
+      // the normal way. Knockdown only applies once we reach the
+      // first PENDING row or the only remaining row.
+      if (rowIsOverdue && remainingAmount >= stillOwed) {
+        await query(
+          `UPDATE payment_schedules
+              SET amount_paid = $1,
+                  status = 'paid',
+                  actual_payment_date = $2,
+                  updated_at = NOW()
+            WHERE id = $3`,
+          [alreadyPaidOnSchedule + stillOwed, paymentDate, schedule.id],
+        );
+        remainingAmount = round2(remainingAmount - stillOwed);
+        continue;
+      }
 
       if (remainingAmount >= stillOwed) {
         // Full EMI cash payment for this row. Excess past the EMI
