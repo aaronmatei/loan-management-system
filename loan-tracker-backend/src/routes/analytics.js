@@ -1048,6 +1048,15 @@ router.get("/export/excel", async (req, res) => {
       pattern: "solid",
       fgColor: { argb: "FF4F46E5" },
     };
+    const tot = {
+      principal: 0,
+      interest: 0,
+      totalDue: 0,
+      paid: 0,
+      finesPaid: 0,
+      balance: 0,
+      overpayment: 0,
+    };
     loans.rows.forEach((l) => {
       const principal = parseFloat(l.principal_amount) || 0;
       const interest = parseFloat(l.total_interest) || 0;
@@ -1055,6 +1064,7 @@ router.get("/export/excel", async (req, res) => {
       const paid = parseFloat(l.paid) || 0;
       const finesPaid = parseFloat(l.fines_paid) || 0;
       const overpayment = parseFloat(l.overpayment_amount) || 0;
+      const balance = Math.max(totalDue - paid, 0);
       const refundDue =
         overpayment > 0
           ? `${overpayment.toFixed(2)} (${l.refund_status === "refunded" ? "refunded" : "pending"})`
@@ -1070,11 +1080,41 @@ router.get("/export/excel", async (req, res) => {
         total_amount_due: totalDue,
         paid,
         fines_paid: finesPaid,
-        balance: Math.max(totalDue - paid, 0),
+        balance,
         refund_due: refundDue,
         status: l.status,
       });
+      tot.principal += principal;
+      tot.interest += interest;
+      tot.totalDue += totalDue;
+      tot.paid += paid;
+      tot.finesPaid += finesPaid;
+      tot.balance += balance;
+      tot.overpayment += overpayment;
     });
+
+    // Totals row at the bottom — bold + grey fill. Refund Due is
+    // summed across loans with pending refunds; Status holds the
+    // row count so the totals row reads "12 loans" at a glance.
+    const totalsRow = loansSheet.addRow({
+      loan_code: "TOTAL",
+      client: `${loans.rows.length} loans`,
+      disbursed_at: "",
+      principal_amount: tot.principal,
+      total_interest: tot.interest,
+      total_amount_due: tot.totalDue,
+      paid: tot.paid,
+      fines_paid: tot.finesPaid,
+      balance: tot.balance,
+      refund_due: tot.overpayment > 0 ? tot.overpayment : "",
+      status: "",
+    });
+    totalsRow.font = { bold: true };
+    totalsRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE5E7EB" },
+    };
 
     const periodSlug = isMonthMode
       ? `${from}_to_${to}`

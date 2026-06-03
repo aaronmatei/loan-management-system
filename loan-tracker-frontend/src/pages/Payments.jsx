@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search, ChevronRight, ChevronDown } from "lucide-react";
+import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search, ChevronRight, ChevronDown, Calendar } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
@@ -18,6 +18,16 @@ function Payments() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  // Date-range filter — filters BY transaction.payment_date so a
+  // group only shows up if at least one of its transactions falls
+  // in the window. Empty inputs = unbounded on that side. Resetting
+  // page to 1 on every change keeps pagination consistent.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFrom, dateTo]);
 
   // Which loans are expanded to reveal their transactions.
   const [expanded, setExpanded] = useState(() => new Set());
@@ -190,13 +200,23 @@ function Payments() {
     }
   };
 
+  // Apply date-range filter before grouping. Comparing payment_date
+  // as 'YYYY-MM-DD' against the input string keeps timezone math
+  // out — no Date() coercion needed.
+  const filteredPayments = payments.filter((p) => {
+    const d = (p.payment_date || "").slice(0, 10);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
+    return true;
+  });
+
   // Sort then paginate
   // Group transactions into ONE entry per loan, with the transactions nested
   // for the expand view. Group fields (count, total_paid, last_date) drive
   // sorting + the collapsed row; the transactions themselves show on expand.
   const loanGroups = (() => {
     const map = new Map();
-    for (const p of payments) {
+    for (const p of filteredPayments) {
       let g = map.get(p.loan_id);
       if (!g) {
         g = {
@@ -242,6 +262,20 @@ function Payments() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedGroups = sortedGroups.slice(startIndex, endIndex);
 
+  // Totals across ALL filtered groups (not just the current page).
+  // Sum gross, collected, and overpayment so the footer reads "what
+  // did this date range actually move?" rather than "what's on
+  // screen?" — matches how spreadsheets sum filtered ranges.
+  const totals = sortedGroups.reduce(
+    (acc, g) => ({
+      count: acc.count + g.count,
+      total_paid: acc.total_paid + g.total_paid,
+      total_collected: acc.total_collected + g.total_collected,
+      overpayment: acc.overpayment + g.overpayment,
+    }),
+    { count: 0, total_paid: 0, total_collected: 0, overpayment: 0 },
+  );
+
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -262,6 +296,56 @@ function Payments() {
         >
           {showForm ? <span className="inline-flex items-center gap-1.5"><X size={16} /> Cancel</span> : "+ Record Payment"}
         </button>
+      </div>
+
+      {/* Date range filter — filters by transaction.payment_date.
+          Both inputs are independent; leaving one empty leaves that
+          side unbounded. Clear button only renders when something
+          is set. */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-4 flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+          <Calendar size={16} /> Date range
+        </span>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            max={dateTo || undefined}
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            min={dateFrom || undefined}
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            onClick={() => {
+              setDateFrom("");
+              setDateTo("");
+            }}
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"
+          >
+            <X size={14} /> Clear
+          </button>
+        )}
+        {(dateFrom || dateTo) && (
+          <span className="ml-auto text-xs text-gray-500">
+            Showing{" "}
+            <span className="font-semibold text-gray-700">
+              {sortedGroups.length}
+            </span>{" "}
+            of {loanGroups.length === sortedGroups.length ? sortedGroups.length : loanGroups.length} loans
+          </span>
+        )}
       </div>
 
       {loans.length === 0 && !loading && (
@@ -633,6 +717,46 @@ function Payments() {
         </div>
       )}
 
+      {/* Mobile totals card — pinned at the TOP of the list so the
+          summary is visible without scrolling past every loan. Mirrors
+          the desktop tfoot row content. */}
+      {!loading && sortedGroups.length > 0 && (
+        <div className="md:hidden bg-gradient-to-br from-emerald-50 to-white border border-emerald-200 rounded-xl shadow-sm p-4 mb-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs uppercase tracking-wide font-bold text-emerald-700">
+              Totals
+            </p>
+            <p className="text-xs text-gray-500">
+              {sortedGroups.length} loan
+              {sortedGroups.length !== 1 ? "s" : ""} · {totals.count} payment
+              {totals.count !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-[11px] text-gray-500">Total Paid</p>
+              <p className="font-bold text-green-700">
+                KES {totals.total_paid.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-gray-500">Total Collected</p>
+              <p className="font-bold text-emerald-800">
+                KES {totals.total_collected.toLocaleString()}
+              </p>
+            </div>
+            {totals.overpayment > 0 && (
+              <div className="col-span-2">
+                <p className="text-[11px] text-gray-500">Overpayment</p>
+                <p className="font-semibold text-amber-700">
+                  KES {totals.overpayment.toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Mobile card list (desktop uses the table below) */}
       {!loading && payments.length > 0 && (
         <div className="md:hidden space-y-3 mb-4">
@@ -773,6 +897,16 @@ function Payments() {
               </tr>
             </thead>
             <tbody>
+              {paginatedGroups.length === 0 && (
+                <tr>
+                  <td
+                    colSpan="7"
+                    className="px-6 py-10 text-center text-sm text-gray-500"
+                  >
+                    No payments match the selected date range.
+                  </td>
+                </tr>
+              )}
               {paginatedGroups.map((g) => {
                 const open = expanded.has(g.loan_id);
                 return (
@@ -901,6 +1035,35 @@ function Payments() {
                 );
               })}
             </tbody>
+            {sortedGroups.length > 0 && (
+              <tfoot className="bg-gray-50 border-t-2 border-gray-200 sticky bottom-0 z-10">
+                <tr>
+                  <td className="px-6 py-3 font-bold text-gray-800">
+                    TOTAL
+                  </td>
+                  <td className="px-6 py-3 text-sm text-gray-600">
+                    {sortedGroups.length} loan
+                    {sortedGroups.length !== 1 ? "s" : ""}
+                  </td>
+                  <td className="px-6 py-3 font-semibold text-gray-700">
+                    {totals.count} payment
+                    {totals.count !== 1 ? "s" : ""}
+                  </td>
+                  <td className="px-6 py-3 font-bold text-green-700">
+                    KES {totals.total_paid.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-3 font-bold text-emerald-800">
+                    KES {totals.total_collected.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-3 font-semibold text-amber-700">
+                    {totals.overpayment > 0
+                      ? `KES ${totals.overpayment.toLocaleString()}`
+                      : "—"}
+                  </td>
+                  <td className="px-6 py-3 text-gray-400 text-sm">—</td>
+                </tr>
+              </tfoot>
+            )}
             </table>
           </div>
 

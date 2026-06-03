@@ -229,25 +229,57 @@ router.get("/export/loans", async (req, res) => {
       fgColor: { argb: "FF4F46E5" },
     };
 
+    const tot = {
+      principal: 0, totalDue: 0, interest: 0, paid: 0, balance: 0, overpayment: 0,
+    };
     result.rows.forEach((loan) => {
+      const principal = parseFloat(loan.principal_amount) || 0;
+      const totalDue = parseFloat(loan.total_amount_due) || 0;
+      const interest = parseFloat(loan.total_interest) || 0;
+      const paid = parseFloat(loan.total_paid) || 0;
+      const balance = totalDue - paid;
+      const overpayment = parseFloat(loan.overpayment_amount || 0);
       sheet.addRow({
         ...loan,
         client_name: `${loan.first_name} ${loan.last_name}`,
-        principal_amount: parseFloat(loan.principal_amount).toFixed(2),
-        total_amount_due: parseFloat(loan.total_amount_due).toFixed(2),
-        total_interest: parseFloat(loan.total_interest).toFixed(2),
-        total_paid: parseFloat(loan.total_paid).toFixed(2),
-        balance: (
-          parseFloat(loan.total_amount_due) - parseFloat(loan.total_paid)
-        ).toFixed(2),
-        overpayment_amount: parseFloat(loan.overpayment_amount || 0).toFixed(2),
+        principal_amount: principal.toFixed(2),
+        total_amount_due: totalDue.toFixed(2),
+        total_interest: interest.toFixed(2),
+        total_paid: paid.toFixed(2),
+        balance: balance.toFixed(2),
+        overpayment_amount: overpayment.toFixed(2),
         disbursed_at: loan.disbursed_at
           ? new Date(loan.disbursed_at).toLocaleDateString()
           : "",
         start_date: new Date(loan.start_date).toLocaleDateString(),
         end_date: new Date(loan.end_date).toLocaleDateString(),
       });
+      tot.principal += principal;
+      tot.totalDue += totalDue;
+      tot.interest += interest;
+      tot.paid += paid;
+      tot.balance += balance;
+      tot.overpayment += overpayment;
     });
+
+    // Totals row at the bottom — sums the numeric columns so the
+    // user can sanity-check the portfolio without re-summing in Excel.
+    const totalsRow = sheet.addRow({
+      loan_code: "TOTAL",
+      client_name: `${result.rows.length} loans`,
+      principal_amount: tot.principal.toFixed(2),
+      total_amount_due: tot.totalDue.toFixed(2),
+      total_interest: tot.interest.toFixed(2),
+      total_paid: tot.paid.toFixed(2),
+      balance: tot.balance.toFixed(2),
+      overpayment_amount: tot.overpayment.toFixed(2),
+    });
+    totalsRow.font = { bold: true };
+    totalsRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE5E7EB" },
+    };
 
     const filename = `loans_export_${new Date().toISOString().split("T")[0]}.xlsx`;
     res.setHeader(
