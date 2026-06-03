@@ -8,6 +8,7 @@ import BulkMessaging from "../components/BulkMessaging";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
+import Spinner from "../components/Spinner";
 
 // Days-late badge colour, 4 severity tiers
 function daysBadgeClass(days) {
@@ -464,8 +465,8 @@ function Overdue() {
       )}
 
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading overdue payments...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading overdue payments…" />
         </div>
       ) : overdueList.length === 0 && !periodFrom && !periodTo ? (
         // Celebration only when there's truly no overdue debt — not

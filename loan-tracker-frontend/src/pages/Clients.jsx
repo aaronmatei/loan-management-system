@@ -25,6 +25,7 @@ import PermissionGate from "../components/PermissionGate";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
+import Spinner from "../components/Spinner";
 
 function Clients() {
   const navigate = useNavigate();
@@ -652,8 +653,8 @@ function Clients() {
 
       {/* Clients List */}
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading clients...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading clients…" />
         </div>
       ) : clients.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">

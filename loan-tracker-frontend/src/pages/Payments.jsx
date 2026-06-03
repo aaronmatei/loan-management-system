@@ -5,6 +5,7 @@ import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
 import PaymentReceipt from "../components/PaymentReceipt";
+import Spinner from "../components/Spinner";
 
 function Payments() {
   const [payments, setPayments] = useState([]);
@@ -857,8 +858,8 @@ function Payments() {
 
       {/* Payments List */}
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading payments...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading payments…" />
         </div>
       ) : payments.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">

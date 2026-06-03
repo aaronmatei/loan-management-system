@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { LOAN_PURPOSES } from "../utils/loanPurposes";
+import Spinner from "./Spinner";
 
 // Loan packages — per-tenant loan products. A package locks the
 // financial mechanics (rate, processing fee, interest method) and
@@ -530,7 +531,7 @@ function LoanPackagesSection() {
       )}
 
       {loading ? (
-        <div className="text-gray-500 text-sm">Loading packages…</div>
+        <Spinner centered className="py-6" size={28} label="Loading packages…" />
       ) : rows.length === 0 ? (
         <div className="text-gray-500 text-sm">No packages yet.</div>
       ) : (

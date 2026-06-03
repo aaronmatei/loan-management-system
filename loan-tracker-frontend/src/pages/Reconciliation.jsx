@@ -28,6 +28,7 @@ import {
   Inbox,
 } from "lucide-react";
 import api from "../services/api";
+import Spinner from "../components/Spinner";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", {
@@ -273,8 +274,8 @@ function Reconciliation() {
           </div>
 
           {loading ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-500">
-              Loading transactions…
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12">
+              <Spinner centered label="Loading transactions…" />
             </div>
           ) : !data ? (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-500">
@@ -516,8 +517,8 @@ function Reconciliation() {
       {tab === "overpayments" && (
         <>
           {loading ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center text-slate-500">
-              Loading overpayments…
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12">
+              <Spinner centered label="Loading overpayments…" />
             </div>
           ) : !overpayments || overpayments.count === 0 ? (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">

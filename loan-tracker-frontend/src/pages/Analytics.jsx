@@ -14,6 +14,7 @@ import PeriodNavigator, {
   periodLabel,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
+import Spinner from "../components/Spinner";
 import {
   LineChart,
   Line,
@@ -140,9 +141,7 @@ function Analytics() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8">
-        <div className="text-center py-12 text-gray-600">
-          Loading analytics...
-        </div>
+        <Spinner centered className="py-12" label="Loading analytics…" />
       </div>
     );
   }

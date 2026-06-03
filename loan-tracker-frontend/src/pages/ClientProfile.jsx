@@ -21,6 +21,7 @@ import {
 import api from "../services/api";
 import { KENYA_COUNTIES } from "../utils/counties";
 import { BUSINESS_TYPES } from "../utils/businessTypes";
+import Spinner from "../components/Spinner";
 
 // Small status dot beside the risk label in the credit-score card.
 const riskDot = {
@@ -114,8 +115,8 @@ function ClientProfile() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading credit profile...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading credit profile…" />
         </div>
       </div>
     );

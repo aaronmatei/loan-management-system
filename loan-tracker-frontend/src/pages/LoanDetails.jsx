@@ -27,6 +27,7 @@ import {
 import api from "../services/api";
 import PaymentReceipt from "../components/PaymentReceipt";
 import PermissionGate from "../components/PermissionGate";
+import Spinner from "../components/Spinner";
 
 function LoanDetails() {
   const { id } = useParams();
@@ -407,8 +408,8 @@ function LoanDetails() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading loan details...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading loan details…" />
         </div>
       </div>
     );

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
+import Spinner from "../components/Spinner";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -243,8 +244,8 @@ function Expenses() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-stone-100 p-12 text-center text-stone-500">
-          Loading expenses…
+        <div className="bg-white rounded-xl shadow-sm border border-stone-100 p-12">
+          <Spinner centered label="Loading expenses…" />
         </div>
       </div>
     );

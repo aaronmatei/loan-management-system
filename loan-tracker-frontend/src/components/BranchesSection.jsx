@@ -10,6 +10,7 @@ import {
   Check,
 } from "lucide-react";
 import api from "../services/api";
+import Spinner from "./Spinner";
 
 // Branches — per-tenant operational units. Lender adds them from
 // Settings; create-client dropdowns then offer them as options. Every
@@ -166,7 +167,7 @@ function BranchesSection() {
 
       {/* List */}
       {loading ? (
-        <div className="text-gray-500 text-sm">Loading branches…</div>
+        <Spinner centered className="py-6" size={28} label="Loading branches…" />
       ) : rows.length === 0 ? (
         <div className="text-gray-500 text-sm">No branches yet.</div>
       ) : (

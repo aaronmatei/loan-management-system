@@ -26,6 +26,7 @@ import SortableHeader from "../components/SortableHeader";
 import { computeLoanTotals } from "../utils/loanMath";
 import { evaluatePackageEligibility } from "../utils/packageEligibility";
 import { purposesForPackage } from "../utils/loanPurposes";
+import Spinner from "../components/Spinner";
 
 function Loans() {
   const navigate = useNavigate();
@@ -1710,8 +1711,8 @@ function Loans() {
 
       {/* Loans List */}
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading loans...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading loans…" />
         </div>
       ) : loans.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">

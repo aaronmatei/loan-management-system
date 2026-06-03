@@ -45,6 +45,7 @@ import PeriodNavigator, {
   periodToRange,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
+import Spinner from "../components/Spinner";
 
 // Soft empty state for a chart card (fresh tenant / no data yet).
 function EmptyChart({ label }) {
@@ -184,8 +185,8 @@ function Dashboard() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-600">
-          Loading dashboard...
+        <div className="bg-white rounded-xl shadow-md p-12">
+          <Spinner centered label="Loading dashboard…" />
         </div>
       </div>
     );

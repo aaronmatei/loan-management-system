@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { getRoleBadge } from "../utils/permissions";
+import Spinner from "../components/Spinner";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -122,7 +123,7 @@ function UserManagement() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading users...</div>;
+  if (loading) return <Spinner centered className="py-20" label="Loading users…" />;
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
