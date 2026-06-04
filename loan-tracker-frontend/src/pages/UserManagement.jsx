@@ -8,6 +8,8 @@ import {
   Check,
   X,
   AlertTriangle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import api from "../services/api";
 import { getRoleBadge } from "../utils/permissions";
@@ -22,9 +24,17 @@ function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Per-field reveal toggles. Tracking each input separately so
+  // showing the create-password doesn't also reveal the confirm
+  // (which would defeat the typo-catching purpose of confirm).
+  const [showCreatePwd, setShowCreatePwd] = useState(false);
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false);
+  const [showResetPwd, setShowResetPwd] = useState(false);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    confirm_password: "",
     first_name: "",
     last_name: "",
     phone_number: "",
@@ -55,14 +65,25 @@ function UserManagement() {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    // Catch typos client-side so the admin sees "passwords don't match"
+    // before the request lands. Backend also enforces validatePassword
+    // on the single password field, so this is purely a UX layer.
+    if (formData.password !== formData.confirm_password) {
+      alert("Passwords do not match");
+      return;
+    }
     setSubmitting(true);
     try {
-      await api.post("/users", formData);
+      const { confirm_password: _ignored, ...payload } = formData;
+      await api.post("/users", payload);
       alert("User created successfully!");
       setShowAddModal(false);
+      setShowCreatePwd(false);
+      setShowCreateConfirm(false);
       setFormData({
         email: "",
         password: "",
+        confirm_password: "",
         first_name: "",
         last_name: "",
         phone_number: "",
@@ -100,6 +121,7 @@ function UserManagement() {
       });
       alert(`Password reset for ${selectedUser.email}`);
       setShowPasswordModal(false);
+      setShowResetPwd(false);
       setNewPassword("");
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
@@ -344,16 +366,67 @@ function UserManagement() {
                 <label className="block text-sm font-semibold mb-1">
                   Password * (min 12 chars, 1 uppercase, 1 number, 1 symbol)
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  required
-                  minLength="12"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type={showCreatePwd ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    required
+                    minLength="12"
+                    className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCreatePwd((s) => !s)}
+                    aria-label={showCreatePwd ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                  >
+                    {showCreatePwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Confirm Password *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showCreateConfirm ? "text" : "password"}
+                    value={formData.confirm_password}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        confirm_password: e.target.value,
+                      })
+                    }
+                    required
+                    minLength="12"
+                    className={`w-full px-3 py-2 pr-10 border-2 rounded-lg focus:outline-none ${
+                      formData.confirm_password &&
+                      formData.confirm_password !== formData.password
+                        ? "border-rose-300 focus:border-rose-500"
+                        : "border-gray-200 focus:border-ocean-500"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateConfirm((s) => !s)}
+                    aria-label={
+                      showCreateConfirm ? "Hide password" : "Show password"
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                  >
+                    {showCreateConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {formData.confirm_password &&
+                  formData.confirm_password !== formData.password && (
+                    <p className="text-xs text-rose-600 mt-1">
+                      Passwords don't match yet
+                    </p>
+                  )}
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-1">
@@ -505,17 +578,27 @@ function UserManagement() {
                 <label className="block text-sm font-semibold mb-1">
                   New Password *
                 </label>
-                <input
-                  type="text"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength="12"
-                  placeholder="Min 12 chars, 1 uppercase, 1 number, 1 symbol"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type={showResetPwd ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength="12"
+                    placeholder="Min 12 chars, 1 uppercase, 1 number, 1 symbol"
+                    className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPwd((s) => !s)}
+                    aria-label={showResetPwd ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                  >
+                    {showResetPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Share this password with the user securely
+                  Click the eye to reveal · share with the user securely
                 </p>
               </div>
               <div className="flex justify-end gap-3">
