@@ -1853,7 +1853,13 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       notes,
     } = req.body || {};
 
-    const eT = tenantClause(req, 1);
+    // Qualify the tenant_id column — both `loans` and `loan_packages`
+    // carry `tenant_id`, so leaving it unqualified after the LEFT JOIN
+    // raises `column reference "tenant_id" is ambiguous` and the route
+    // 500s before it even reaches the edit logic. The other routes
+    // that LEFT JOIN loan_packages all pass "l.tenant_id" — this one
+    // missed it.
+    const eT = tenantClause(req, 1, "l.tenant_id");
     // Pull package constraints alongside the loan so package-bound
     // edits can be validated server-side. Custom loans (package_id
     // NULL) get NULL package fields and pass every package check.
