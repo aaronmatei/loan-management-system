@@ -186,10 +186,18 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     //                    leg derived from transactions).
     // total_waived_amount_due / total_waived_penalty surfaced so the
     // UI can break "Paid So Far" into cash vs. waived if it wants.
+    // total_cash_paid: cash applied to amount_due, per row, capped at
+    // (amount_due − waiver_interest_paid). The naive `LEAST(amount_paid,
+    // amount_due)` over-counts whenever a waiver pre-credited interest
+    // on the same row — both `cash to amount_due` and `total_waived_due`
+    // claim the same waiver-filled slice, so totalPaid ends up = (cash +
+    // waiver) but the row's amount_due is only one of them, off by the
+    // waiver amount. Subtracting interest_paid from the cap leaves cash
+    // and waiver as disjoint shares of amount_due.
     const paidResult = await query(
       `SELECT
-         COALESCE(SUM(LEAST(amount_paid, amount_due)), 0)                              AS total_cash_paid,
-         COALESCE(SUM(GREATEST(0, amount_paid - amount_due)), 0)                       AS total_principal_knockdown
+         COALESCE(SUM(LEAST(amount_paid, GREATEST(0, amount_due - COALESCE(interest_paid, 0)))), 0) AS total_cash_paid,
+         COALESCE(SUM(GREATEST(0, amount_paid - amount_due)), 0)                                    AS total_principal_knockdown
        FROM payment_schedules
        WHERE loan_id = $1`,
       [loanId],
