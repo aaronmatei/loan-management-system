@@ -76,6 +76,20 @@ export async function getAccessToken() {
   const now = Date.now();
   if (cachedToken && now < cachedTokenExpiry) return cachedToken;
 
+  // Per-tenant credential override is intentionally NOT wired up.
+  //
+  // tenants.mpesa_consumer_key / mpesa_consumer_secret / mpesa_passkey
+  // exist in the schema for a future "lender supplies their own Daraja
+  // app" feature, but they're not read here today — all calls use the
+  // platform credentials from process.env, which Render encrypts at
+  // the infra layer.
+  //
+  // TODO(secrets): when per-tenant M-Pesa lands, route those columns
+  // through utils/secretsCrypto:
+  //   write: tenants.mpesa_consumer_key = encryptSecret(plaintext)
+  //   read : key = decryptSecret(tenant.mpesa_consumer_key) || env
+  // and call assertEncryptionAvailable() once at app boot so a missing
+  // ENCRYPTION_KEY fails loud at startup, not on the first STK request.
   const key = process.env.MPESA_CONSUMER_KEY;
   const secret = process.env.MPESA_CONSUMER_SECRET;
   if (!key || !secret) {
