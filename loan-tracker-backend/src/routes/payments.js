@@ -364,40 +364,49 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const overpayment = parseFloat(loan.overpayment_amount || 0);
     const balance = Math.max(0, totalDue - totalPaid);
 
-    // Annotate each transaction with running balance / % complete. The
-    // running tally starts at total_waived_amount_due so the receipt
-    // reflects "already-settled via waivers" before the first real
-    // payment lands — without this, a 16k waiver followed by a 50k
-    // cash payment shows Balance After 16,325 instead of 325.
+    // Annotate each transaction with running balance / % complete.
+    //
+    // The running tally must agree with the loan-level Current Status
+    // panel — i.e. it counts only cash that actually filled the row's
+    // amount_due slot (the same per-row LEAST cap as totalCashPaid),
+    // NOT gross cash. On reducing-balance loans, a chunk of each
+    // payment may be principal knockdown: cash that REDUCES future
+    // amount_due rather than settling the current one. Showing
+    // knockdown as "Balance after" makes the receipt look almost
+    // paid-off while the loan-level remaining is still substantial,
+    // which is what the user just hit on loan 358 (Balance after
+    // 311.66 vs Remaining 25,488.08).
+    //
+    // We don't have per-txn snapshots of the schedule, so we prorate
+    // the loan-level "cash to amount_due" across transactions by each
+    // one's share of the gross cash (amount_paid − penalty −
+    // overpayment). This sums to the corrected totalCashPaid exactly
+    // and gives a sensible running tally even when knockdown is
+    // distributed across multiple payments.
     const ascTxns = [...transactionsResult.rows].reverse();
-    let running = totalWaivedAmountDue;
-    const annotated = ascTxns.map((t) => {
-      // Per-transaction overpayment comes straight from the row —
-      // recordLoanPayment already capped it correctly (cash beyond
-      // remaining principal balance + outstanding amount_due). The
-      // OLD derivation (cash − (totalDue − running)) treated any
-      // cash above the contractual residual as overpayment, which
-      // double-counted reducing-balance knockdowns: cash that went
-      // to extra principal would show up in BOTH principal_portion
-      // on the schedule AND overpaidThis in the receipt.
-      const overpaidThis = parseFloat(t.overpayment_portion || 0);
-      const towardBalance = Math.max(
+    const grossTowardByTxn = ascTxns.map((t) =>
+      Math.max(
         0,
         parseFloat(t.amount_paid || 0)
           - parseFloat(t.penalty_portion || 0)
-          - overpaidThis,
-      );
+          - parseFloat(t.overpayment_portion || 0),
+      ),
+    );
+    const grossTowardTotal = grossTowardByTxn.reduce((a, b) => a + b, 0);
+    let running = totalWaivedAmountDue;
+    const annotated = ascTxns.map((t, i) => {
+      const overpaidThis = parseFloat(t.overpayment_portion || 0);
+      const grossToward = grossTowardByTxn[i];
+      // Per-txn "cash that filled amount_due" — prorated share of the
+      // loan-level totalCashPaid (already corrected to subtract
+      // waiver-credited interest). Knockdown is excluded by
+      // construction: it's the difference between the per-txn gross
+      // and the share-of-totalCashPaid the txn earned.
+      const towardBalance =
+        grossTowardTotal > 0
+          ? (totalCashPaid * grossToward) / grossTowardTotal
+          : 0;
       running += towardBalance;
-      // Cap the cumulative tally at totalDue for the receipt display.
-      // For reducing-balance loans, towardBalance includes principal
-      // knockdown — cash that REDUCES future amount_due rather than
-      // settling current amount_due. The recompute then zeroes those
-      // future rows, so they vanish from totalDue. Without the cap,
-      // total_paid_after_this would race past totalDue and the
-      // completion bar would render >100%. Capping keeps the receipt
-      // tally consistent with the headline PAID tile (which is built
-      // from per-row LEAST(amount_paid, amount_due) and already
-      // excludes knockdown).
       const runningCapped = Math.min(running, totalDue);
       const remaining = Math.max(0, totalDue - runningCapped);
       return {
