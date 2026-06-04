@@ -186,18 +186,65 @@ router.get("/export/loans", async (req, res) => {
   try {
     const { status, date_from, date_to } = req.query;
     const params = [];
+    // Build the loan row out of per-loan subqueries (NOT join + SUM)
+    // so a loan with N transactions doesn't fan out and inflate the
+    // per-loan totals N×. Mirrors the same shape /loans uses for its
+    // list query. Each subquery is independent, so adding a column
+    // here doesn't perturb anything else.
     let queryText = `
       SELECT
         l.loan_code,
         c.first_name, c.last_name, c.phone_number, c.client_code,
         l.principal_amount, l.interest_rate, l.loan_duration_months,
         l.total_amount_due, l.total_interest,
-        COALESCE(SUM(t.amount_paid), 0) as total_paid,
+        l.interest_method,
+        pk.name AS package_name,
         l.status, l.start_date, l.end_date, l.disbursed_at,
-        l.overpayment_amount, l.refund_status
+        l.overpayment_amount, l.refund_status,
+        -- Gross cash booked (matches what staff hand-counted in the
+        -- "amount paid" field across all completed transactions).
+        COALESCE((SELECT SUM(t.amount_paid)
+                    FROM transactions t
+                   WHERE t.loan_id = l.id
+                     AND t.payment_status = 'completed'), 0) AS gross_cash,
+        -- Cash that actually settled amount_due, per-row LEAST cap so
+        -- knockdown principal doesn't double-count.
+        COALESCE((SELECT SUM(LEAST(ps.amount_paid, ps.amount_due))
+                    FROM payment_schedules ps
+                   WHERE ps.loan_id = l.id), 0) AS cash_to_due,
+        -- Penalty paid in cash (transactions.penalty_portion lives
+        -- alongside amount_paid).
+        COALESCE((SELECT SUM(t.penalty_portion)
+                    FROM transactions t
+                   WHERE t.loan_id = l.id
+                     AND t.payment_status = 'completed'), 0) AS penalty_paid,
+        -- Waivers — count + buckets pulled from the allocation JSON the
+        -- waiverService stores at apply-time.
+        COALESCE((SELECT COUNT(*) FROM loan_waivers w
+                   WHERE w.loan_id = l.id AND w.status = 'approved'), 0)
+          AS waivers_count,
+        COALESCE((SELECT SUM(w.amount) FROM loan_waivers w
+                   WHERE w.loan_id = l.id AND w.status = 'approved'), 0)
+          AS total_waived,
+        COALESCE((SELECT SUM(COALESCE((w.allocation->>'amount_total')::float, 0))
+                    FROM loan_waivers w
+                   WHERE w.loan_id = l.id AND w.status = 'approved'), 0)
+          AS waived_toward_balance,
+        COALESCE((SELECT SUM(COALESCE((w.allocation->>'interest_total')::float, 0))
+                    FROM loan_waivers w
+                   WHERE w.loan_id = l.id AND w.status = 'approved'), 0)
+          AS interest_waived,
+        COALESCE((SELECT SUM(COALESCE((w.allocation->>'penalty_total')::float, 0))
+                    FROM loan_waivers w
+                   WHERE w.loan_id = l.id AND w.status = 'approved'), 0)
+          AS penalty_waived,
+        COALESCE((SELECT SUM(COALESCE((w.allocation->>'principal_total')::float, 0))
+                    FROM loan_waivers w
+                   WHERE w.loan_id = l.id AND w.status = 'approved'), 0)
+          AS principal_waived
       FROM loans l
       JOIN clients c ON l.client_id = c.id
-      LEFT JOIN transactions t ON l.id = t.loan_id AND t.payment_status = 'completed'
+      LEFT JOIN loan_packages pk ON pk.id = l.package_id
       WHERE 1=1
     `;
 
@@ -230,25 +277,48 @@ router.get("/export/loans", async (req, res) => {
     queryText += tc.clause;
     params.push(...tc.params);
 
-    queryText += ` GROUP BY l.id, c.first_name, c.last_name, c.phone_number, c.client_code ORDER BY l.created_at DESC`;
+    // No GROUP BY: every aggregate above lives in a scalar subquery,
+    // so the outer row is already 1:1 with `loans l`.
+    queryText += ` ORDER BY l.created_at DESC`;
 
     const result = await query(queryText, params);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Loans");
 
+    // Title-case enum helper for interest_method so the column reads
+    // "Flat / Reducing" instead of the raw lowercase token.
+    const titleCase = (s) =>
+      s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+
     sheet.columns = [
+      // Identity + client
       { header: "Loan Code", key: "loan_code", width: 15 },
       { header: "Client Code", key: "client_code", width: 15 },
       { header: "Client Name", key: "client_name", width: 25 },
       { header: "Phone", key: "phone_number", width: 15 },
+      // Terms
+      { header: "Package", key: "package_name", width: 18 },
+      { header: "Interest Method", key: "interest_method", width: 14 },
       { header: "Principal", key: "principal_amount", width: 15 },
       { header: "Interest Rate (%)", key: "interest_rate", width: 15 },
       { header: "Duration (months)", key: "loan_duration_months", width: 15 },
-      { header: "Total Due", key: "total_amount_due", width: 18 },
+      // Money ledger — amount_due side
+      { header: "Total Due", key: "total_amount_due", width: 16 },
       { header: "Total Interest", key: "total_interest", width: 15 },
-      { header: "Total Paid", key: "total_paid", width: 15 },
+      { header: "Cash Paid (gross)", key: "gross_cash", width: 17 },
+      { header: "Cash to Balance", key: "cash_to_due", width: 16 },
+      { header: "Waived to Balance", key: "waived_toward_balance", width: 18 },
       { header: "Balance", key: "balance", width: 15 },
+      // Penalty
+      { header: "Penalty Paid (cash)", key: "penalty_paid", width: 18 },
+      { header: "Penalty Waived", key: "penalty_waived", width: 16 },
+      // Waiver breakdown
+      { header: "Waivers Count", key: "waivers_count", width: 14 },
+      { header: "Total Waived", key: "total_waived", width: 15 },
+      { header: "Interest Waived", key: "interest_waived", width: 16 },
+      { header: "Principal Waived", key: "principal_waived", width: 17 },
+      // Dates + status + refunds
       { header: "Disbursed", key: "disbursed_at", width: 15 },
       { header: "Start Date", key: "start_date", width: 15 },
       { header: "End Date", key: "end_date", width: 15 },
@@ -265,35 +335,79 @@ router.get("/export/loans", async (req, res) => {
     };
 
     const tot = {
-      principal: 0, totalDue: 0, interest: 0, paid: 0, balance: 0, overpayment: 0,
+      principal: 0, totalDue: 0, interest: 0,
+      grossCash: 0, cashToDue: 0, waivedToBalance: 0, balance: 0,
+      penaltyPaid: 0, penaltyWaived: 0,
+      totalWaived: 0, interestWaived: 0, principalWaived: 0,
+      waiversCount: 0, overpayment: 0,
     };
     result.rows.forEach((loan) => {
       const principal = parseFloat(loan.principal_amount) || 0;
       const totalDue = parseFloat(loan.total_amount_due) || 0;
       const interest = parseFloat(loan.total_interest) || 0;
-      const paid = parseFloat(loan.total_paid) || 0;
-      const balance = totalDue - paid;
+      const grossCash = parseFloat(loan.gross_cash) || 0;
+      const cashToDue = parseFloat(loan.cash_to_due) || 0;
+      const waivedToBalance = parseFloat(loan.waived_toward_balance) || 0;
+      // Balance: completed loans always settle to 0, sub-shilling
+      // residuals on active loans also round to 0. Same rule the
+      // /loans list query enforces — keeps Reports in sync with the
+      // dashboard. Penalty + overpayment intentionally excluded from
+      // the numerator: penalty is its own ledger, overpayment is a
+      // refund liability not a balance owed.
+      const rawBalance = totalDue - cashToDue - waivedToBalance;
+      const balance =
+        loan.status === "completed" || Math.abs(rawBalance) < 1
+          ? 0
+          : Math.max(0, rawBalance);
+      const penaltyPaid = parseFloat(loan.penalty_paid) || 0;
+      const penaltyWaived = parseFloat(loan.penalty_waived) || 0;
+      const totalWaived = parseFloat(loan.total_waived) || 0;
+      const interestWaived = parseFloat(loan.interest_waived) || 0;
+      const principalWaived = parseFloat(loan.principal_waived) || 0;
+      const waiversCount = parseInt(loan.waivers_count, 10) || 0;
       const overpayment = parseFloat(loan.overpayment_amount || 0);
       sheet.addRow({
         ...loan,
         client_name: `${loan.first_name} ${loan.last_name}`,
+        package_name: loan.package_name || "—",
+        interest_method: titleCase(loan.interest_method),
         principal_amount: principal.toFixed(2),
         total_amount_due: totalDue.toFixed(2),
         total_interest: interest.toFixed(2),
-        total_paid: paid.toFixed(2),
+        gross_cash: grossCash.toFixed(2),
+        cash_to_due: cashToDue.toFixed(2),
+        waived_toward_balance: waivedToBalance.toFixed(2),
         balance: balance.toFixed(2),
+        penalty_paid: penaltyPaid.toFixed(2),
+        penalty_waived: penaltyWaived.toFixed(2),
+        waivers_count: waiversCount,
+        total_waived: totalWaived.toFixed(2),
+        interest_waived: interestWaived.toFixed(2),
+        principal_waived: principalWaived.toFixed(2),
         overpayment_amount: overpayment.toFixed(2),
         disbursed_at: loan.disbursed_at
           ? new Date(loan.disbursed_at).toLocaleDateString()
           : "",
-        start_date: new Date(loan.start_date).toLocaleDateString(),
-        end_date: new Date(loan.end_date).toLocaleDateString(),
+        start_date: loan.start_date
+          ? new Date(loan.start_date).toLocaleDateString()
+          : "",
+        end_date: loan.end_date
+          ? new Date(loan.end_date).toLocaleDateString()
+          : "",
       });
       tot.principal += principal;
       tot.totalDue += totalDue;
       tot.interest += interest;
-      tot.paid += paid;
+      tot.grossCash += grossCash;
+      tot.cashToDue += cashToDue;
+      tot.waivedToBalance += waivedToBalance;
       tot.balance += balance;
+      tot.penaltyPaid += penaltyPaid;
+      tot.penaltyWaived += penaltyWaived;
+      tot.totalWaived += totalWaived;
+      tot.interestWaived += interestWaived;
+      tot.principalWaived += principalWaived;
+      tot.waiversCount += waiversCount;
       tot.overpayment += overpayment;
     });
 
@@ -305,8 +419,16 @@ router.get("/export/loans", async (req, res) => {
       principal_amount: tot.principal.toFixed(2),
       total_amount_due: tot.totalDue.toFixed(2),
       total_interest: tot.interest.toFixed(2),
-      total_paid: tot.paid.toFixed(2),
+      gross_cash: tot.grossCash.toFixed(2),
+      cash_to_due: tot.cashToDue.toFixed(2),
+      waived_toward_balance: tot.waivedToBalance.toFixed(2),
       balance: tot.balance.toFixed(2),
+      penalty_paid: tot.penaltyPaid.toFixed(2),
+      penalty_waived: tot.penaltyWaived.toFixed(2),
+      waivers_count: tot.waiversCount,
+      total_waived: tot.totalWaived.toFixed(2),
+      interest_waived: tot.interestWaived.toFixed(2),
+      principal_waived: tot.principalWaived.toFixed(2),
       overpayment_amount: tot.overpayment.toFixed(2),
     });
     totalsRow.font = { bold: true };
