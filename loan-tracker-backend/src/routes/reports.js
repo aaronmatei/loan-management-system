@@ -63,9 +63,17 @@ router.get("/export/clients", async (req, res) => {
     // Subqueries (not JOINs) so transaction rows don't fan out and
     // inflate total_borrowed.
     const params = [];
+    // LEFT JOIN branches so clients without a branch (older rows
+    // pre-multi-branch, or platform-managed default) come through
+    // with branch_name NULL instead of being dropped. client_type,
+    // credit_score, kyc_verified, gender, dob and signup promo are
+    // surfaced too — these are the "newly-added" fields the dashboard
+    // already shows on the client detail page that were missing from
+    // the export.
     let queryText = `
       SELECT
         c.*,
+        b.name AS branch_name,
         (SELECT COUNT(*) FROM loans l WHERE l.client_id = c.id)
           AS total_loans,
         (SELECT COALESCE(SUM(l.principal_amount), 0)
@@ -76,6 +84,7 @@ router.get("/export/clients", async (req, res) => {
            WHERE l.client_id = c.id
              AND t.payment_status = 'completed') AS total_paid
       FROM clients c
+      LEFT JOIN branches b ON b.id = c.branch_id
       WHERE 1=1`;
     if (date_from) {
       params.push(date_from);
@@ -95,6 +104,12 @@ router.get("/export/clients", async (req, res) => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Clients");
 
+    // Title-case helper for enum values so the spreadsheet reads
+    // "Individual / Group / Business" instead of the raw lowercase
+    // stored on the row.
+    const titleCase = (s) =>
+      s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+
     sheet.columns = [
       { header: "Client Code", key: "client_code", width: 15 },
       { header: "First Name", key: "first_name", width: 15 },
@@ -102,13 +117,21 @@ router.get("/export/clients", async (req, res) => {
       { header: "Phone", key: "phone_number", width: 15 },
       { header: "Email", key: "email", width: 25 },
       { header: "ID Number", key: "id_number", width: 12 },
+      { header: "Client Type", key: "client_type", width: 12 },
+      { header: "Branch", key: "branch_name", width: 18 },
+      { header: "Gender", key: "gender", width: 10 },
+      { header: "Date of Birth", key: "date_of_birth", width: 14 },
       { header: "Business", key: "business_name", width: 20 },
+      { header: "Business Type", key: "business_type", width: 16 },
       { header: "City", key: "city", width: 15 },
       { header: "County", key: "county", width: 15 },
+      { header: "Credit Score", key: "credit_score", width: 13 },
+      { header: "KYC Verified", key: "kyc_verified", width: 13 },
       { header: "Total Loans", key: "total_loans", width: 12 },
       { header: "Total Borrowed", key: "total_borrowed", width: 18 },
       { header: "Total Paid", key: "total_paid", width: 18 },
       { header: "Status", key: "status", width: 12 },
+      { header: "Signup Promo", key: "signup_promo_code", width: 16 },
       { header: "Joined", key: "created_at", width: 15 },
     ];
 
@@ -122,6 +145,16 @@ router.get("/export/clients", async (req, res) => {
     result.rows.forEach((client) => {
       sheet.addRow({
         ...client,
+        client_type: titleCase(client.client_type),
+        gender: titleCase(client.gender),
+        date_of_birth: client.date_of_birth
+          ? new Date(client.date_of_birth).toLocaleDateString()
+          : "",
+        kyc_verified: client.kyc_verified ? "Yes" : "No",
+        // Numeric credit_score stays as an Excel number (no toFixed)
+        // so column math works; empty string when unscored.
+        credit_score:
+          client.credit_score == null ? "" : client.credit_score,
         total_borrowed: parseFloat(client.total_borrowed).toFixed(2),
         total_paid: parseFloat(client.total_paid).toFixed(2),
         created_at: new Date(client.created_at).toLocaleDateString(),
