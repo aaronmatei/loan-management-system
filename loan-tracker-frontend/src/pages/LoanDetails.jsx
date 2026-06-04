@@ -611,7 +611,7 @@ function LoanDetails() {
             </div>
 
             {hasManagementActions && (
-              <div ref={actionsMenuRef} className="relative">
+              <div ref={actionsMenuRef} className="relative ml-auto">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
                   Loan Management Actions
                 </p>
