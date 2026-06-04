@@ -1951,8 +1951,9 @@ function LoanDetails() {
                 <span>
                   This loan is bound by the <strong>{loan.package_name}</strong>{" "}
                   package. Rate, processing fee and interest method are fixed
-                  by the package — to change them, detach the loan or use a
-                  different package.
+                  by the package; principal and duration must stay within the
+                  package range. Late fee, penalty rate, dates, guarantor and
+                  collateral stay editable per loan.
                 </span>
               </div>
             )}
@@ -2310,6 +2311,11 @@ function LoanDetails() {
                     <label className="text-sm font-semibold text-gray-700">
                       Late Payment Fee (KES)
                     </label>
+                    {loan.package_name && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                        Per-loan · editable
+                      </span>
+                    )}
                     <button
                       type="button"
                       role="switch"
@@ -2366,6 +2372,11 @@ function LoanDetails() {
                     <label className="text-sm font-semibold text-gray-700">
                       Penalty Rate (% per month on overdue)
                     </label>
+                    {loan.package_name && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                        Per-loan · editable
+                      </span>
+                    )}
                     <button
                       type="button"
                       role="switch"
