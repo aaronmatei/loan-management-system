@@ -512,6 +512,10 @@ function Payments() {
               const cashToAmountDue = num(s.total_cash_paid);
               const waivedAmountDue = num(s.total_waived_amount_due);
               const balance = num(s.balance);
+              // Cash overdue right now across past-due installments —
+              // a collector-friendly "minimum to bring this loan
+              // current" alongside the lifetime Balance.
+              const overdueBalance = num(s.total_overdue_balance);
               const progress = parseFloat(s.progress_percentage || 0);
               const penaltyPaid = num(s.total_penalty_paid);
               const penaltyWaived = num(s.total_waived_penalty);
@@ -567,6 +571,23 @@ function Payments() {
                         KES {fmt(balance)}
                       </span>
                     </div>
+                    {/* Overdue line — only renders when something is
+                        actually past due. Lets the collector see the
+                        "bring this loan current" cash ask separately
+                        from the full lifetime Balance above. Penalty
+                        is in its own section below — this is the
+                        amount_due slice only. */}
+                    {overdueBalance > 0 && (
+                      <div
+                        className="flex justify-between pl-4"
+                        title="Sum of unpaid amount_due across installments past their due date"
+                      >
+                        <span className="text-rose-700">↳ Overdue right now</span>
+                        <span className="font-bold text-rose-700">
+                          KES {fmt(overdueBalance)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Progress bar */}

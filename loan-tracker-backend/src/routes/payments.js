@@ -446,6 +446,26 @@ router.get("/loan/:loanId/summary", async (req, res) => {
             (acc, s) => acc + parseFloat(s.penalty_outstanding || 0),
             0,
           ),
+          // Cash that's overdue RIGHT NOW — sum of balance_due across
+          // installments past their due_date that aren't yet settled.
+          // Lets the Payments panel call out "you need X cash to clear
+          // the overdue queue" separately from the lifetime Balance,
+          // so a collector on the phone knows the minimum-to-current
+          // ask vs. the full payoff. Includes both explicitly-overdue
+          // rows AND pending rows whose due_date has slipped past
+          // CURRENT_DATE — the status cron may not have flipped them
+          // yet, but to the borrower they're overdue all the same.
+          total_overdue_balance: scheduleWithPenalty.reduce((acc, s) => {
+            const dueDate = s.due_date ? new Date(s.due_date) : null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const isOverdue =
+              s.status === "overdue" ||
+              (s.status === "pending" && dueDate && dueDate < today);
+            return isOverdue
+              ? acc + parseFloat(s.balance_due || 0)
+              : acc;
+          }, 0),
           total_overpayment: totalOverpayment,
           balance: balance,
           overpayment: overpayment,
