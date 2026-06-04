@@ -34,7 +34,10 @@ import {
 } from "./notificationService.js";
 import logger from "../config/logger.js";
 import { recomputeCreditScore } from "./creditScoreService.js";
-import { reconcilePromisesForLoan } from "./promiseReconciliationService.js";
+import {
+  reconcilePromisesForLoan,
+  closeOpenPromisesForCompletedLoan,
+} from "./promiseReconciliationService.js";
 
 // Typed error so the route can map to the right HTTP status while the
 // M-Pesa caller can just catch and log.
@@ -721,6 +724,14 @@ export async function recordLoanPayment({
         loan.tenant_id,
       ],
     );
+
+    // Loan just hit 'completed' on this payment — drop any open
+    // promises (pending / partial) out of the active queues so the
+    // Promises page doesn't keep showing a closed loan's commitments.
+    // Marked cancelled with a system reason, NOT 'kept', because the
+    // promise may not actually have been satisfied (a knockdown could
+    // have closed the loan with less cash than the borrower promised).
+    await closeOpenPromisesForCompletedLoan(loanId);
 
     // Also mark any remaining pending schedules as paid
     await query(

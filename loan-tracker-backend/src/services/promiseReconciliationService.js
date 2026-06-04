@@ -102,4 +102,36 @@ export async function reconcilePromisesForLoan(loanId) {
   return touched;
 }
 
-export default { reconcilePromisesForLoan };
+/**
+ * Close every open promise on a loan that just transitioned to
+ * 'completed'. Sets status='cancelled' with a system reason so the
+ * promise drops out of the Pending / Partial / Broken queues but
+ * stays on record for audit in the Cancelled tab. We don't mark it
+ * 'kept' — the loan may have been settled by a waiver, not by the
+ * cash the borrower promised, and pretending otherwise overstates
+ * the borrower's reliability score.
+ *
+ * Best-effort: caller doesn't fail if this throws.
+ */
+export async function closeOpenPromisesForCompletedLoan(loanId) {
+  if (!loanId) return [];
+  try {
+    const r = await query(
+      `UPDATE promises_to_pay
+          SET status           = 'cancelled',
+              cancelled_reason = 'Loan completed — promise auto-closed',
+              resolved_at      = NOW(),
+              updated_at       = NOW()
+        WHERE loan_id = $1
+          AND status IN ('pending', 'partial')
+       RETURNING id`,
+      [loanId],
+    );
+    return r.rows.map((row) => row.id);
+  } catch (err) {
+    logger.error("closeOpenPromisesForCompletedLoan error:", err);
+    return [];
+  }
+}
+
+export default { reconcilePromisesForLoan, closeOpenPromisesForCompletedLoan };
