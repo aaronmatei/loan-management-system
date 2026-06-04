@@ -65,14 +65,18 @@ describe("Auto portal account for new clients", () => {
     const a2 = await createUser(t2.id, { role: "admin" });
     const phone = "0712000111";
 
+    // id_number is the test fixture for cross-tenant uniqueness reuse;
+    // route validation enforces 8-10 digits (Kenya NID shape), so use
+    // a string that fits the rule and is identical across both inserts.
+    const sharedId = "99887766";
     const r1 = await request(app)
       .post("/api/clients")
       .set("Authorization", auth(a1))
-      .send({ first_name: "A", last_name: "One", phone_number: phone, id_number: "IDREUSE1" });
+      .send({ first_name: "A", last_name: "One", phone_number: phone, id_number: sharedId });
     const r2 = await request(app)
       .post("/api/clients")
       .set("Authorization", auth(a2))
-      .send({ first_name: "A", last_name: "Two", phone_number: phone, id_number: "IDREUSE1" });
+      .send({ first_name: "A", last_name: "Two", phone_number: phone, id_number: sharedId });
     expect(r1.status).toBe(201);
     expect(r2.status).toBe(201);
 

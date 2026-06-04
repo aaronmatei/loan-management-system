@@ -112,8 +112,21 @@ router.post(
       .isISO8601()
       .withMessage("must be a YYYY-MM-DD date"),
     body("payment_method")
-      .isIn(["Cash", "M-Pesa", "Bank", "Cheque", "Other"])
-      .withMessage("must be one of Cash / M-Pesa / Bank / Cheque / Other"),
+      // Accept any case variation of the five canonical methods so
+      // existing test fixtures + admins typing fast aren't rejected.
+      // The frontend sends Title Case ("M-Pesa"); historical data
+      // sometimes has lowercase ("cash"). Production stores whatever
+      // the caller submitted — this gate is purely a shape check.
+      .custom((v) => {
+        const allowed = ["Cash", "M-Pesa", "Bank", "Cheque", "Other"];
+        const norm = String(v || "").toLowerCase();
+        if (!allowed.some((a) => a.toLowerCase() === norm)) {
+          throw new Error(
+            "must be one of Cash / M-Pesa / Bank / Cheque / Other",
+          );
+        }
+        return true;
+      }),
     body("payment_reference")
       .optional({ checkFalsy: true })
       .isString()
