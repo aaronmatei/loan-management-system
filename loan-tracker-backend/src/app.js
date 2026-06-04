@@ -134,6 +134,18 @@ app.get("/health", (req, res) => {
   });
 });
 
+// One-shot Sentry verification. Hitting this throws unconditionally;
+// the response is a 500 and config/sentry.js's captureException is
+// invoked via the error middleware path. Use to confirm SENTRY_DSN is
+// wired without instrumenting any real route. REMOVE this block once
+// the backend project shows the event in Sentry's Issues tab.
+app.get("/api/sentry-test", (req, res, next) => {
+  // Tagged so it's obvious in the dashboard which event this was.
+  const e = new Error("backend sentry verification " + Date.now());
+  e.sentry_test = true;
+  next(e);
+});
+
 // ⚠️ Routes must be registered!
 // Auth surfaces (login / forgot-password / reset-password / OTP) get
 // the IP-keyed authLimiter — 10 attempts / 15 min — so unauthenticated
