@@ -101,32 +101,34 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
     // two interest-style components — same formulas Reports uses, so
     // figures agree across pages.
     //
-    // loan_interest_earned uses per-loan (cash applied to amount_due)
-    // × interest ratio, computed from payment_schedules via per-row
-    // LEAST(amount_paid, amount_due). The OLD formula computed the
-    // cash base from transactions as (amount_paid − penalty −
-    // overpayment), which on reducing-balance loans wrongly included
-    // principal knockdown (cash that overshot the row to wipe future
-    // installments). Knockdown is 100% principal — ratioing it
-    // produced phantom interest income.
+    // loan_interest_earned: per-row "cash that filled this row's
+    // interest slot, after the waiver-credited interest_paid is
+    // subtracted." Same formula analyticsService uses for Reports'
+    // Interest-from-Loans tile, so Dashboard and Reports tell the
+    // same story. The OLDER ratio approach
+    // (cash_to_amount_due × total_interest ÷ total_amount_due) was
+    // accurate only when no waiver had touched the row — it imputed
+    // 44.57% interest on every cash dollar via the contract ratio
+    // regardless of whether a waiver had already covered some of the
+    // row's interest, so each interest waiver caused this tile to
+    // over-state interest income by ~(waiver × cash_share) and
+    // disagree with Reports.
     const breakdown = await query(
       `SELECT
-         COALESCE(SUM(
-           COALESCE(per_loan.cash_to_amount_due, 0)
-             * (l.total_interest / NULLIF(l.total_amount_due, 0))
+         COALESCE((
+           SELECT SUM(LEAST(
+             LEAST(ps.amount_paid, ps.amount_due),
+             GREATEST(0, COALESCE(ps.interest_portion, 0) - COALESCE(ps.interest_paid, 0))
+           ))
+           FROM payment_schedules ps
+           JOIN loans l2 ON l2.id = ps.loan_id
+           WHERE l2.tenant_id = $1
+             AND l2.status IN ('active', 'completed', 'defaulted')
          ), 0)::float                                              AS loan_interest_earned,
          (SELECT COALESCE(SUM(COALESCE(t.penalty_portion, 0)), 0)::float
             FROM transactions t
            WHERE t.tenant_id = $1
-             AND t.payment_status = 'completed')                   AS fines_collected
-       FROM loans l
-       LEFT JOIN (
-         SELECT loan_id, SUM(LEAST(amount_paid, amount_due)) AS cash_to_amount_due
-         FROM payment_schedules
-         GROUP BY loan_id
-       ) per_loan ON per_loan.loan_id = l.id
-       WHERE l.tenant_id = $1
-         AND l.status IN ('active', 'completed', 'defaulted')`,
+             AND t.payment_status = 'completed')                   AS fines_collected`,
       [tid],
     );
 
