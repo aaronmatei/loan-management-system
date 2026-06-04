@@ -216,7 +216,12 @@ router.put(
   async (req, res) => {
     try {
       const { pid } = req.params;
-      const t = tenantClause(req, 1, "tenant_id");
+      // Params before t.params: $1 = pid, $2 = req.user.id.
+      // tenantClause(offset=2) places tid at $3 — without this the
+      // clause was binding tenant_id against $2 (req.user.id), the
+      // UPDATE matched zero rows for every non-platform-admin, and the
+      // route returned 404/500 instead of doing its job.
+      const t = tenantClause(req, 2, "tenant_id");
       // Manual override: works on pending OR partial — an admin may
       // want to mark a partially-paid promise as kept (e.g. the rest
       // came through off-system) without waiting for another payment
@@ -259,7 +264,11 @@ router.put(
           .status(400)
           .json({ error: "cancelled_reason is required" });
       }
-      const t = tenantClause(req, 2, "tenant_id");
+      // Params before t.params: $1 = pid, $2 = reason, $3 = req.user.id.
+      // tenantClause(offset=3) places tid at $4. The previous offset of
+      // 2 collided with $3 (req.user.id), so non-platform-admin users
+      // could never cancel a promise — the UPDATE matched zero rows.
+      const t = tenantClause(req, 3, "tenant_id");
       // Cancel works on pending or partial (an admin may cancel a
       // partially-fulfilled promise that the borrower has since
       // disowned).
