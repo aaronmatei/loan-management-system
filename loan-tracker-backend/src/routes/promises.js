@@ -26,9 +26,14 @@ const router = express.Router();
 router.use(verifyToken);
 
 // Derived status SQL fragment — applies to a row aliased as `p`.
-// pending + promised_date < today  →  broken
-// pending + promised_date >= today →  pending
-// kept / cancelled                  →  themselves
+//   pending + promised_date < today  →  broken
+//   pending + promised_date >= today →  pending
+//   partial / kept / cancelled       →  themselves
+//
+// 'partial' is stored explicitly by reconcilePromisesForLoan when a
+// payment arrives that's smaller than the promised amount. It does
+// NOT decay to 'broken' on date pass — the borrower made effort, so
+// it stays in its own bucket out of the failure queue.
 const DERIVED_STATUS = `
   CASE
     WHEN p.status = 'pending' AND p.promised_date < CURRENT_DATE THEN 'broken'
@@ -117,13 +122,13 @@ router.get("/:id/promises", async (req, res) => {
 
 // =============================================================
 // GET /promises — tenant-wide list
-//   ?status=all|pending|broken|kept|cancelled  (default: all)
+//   ?status=all|pending|partial|broken|kept|cancelled  (default: all)
 //   ?from=YYYY-MM-DD&to=YYYY-MM-DD  (filter by promised_date window)
 // =============================================================
 router.get("/", async (req, res) => {
   try {
     const status = (req.query.status || "all").toLowerCase();
-    const validStatuses = ["all", "pending", "broken", "kept", "cancelled"];
+    const validStatuses = ["all", "pending", "partial", "broken", "kept", "cancelled"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status filter" });
     }
@@ -184,10 +189,12 @@ router.get("/summary", async (req, res) => {
     const r = await query(
       `SELECT
          COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'pending')::int   AS pending_count,
+         COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'partial')::int   AS partial_count,
          COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'broken')::int    AS broken_count,
          COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'kept')::int      AS kept_count,
          COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'cancelled')::int AS cancelled_count,
          COALESCE(SUM(amount) FILTER (WHERE ${DERIVED_STATUS} = 'pending'), 0)::float AS pending_amount,
+         COALESCE(SUM(amount) FILTER (WHERE ${DERIVED_STATUS} = 'partial'), 0)::float AS partial_amount,
          COALESCE(SUM(amount) FILTER (WHERE ${DERIVED_STATUS} = 'broken'), 0)::float  AS broken_amount
        FROM promises_to_pay p
        WHERE 1=1${t.clause}`,
@@ -210,13 +217,17 @@ router.put(
     try {
       const { pid } = req.params;
       const t = tenantClause(req, 1, "tenant_id");
+      // Manual override: works on pending OR partial — an admin may
+      // want to mark a partially-paid promise as kept (e.g. the rest
+      // came through off-system) without waiting for another payment
+      // to land and auto-promote it.
       const r = await query(
         `UPDATE promises_to_pay
             SET status      = 'kept',
                 resolved_at = NOW(),
                 resolved_by = $2,
                 updated_at  = NOW()
-          WHERE id = $1 AND status = 'pending'${t.clause}
+          WHERE id = $1 AND status IN ('pending', 'partial')${t.clause}
           RETURNING *`,
         [pid, req.user.id, ...t.params],
       );
@@ -249,6 +260,9 @@ router.put(
           .json({ error: "cancelled_reason is required" });
       }
       const t = tenantClause(req, 2, "tenant_id");
+      // Cancel works on pending or partial (an admin may cancel a
+      // partially-fulfilled promise that the borrower has since
+      // disowned).
       const r = await query(
         `UPDATE promises_to_pay
             SET status           = 'cancelled',
@@ -256,7 +270,7 @@ router.put(
                 resolved_at      = NOW(),
                 resolved_by      = $3,
                 updated_at       = NOW()
-          WHERE id = $1 AND status = 'pending'${t.clause}
+          WHERE id = $1 AND status IN ('pending', 'partial')${t.clause}
           RETURNING *`,
         [pid, reason, req.user.id, ...t.params],
       );

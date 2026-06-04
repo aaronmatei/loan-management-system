@@ -34,6 +34,7 @@ import {
 } from "./notificationService.js";
 import logger from "../config/logger.js";
 import { recomputeCreditScore } from "./creditScoreService.js";
+import { reconcilePromisesForLoan } from "./promiseReconciliationService.js";
 
 // Typed error so the route can map to the right HTTP status while the
 // M-Pesa caller can just catch and log.
@@ -830,6 +831,13 @@ export async function recordLoanPayment({
       `Payment received for ${loan.loan_code}`,
     ],
   );
+
+  // Promise-to-Pay auto-reconciliation. Walks every open promise on
+  // this loan and transitions to 'partial' or 'kept' based on the
+  // cumulative cash that's arrived since the promise was logged.
+  // Best-effort by construction — the helper swallows errors so a
+  // hiccup here can't bring down a successful payment recording.
+  await reconcilePromisesForLoan(loanId);
 
   // Customer SMS + Email via the central dispatcher. Gated by the
   // tenant's notify_payment_{sms,email} prefs and logged to

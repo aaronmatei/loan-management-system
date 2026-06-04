@@ -3040,7 +3040,7 @@ CREATE TABLE public.promises_to_pay (
   promised_date    date NOT NULL,
   notes            text,
   status           varchar(20) NOT NULL DEFAULT 'pending'
-                     CHECK (status IN ('pending', 'kept', 'cancelled')),
+                     CHECK (status IN ('pending', 'partial', 'kept', 'cancelled')),
   made_at          timestamp NOT NULL DEFAULT NOW(),
   captured_by      integer REFERENCES public.users(id),
   resolved_at      timestamp,

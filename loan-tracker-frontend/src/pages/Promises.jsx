@@ -1,6 +1,9 @@
 // Promise to Pay — tenant-wide follow-up queue.
-// Tabs: Pending (upcoming), Broken (past due, unresolved), Kept, Cancelled.
-// Backend derives the "broken" status on read so we don't depend on a cron.
+// Tabs: Pending (upcoming), Partial (some money in but short),
+//       Broken (past due, nothing in), Kept, Cancelled.
+// Backend derives 'broken' on read (pending + date < today); 'partial'
+// is stored explicitly by reconcilePromisesForLoan whenever a payment
+// lands that's smaller than the promised amount.
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +17,7 @@ import {
   ArrowUpRight,
   X,
   CheckCheck,
+  CircleDashed,
 } from "lucide-react";
 import api from "../services/api";
 import Spinner from "../components/Spinner";
@@ -39,6 +43,13 @@ const TABS = [
     icon: Clock,
     activeCls: "border-amber-600 text-amber-700",
     pillCls: "bg-amber-100 text-amber-800",
+  },
+  {
+    key: "partial",
+    label: "Partial",
+    icon: CircleDashed,
+    activeCls: "border-sky-600 text-sky-700",
+    pillCls: "bg-sky-100 text-sky-800",
   },
   {
     key: "broken",
@@ -172,8 +183,10 @@ function Promises() {
           </h1>
           <p className="text-slate-500 mt-3 leading-relaxed">
             Verbal commitments captured from borrowers. Pending = upcoming;
-            Broken = the date passed and the promise wasn't resolved. Mark
-            kept once a matching payment lands, or cancel with a reason.
+            Partial = some money has landed but it's short of the promised
+            amount; Broken = the date passed with nothing in; Kept = the
+            full amount arrived. Statuses transition automatically as
+            payments are recorded.
           </p>
         </div>
         <div className="flex gap-3 shrink-0">
@@ -268,12 +281,16 @@ function Promises() {
           <h3 className="text-lg font-bold text-slate-700">
             {tab === "pending"
               ? "No upcoming promises"
-              : "Nothing here yet"}
+              : tab === "partial"
+                ? "No partially-paid promises"
+                : "Nothing here yet"}
           </h3>
           <p className="text-sm text-slate-500 mt-1">
             {tab === "pending"
               ? "Log a promise from any loan's detail page."
-              : `No ${tab} promises on record.`}
+              : tab === "partial"
+                ? "Promises move here automatically once a payment lands that's smaller than the promised amount."
+                : `No ${tab} promises on record.`}
           </p>
         </div>
       ) : (
@@ -344,10 +361,13 @@ function Promises() {
                     )}
                   </p>
                 </div>
-                {/* Action buttons — only on pending/broken (still
-                    awaiting resolution). Kept/cancelled rows are
-                    terminal. */}
-                {["pending", "broken"].includes(p.derived_status) && (
+                {/* Action buttons — show on pending / partial / broken
+                    (all still awaiting full resolution). Kept and
+                    cancelled rows are terminal. Manual "Mark Kept" on
+                    a partial promise is the off-system completion
+                    path: the rest came in cash and the admin closes
+                    it out. */}
+                {["pending", "partial", "broken"].includes(p.derived_status) && (
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() =>
