@@ -12,7 +12,6 @@
 import { query } from "../config/database.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
 import { recomputeCreditScoreForLoan } from "./creditScoreService.js";
-import { closeOpenPromisesForCompletedLoan } from "./promiseReconciliationService.js";
 
 /**
  * Apply a waiver of `amount` to a loan. Returns the allocation snapshot
@@ -338,12 +337,9 @@ export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
       [loanId, tenantId],
     );
     allocation.loan_completed = true;
-
-    // Loan settled via this waiver — sweep any open promises out of
-    // the active queues. Same auto-cancel-with-reason path the
-    // payment-completion site uses, so the Promises page never shows
-    // a commitment on a closed loan.
-    await closeOpenPromisesForCompletedLoan(loanId);
+    // Promises on this loan are filtered out at query time once it
+    // hits 'completed' (routes/promises.js), so no status mutation
+    // is needed here.
   }
 
   // Recompute the client's cached credit score — a completed loan

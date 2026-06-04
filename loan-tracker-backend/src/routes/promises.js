@@ -144,7 +144,14 @@ router.get("/", async (req, res) => {
     }
 
     const params = [];
-    let where = "WHERE 1=1";
+    // Promises on completed loans drop out of every tab on this page
+    // (Pending / Partial / Broken / Kept / Cancelled). The loan is
+    // closed — its commitments aren't actionable any more and the
+    // per-loan history page is the right place to inspect them. We
+    // filter at query time instead of mutating the promise row's
+    // status, so if a loan ever reopens (waiver reversal etc.) its
+    // promises re-appear in their true state.
+    let where = "WHERE l.status <> 'completed'";
 
     const t = tenantClause(req, params.length, "p.tenant_id");
     if (t.clause) {
@@ -213,6 +220,9 @@ router.get("/", async (req, res) => {
 router.get("/summary", async (req, res) => {
   try {
     const t = tenantClause(req, 0, "p.tenant_id");
+    // Same loan.status filter as the list endpoint, so the tab
+    // counters never advertise rows that the list won't actually
+    // render.
     const r = await query(
       `SELECT
          COUNT(*) FILTER (WHERE ${DERIVED_STATUS} = 'pending')::int   AS pending_count,
@@ -224,7 +234,8 @@ router.get("/summary", async (req, res) => {
          COALESCE(SUM(amount) FILTER (WHERE ${DERIVED_STATUS} = 'partial'), 0)::float AS partial_amount,
          COALESCE(SUM(amount) FILTER (WHERE ${DERIVED_STATUS} = 'broken'), 0)::float  AS broken_amount
        FROM promises_to_pay p
-       WHERE 1=1${t.clause}`,
+       JOIN loans l ON l.id = p.loan_id
+       WHERE l.status <> 'completed'${t.clause}`,
       t.params,
     );
     res.json({ success: true, data: r.rows[0] });
