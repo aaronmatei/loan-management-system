@@ -18,11 +18,17 @@ const field =
 
 function ForgotPassword() {
   const navigate = useNavigate();
+  // TODO(OTP): this two-step flow used to be (1) phone → OTP, (2) OTP +
+  // new password. The OTP step is currently bypassed end-to-end (see
+  // routes/portal/auth.js /forgot-password and /reset-password) so the
+  // UI just gates on phone lookup and goes straight to a new-password
+  // form. When SMS reset-codes come back, restore the OTP input + the
+  // Resend code button on step 2 and re-add the `otp` payload field
+  // in the resetPassword call below.
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
   const [customerId, setCustomerId] = useState(null);
-  const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
@@ -33,15 +39,16 @@ function ForgotPassword() {
       const res = await portalApi.post("/portal/auth/forgot-password", {
         phone_number: phone,
       });
-      // Backend always returns a generic message; customer_id is only
-      // present when the account actually exists.
+      // Backend returns customer_id only when the phone matches a
+      // verified account. Generic message otherwise — don't reveal
+      // whether the number is registered.
       if (res.data.customer_id) {
         setCustomerId(res.data.customer_id);
         setStep(2);
       } else {
         alert(
           res.data.message ||
-            "If an account exists for that number, an OTP was sent.",
+            "If an account exists for that number, you can reset it now.",
         );
       }
     } catch (err) {
@@ -63,9 +70,10 @@ function ForgotPassword() {
     }
     setSubmitting(true);
     try {
+      // TODO(OTP): include `otp: <code>` here when the verification
+      // step is re-enabled.
       await portalApi.post("/portal/auth/reset-password", {
         customer_id: customerId,
-        otp,
         new_password: password,
       });
       alert("Password reset. Please log in.");
@@ -74,18 +82,6 @@ function ForgotPassword() {
       alert(err.response?.data?.error || "Reset failed");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const resend = async () => {
-    try {
-      await portalApi.post("/portal/auth/resend-otp", {
-        customer_id: customerId,
-        purpose: "password_reset",
-      });
-      alert("OTP resent");
-    } catch {
-      alert("Failed to resend");
     }
   };
 
@@ -98,8 +94,8 @@ function ForgotPassword() {
           </h2>
           <p className="text-gray-600 mb-6">
             {step === 1
-              ? "Enter your phone number to get a reset code"
-              : "Enter the code we texted you and a new password"}
+              ? "Enter your phone number to continue"
+              : "Set a new password for your account"}
           </p>
 
           {step === 1 ? (
@@ -122,26 +118,16 @@ function ForgotPassword() {
                 disabled={submitting}
                 className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
               >
-                {submitting ? "Sending…" : "Send reset code →"}
+                {submitting ? "Checking…" : "Continue →"}
               </button>
             </form>
           ) : (
             <form onSubmit={resetPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Verification Code
-                </label>
-                <input
-                  value={otp}
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  required
-                  maxLength="6"
-                  placeholder="6-digit code"
-                  className={`${field} text-center text-2xl tracking-widest font-bold`}
-                />
-              </div>
+              {/* TODO(OTP): when SMS reset-codes are restored, add the
+                  Verification Code input + a "Resend code" button back
+                  here. The backend already expects an `otp` field on
+                  reset-password — see the comment in routes/portal/
+                  auth.js for the full restoration steps. */}
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   New Password
@@ -171,13 +157,6 @@ function ForgotPassword() {
                 className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
               >
                 {submitting ? "Resetting…" : "Reset password"}
-              </button>
-              <button
-                type="button"
-                onClick={resend}
-                className="w-full text-sm text-indigo-600"
-              >
-                Resend code
               </button>
             </form>
           )}

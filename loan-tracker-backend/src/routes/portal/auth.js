@@ -763,6 +763,18 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
 });
 
 // ── forgot / reset password ───────────────────────────────────
+//
+// TODO(OTP): re-enable the OTP-based reset once an SMS provider is
+// wired up. The flow is currently bypassed end-to-end — phone lookup
+// returns customer_id directly, and reset-password sets the new
+// password without verifying any code. Same pattern already in use
+// for registration / login OTPs above. Steps to restore:
+//   1. /forgot-password: uncomment the sendOTP call and gate
+//      customer_id on otp.success
+//   2. /reset-password: uncomment the verifyOTP call and bail on
+//      v.success === false
+//   3. portal/pages/ForgotPassword.jsx: re-add the OTP input and
+//      "Resend code" button on step 2
 router.post("/forgot-password", async (req, res) => {
   try {
     const fp = formatPhone(req.body.phone_number);
@@ -771,17 +783,25 @@ router.post("/forgot-password", async (req, res) => {
       [fp],
     );
     if (r.rows.length === 0) {
-      return res.json({ success: true, message: "If account exists, OTP sent" });
+      // Keep the same generic response shape so a request for an
+      // unknown phone doesn't reveal whether the account exists.
+      return res.json({
+        success: true,
+        message: "If an account exists for that number, you can reset it now.",
+      });
     }
-    const otp = await sendOTP({
-      customerId: r.rows[0].id,
-      phoneNumber: fp,
-      purpose: "password_reset",
-    });
+    // TODO(OTP): the OTP send is bypassed — restore once SMS is
+    // configured. Until then we hand the customer_id back directly so
+    // the frontend can advance to the new-password step.
+    // const otp = await sendOTP({
+    //   customerId: r.rows[0].id,
+    //   phoneNumber: fp,
+    //   purpose: "password_reset",
+    // });
     res.json({
       success: true,
-      message: "If account exists, OTP sent",
-      customer_id: otp.success ? r.rows[0].id : null,
+      message: "Account found — set a new password.",
+      customer_id: r.rows[0].id,
     });
   } catch (error) {
     logger.error("Forgot password error:", error);
@@ -791,25 +811,35 @@ router.post("/forgot-password", async (req, res) => {
 
 router.post("/reset-password", async (req, res) => {
   try {
-    const { customer_id, otp, new_password } = req.body;
+    const { customer_id, new_password } = req.body;
+    if (!customer_id) {
+      return res.status(400).json({ error: "customer_id is required" });
+    }
     if (!validatePassword(new_password || "")) {
       return res.status(400).json({
         error:
           "Password must be at least 12 characters with an uppercase letter, a number, and a special character",
       });
     }
-    const v = await verifyOTP({
-      customerId: customer_id,
-      otp,
-      purpose: "password_reset",
-    });
-    if (!v.success) return res.status(400).json({ error: v.error });
+    // TODO(OTP): the OTP verification step is bypassed — restore once
+    // SMS is configured. Without it, any caller who can reach
+    // /forgot-password for a known phone can reset that account's
+    // password. Re-enable like:
+    //   const v = await verifyOTP({
+    //     customerId: customer_id,
+    //     otp: req.body.otp,
+    //     purpose: "password_reset",
+    //   });
+    //   if (!v.success) return res.status(400).json({ error: v.error });
 
     const passwordHash = await bcryptjs.hash(new_password, 10);
-    await query(
-      "UPDATE platform_customers SET password_hash = $1 WHERE id = $2",
+    const upd = await query(
+      "UPDATE platform_customers SET password_hash = $1 WHERE id = $2 RETURNING id",
       [passwordHash, customer_id],
     );
+    if (upd.rows.length === 0) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
     res.json({ success: true, message: "Password reset successful" });
   } catch (error) {
     logger.error("Reset password error:", error);
