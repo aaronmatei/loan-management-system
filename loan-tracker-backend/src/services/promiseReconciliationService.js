@@ -14,10 +14,13 @@
 // effort, so it stays out of the Broken queue.
 //
 // "Paid since" = cumulative cash on the loan from completed transactions
-// with created_at >= promise.made_at, net of penalty_portion and
-// overpayment_portion. That matches what the borrower experiences as
-// "money I sent toward this loan" rather than what the lender booked
-// internally (split between principal/interest/penalty).
+// with created_at >= promise.made_at, net of overpayment_portion only
+// (refunds go back to the borrower, so they shouldn't count toward the
+// commitment they made). PENALTY IS INCLUDED — the borrower handed
+// over that cash too, and from their perspective "I sent 4,630 toward
+// my loan" doesn't care how the lender booked it internally. Excluding
+// penalty made a promise stay Partial after the full promised sum had
+// actually landed, which read as a system bug to the user.
 //
 // Best-effort by design: never throws into the caller. Payment recording
 // is the primary operation; promise bookkeeping is a side-effect.
@@ -49,7 +52,6 @@ export async function reconcilePromisesForLoan(loanId) {
       const paidRes = await query(
         `SELECT COALESCE(SUM(
             amount_paid
-            - COALESCE(penalty_portion, 0)
             - COALESCE(overpayment_portion, 0)
           ), 0)::float AS paid_since
            FROM transactions

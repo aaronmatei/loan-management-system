@@ -109,7 +109,6 @@ router.get("/:id/promises", async (req, res) => {
               COALESCE((
                 SELECT SUM(
                   t.amount_paid
-                  - COALESCE(t.penalty_portion, 0)
                   - COALESCE(t.overpayment_portion, 0)
                 )
                   FROM transactions t
@@ -184,7 +183,6 @@ router.get("/", async (req, res) => {
               COALESCE((
                 SELECT SUM(
                   t.amount_paid
-                  - COALESCE(t.penalty_portion, 0)
                   - COALESCE(t.overpayment_portion, 0)
                 )
                   FROM transactions t
