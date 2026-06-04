@@ -22,10 +22,10 @@ import PortalNotificationBell from "./PortalNotificationBell";
 const MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
   { path: "/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
+  { path: "/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
   { path: "/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
   { path: "/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
   { path: "/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
-  { path: "/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
   { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
 
