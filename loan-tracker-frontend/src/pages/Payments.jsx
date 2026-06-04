@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search, ChevronRight, ChevronDown, Calendar } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
@@ -60,6 +60,13 @@ function Payments() {
   const [txnModal, setTxnModal] = useState(null);
   const [tenantBranding, setTenantBranding] = useState(null);
 
+  // ?loan=<id> deep-link — when LoanDetails' "Record Payment" action
+  // (or any other surface) navigates here it pre-selects the loan,
+  // pre-fills the summary and opens the form, so the user lands one
+  // amount away from recording. We strip the param after consuming
+  // it so a manual refresh doesn't re-trigger the auto-select.
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useEffect(() => {
     fetchPayments();
     fetchLoans();
@@ -70,6 +77,25 @@ function Payments() {
       .then((r) => setTenantBranding(r.data.data || null))
       .catch(() => {});
   }, []);
+
+  // Watches for ?loan=<id> AND for `loans` to finish loading. Runs
+  // once they intersect — selecting + opening the form, then drops
+  // the query param so the URL stays clean.
+  useEffect(() => {
+    const wantedId = searchParams.get("loan");
+    if (!wantedId || loans.length === 0) return;
+    const match = loans.find((l) => String(l.id) === String(wantedId));
+    if (match) {
+      handleSelectLoan(match);
+      setShowForm(true);
+    }
+    // Drop the param regardless — if we couldn't find the loan
+    // (filtered out by status), refreshing wouldn't help.
+    const next = new URLSearchParams(searchParams);
+    next.delete("loan");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loans, searchParams]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {

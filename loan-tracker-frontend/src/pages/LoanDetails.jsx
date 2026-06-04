@@ -552,6 +552,10 @@ function LoanDetails() {
              gates the old flat row used; if nothing renders, the
              whole button hides via `hasManagementActions`. */}
       {(() => {
+        // Payments page only lists active loans in its loan-picker,
+        // so "Record Payment" mirrors that gate. The Payments route
+        // accepts ?loan=<id> and auto-selects + opens the form.
+        const canRecordPayment = loan.status === "active";
         const canEdit =
           !["completed", "defaulted", "rejected"].includes(loan.status);
         const canDelete = [
@@ -567,8 +571,8 @@ function LoanDetails() {
         const canSuspend = loan.status === "active";
         const canReactivate = ["defaulted", "suspended"].includes(loan.status);
         const hasManagementActions =
-          canEdit || canDelete || canWaive || canPromise ||
-          canDefault || canSuspend || canReactivate;
+          canRecordPayment || canEdit || canDelete || canWaive ||
+          canPromise || canDefault || canSuspend || canReactivate;
 
         const closeMenu = () => setActionsMenuOpen(false);
         const itemBase =
@@ -632,6 +636,21 @@ function LoanDetails() {
                     role="menu"
                     className="absolute z-30 mt-1 right-0 sm:right-auto sm:left-0 min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-lg py-1 overflow-hidden"
                   >
+                    {canRecordPayment && (
+                      <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                        <button
+                          onClick={() => {
+                            closeMenu();
+                            navigate(`/payments?loan=${loan.id}`);
+                          }}
+                          className={itemBase}
+                          title="Open Payments with this loan pre-selected"
+                        >
+                          <Coins size={16} className="text-emerald-600" />
+                          Record Payment
+                        </button>
+                      </PermissionGate>
+                    )}
                     {canEdit && (
                       <PermissionGate role={["admin", "manager"]}>
                         <button
