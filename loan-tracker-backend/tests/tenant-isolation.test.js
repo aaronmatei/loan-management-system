@@ -92,4 +92,76 @@ describe("Tenant isolation", () => {
     expect(lids).toContain(A.loan.id);
     expect(lids).toContain(B.loan.id);
   });
+
+  // ── Regression guards for cross-tenant bugs we fixed this round.
+  // Each one used to "succeed" against another tenant's row because of
+  // a subtle scoping bug (ambiguous tenant_id after a JOIN, or a
+  // tenantClause param-offset off-by-one). Keep these tests so the
+  // bugs can't quietly come back.
+
+  it("cannot edit another tenant's loan via PUT /loans/:id/edit", async () => {
+    // Reproduces the ambiguous-tenant_id-after-LEFT-JOIN-loan_packages bug.
+    const res = await request(app)
+      .put(`/api/loans/${B.loan.id}/edit`)
+      .set("Authorization", auth(A.admin))
+      .send({ penalty_rate: 99 });
+    expect(res.status).toBe(404);
+
+    const row = (
+      await query(
+        "SELECT penalty_rate FROM loans WHERE id = $1",
+        [B.loan.id],
+      )
+    ).rows[0];
+    expect(parseFloat(row.penalty_rate)).not.toBe(99);
+  });
+
+  it("cannot mark another tenant's promise kept", async () => {
+    // Reproduces the tenantClause-offset bug on PUT /promises/:pid/kept.
+    const promise = (
+      await query(
+        `INSERT INTO promises_to_pay (tenant_id, loan_id, amount, promised_date, captured_by)
+         VALUES ($1, $2, 500, CURRENT_DATE + 1, $3)
+         RETURNING id`,
+        [B.tenant.id, B.loan.id, B.admin.id],
+      )
+    ).rows[0];
+
+    const res = await request(app)
+      .put(`/api/promises/${promise.id}/kept`)
+      .set("Authorization", auth(A.admin));
+    expect(res.status).toBe(404);
+
+    const row = (
+      await query("SELECT status FROM promises_to_pay WHERE id = $1", [
+        promise.id,
+      ])
+    ).rows[0];
+    expect(row.status).toBe("pending");
+  });
+
+  it("cannot cancel another tenant's promise", async () => {
+    // Same offset class on PUT /promises/:pid/cancel.
+    const promise = (
+      await query(
+        `INSERT INTO promises_to_pay (tenant_id, loan_id, amount, promised_date, captured_by)
+         VALUES ($1, $2, 500, CURRENT_DATE + 1, $3)
+         RETURNING id`,
+        [B.tenant.id, B.loan.id, B.admin.id],
+      )
+    ).rows[0];
+
+    const res = await request(app)
+      .put(`/api/promises/${promise.id}/cancel`)
+      .set("Authorization", auth(A.admin))
+      .send({ cancelled_reason: "drive-by" });
+    expect(res.status).toBe(404);
+
+    const row = (
+      await query("SELECT status FROM promises_to_pay WHERE id = $1", [
+        promise.id,
+      ])
+    ).rows[0];
+    expect(row.status).toBe("pending");
+  });
 });
