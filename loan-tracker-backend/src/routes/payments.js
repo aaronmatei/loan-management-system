@@ -362,7 +362,15 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     const totalPaid = totalCashPaid + totalWaivedAmountDue;
     const totalDue = parseFloat(loan.total_amount_due);
     const overpayment = parseFloat(loan.overpayment_amount || 0);
-    const balance = Math.max(0, totalDue - totalPaid);
+    // Balance: clamp to 0 on completed loans (settled by definition;
+    // any residual is amortization dust from per-installment rounding)
+    // and round sub-KES-1 noise to 0 on every other loan too — same
+    // dust threshold recordLoanPayment uses for overpayment.
+    const rawBalance = totalDue - totalPaid;
+    const balance =
+      loan.status === "completed" || Math.abs(rawBalance) < 1
+        ? 0
+        : Math.max(0, rawBalance);
 
     // Annotate each transaction with running balance / % complete.
     //

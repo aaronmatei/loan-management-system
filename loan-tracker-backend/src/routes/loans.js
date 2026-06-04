@@ -50,12 +50,29 @@ router.get("/", async (req, res) => {
             COALESCE(SUM(t.penalty_portion), 0) as total_fines_paid,
             COALESCE(wv.waived_toward_balance, 0) as total_waived_toward_balance,
             COALESCE(wv.total_waived, 0) as total_waived,
-            GREATEST(
-              l.total_amount_due
-              - COALESCE(sp.cash_to_amount_due, 0)
-              - COALESCE(wv.waived_toward_balance, 0),
-              0
-            ) as balance_due,
+            -- balance_due:
+            --   completed   → 0 (a 'completed' loan is settled by
+            --       definition; any residual cent is reducing-balance
+            --       amortization dust from per-installment rounding
+            --       and should never show as money owed)
+            --   |x| < 1 KES → 0 (sub-shilling noise on any loan rounds
+            --       to zero — matches the >= 1 dust threshold
+            --       recordLoanPayment already uses for overpayment)
+            --   else        → max(total_due − cash − waiver, 0)
+            CASE
+              WHEN l.status = 'completed' THEN 0
+              WHEN ABS(
+                l.total_amount_due
+                - COALESCE(sp.cash_to_amount_due, 0)
+                - COALESCE(wv.waived_toward_balance, 0)
+              ) < 1 THEN 0
+              ELSE GREATEST(
+                l.total_amount_due
+                - COALESCE(sp.cash_to_amount_due, 0)
+                - COALESCE(wv.waived_toward_balance, 0),
+                0
+              )
+            END as balance_due,
             COALESCE(od.overdue_count, 0)::int  AS overdue_count,
             COALESCE(od.overdue_amount, 0)      AS overdue_amount,
             COALESCE(od.max_days_late, 0)::int  AS max_days_late
@@ -2678,12 +2695,19 @@ router.post("/bulk/export", async (req, res) => {
     };
 
     result.rows.forEach((loan) => {
+      // Mirror the API balance rule: completed loans always export 0
+      // (no amortization dust), sub-KES-1 residuals on active loans
+      // round down to 0 too.
+      const rawBalance =
+        parseFloat(loan.total_amount_due) - parseFloat(loan.total_paid);
+      const cleanBalance =
+        loan.status === "completed" || Math.abs(rawBalance) < 1
+          ? 0
+          : rawBalance;
       sheet.addRow({
         ...loan,
         client_name: `${loan.first_name} ${loan.last_name}`,
-        balance: (
-          parseFloat(loan.total_amount_due) - parseFloat(loan.total_paid)
-        ).toFixed(2),
+        balance: cleanBalance.toFixed(2),
         start_date: new Date(loan.start_date).toLocaleDateString(),
       });
     });
