@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { query } from "../config/database.js";
 import logger from "../config/logger.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
+import { validate, body } from "../utils/validate.js";
 import { logAudit } from "../services/auditService.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 
@@ -13,7 +14,25 @@ const router = express.Router();
 const VALID_ROLES = ["admin", "manager", "loan_officer", "viewer"];
 
 // Login
-router.post("/login", async (req, res) => {
+router.post(
+  "/login",
+  // Shape validation before the bcrypt compare so a request without a
+  // body (or with the wrong types) never reaches the DB lookup. The
+  // ad-hoc "email and password required" check below now only fires
+  // on the email-format / max-length cases this catches first.
+  validate(
+    body("email")
+      .isEmail()
+      .withMessage("must be a valid email")
+      .isLength({ max: 254 })
+      .normalizeEmail({ gmail_remove_dots: false }),
+    body("password")
+      .isString()
+      .withMessage("required")
+      .isLength({ min: 1, max: 256 })
+      .withMessage("required"),
+  ),
+  async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -174,7 +193,8 @@ router.post("/login", async (req, res) => {
     logger.error("Login error:", error);
     res.status(500).json({ error: "Server error" });
   }
-});
+  },
+);
 
 // Register a staff user (admin only). Creates the user inside the calling
 // admin's tenant. POST /api/users is the primary user-management endpoint;

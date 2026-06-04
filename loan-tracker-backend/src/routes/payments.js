@@ -11,6 +11,7 @@ import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { recordLoanPayment } from "../services/paymentService.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
+import { validate, body, param } from "../utils/validate.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -92,7 +93,38 @@ router.get("/", async (req, res) => {
 // same path (schedules, capital pool, completion, notifications, audit).
 // This handler just maps req → service args and errors → HTTP status.
 // ============================================================
-router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+router.post(
+  "/",
+  authorize("admin", "manager", "loan_officer"),
+  // Validation runs before the handler so a typo'd amount, a bad
+  // date, or a stray HTML payload in `notes` returns a clean 400
+  // instead of either silently corrupting the schedule or crashing
+  // deep in paymentService. Coercion (toFloat / toInt / toDate)
+  // happens in-place so the handler reads native types from req.body.
+  validate(
+    body("loan_id").isInt({ min: 1 }).withMessage("must be a loan id").toInt(),
+    body("amount_paid")
+      .isFloat({ gt: 0 })
+      .withMessage("must be a positive number")
+      .toFloat(),
+    body("payment_date")
+      .isISO8601()
+      .withMessage("must be a YYYY-MM-DD date"),
+    body("payment_method")
+      .isIn(["Cash", "M-Pesa", "Bank", "Cheque", "Other"])
+      .withMessage("must be one of Cash / M-Pesa / Bank / Cheque / Other"),
+    body("payment_reference")
+      .optional({ checkFalsy: true })
+      .isString()
+      .isLength({ max: 100 })
+      .trim(),
+    body("notes")
+      .optional({ checkFalsy: true })
+      .isString()
+      .isLength({ max: 1000 })
+      .trim(),
+  ),
+  async (req, res) => {
   try {
     const {
       loan_id,
@@ -123,7 +155,8 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     logger.error("Record payment error:", error);
     res.status(500).json({ error: "Failed to record payment" });
   }
-});
+  },
+);
 
 // ============================================================
 // GET LOAN PAYMENT SUMMARY

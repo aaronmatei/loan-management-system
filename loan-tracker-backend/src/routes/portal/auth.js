@@ -5,6 +5,7 @@ import { query } from "../../config/database.js";
 import { sendOTP, verifyOTP } from "../../services/otpService.js";
 import { tenantContext } from "../../middleware/tenantContext.js";
 import { validatePassword } from "../../utils/validators.js";
+import { validate, body } from "../../utils/validate.js";
 import { nextClientCode } from "../../utils/clientCode.js";
 import { lfxCode } from "../../utils/customerCode.js";
 import { needsKyc } from "../../utils/kyc.js";
@@ -411,7 +412,28 @@ router.post("/verify-otp", async (req, res) => {
 });
 
 // ── login (returns tenant list / picker action) ───────────────
-router.post("/login", tenantContext, async (req, res) => {
+router.post(
+  "/login",
+  tenantContext,
+  // Phone + password shape check before any DB / bcrypt work. Phone is
+  // stored as "+254XXXXXXXXX" but borrowers commonly type "07..." or
+  // "254..." too; formatPhone normalizes after this, so we only care
+  // that the input is a non-empty string of digits-ish characters.
+  validate(
+    body("phone_number")
+      .isString()
+      .withMessage("required")
+      .isLength({ min: 7, max: 20 })
+      .withMessage("must look like a phone number")
+      .matches(/^[\d+\s\-()]+$/)
+      .withMessage("only digits and + - ( ) allowed"),
+    body("password")
+      .isString()
+      .withMessage("required")
+      .isLength({ min: 1, max: 256 })
+      .withMessage("required"),
+  ),
+  async (req, res) => {
   try {
     const { phone_number, password } = req.body;
     if (!phone_number || !password) {
@@ -520,7 +542,8 @@ router.post("/login", tenantContext, async (req, res) => {
     logger.error("Customer login error:", error);
     res.status(500).json({ error: "Login failed" });
   }
-});
+  },
+);
 
 // ── select tenant after multi-tenant login ────────────────────
 router.post("/select-tenant", async (req, res) => {
