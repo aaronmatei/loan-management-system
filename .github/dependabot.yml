@@ -1,0 +1,81 @@
+# Dependabot config — weekly pull requests that bump npm dependencies in
+# the backend and frontend workspaces. Runs against the same branches CI
+# guards, so the resulting PRs go through the existing vitest suite
+# before they can merge.
+#
+# Grouping rules:
+#   • Patch + minor non-security bumps for the same workspace are batched
+#     into one PR per week so the queue doesn't explode.
+#   • Security advisories get their own immediate PR, not batched.
+#   • Major-version bumps are also their own PR — they tend to need
+#     hand-holding (breaking changes / codemod) so we want to look at
+#     them one at a time.
+#
+# The `groups` blocks below tell dependabot how to merge updates into a
+# single PR; `security-updates` is implicit and always lands on its own.
+
+version: 2
+updates:
+  # ── Backend ────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/loan-tracker-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 5
+    versioning-strategy: "increase"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      backend-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ── Frontend ───────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/loan-tracker-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 5
+    versioning-strategy: "increase"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      frontend-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ── GitHub Actions ─────────────────────────────────────────────────
+  # Keeps the CI workflow's `actions/checkout@vN`, `actions/setup-node@vN`
+  # etc. on current major versions. Low-volume, weekly.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"
