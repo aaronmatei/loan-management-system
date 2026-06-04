@@ -10,6 +10,7 @@ import morgan from "morgan";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 import authRoutes from "./routes/auth.js";
+import { authLimiter } from "./middleware/rateLimit.js";
 import clientRoutes from "./routes/clients.js";
 import branchRoutes from "./routes/branches.js";
 import packageRoutes from "./routes/packages.js";
@@ -93,6 +94,16 @@ app.use(
 
 // Middleware
 app.use(helmet());
+
+// Trust the first proxy hop (Render's load balancer) so req.ip
+// resolves to the real client address. Without this, every request
+// looks like it's coming from the loopback and rate-limiters can't
+// distinguish IPs. Skipped under test to keep supertest's loopback
+// requests honest.
+if (process.env.NODE_ENV !== "test") {
+  app.set("trust proxy", 1);
+}
+
 // Skip request logging under test to keep test output readable.
 if (process.env.NODE_ENV !== "test") {
   app.use(morgan("combined"));
@@ -110,9 +121,14 @@ app.get("/health", (req, res) => {
 });
 
 // ⚠️ Routes must be registered!
-app.use("/api/auth", authRoutes);
+// Auth surfaces (login / forgot-password / reset-password / OTP) get
+// the IP-keyed authLimiter — 10 attempts / 15 min — so unauthenticated
+// brute-force / credential-stuffing on /login or /forgot-password
+// stops being trivially scriptable. Successful logins are excluded
+// from the count so a real user signing in repeatedly isn't punished.
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
-app.use("/api/portal/auth", portalAuthRoutes); // public: customer auth/OTP
+app.use("/api/portal/auth", authLimiter, portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
 app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/cron", platformCronRoutes); // verifyToken + is_platform_admin
