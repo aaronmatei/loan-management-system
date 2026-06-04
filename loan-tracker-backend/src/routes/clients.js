@@ -6,6 +6,7 @@ import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { nextClientCode } from "../utils/clientCode.js";
 import { ensurePortalAccount } from "../services/portalAccountService.js";
 import { validate, body } from "../utils/validate.js";
+import { captureException } from "../config/sentry.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 import {
@@ -694,6 +695,15 @@ router.post(
         error: "A field value is outside the allowed set.",
       });
     }
+    // Genuine surprise (not a user-input bounce we already mapped to
+    // 4xx above) — report to Sentry by hand. Inline try/catch swallows
+    // the error before Express's chain can call sentryErrorHandler,
+    // so without this Sentry never sees this 500 even though we want
+    // it to.
+    captureException(error, {
+      route: { method: "POST", path: "/api/clients" },
+      tenant_id: req.user?.tenant_id,
+    });
     res.status(500).json({ error: "Failed to create client" });
   }
   },

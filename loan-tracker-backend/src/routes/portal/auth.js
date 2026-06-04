@@ -6,6 +6,7 @@ import { sendOTP, verifyOTP } from "../../services/otpService.js";
 import { tenantContext } from "../../middleware/tenantContext.js";
 import { validatePassword } from "../../utils/validators.js";
 import { validate, body } from "../../utils/validate.js";
+import { captureException } from "../../config/sentry.js";
 import { nextClientCode } from "../../utils/clientCode.js";
 import { lfxCode } from "../../utils/customerCode.js";
 import { needsKyc } from "../../utils/kyc.js";
@@ -540,6 +541,9 @@ router.post(
     });
   } catch (error) {
     logger.error("Customer login error:", error);
+    captureException(error, {
+      route: { method: "POST", path: "/api/portal/auth/login" },
+    });
     res.status(500).json({ error: "Login failed" });
   }
   },

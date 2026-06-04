@@ -12,6 +12,7 @@ import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { recordLoanPayment } from "../services/paymentService.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
 import { validate, body, param } from "../utils/validate.js";
+import { captureException } from "../config/sentry.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -150,9 +151,16 @@ router.post(
     res.status(201).json({ success: true, ...result });
   } catch (error) {
     if (error.status) {
+      // Typed app errors (e.g. BadRequest from paymentService) are
+      // expected user-facing rejections — don't pollute Sentry.
       return res.status(error.status).json({ error: error.message });
     }
     logger.error("Record payment error:", error);
+    captureException(error, {
+      route: { method: "POST", path: "/api/payments" },
+      tenant_id: req.user?.tenant_id,
+      loan_id: req.body?.loan_id,
+    });
     res.status(500).json({ error: "Failed to record payment" });
   }
   },

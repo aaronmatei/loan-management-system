@@ -5,6 +5,7 @@ import { query } from "../config/database.js";
 import logger from "../config/logger.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
 import { validate, body } from "../utils/validate.js";
+import { captureException } from "../config/sentry.js";
 import { logAudit } from "../services/auditService.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 
@@ -191,6 +192,9 @@ router.post(
     });
   } catch (error) {
     logger.error("Login error:", error);
+    // Don't capture credential failures (those are 401 from above);
+    // this path only fires on infra problems — DB, bcrypt, JWT sign.
+    captureException(error, { route: { method: "POST", path: "/api/auth/login" } });
     res.status(500).json({ error: "Server error" });
   }
   },

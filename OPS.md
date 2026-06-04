@@ -119,9 +119,30 @@ covered by a test in `tenant-isolation.test.js`.
   (loan disbursed, payment recorded, waiver applied, status change,
   etc.). See `services/auditService.js`.
 - **Sentry** — `@sentry/node` (backend) + `@sentry/react` (frontend),
-  both DSN-gated. Backend captures every 5xx + uncaught exception with
-  request URL, method, and `req.user` context. Frontend ErrorBoundary
-  reports every render-time crash with the React component stack.
+  both DSN-gated. Backend `sentryErrorHandler` middleware captures
+  every error that reaches Express's error chain via `next(err)`.
+  Frontend `ErrorBoundary` reports every render-time crash with the
+  React component stack.
+- **⚠ Inline-catch contract — read before adding a new route.** Most
+  handlers in `src/routes/` use the local pattern:
+  ```js
+  try {
+    // …
+  } catch (error) {
+    logger.error("…", error);
+    res.status(500).json({ error: "…" });
+  }
+  ```
+  That **swallows the error before the middleware sees it** — Sentry
+  never gets notified. To stay covered, ALSO call
+  `captureException(error, { route: …, tenant_id: … })` from
+  `config/sentry.js` inside the catch block whenever the branch
+  represents a genuine server-side surprise (NOT a typed user-input
+  bounce — those should stay out of the dashboard). The route files
+  for the highest-value writes — `clients.js`, `payments.js`,
+  `auth.js`, `portal/auth.js` — already follow this contract.
+  Anywhere else with a `try/catch` + 500 response is silently
+  invisible to Sentry until the pattern is added.
 - **No on-call paging today.** Sentry's alert rules can email / Slack;
   configure them in the Sentry project settings, not in this repo.
 
