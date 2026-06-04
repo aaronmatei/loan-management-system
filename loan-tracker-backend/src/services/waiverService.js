@@ -164,15 +164,10 @@ export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
   // (they're explicitly forgiving principal or a proportional blend).
   // Only type='interest' uses the new interest-bucket path.
   if (remaining > 0 && type !== "penalty") {
-    const interestPerInstallment =
-      type === "interest"
-        ? parseFloat(loan.total_interest || 0) /
-          (parseInt(loan.loan_duration_months, 10) || 1)
-        : 0;
-
     const owedRows = await query(
       `SELECT id, payment_number, amount_due, amount_paid, status,
-              COALESCE(interest_paid, 0) AS interest_paid
+              COALESCE(interest_paid, 0)    AS interest_paid,
+              COALESCE(interest_portion, 0) AS interest_portion
          FROM payment_schedules
         WHERE loan_id = $1 AND status IN ('pending', 'overdue')
         ORDER BY due_date ASC`,
@@ -182,15 +177,20 @@ export async function applyWaiver(loanId, tenantId, amount, type = "mixed") {
       if (remaining <= 0) break;
 
       if (type === "interest") {
-        // Cap by remaining interest capacity on this installment
-        // (interestPerInstallment minus what's already been waived
-        // here). Don't touch amount_paid; status decisions are made
-        // off the combined balance below.
+        // Cap by the row's own interest_portion (NOT a flat
+        // total_interest/duration average). On reducing-balance
+        // loans, later rows carry less interest than earlier rows —
+        // a flat per-row cap over-bumps interest_paid past the
+        // row's true interest portion. When cash then arrives,
+        // interestRoom is already 0 and the cash gets booked as
+        // 100% principal, but the row is marked "paid" with less
+        // cash than the row's principal_portion required — silently
+        // forgiving the gap. Capping at interest_portion makes the
+        // waiver respect the contractual interest share per row,
+        // and any leftover spills correctly to the next row.
         const interestSoFar = parseFloat(s.interest_paid || 0);
-        const interestCapacity = Math.max(
-          0,
-          interestPerInstallment - interestSoFar,
-        );
+        const rowInterest = parseFloat(s.interest_portion || 0);
+        const interestCapacity = Math.max(0, rowInterest - interestSoFar);
         if (interestCapacity <= 0) continue;
         const apply = Math.min(remaining, interestCapacity);
         const newInterestPaid = interestSoFar + apply;

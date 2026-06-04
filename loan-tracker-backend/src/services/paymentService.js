@@ -785,6 +785,25 @@ export async function recordLoanPayment({
     const cashToPrincipal = cashToAmountDue - cashToInterest + knockdown;
     interestDelta += cashToInterest;
     principalDelta += cashToPrincipal;
+
+    // Bump the row's interest_paid by the cash that just filled
+    // interest. Without this, a second payment landing on the same
+    // row sees interestRoom = interest_portion - 0 again and re-books
+    // the cash as interest income on top of what the first payment
+    // already booked. The effect compounded across multi-txn rows
+    // (e.g. partial → final), inflating total_interest_earned and
+    // starving total_collected by exactly the cash that was actually
+    // returning principal. interest_paid is now the true "interest
+    // settled" bucket — cash + waiver — instead of waiver-only.
+    if (cashToInterest > 0) {
+      await query(
+        `UPDATE payment_schedules
+            SET interest_paid = COALESCE(interest_paid, 0) + $1,
+                updated_at    = NOW()
+          WHERE id = $2`,
+        [round2(cashToInterest), post.id],
+      );
+    }
   }
   const principalPortion = round2(principalDelta);
   const interestPortion = round2(interestDelta);
