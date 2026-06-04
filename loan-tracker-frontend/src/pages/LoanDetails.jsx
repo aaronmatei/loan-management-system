@@ -1013,9 +1013,18 @@ function LoanDetails() {
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Created</p>
+            {/* "Application Date" not "Created" — created_at is the row's
+                insert timestamp (when staff entered the loan into the
+                system, often today). What staff actually want to see
+                here is when the borrower applied for the loan, which is
+                application_date. Audit of 295 loans showed 287 of them
+                have the two diverging by days/weeks — the previous label
+                was misleading on nearly every row. Falls back to
+                created_at if application_date is null for older imports
+                that pre-date the column. */}
+            <p className="text-gray-500">Application Date</p>
             <p className="font-semibold text-gray-800">
-              {new Date(loan.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              {new Date(loan.application_date || loan.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </p>
           </div>
         </div>

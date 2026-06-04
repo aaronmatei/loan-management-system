@@ -49,7 +49,11 @@ const CMP = {
     parseFloat(a.principal_amount || 0) - parseFloat(b.principal_amount || 0),
   balance: (a, b) => balOf(a) - balOf(b),
   status: (a, b) => (STATUS_RANK[a.status] ?? 99) - (STATUS_RANK[b.status] ?? 99),
-  date: (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0),
+  // Sort by application_date (when the borrower applied) — falls back
+  // to created_at for legacy rows without an application_date.
+  date: (a, b) =>
+    new Date(a.application_date || a.created_at || 0) -
+    new Date(b.application_date || b.created_at || 0),
 };
 
 // My Loans: every loan across all linked lenders, as a sortable + paginated
@@ -316,8 +320,13 @@ function MyLoans() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap text-slate-500">
-                          {loan.created_at
-                            ? new Date(loan.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
+                          {/* Same swap as staff LoanDetails — render the
+                              application_date (when the borrower applied),
+                              not the row's created_at (when staff entered it).
+                              For the customer this is the date THEY know
+                              the loan by. */}
+                          {(loan.application_date || loan.created_at)
+                            ? new Date(loan.application_date || loan.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                             : "—"}
                         </td>
                         <td className="px-4 py-3 text-right">
