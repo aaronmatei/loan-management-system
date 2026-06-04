@@ -490,8 +490,15 @@ function Payments() {
               const penaltyPaid = num(s.total_penalty_paid);
               const penaltyWaived = num(s.total_waived_penalty);
               const penaltyOutstanding = num(s.total_penalty_outstanding);
-              const hasPenaltyActivity =
-                penaltyPaid + penaltyWaived + penaltyOutstanding > 0;
+              // Accrued is the lifetime penalty bill for this loan
+              // (cash paid + waived + still outstanding). Surface
+              // it explicitly so a staff member can see at a glance
+              // why the outstanding line lands where it does — e.g.
+              // "9,517.64 accrued, 2,517.64 waived → 7,000 still
+              // owed" reads cleanly instead of leaving the staff
+              // to math the gap.
+              const penaltyAccrued = penaltyPaid + penaltyWaived + penaltyOutstanding;
+              const hasPenaltyActivity = penaltyAccrued > 0;
               const totalToPay = balance + penaltyOutstanding;
               return (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -564,6 +571,12 @@ function Payments() {
                       <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
                         Penalties
                       </p>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Accrued</span>
+                        <span className="font-semibold text-gray-800">
+                          KES {fmt(penaltyAccrued)}
+                        </span>
+                      </div>
                       {penaltyPaid > 0 && (
                         <div className="flex justify-between pl-4">
                           <span className="text-gray-500">↳ Cash paid</span>
@@ -580,14 +593,26 @@ function Payments() {
                           </span>
                         </div>
                       )}
-                      {penaltyOutstanding > 0 && (
-                        <div className="flex justify-between pl-4">
-                          <span className="text-gray-500">↳ Outstanding</span>
-                          <span className="font-semibold text-orange-600">
-                            KES {fmt(penaltyOutstanding)}
-                          </span>
-                        </div>
-                      )}
+                      {/* Always render Outstanding when there's any
+                          penalty activity, even if 0 — gives the
+                          staff a clear "nothing left to pay on
+                          penalty" instead of leaving them to infer
+                          from missing rows. Colour shifts to green
+                          when there's nothing owed. */}
+                      <div className="flex justify-between border-t border-gray-100 pt-1.5">
+                        <span className="font-semibold text-gray-700">
+                          Outstanding
+                        </span>
+                        <span
+                          className={`font-bold ${
+                            penaltyOutstanding > 0
+                              ? "text-orange-600"
+                              : "text-green-600"
+                          }`}
+                        >
+                          KES {fmt(penaltyOutstanding)}
+                        </span>
+                      </div>
                     </div>
                   )}
 
