@@ -26,7 +26,10 @@ import {
   isRated,
 } from "../../utils/creditScore.js";
 import { syncForCustomer } from "../../services/customerNotificationService.js";
-import { createNotification } from "../../services/notificationService.js";
+import {
+  createNotification,
+  notifyApplicationSubmitted,
+} from "../../services/notificationService.js";
 import { lfxCode } from "../../utils/customerCode.js";
 import notificationDispatcher from "../../services/notificationDispatcher.js";
 import { nextLoanCode } from "../../utils/clientCode.js";
@@ -1955,6 +1958,11 @@ router.post("/applications", async (req, res) => {
 
     // Fire SMS + email via the central dispatcher. Per-tenant prefs
     // gate each channel; sms_logs and email_logs get written.
+    //
+    // Also drop an in-app "New Loan Application" entry into the staff
+    // bell — same helper the staff-created apply path uses
+    // (routes/loans.js), so admins/managers learn about customer-
+    // originated applications without having to refresh /applications.
     try {
       const meta = await query(
         `SELECT pc.phone_number, pc.first_name, pc.last_name, pc.email
@@ -1975,6 +1983,19 @@ router.post("/applications", async (req, res) => {
             },
           })
           .catch((err) => logger.error("notify error:", err));
+
+        // Staff bell — fan out to admin + manager of this tenant.
+        // notifyApplicationSubmitted reads client.first_name +
+        // last_name, so pass the platform_customers row in that
+        // shape (its first_name/last_name columns are the same
+        // people anyway).
+        notifyApplicationSubmitted(loan, {
+          first_name: c.first_name,
+          last_name: c.last_name,
+          id: req.currentClientId,
+        }).catch((err) =>
+          logger.error("notifyApplicationSubmitted (portal) error:", err),
+        );
       }
     } catch (err) {
       logger.error("Application notification error:", err);
