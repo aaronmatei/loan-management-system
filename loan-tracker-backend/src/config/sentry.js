@@ -59,35 +59,31 @@ export function sentryInit() {
 }
 
 /**
- * Express middleware. No-ops when Sentry isn't initialized so it's
- * safe to mount unconditionally.
+ * Per-request handler.
+ *
+ * In @sentry/node v8+ the SDK auto-instruments Express via
+ * OpenTelemetry — request URL, method, and timing land on every
+ * captured event without any manual middleware. So this is a pure
+ * no-op kept only so app.js's import + mount can stay where they
+ * are; we attach user/tenant context at capture time in the error
+ * handler below, which avoids the v7 `setRequestSession` API that
+ * was removed in v8 (the symptom you saw in production:
+ * "Sentry.getCurrentScope(...).setRequestSession is not a function"
+ * fired on every request and 500'd the whole API).
  */
 export function sentryRequestHandler() {
-  return (req, res, next) => {
-    if (!initialized) return next();
-    Sentry.getCurrentScope().setRequestSession({ status: "ok" });
-    Sentry.withScope((scope) => {
-      scope.setContext("request", {
-        method: req.method,
-        url: req.originalUrl,
-      });
-      // Stash tenant + user identifiers on the Sentry scope so every
-      // error captured during this request carries them.
-      if (req.user) {
-        scope.setUser({
-          id: req.user.id,
-          email: req.user.email,
-          tenant_id: req.user.tenant_id,
-        });
-      }
-      next();
-    });
-  };
+  return (req, res, next) => next();
 }
 
 /**
  * Express error middleware. No-ops when Sentry isn't initialized.
- * Must be mounted AFTER routes but BEFORE the regular errorHandler.
+ * Mounted AFTER routes but BEFORE the regular errorHandler.
+ *
+ * Context (user / tenant / request URL) is set inside withScope at
+ * capture time rather than persisted on a per-request scope —
+ * simpler than trying to thread Sentry's isolation scope through
+ * verifyToken, and the resulting Sentry event still carries the
+ * full picture.
  */
 export function sentryErrorHandler() {
   return (err, req, res, next) => {
@@ -95,7 +91,22 @@ export function sentryErrorHandler() {
       // Only capture 5xx and uncategorised — 4xx are usually user
       // errors we don't want crowding the dashboard.
       const status = err.status || err.statusCode || 500;
-      if (status >= 500) Sentry.captureException(err);
+      if (status >= 500) {
+        Sentry.withScope((scope) => {
+          scope.setContext("request", {
+            method: req.method,
+            url: req.originalUrl,
+          });
+          if (req.user) {
+            scope.setUser({
+              id: String(req.user.id),
+              email: req.user.email,
+              tenant_id: req.user.tenant_id,
+            });
+          }
+          Sentry.captureException(err);
+        });
+      }
     }
     next(err);
   };
