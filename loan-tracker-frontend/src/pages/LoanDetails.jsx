@@ -2305,14 +2305,14 @@ function LoanDetails() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-sm font-semibold text-gray-700">
+                    <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
                       Late Payment Fee (KES)
                     </label>
                     {loan.package_name && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded whitespace-nowrap">
                         Per-loan · editable
                       </span>
                     )}
@@ -2369,11 +2369,11 @@ function LoanDetails() {
                       the Late Payment Fee toggle above. Off sends 0
                       to the backend regardless of what's typed. */}
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-sm font-semibold text-gray-700">
-                      Penalty Rate (% per month on overdue)
+                    <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                      Penalty Rate (%)
                     </label>
                     {loan.package_name && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded whitespace-nowrap">
                         Per-loan · editable
                       </span>
                     )}
