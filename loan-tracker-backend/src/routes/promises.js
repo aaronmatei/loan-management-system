@@ -105,7 +105,18 @@ router.get("/:id/promises", async (req, res) => {
     const r = await query(
       `SELECT p.*, ${DERIVED_STATUS} AS derived_status,
               cb.first_name || ' ' || cb.last_name AS captured_by_name,
-              rb.first_name || ' ' || rb.last_name AS resolved_by_name
+              rb.first_name || ' ' || rb.last_name AS resolved_by_name,
+              COALESCE((
+                SELECT SUM(
+                  t.amount_paid
+                  - COALESCE(t.penalty_portion, 0)
+                  - COALESCE(t.overpayment_portion, 0)
+                )
+                  FROM transactions t
+                 WHERE t.loan_id = p.loan_id
+                   AND t.payment_status = 'completed'
+                   AND t.created_at >= p.made_at
+              ), 0)::float AS paid_since
          FROM promises_to_pay p
          LEFT JOIN users cb ON cb.id = p.captured_by
          LEFT JOIN users rb ON rb.id = p.resolved_by
@@ -157,12 +168,30 @@ router.get("/", async (req, res) => {
       where += ` AND p.promised_date <= $${params.length}`;
     }
 
+    // paid_since: cumulative cash on the loan from completed
+    // transactions with created_at >= promise.made_at, net of penalty
+    // and refunded overpayment. Mirrors reconcilePromisesForLoan's
+    // metric so what we display on the UI matches the threshold the
+    // auto-transition actually crossed. Surface it here so the Partial
+    // tab can render "KES X paid of Y · KES Z remaining" without the
+    // frontend having to refetch transactions per row.
     const r = await query(
       `SELECT p.*, ${DERIVED_STATUS} AS derived_status,
               l.loan_code, l.status AS loan_status,
               c.first_name, c.last_name, c.phone_number, c.client_code,
               cb.first_name || ' ' || cb.last_name AS captured_by_name,
-              rb.first_name || ' ' || rb.last_name AS resolved_by_name
+              rb.first_name || ' ' || rb.last_name AS resolved_by_name,
+              COALESCE((
+                SELECT SUM(
+                  t.amount_paid
+                  - COALESCE(t.penalty_portion, 0)
+                  - COALESCE(t.overpayment_portion, 0)
+                )
+                  FROM transactions t
+                 WHERE t.loan_id = p.loan_id
+                   AND t.payment_status = 'completed'
+                   AND t.created_at >= p.made_at
+              ), 0)::float AS paid_since
          FROM promises_to_pay p
          JOIN loans l ON l.id = p.loan_id
          JOIN clients c ON c.id = l.client_id

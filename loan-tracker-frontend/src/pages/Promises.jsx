@@ -340,6 +340,52 @@ function Promises() {
                       </span>
                     )}
                   </div>
+
+                  {/* Partial breakdown — paid / promised / remaining
+                      with a sky progress bar. paid_since is the
+                      cumulative cash on this loan from completed txns
+                      with created_at >= promise.made_at (mirror of the
+                      reconciliation metric). Only renders when the
+                      promise is in the partial bucket; for pending /
+                      broken / kept / cancelled the row keeps its
+                      previous shape. */}
+                  {p.derived_status === "partial" && (() => {
+                    const amount = parseFloat(p.amount || 0);
+                    const paid = parseFloat(p.paid_since || 0);
+                    const remaining = Math.max(0, amount - paid);
+                    const pct =
+                      amount > 0
+                        ? Math.min(100, Math.round((paid / amount) * 100))
+                        : 0;
+                    return (
+                      <div className="mb-2 rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2">
+                        <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 text-xs">
+                          <span className="text-slate-600">
+                            Paid{" "}
+                            <strong className="text-sky-800">{fmt(paid)}</strong>{" "}
+                            of{" "}
+                            <strong className="text-slate-700">
+                              {fmt(amount)}
+                            </strong>
+                          </span>
+                          <span className="text-rose-700 font-semibold">
+                            Remaining {fmt(remaining)}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 w-full h-1.5 rounded-full bg-sky-100 overflow-hidden">
+                          <div
+                            className="h-full bg-sky-500 transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Cumulative cash on this loan since the promise was
+                          logged · {pct}% of the promised amount
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   {p.notes && (
                     <p className="text-xs text-slate-600 italic">"{p.notes}"</p>
                   )}
