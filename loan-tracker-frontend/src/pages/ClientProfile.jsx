@@ -106,7 +106,19 @@ function ClientProfile() {
         fetchClientProfile();
       }, 1500);
     } catch (err) {
-      setEditError(err.response?.data?.error || "Failed to update client");
+      // Same multi-detail rendering as the Add Client form on
+      // Clients.jsx — when express-validator returns more than one
+      // field error, show each on its own line so the user sees
+      // every bad field at once. Otherwise "Invalid input" is
+      // useless. Whitespace-pre-line on the banner renders \n.
+      const data = err.response?.data;
+      if (Array.isArray(data?.details) && data.details.length > 0) {
+        setEditError(
+          data.details.map((d) => `${d.field}: ${d.message}`).join("\n"),
+        );
+      } else {
+        setEditError(data?.error || "Failed to update client");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -699,7 +711,7 @@ function ClientProfile() {
             </div>
 
             {editError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 whitespace-pre-line">
                 {editError}
               </div>
             )}
