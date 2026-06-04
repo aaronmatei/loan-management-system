@@ -16,6 +16,21 @@ services:
     startCommand: npm start # node src/server.js; listens on $PORT (Render-injected)
     healthCheckPath: /health
     autoDeploy: true
+    # Preview environments — one fresh, ephemeral instance per PR so
+    # reviewers can hit the API without bumping anyone else off prod
+    # and so we can sanity-check a deploy before merging. Render
+    # tears the instance down (and stops billing) when the PR closes.
+    #
+    # Preview deploys inherit the env vars below by default. Anything
+    # marked `previewValue:` overrides for previews only — used here
+    # to keep previews talking to themselves (CORS) and to a separate
+    # M-Pesa sandbox / disabled SMS / disabled emails so a preview
+    # branch can't accidentally fire real notifications at real
+    # borrowers.
+    previewsEnabled: true
+    previews:
+      generation: automatic # spin up on every PR opened against `branch`
+      expireAfterDays: 7    # auto-tear-down a week after the PR is merged/closed
     envVars:
       - key: NODE_ENV
         value: production
@@ -35,11 +50,15 @@ services:
       - key: CORS_ORIGINS
         value: https://loanfix.net,https://www.loanfix.net,https://app.loanfix.net,https://*.loanfix.net
       # External integrations OFF by default; flip the flag + add the secrets
-      # in the dashboard when ready.
+      # in the dashboard when ready. Forced to "false" in preview envs too so
+      # a reviewer poking at a PR can't accidentally page a real borrower
+      # even if production has those flags on.
       - key: SMS_ENABLED
         value: "false"
+        previewValue: "false"
       - key: EMAIL_ENABLED
         value: "false"
+        previewValue: "false"
       - key: EMAIL_HOST
         value: smtp.gmail.com
       - key: EMAIL_PORT
@@ -57,8 +76,12 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      # M-Pesa always points at the sandbox in preview envs — even if
+      # production ever flips to MPESA_ENV=production, a PR branch can't
+      # accidentally take real money.
       - key: MPESA_ENV
         value: sandbox
+        previewValue: sandbox
       - key: MPESA_CONSUMER_KEY
         sync: false
       - key: MPESA_CONSUMER_SECRET
@@ -71,3 +94,20 @@ services:
         value: https://api.loanfix.net/api/mpesa/callback
       - key: BACKUP_SCHEDULE_ENABLED
         value: "false"
+        previewValue: "false" # never run backup jobs from a preview env
+
+  # ── Preview environment usage ─────────────────────────────────────
+  # When a PR is opened, Render spins up `loanfix-backend-pr-<N>` from
+  # this blueprint. The preview URL will be something like
+  # https://loanfix-backend-pr-42.onrender.com — that goes into the
+  # Vercel preview deployment's NEXT_PUBLIC_API_BASE (or whatever the
+  # frontend env var is called) so a reviewer can validate the PR
+  # against an isolated backend.
+  #
+  # Heads-up: previews share the SAME DATABASE_URL as production by
+  # default — they're separate compute, not separate data. If a PR
+  # touches schema or destructive writes, point its DATABASE_URL at a
+  # disposable Neon branch instead (Neon's dashboard → Branches →
+  # create from main → copy the connection string into the preview
+  # env on Render). The Render docs (`previewValue` on
+  # DATABASE_URL above) is where that override lands when needed.
