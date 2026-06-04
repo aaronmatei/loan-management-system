@@ -30,6 +30,38 @@ async function generate(pcId = null) {
     p,
   );
 
+  // Application received — first acknowledgement to the customer
+  // that we have their application. Fires for EVERY loan that exists
+  // (customer-self-applied via portal AND staff-created walk-ins),
+  // because in both cases the customer should see "your lender has
+  // your application" in the bell rather than silence until the
+  // staff member happens to click Start Review.
+  //
+  // Timestamp is the row's created_at (when the application hit the
+  // DB), capped at LEAST(every later milestone − 1 second) so the
+  // bell ordering stays correct even if the row was backdated or a
+  // later milestone got backfilled. Pattern matches under_review /
+  // approved below — see those comments for the chronological logic
+  // in detail.
+  await query(
+    `INSERT INTO customer_notifications
+       (platform_customer_id, tenant_id, loan_id, type, amount, dedupe_key, created_at)
+     SELECT ctl.platform_customer_id, l.tenant_id, l.id, 'application_received', l.principal_amount,
+            'application_received:' || l.id,
+            LEAST(
+              l.created_at,
+              COALESCE(l.reviewed_at        - INTERVAL '1 second', l.created_at),
+              COALESCE(l.counter_offered_at - INTERVAL '1 second', l.created_at),
+              COALESCE(l.approved_at        - INTERVAL '1 second', l.created_at),
+              COALESCE(l.disbursed_at       - INTERVAL '1 second', l.created_at),
+              COALESCE(l.rejected_at        - INTERVAL '1 second', l.created_at)
+            )
+     FROM loans l ${LINK}
+     WHERE l.created_at IS NOT NULL ${filter}
+     ON CONFLICT (platform_customer_id, dedupe_key) DO NOTHING`,
+    p,
+  );
+
   // Application picked up for review (staff clicked "Start Review"
   // or otherwise transitioned the loan to under_review). reviewed_at
   // is set on direct-approve too via COALESCE in the approve route,

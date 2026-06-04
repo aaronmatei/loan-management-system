@@ -10,10 +10,12 @@ import {
   Clock,
   Eye,
   Banknote,
+  Inbox,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 
 const META = {
+  application_received: { Icon: Inbox, label: "Application received" },
   payment: { Icon: Coins, label: "Payment received" },
   under_review: { Icon: Eye, label: "Application under review" },
   counter_offered: { Icon: Banknote, label: "Counter-offer received" },
