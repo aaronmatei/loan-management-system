@@ -12,6 +12,7 @@
 // tree still error normally; this one just catches the propagation.
 
 import React from "react";
+import { captureException } from "../config/sentry.js";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -27,14 +28,14 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Triggered during the *commit* phase — safe place to log. Sentry,
-    // PostHog, Datadog RUM all hook in here.
+    // Triggered during the *commit* phase — safe place to log + report.
+    // captureException no-ops when VITE_SENTRY_DSN isn't set, so dev
+    // gets the console trace and prod gets a Sentry event with the
+    // component stack.
     // eslint-disable-next-line no-console
     console.error("[ErrorBoundary]", error, errorInfo);
+    captureException(error, { react: errorInfo });
     this.setState({ errorInfo });
-    // TODO(Sentry): once @sentry/react is installed, replace the
-    // console.error above with:
-    //   Sentry.captureException(error, { contexts: { react: errorInfo } });
   }
 
   handleReload = () => {

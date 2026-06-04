@@ -3,11 +3,15 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { sentryInit } from './config/sentry.js'
 
-// ErrorBoundary wraps <App /> so any uncaught render-time exception
-// inside the tree shows a "Something went wrong" screen with reload /
-// home buttons instead of a blank page. See components/ErrorBoundary.jsx
-// for the Sentry hook-up point (TODO comment) when error reporting lands.
+// Initialize Sentry first so any error during mount makes it into the
+// report. No-ops when VITE_SENTRY_DSN isn't set, so dev / preview / any
+// env without DSN runs unchanged. ErrorBoundary's componentDidCatch
+// also calls captureException — together those cover render-time
+// crashes top-to-bottom.
+sentryInit()
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>

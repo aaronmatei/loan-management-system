@@ -8,6 +8,16 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { errorHandler } from "./middleware/errorHandler.js";
+import {
+  sentryInit,
+  sentryRequestHandler,
+  sentryErrorHandler,
+} from "./config/sentry.js";
+
+// Initialize Sentry as early as possible so any subsequent module's
+// import-time error is captured. No-op when SENTRY_DSN isn't set, so
+// dev / test / non-prod environments are unaffected.
+sentryInit();
 
 import authRoutes from "./routes/auth.js";
 import { authLimiter } from "./middleware/rateLimit.js";
@@ -95,6 +105,10 @@ app.use(
 // Middleware
 app.use(helmet());
 
+// Sentry request handler — runs before routes so every error captured
+// downstream carries route / user / tenant context. No-op without DSN.
+app.use(sentryRequestHandler());
+
 // Trust the first proxy hop (Render's load balancer) so req.ip
 // resolves to the real client address. Without this, every request
 // looks like it's coming from the loopback and rate-limiters can't
@@ -181,6 +195,11 @@ app.use((req, res) => {
     method: req.method,
   });
 });
+
+// Sentry error handler — mounted BEFORE our errorHandler so 5xx
+// errors are captured with full request context before the response
+// is rendered. No-op without DSN.
+app.use(sentryErrorHandler());
 
 // Error handler
 app.use(errorHandler);
