@@ -124,7 +124,22 @@ function Clients() {
       fetchClients();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to create client");
+      // The backend returns either:
+      //   • a single { error } string (most cases)
+      //   • a { error: "Invalid input", details: [{ field, message }] }
+      //     shape from utils/validate.js for multi-field validation
+      //     failures
+      // When there are multiple details, render each one on its own
+      // line so the user can see exactly which fields are wrong —
+      // otherwise they're left guessing what "Invalid input" means.
+      const data = err.response?.data;
+      if (Array.isArray(data?.details) && data.details.length > 0) {
+        setError(
+          data.details.map((d) => `${d.field}: ${d.message}`).join("\n"),
+        );
+      } else {
+        setError(data?.error || "Failed to create client");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -277,7 +292,7 @@ function Clients() {
         </div>
       )}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 whitespace-pre-line">
           {error}
         </div>
       )}

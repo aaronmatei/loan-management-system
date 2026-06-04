@@ -5,6 +5,7 @@ import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { nextClientCode } from "../utils/clientCode.js";
 import { ensurePortalAccount } from "../services/portalAccountService.js";
+import { validate, body } from "../utils/validate.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
 import {
@@ -424,7 +425,95 @@ router.get("/:id", async (req, res) => {
 // ============================================================
 // CREATE CLIENT
 // ============================================================
-router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+router.post(
+  "/",
+  authorize("admin", "manager", "loan_officer"),
+  // Validation BEFORE the DB INSERT so the user sees an actionable
+  // 400 like "phone_number: must be 7-15 characters" instead of the
+  // generic 500 the catch block would otherwise spit out when
+  // Postgres rejects a too-long value or a malformed email. Lengths
+  // mirror the clients-table column widths so the validation never
+  // disagrees with the schema. All optional fields skip when blank
+  // (the form sends "" for unfilled inputs).
+  validate(
+    body("first_name")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters"),
+    body("last_name")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters"),
+    body("phone_number")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 7, max: 15 })
+      .withMessage("must be 7-15 characters (the DB caps it at 15)")
+      .matches(/^[\d+\s\-()]+$/)
+      .withMessage("only digits and + - ( ) allowed"),
+    body("email")
+      .optional({ checkFalsy: true })
+      .isEmail()
+      .withMessage("must be a valid email")
+      .isLength({ max: 100 })
+      .normalizeEmail({ gmail_remove_dots: false }),
+    body("id_number")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 20 })
+      .withMessage("must be 20 characters or fewer")
+      .matches(/^[A-Za-z0-9\-\/]+$/)
+      .withMessage("only letters, digits, '-' and '/' allowed"),
+    body("business_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 100 }),
+    body("business_type")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("city")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("county")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("address")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 500 }),
+    body("date_of_birth")
+      .optional({ checkFalsy: true })
+      .isISO8601()
+      .withMessage("must be a YYYY-MM-DD date"),
+    body("gender")
+      .optional({ checkFalsy: true })
+      .isIn(["Male", "Female", "Other", "male", "female", "other"])
+      .withMessage("must be Male, Female, or Other"),
+    body("branch_id")
+      .optional({ checkFalsy: true })
+      .isInt({ min: 1 })
+      .withMessage("must be a branch id")
+      .toInt(),
+    body("client_type")
+      .optional({ checkFalsy: true })
+      .isIn(["individual", "group", "business"])
+      .withMessage("must be one of individual, group, business"),
+  ),
+  async (req, res) => {
   try {
     const {
       first_name,
@@ -578,9 +667,37 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     });
   } catch (error) {
     logger.error("Create client error:", error);
+    // Surface the common Postgres errors with an actionable message
+    // instead of the catch-all 500. The user shouldn't have to read
+    // logs to learn that their input was too long or a duplicate.
+    // Codes: 22001 string_data_right_truncation, 23505 unique_violation,
+    // 23502 not_null_violation, 23503 foreign_key_violation,
+    // 23514 check_violation (handy when the client_type CHECK is hit).
+    if (error.code === "22001") {
+      return res.status(400).json({
+        error: "One of the fields is too long. Shorten it and try again.",
+      });
+    }
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error:
+          "A client with one of these unique fields (phone, email, ID number) already exists.",
+      });
+    }
+    if (error.code === "23502") {
+      return res.status(400).json({
+        error: `Missing required field: ${error.column || "unknown"}`,
+      });
+    }
+    if (error.code === "23514") {
+      return res.status(400).json({
+        error: "A field value is outside the allowed set.",
+      });
+    }
     res.status(500).json({ error: "Failed to create client" });
   }
-});
+  },
+);
 
 // ============================================================
 // UPDATE CLIENT
