@@ -15,7 +15,11 @@ describe("Portal self-registration (OTP disabled)", () => {
       .post("/api/portal/auth/register")
       .send({
         phone_number: phone,
-        id_number: `REG-${Date.now()}`,
+        // 8-digit literal — route validation now enforces ^\d{8,10}$.
+        // Unique within this suite (other tests use other digit
+        // strings) so cross-test platform_customer matching can't
+        // pick this row up.
+        id_number: "73400112",
         first_name: "Self",
         last_name: "Signup",
         email: "self.signup@example.com",

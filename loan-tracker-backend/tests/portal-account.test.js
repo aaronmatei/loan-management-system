@@ -68,7 +68,11 @@ describe("Auto portal account for new clients", () => {
     // id_number is the test fixture for cross-tenant uniqueness reuse;
     // route validation enforces 8-10 digits (Kenya NID shape), so use
     // a string that fits the rule and is identical across both inserts.
-    const sharedId = "99887766";
+    // Must differ from the id_number used in other tests in this file
+    // — portal_account matching by id_number is cross-test, so reusing
+    // "99887766" (used in the test above) would link to that test's
+    // platform_customer and produce 3 links instead of 2.
+    const sharedId = "88776655";
     const r1 = await request(app)
       .post("/api/clients")
       .set("Authorization", auth(a1))
