@@ -326,6 +326,22 @@ function Reports() {
                   </p>
                 </div>
 
+                {/* ROI sits right next to Amount Invested so the reader
+                    pairs "how much went out" with "what came back as a
+                    %" immediately, before being asked to unpack the
+                    Net Profit breakdown to the right. */}
+                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
+                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
+                    ROI
+                  </p>
+                  <p className="text-2xl lg:text-3xl font-extrabold text-ocean-700 mt-1">
+                    {roiPct}%
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    net profit ÷ invested
+                  </p>
+                </div>
+
                 {/* ── Net Profit group: Expenses + Waivers are the two
                     deductions feeding the bottom-line Net Profit on the
                     right. Container border + gradient swing emerald
@@ -489,18 +505,6 @@ function Reports() {
                       )}
                     </div>
                   </div>
-                </div>
-
-                <div className="rounded-xl border border-white/70 bg-white/55 p-4 backdrop-blur-sm">
-                  <p className="text-xs uppercase font-semibold tracking-wide text-slate-500">
-                    ROI
-                  </p>
-                  <p className="text-2xl lg:text-3xl font-extrabold text-ocean-700 mt-1">
-                    {roiPct}%
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    net profit ÷ invested
-                  </p>
                 </div>
               </div>
             </div>
