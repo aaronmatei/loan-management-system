@@ -203,7 +203,52 @@ router.post(
 // Register a staff user (admin only). Creates the user inside the calling
 // admin's tenant. POST /api/users is the primary user-management endpoint;
 // this is the explicit-username registration variant and shares its rules.
-router.post("/register", verifyToken, authorize("admin"), async (req, res) => {
+router.post(
+  "/register",
+  verifyToken,
+  authorize("admin"),
+  // Same name rules as POST /users — these are two paths into the
+  // same staff record, the username field is the only meaningful
+  // difference. validators.js still owns the password-strength
+  // policy below.
+  validate(
+    body("username")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 3, max: 50 })
+      .withMessage("must be 3-50 characters")
+      .matches(/^[A-Za-z0-9._-]+$/)
+      .withMessage("only letters, digits, '.', '_' and '-' allowed"),
+    body("first_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("last_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("email")
+      .isEmail()
+      .withMessage("must be a valid email")
+      .isLength({ max: 254 })
+      .normalizeEmail({ gmail_remove_dots: false }),
+    body("role")
+      .optional({ checkFalsy: true })
+      .isIn(["admin", "manager", "loan_officer", "viewer"])
+      .withMessage("must be admin / manager / loan_officer / viewer"),
+  ),
+  async (req, res) => {
   try {
     const { username, email, password, first_name, last_name, role } = req.body;
 
@@ -292,9 +337,24 @@ router.post("/register", verifyToken, authorize("admin"), async (req, res) => {
     });
   } catch (error) {
     logger.error("Registration error:", error);
+    if (error.code === "22001") {
+      return res
+        .status(400)
+        .json({ error: "One of the fields is too long. Shorten it and try again." });
+    }
+    if (error.code === "23505") {
+      return res
+        .status(409)
+        .json({ error: "A user with this email or username already exists." });
+    }
+    captureException(error, {
+      route: { method: "POST", path: "/api/auth/register" },
+      tenant_id: req.user?.tenant_id,
+    });
     res.status(500).json({ error: "Server error" });
   }
-});
+  },
+);
 
 // Verify token
 router.post("/verify-token", (req, res) => {

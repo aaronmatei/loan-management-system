@@ -150,7 +150,97 @@ router.get("/check-phone/:phone", tenantContext, async (req, res) => {
 // client adds a lender later (login → add-lender / select-tenant).
 // Phone OTP verification is still required; date_of_birth + gender are
 // captured here and stored on the platform account.
-router.post("/register", async (req, res) => {
+router.post(
+  "/register",
+  // Borrower self-register has the same fields as a lender's POST
+  // /clients, so the validation chain is identical — names letters-
+  // only, id_number 8-10 digits, city letters-only, etc. Customer-
+  // facing → bad input here is the most common "but I submitted!"
+  // support ticket, so per-field messages matter even more.
+  validate(
+    body("first_name")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("last_name")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("phone_number")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 7, max: 15 })
+      .withMessage("must be 7-15 characters")
+      .matches(/^[\d+\s\-()]+$/)
+      .withMessage("only digits and + - ( ) allowed"),
+    body("email")
+      .optional({ checkFalsy: true })
+      .isEmail()
+      .withMessage("must be a valid email")
+      .isLength({ max: 100 })
+      .normalizeEmail({ gmail_remove_dots: false }),
+    body("id_number")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .matches(/^\d{8,10}$/)
+      .withMessage("must be 8-10 digits, nothing else"),
+    body("date_of_birth")
+      .optional({ checkFalsy: true })
+      .isISO8601()
+      .withMessage("must be a YYYY-MM-DD date"),
+    body("gender")
+      .optional({ checkFalsy: true })
+      .isIn(["Male", "Female", "Other", "male", "female", "other"])
+      .withMessage("must be Male, Female, or Other"),
+    body("business_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 100 }),
+    body("business_type")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("client_type")
+      .optional({ checkFalsy: true })
+      .isIn(["individual", "group", "business"])
+      .withMessage("must be individual / group / business"),
+    body("city")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 })
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("county")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("address")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 500 }),
+  ),
+  async (req, res) => {
   try {
     const {
       phone_number,
@@ -323,9 +413,23 @@ router.post("/register", async (req, res) => {
     });
   } catch (error) {
     logger.error("Registration error:", error);
+    if (error.code === "22001") {
+      return res
+        .status(400)
+        .json({ error: "One of the fields is too long. Shorten it and try again." });
+    }
+    if (error.code === "23505") {
+      return res
+        .status(409)
+        .json({ error: "An account already exists with one of these details (phone, email, ID number)." });
+    }
+    captureException(error, {
+      route: { method: "POST", path: "/api/portal/auth/register" },
+    });
     res.status(500).json({ error: "Registration failed" });
   }
-});
+  },
+);
 
 // ── verify OTP + set password (tenant-less) ───────────────────
 router.post("/verify-otp", async (req, res) => {

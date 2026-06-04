@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { getRoleBadge } from "../utils/permissions";
+import { apiErrorMessage } from "../utils/apiError";
 import Spinner from "../components/Spinner";
 
 function UserManagement() {
@@ -55,8 +56,7 @@ function UserManagement() {
       setUsers(response.data.data);
     } catch (err) {
       alert(
-        "Failed to fetch users: " +
-          (err.response?.data?.error || err.message),
+        "Failed to fetch users: " + apiErrorMessage(err, ""),
       );
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ function UserManagement() {
       });
       fetchUsers();
     } catch (err) {
-      alert("Failed: " + (err.response?.data?.error || err.message));
+      alert(apiErrorMessage(err, "Operation failed"));
     } finally {
       setSubmitting(false);
     }
@@ -106,7 +106,7 @@ function UserManagement() {
       setShowEditModal(false);
       fetchUsers();
     } catch (err) {
-      alert("Failed: " + (err.response?.data?.error || err.message));
+      alert(apiErrorMessage(err, "Operation failed"));
     } finally {
       setSubmitting(false);
     }
@@ -124,7 +124,7 @@ function UserManagement() {
       setShowResetPwd(false);
       setNewPassword("");
     } catch (err) {
-      alert("Failed: " + (err.response?.data?.error || err.message));
+      alert(apiErrorMessage(err, "Operation failed"));
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +141,7 @@ function UserManagement() {
       await api.put(`/users/${user.id}`, { is_active: !user.is_active });
       fetchUsers();
     } catch (err) {
-      alert("Failed: " + (err.response?.data?.error || err.message));
+      alert(apiErrorMessage(err, "Operation failed"));
     }
   };
 

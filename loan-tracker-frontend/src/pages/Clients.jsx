@@ -8,6 +8,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import api from "../services/api";
+import { apiErrorMessage } from "../utils/apiError";
 import { KENYA_COUNTIES } from "../utils/counties";
 import { BUSINESS_TYPES } from "../utils/businessTypes";
 import {
@@ -124,22 +125,7 @@ function Clients() {
       fetchClients();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      // The backend returns either:
-      //   • a single { error } string (most cases)
-      //   • a { error: "Invalid input", details: [{ field, message }] }
-      //     shape from utils/validate.js for multi-field validation
-      //     failures
-      // When there are multiple details, render each one on its own
-      // line so the user can see exactly which fields are wrong —
-      // otherwise they're left guessing what "Invalid input" means.
-      const data = err.response?.data;
-      if (Array.isArray(data?.details) && data.details.length > 0) {
-        setError(
-          data.details.map((d) => `${d.field}: ${d.message}`).join("\n"),
-        );
-      } else {
-        setError(data?.error || "Failed to create client");
-      }
+      setError(apiErrorMessage(err, "Failed to create client"));
     } finally {
       setSubmitting(false);
     }

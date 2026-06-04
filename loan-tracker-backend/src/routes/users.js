@@ -3,6 +3,7 @@ import bcryptjs from "bcryptjs";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
+import { validate, body, param } from "../utils/validate.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import logger from "../config/logger.js";
@@ -125,7 +126,53 @@ router.get("/", async (req, res) => {
 });
 
 // Create user
-router.post("/", async (req, res) => {
+router.post(
+  "/",
+  // Same name/phone rules as POST /clients so the Add User modal can't
+  // sneak digits or symbols into staff records — they show on every
+  // audit log, every recent-activity card, and (for loan officers) on
+  // borrower-facing notifications. Password keeps the validators.js
+  // strength check below — that's stricter than what express-validator
+  // ships with and we don't want to duplicate the policy.
+  validate(
+    body("first_name")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("last_name")
+      .isString()
+      .withMessage("required")
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("email")
+      .isEmail()
+      .withMessage("must be a valid email")
+      .isLength({ max: 254 })
+      .normalizeEmail({ gmail_remove_dots: false }),
+    body("phone_number")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 7, max: 15 })
+      .withMessage("must be 7-15 characters")
+      .matches(/^[\d+\s\-()]+$/)
+      .withMessage("only digits and + - ( ) allowed"),
+    body("role")
+      .isIn(["admin", "manager", "loan_officer", "viewer"])
+      .withMessage("must be admin / manager / loan_officer / viewer"),
+  ),
+  async (req, res) => {
   try {
     const { email, password, first_name, last_name, phone_number, role } =
       req.body;
@@ -240,12 +287,66 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     logger.error("Create user error:", error);
+    if (error.code === "22001") {
+      return res
+        .status(400)
+        .json({ error: "One of the fields is too long. Shorten it and try again." });
+    }
+    if (error.code === "23505") {
+      return res
+        .status(409)
+        .json({ error: "A user with this email or username already exists." });
+    }
     res.status(500).json({ error: "Failed to create user" });
   }
-});
+  },
+);
 
 // Update user
-router.put("/:id", async (req, res) => {
+router.put(
+  "/:id",
+  // Edit-User modal sends partial updates — every field is .optional()
+  // but if supplied has to clear the same bar Add User does.
+  validate(
+    param("id").isInt({ min: 1 }).withMessage("must be a user id").toInt(),
+    body("first_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("last_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("phone_number")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 7, max: 15 })
+      .withMessage("must be 7-15 characters")
+      .matches(/^[\d+\s\-()]+$/)
+      .withMessage("only digits and + - ( ) allowed"),
+    body("role")
+      .optional({ checkFalsy: true })
+      .isIn(["admin", "manager", "loan_officer", "viewer"])
+      .withMessage("must be admin / manager / loan_officer / viewer"),
+    body("is_active")
+      .optional({ values: "null" })
+      .isBoolean()
+      .withMessage("must be true or false"),
+  ),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { first_name, last_name, phone_number, role, is_active } = req.body;
@@ -334,9 +435,20 @@ router.put("/:id", async (req, res) => {
     });
   } catch (error) {
     logger.error("Update user error:", error);
+    if (error.code === "22001") {
+      return res
+        .status(400)
+        .json({ error: "One of the fields is too long. Shorten it and try again." });
+    }
+    if (error.code === "23505") {
+      return res
+        .status(409)
+        .json({ error: "Another user already has this email or username." });
+    }
     res.status(500).json({ error: "Failed to update user" });
   }
-});
+  },
+);
 
 // Reset another user's password (admin)
 router.post("/:id/reset-password", async (req, res) => {

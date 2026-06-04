@@ -6,6 +6,7 @@ import IdentityUploader from "../components/IdentityUploader";
 import { KENYA_COUNTIES } from "../../utils/counties";
 import { BUSINESS_TYPES } from "../../utils/businessTypes";
 import { CLIENT_TYPES, businessNameLabel } from "../../utils/clientTypes";
+import { apiErrorMessage } from "../../utils/apiError";
 
 // Two-step: details → OTP + password. Portal registration is scoped
 // to a lender (subdomain); in production that comes from the host,
@@ -100,7 +101,9 @@ function CustomerRegister() {
       setRequiresOtp(!!res.data.requires_otp);
       setStep(2);
     } catch (err) {
-      alert(err.response?.data?.error || "Registration failed");
+      // Multi-line per-field message when validate() rejects, single
+      // string when a deeper rule (duplicate phone, etc.) does.
+      alert(apiErrorMessage(err, "Registration failed"));
     } finally {
       setSubmitting(false);
     }
