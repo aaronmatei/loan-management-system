@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -24,6 +24,9 @@ import {
   XCircle,
   Clock,
   Info,
+  ChevronDown,
+  Pause,
+  Settings2,
 } from "lucide-react";
 import api from "../services/api";
 import PaymentReceipt from "../components/PaymentReceipt";
@@ -113,10 +116,36 @@ function LoanDetails() {
   })();
   const isAdminRole = currentUser?.role === "admin";
 
+  // "Loan Management Actions" dropdown — collapses Edit / Waive /
+  // Promise / status-change / Delete into one menu so the header
+  // doesn't sprawl when many actions are valid. Click-outside +
+  // Escape close it; the ref scopes the outside-click test so a
+  // tap inside the menu doesn't dismiss it before the handler fires.
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef(null);
+
   useEffect(() => {
     fetchLoanDetails();
     fetchWaivers();
   }, [id]);
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return;
+    const onClick = (e) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) {
+        setActionsMenuOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setActionsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [actionsMenuOpen]);
 
   const fetchWaivers = async () => {
     setWaiversLoading(true);
@@ -513,142 +542,213 @@ function LoanDetails() {
         ← Back to Loans
       </button>
 
-      {/* Loan Actions */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button
-          onClick={() =>
-            downloadPdf(
-              `/reports/pdf/loan-statement/${loan.id}`,
-              `loan_${loan.loan_code}.pdf`,
-            )
-          }
-          className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
-        >
-          <Download size={16}/> Download Statement
-        </button>
-        <button
-          onClick={() =>
-            downloadPdf(
-              `/reports/pdf/loan-agreement/${loan.id}`,
-              `loan_agreement_${loan.loan_code}.pdf`,
-            )
-          }
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
-        >
-          <FileText size={16}/> Download Agreement
-        </button>
-        {(loan.status === "active" ||
-          loan.status === "defaulted" ||
-          loan.status === "suspended") && (
-          <>
-            {loan.status === "active" && (
-            <>
-              <button
-                onClick={() => {
-                  setStatusFormData({ status: "defaulted", notes: "" });
-                  setActionError("");
-                  setShowStatusModal(true);
-                }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-semibold"
-              >
-                Mark as Defaulted
-              </button>
-              <button
-                onClick={() => {
-                  setStatusFormData({ status: "suspended", notes: "" });
-                  setActionError("");
-                  setShowStatusModal(true);
-                }}
-                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition font-semibold"
-              >
-                Suspend
-              </button>
-            </>
-          )}
-          {(loan.status === "defaulted" || loan.status === "suspended") && (
-            <button
-              onClick={() => {
-                setStatusFormData({ status: "active", notes: "" });
-                setActionError("");
-                setShowStatusModal(true);
-              }}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-semibold"
-            >
-              <span className="inline-flex items-center gap-2"><CheckCircle size={16}/> Reactivate</span>
-            </button>
-          )}
-          </>
-        )}
-        {/* Edit — admin + manager. Available at any status. */}
-        {/* Edit is meaningless on a closed loan — once it's
-            completed/defaulted/rejected the terms are settled and
-            mutating them would re-open accounting that's already
-            been booked. Hide the button rather than show + 403 it. */}
-        {!["completed", "defaulted", "rejected"].includes(loan.status) && (
-          <PermissionGate role={["admin", "manager"]}>
-            <button
-              onClick={() => openEditModal()}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
-            >
-              <Pencil size={16} /> Edit Loan
-            </button>
-          </PermissionGate>
-        )}
-        {/* Delete — admin only, pre-disbursement statuses only. */}
-        {[
+      {/* Loan Actions — two groups:
+          1. Reports & Agreements (always visible)
+          2. Loan Management Actions — every status-changing /
+             mutating action collapses into a single dropdown so the
+             header stays calm regardless of how many actions are
+             valid for this loan's status + role combo. The dropdown
+             body short-circuits each item on the same status/role
+             gates the old flat row used; if nothing renders, the
+             whole button hides via `hasManagementActions`. */}
+      {(() => {
+        const canEdit =
+          !["completed", "defaulted", "rejected"].includes(loan.status);
+        const canDelete = [
           "pending",
           "under_review",
           "approved",
           "counter_offered",
           "rejected",
-        ].includes(loan.status) && (
-          <PermissionGate role="admin">
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
-            >
-              <Trash2 size={16} /> Delete
-            </button>
-          </PermissionGate>
-        )}
-        {/* Waiver — admin records directly, others request approval.
-            Disabled on defaulted loans: write-offs on a defaulted
-            balance should go through the reactivate flow first so the
-            loan is back to 'active' and the waiver sits on top of a
-            live obligation, not a closed one. The Reactivate button
-            stays visible right next to this one for that path. */}
-        {["active", "suspended"].includes(loan.status) && (
-          <PermissionGate role={["admin", "manager", "loan_officer"]}>
-            <button
-              onClick={openWaiverModal}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
-              title={
-                isAdminRole
-                  ? "Record a waiver (applies immediately)"
-                  : "Request a waiver (admin must approve)"
-              }
-            >
-              <HandCoins size={16} />
-              {isAdminRole ? "Waive Loan" : "Request Waiver"}
-            </button>
-          </PermissionGate>
-        )}
-        {/* Promise to Pay — log a verbal commitment from the borrower
-            so it shows up in the collections follow-up queue. Only
-            meaningful on a live (non-closed) loan; same gate as the
-            Waive Loan button. */}
-        {["active", "suspended"].includes(loan.status) && (
-          <PermissionGate role={["admin", "manager", "loan_officer"]}>
-            <button
-              onClick={openPromiseModal}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
-              title="Record the borrower's verbal promise to pay by a specific date"
-            >
-              <Handshake size={16} /> Log Promise
-            </button>
-          </PermissionGate>
-        )}
-      </div>
+        ].includes(loan.status);
+        const canWaive = ["active", "suspended"].includes(loan.status);
+        const canPromise = ["active", "suspended"].includes(loan.status);
+        const canDefault = loan.status === "active";
+        const canSuspend = loan.status === "active";
+        const canReactivate = ["defaulted", "suspended"].includes(loan.status);
+        const hasManagementActions =
+          canEdit || canDelete || canWaive || canPromise ||
+          canDefault || canSuspend || canReactivate;
+
+        const closeMenu = () => setActionsMenuOpen(false);
+        const itemBase =
+          "w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition text-left";
+
+        return (
+          <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                Reports &amp; Agreements
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    downloadPdf(
+                      `/reports/pdf/loan-statement/${loan.id}`,
+                      `loan_${loan.loan_code}.pdf`,
+                    )
+                  }
+                  className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
+                >
+                  <Download size={16} /> Download Statement
+                </button>
+                <button
+                  onClick={() =>
+                    downloadPdf(
+                      `/reports/pdf/loan-agreement/${loan.id}`,
+                      `loan_agreement_${loan.loan_code}.pdf`,
+                    )
+                  }
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition font-semibold inline-flex items-center gap-2"
+                >
+                  <FileText size={16} /> Download Agreement
+                </button>
+              </div>
+            </div>
+
+            {hasManagementActions && (
+              <div ref={actionsMenuRef} className="relative">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                  Loan Management Actions
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActionsMenuOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={actionsMenuOpen}
+                  className="px-4 py-2 bg-white border border-ocean-200 text-ocean-700 hover:bg-ocean-50 rounded-lg transition font-semibold inline-flex items-center gap-2 shadow-sm"
+                >
+                  <Settings2 size={16} />
+                  Loan Management Actions
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform ${
+                      actionsMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {actionsMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute z-30 mt-1 right-0 sm:right-auto sm:left-0 min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-lg py-1 overflow-hidden"
+                  >
+                    {canEdit && (
+                      <PermissionGate role={["admin", "manager"]}>
+                        <button
+                          onClick={() => {
+                            closeMenu();
+                            openEditModal();
+                          }}
+                          className={itemBase}
+                        >
+                          <Pencil size={16} className="text-indigo-600" />
+                          Edit Loan
+                        </button>
+                      </PermissionGate>
+                    )}
+                    {canWaive && (
+                      <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                        <button
+                          onClick={() => {
+                            closeMenu();
+                            openWaiverModal();
+                          }}
+                          className={itemBase}
+                          title={
+                            isAdminRole
+                              ? "Record a waiver (applies immediately)"
+                              : "Request a waiver (admin must approve)"
+                          }
+                        >
+                          <HandCoins size={16} className="text-emerald-700" />
+                          {isAdminRole ? "Waive Loan" : "Request Waiver"}
+                        </button>
+                      </PermissionGate>
+                    )}
+                    {canPromise && (
+                      <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                        <button
+                          onClick={() => {
+                            closeMenu();
+                            openPromiseModal();
+                          }}
+                          className={itemBase}
+                          title="Record the borrower's verbal promise to pay by a specific date"
+                        >
+                          <Handshake size={16} className="text-amber-600" />
+                          Log Promise to Pay
+                        </button>
+                      </PermissionGate>
+                    )}
+                    {(canDefault || canSuspend || canReactivate) && (
+                      <div className="my-1 border-t border-slate-100" />
+                    )}
+                    {canReactivate && (
+                      <button
+                        onClick={() => {
+                          closeMenu();
+                          setStatusFormData({ status: "active", notes: "" });
+                          setActionError("");
+                          setShowStatusModal(true);
+                        }}
+                        className={itemBase}
+                      >
+                        <CheckCircle size={16} className="text-emerald-600" />
+                        Reactivate Loan
+                      </button>
+                    )}
+                    {canSuspend && (
+                      <button
+                        onClick={() => {
+                          closeMenu();
+                          setStatusFormData({ status: "suspended", notes: "" });
+                          setActionError("");
+                          setShowStatusModal(true);
+                        }}
+                        className={itemBase}
+                      >
+                        <Pause size={16} className="text-amber-600" />
+                        Suspend Loan
+                      </button>
+                    )}
+                    {canDefault && (
+                      <button
+                        onClick={() => {
+                          closeMenu();
+                          setStatusFormData({ status: "defaulted", notes: "" });
+                          setActionError("");
+                          setShowStatusModal(true);
+                        }}
+                        className={itemBase}
+                      >
+                        <AlertTriangle size={16} className="text-red-600" />
+                        Mark as Defaulted
+                      </button>
+                    )}
+                    {canDelete && (
+                      <>
+                        <div className="my-1 border-t border-slate-100" />
+                        <PermissionGate role="admin">
+                          <button
+                            onClick={() => {
+                              closeMenu();
+                              setShowDeleteModal(true);
+                            }}
+                            className={`${itemBase} text-red-700 hover:bg-red-50`}
+                          >
+                            <Trash2 size={16} className="text-red-600" />
+                            Delete Loan
+                          </button>
+                        </PermissionGate>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Header Card */}
       <div className="bg-ocean-gradient rounded-xl shadow-lg p-8 text-white mb-6">
