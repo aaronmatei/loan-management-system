@@ -5,7 +5,7 @@ import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { nextClientCode } from "../utils/clientCode.js";
 import { ensurePortalAccount } from "../services/portalAccountService.js";
-import { validate, body } from "../utils/validate.js";
+import { validate, body, param } from "../utils/validate.js";
 import { captureException } from "../config/sentry.js";
 import logger from "../config/logger.js";
 import ExcelJS from "exceljs";
@@ -442,13 +442,21 @@ router.post(
       .withMessage("required")
       .trim()
       .isLength({ min: 1, max: 50 })
-      .withMessage("must be 1-50 characters"),
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
     body("last_name")
       .isString()
       .withMessage("required")
       .trim()
       .isLength({ min: 1, max: 50 })
-      .withMessage("must be 1-50 characters"),
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
     body("phone_number")
       .isString()
       .withMessage("required")
@@ -467,10 +475,8 @@ router.post(
       .optional({ checkFalsy: true })
       .isString()
       .trim()
-      .isLength({ max: 20 })
-      .withMessage("must be 20 characters or fewer")
-      .matches(/^[A-Za-z0-9\-\/]+$/)
-      .withMessage("only letters, digits, '-' and '/' allowed"),
+      .matches(/^\d{8,10}$/)
+      .withMessage("must be 8-10 digits, nothing else"),
     body("business_name")
       .optional({ checkFalsy: true })
       .isString()
@@ -485,7 +491,11 @@ router.post(
       .optional({ checkFalsy: true })
       .isString()
       .trim()
-      .isLength({ max: 50 }),
+      .isLength({ max: 50 })
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
     body("county")
       .optional({ checkFalsy: true })
       .isString()
@@ -712,7 +722,108 @@ router.post(
 // ============================================================
 // UPDATE CLIENT
 // ============================================================
-router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+router.put(
+  "/:id",
+  authorize("admin", "manager", "loan_officer"),
+  // Same shape rules as POST /clients, but every field is optional
+  // here because the Edit Client modal sends partial updates — an
+  // omitted (or blank) field means "leave it alone" (the SQL below
+  // uses COALESCE). When a value IS supplied it has to clear the
+  // same bar a fresh client would.
+  validate(
+    param("id").isInt({ min: 1 }).withMessage("must be a client id").toInt(),
+    body("first_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("last_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("must be 1-50 characters")
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("phone_number")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ min: 7, max: 15 })
+      .withMessage("must be 7-15 characters (the DB caps it at 15)")
+      .matches(/^[\d+\s\-()]+$/)
+      .withMessage("only digits and + - ( ) allowed"),
+    body("email")
+      .optional({ checkFalsy: true })
+      .isEmail()
+      .withMessage("must be a valid email")
+      .isLength({ max: 100 })
+      .normalizeEmail({ gmail_remove_dots: false }),
+    body("id_number")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .matches(/^\d{8,10}$/)
+      .withMessage("must be 8-10 digits, nothing else"),
+    body("business_name")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 100 }),
+    body("business_type")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("city")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 })
+      .matches(/^[A-Za-z][A-Za-z\s'-]*$/)
+      .withMessage(
+        "letters only — spaces, hyphens and apostrophes ok; no digits or symbols",
+      ),
+    body("county")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("address")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 500 }),
+    body("date_of_birth")
+      .optional({ checkFalsy: true })
+      .isISO8601()
+      .withMessage("must be a YYYY-MM-DD date"),
+    body("gender")
+      .optional({ checkFalsy: true })
+      .isIn(["Male", "Female", "Other", "male", "female", "other"])
+      .withMessage("must be Male, Female, or Other"),
+    body("status")
+      .optional({ checkFalsy: true })
+      .isIn(["active", "inactive", "blacklisted"])
+      .withMessage("must be active, inactive, or blacklisted"),
+    body("branch_id")
+      .optional({ checkFalsy: true })
+      .isInt({ min: 1 })
+      .withMessage("must be a branch id")
+      .toInt(),
+    body("client_type")
+      .optional({ checkFalsy: true })
+      .isIn(["individual", "group", "business"])
+      .withMessage("must be one of individual, group, business"),
+  ),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -896,9 +1007,39 @@ router.put("/:id", authorize("admin", "manager", "loan_officer"), async (req, re
     });
   } catch (error) {
     logger.error("Update client error:", error);
+    // Same pg-code → friendly message mapping as POST so an Edit Client
+    // submission with a too-long field or a duplicate phone/email/ID
+    // shows the user something actionable instead of "Failed to update".
+    if (error.code === "22001") {
+      return res.status(400).json({
+        error: "One of the fields is too long. Shorten it and try again.",
+      });
+    }
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error:
+          "Another client already has one of these unique fields (phone, email, ID number).",
+      });
+    }
+    if (error.code === "23502") {
+      return res.status(400).json({
+        error: `Missing required field: ${error.column || "unknown"}`,
+      });
+    }
+    if (error.code === "23514") {
+      return res.status(400).json({
+        error: "A field value is outside the allowed set.",
+      });
+    }
+    captureException(error, {
+      route: { method: "PUT", path: "/api/clients/:id" },
+      client_id: req.params?.id,
+      tenant_id: req.user?.tenant_id,
+    });
     res.status(500).json({ error: "Failed to update client" });
   }
-});
+  },
+);
 
 // ============================================================
 // DELETE CLIENT (Soft delete - mark as inactive)

@@ -109,3 +109,116 @@ describe("Input validation — customer portal /auth/login", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("Input validation — POST /clients (name/ID/city rules)", () => {
+  const send = (body) =>
+    request(app)
+      .post("/api/clients")
+      .set("Authorization", auth(admin))
+      .send(body);
+
+  it("rejects a first_name with digits", async () => {
+    const res = await send({
+      first_name: "egerer666",
+      last_name: "Smith",
+      phone_number: "0712345678",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/first_name/);
+  });
+
+  it("rejects a last_name with special characters", async () => {
+    const res = await send({
+      first_name: "Mary",
+      last_name: "@#$%",
+      phone_number: "0712345678",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/last_name/);
+  });
+
+  it("accepts hyphens and apostrophes in names (Mary-Anne O'Brien)", async () => {
+    // Validation passes — handler may still 4xx for tenant/branch
+    // reasons, but it must NOT be a name-format rejection.
+    const res = await send({
+      first_name: "Mary-Anne",
+      last_name: "O'Brien",
+      phone_number: "0712345678",
+    });
+    if (res.status === 400) {
+      expect(res.body.error).not.toMatch(/first_name|last_name/);
+    }
+  });
+
+  it("rejects an id_number that contains letters", async () => {
+    const res = await send({
+      first_name: "John",
+      last_name: "Doe",
+      phone_number: "0712345678",
+      id_number: "trht3kj4b",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/id_number/);
+  });
+
+  it("rejects an id_number that's too short (< 8 digits)", async () => {
+    const res = await send({
+      first_name: "John",
+      last_name: "Doe",
+      phone_number: "0712345678",
+      id_number: "1234567",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/id_number/);
+  });
+
+  it("rejects an id_number that's too long (> 10 digits)", async () => {
+    const res = await send({
+      first_name: "John",
+      last_name: "Doe",
+      phone_number: "0712345678",
+      id_number: "12345678901",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/id_number/);
+  });
+
+  it("rejects a city with digits", async () => {
+    const res = await send({
+      first_name: "John",
+      last_name: "Doe",
+      phone_number: "0712345678",
+      city: "3243254fv3f",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/city/);
+  });
+});
+
+describe("Input validation — PUT /clients/:id (Edit modal)", () => {
+  // Edit endpoint mirrors Add — proves the validation lives on both
+  // entry points so admins can't bypass the rules by saving via Edit.
+  const sendEdit = (body) =>
+    request(app)
+      .put("/api/clients/1")
+      .set("Authorization", auth(admin))
+      .send(body);
+
+  it("rejects a first_name with digits on update", async () => {
+    const res = await sendEdit({ first_name: "Mary123" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/first_name/);
+  });
+
+  it("rejects an id_number with letters on update", async () => {
+    const res = await sendEdit({ id_number: "abc12345" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/id_number/);
+  });
+
+  it("rejects a city with special characters on update", async () => {
+    const res = await sendEdit({ city: "N@iroBi!" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/city/);
+  });
+});
