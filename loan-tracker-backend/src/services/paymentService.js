@@ -375,17 +375,35 @@ export async function recordLoanPayment({
   // Whatever's left after penalty is what reduces amount_due.
   const amountTowardSchedule = actualPaymentApplied - penaltyAllocated;
 
-  // Generate transaction code
+  // Generate transaction code. Lender-prefixed, mirroring
+  // loan_code / client_code (e.g. TXN-FAU-2026-00001).
+  //
+  // Numbering uses MAX(suffix) + 1 across the tenant's existing
+  // codes — NOT COUNT(*) + 1, which collided after a loan
+  // deletion left a gap. Concrete repro: loan 313 had
+  // TXN-KUW-2026-00001; after deleting loan 313 + its txn,
+  // tenant 23 had codes 00002 + 00003 with COUNT = 2. The next
+  // payment generated COUNT + 1 = 00003 → duplicate-key on
+  // transactions_tenant_code_unique → "Failed to record payment"
+  // with no specific reason surfaced to the UI.
+  //
+  // The regex strips the suffix off any "...-NNNNN" code,
+  // tolerates non-numeric noise, and ignores codes that don't
+  // match the pattern. COALESCE handles "no prior codes" by
+  // starting at 1.
   const year = new Date().getFullYear();
-  const countResult = await query(
-    "SELECT COUNT(*) FROM transactions WHERE tenant_id = $1",
-    [loan.tenant_id],
-  );
-  const txnCount = parseInt(countResult.rows[0].count) + 1;
-  // Lender-prefixed, mirroring loan_code / client_code (e.g. TXN-FAU-2026-00001).
   const tRes = await query("SELECT subdomain FROM tenants WHERE id = $1", [
     loan.tenant_id,
   ]);
+  const lastNumRes = await query(
+    `SELECT COALESCE(
+       MAX((regexp_match(transaction_code, '-(\\d+)$'))[1]::int),
+       0
+     ) AS last_num
+       FROM transactions WHERE tenant_id = $1`,
+    [loan.tenant_id],
+  );
+  const txnCount = parseInt(lastNumRes.rows[0].last_num, 10) + 1;
   const transactionCode = `TXN-${tenantPrefix(tRes.rows[0]?.subdomain)}-${year}-${String(txnCount).padStart(5, "0")}`;
 
   // Record the transaction. amount_paid is the gross client payment;
