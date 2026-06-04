@@ -1957,9 +1957,25 @@ router.put("/:id/edit", authorize("admin", "manager"), async (req, res) => {
       }
     }
 
-    const newYears = newMonths / 12;
-    const newTotalInterest = newPrincipal * (annualRate / 100) * newYears;
-    const newTotalDue = newPrincipal + newTotalInterest;
+    // Compute totals via the shared loanMath helper so the loan's
+    // interest_method drives the math — flat keeps `P × r × years`,
+    // reducing-balance amortizes properly (total interest is lower
+    // because principal shrinks each month). Hard-coding the flat
+    // formula here overwrote `total_interest` to the flat number
+    // every time the modal saved on a reducing-balance loan, even
+    // when nothing changed — so a penalty-rate-only edit would jump
+    // the loan's headline total_interest from 40,211.71 to 60,000
+    // and the Waive modal (which reads loan.total_interest) would
+    // then offer the wrong number for the user to waive.
+    const totalsMethod = existing.interest_method || "flat";
+    const computedTotals = computeLoanTotals({
+      principal: newPrincipal,
+      annualRatePct: annualRate,
+      months: newMonths,
+      method: totalsMethod,
+    });
+    const newTotalInterest = computedTotals.totalInterest;
+    const newTotalDue = computedTotals.totalAmountDue;
     const newProcessingFee =
       Math.round(newPrincipal * newProcFeeRate) / 100;
     const newNetDisbursed =
