@@ -3,7 +3,15 @@ import PDFDocument from "pdfkit";
 import { FONT, registerPdfFonts } from "../utils/pdfFonts.js";
 import ExcelJS from "exceljs";
 import { query } from "../config/database.js";
-import { stampExcelSheet, drawPdfStamp } from "../utils/stamp.js";
+import { stampExcelSheet, drawPdfStamp, addExcelStamp } from "../utils/stamp.js";
+
+// The platform's own identity for stamping platform-level reports (these
+// aggregate every tenant, so there's no single tenant to brand them with).
+const PLATFORM_STAMP = {
+  business_name: "LenderFest",
+  city: "Nairobi",
+  country: "Kenya",
+};
 import { verifyToken } from "../middleware/auth.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import analyticsService from "../services/analyticsService.js";
@@ -650,6 +658,9 @@ router.get("/platform/export/pdf", async (req, res) => {
       });
     }
 
+    // Official LenderFest stamp, bottom-right of the last page.
+    drawPdfStamp(doc, { x: 420, y: 660, size: 130, tenant: PLATFORM_STAMP });
+
     doc.end();
   } catch (error) {
     logger.error("Platform PDF export error:", error);
@@ -730,6 +741,9 @@ router.get("/platform/export/excel", async (req, res) => {
     revenueTrend.forEach((r) =>
       rev.addRow({ month: r.month, revenue: r.revenue }),
     );
+
+    // Official LenderFest stamp on the Summary sheet.
+    addExcelStamp(s, { tenant: PLATFORM_STAMP });
 
     const filename = `platform-report-${new Date().toISOString().split("T")[0]}.xlsx`;
     res.setHeader(
