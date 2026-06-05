@@ -57,8 +57,8 @@ services:
         value: "false"
         previewValue: "false"
       - key: EMAIL_ENABLED
-        value: "false"
-        previewValue: "false"
+        value: "true"
+        previewValue: "false" # previews never send real emails
       - key: EMAIL_HOST
         value: smtp.gmail.com
       - key: EMAIL_PORT
