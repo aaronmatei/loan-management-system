@@ -4,9 +4,9 @@
 // set at tenant signup (microfinance / sacco / chama / individual / other).
 const TYPES = {
   microfinance: { label: "Microfinance", color: "#0086cc" }, // ocean blue
-  sacco: { label: "SACCO", color: "#16a34a" }, // green
+  sacco: { label: "SACCO", color: "#ea580c" }, // orange (swapped with individual)
   chama: { label: "Chama", color: "#7c3aed" }, // purple
-  individual: { label: "Individual", color: "#ea580c" }, // orange
+  individual: { label: "Individual", color: "#16a34a" }, // green (swapped with sacco)
   other: { label: "Other", color: "#64748b" }, // slate
 };
 
