@@ -123,14 +123,14 @@ function CommunicationCosts() {
                   @ {KES(data.rates.email_kes)} each
                 </p>
               </div>
-              <div className="bg-gradient-to-br from-emerald-500 to-green-600 text-white rounded-xl shadow-lg p-6">
-                <p className="text-emerald-100 text-xs uppercase font-semibold flex items-center gap-1.5">
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-emerald-500">
+                <p className="text-gray-500 text-xs uppercase font-semibold flex items-center gap-1.5">
                   <Coins size={14} /> Total Charges
                 </p>
                 <p className="text-3xl font-bold mt-2">
                   {KES(data.totals.total_kes)}
                 </p>
-                <p className="text-emerald-100 text-xs mt-1">
+                <p className="text-gray-400 text-xs mt-1">
                   Across {data.tenants.length} tenant
                   {data.tenants.length !== 1 ? "s" : ""}
                 </p>

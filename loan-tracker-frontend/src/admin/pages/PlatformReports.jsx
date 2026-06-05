@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { BarChart3, Download, Banknote, Trophy } from "lucide-react";
 import Spinner from "../../components/Spinner";
+import StatCard from "../components/StatCard";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
@@ -129,38 +130,30 @@ function PlatformReports() {
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
-            <p className="text-ocean-100 text-xs uppercase">Total Revenue</p>
-            <p className="text-2xl font-bold mt-1">
-              {fmtK(kpis.revenue.total_revenue)}
-            </p>
-            <p className="text-xs text-ocean-100">all-time invoice receipts</p>
-          </div>
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-green-100 text-xs uppercase">Active Tenants</p>
-            <p className="text-2xl font-bold mt-1">
-              {kpis.tenants.active_tenants}
-            </p>
-            <p className="text-xs text-green-100">
-              +{kpis.tenants.new_this_month} this month
-            </p>
-          </div>
-          <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-orange-100 text-xs uppercase">Outstanding</p>
-            <p className="text-2xl font-bold mt-1">
-              {fmtK(kpis.revenue.outstanding)}
-            </p>
-            <p className="text-xs text-orange-100">unpaid invoices</p>
-          </div>
-          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
-            <p className="text-ocean-100 text-xs uppercase">Platform Loans</p>
-            <p className="text-2xl font-bold mt-1">
-              {kpis.platform_loans.total_loans}
-            </p>
-            <p className="text-xs text-ocean-100">
-              {fmtK(kpis.platform_loans.total_disbursed)} disbursed
-            </p>
-          </div>
+          <StatCard
+            accent="ocean"
+            label="Total Revenue"
+            value={fmt(kpis.revenue.total_revenue)}
+            sub="all-time invoice receipts"
+          />
+          <StatCard
+            accent="green"
+            label="Active Tenants"
+            value={kpis.tenants.active_tenants}
+            sub={`+${kpis.tenants.new_this_month} this month`}
+          />
+          <StatCard
+            accent="amber"
+            label="Outstanding"
+            value={fmt(kpis.revenue.outstanding)}
+            sub="unpaid invoices"
+          />
+          <StatCard
+            accent="violet"
+            label="Platform Loans"
+            value={kpis.platform_loans.total_loans}
+            sub={`${fmt(kpis.platform_loans.total_disbursed)} disbursed`}
+          />
         </div>
 
         {/* Revenue trend */}

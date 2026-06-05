@@ -7,6 +7,7 @@ import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
 import { Coins, RotateCcw, ClipboardList, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import Spinner from "../../components/Spinner";
+import StatCard from "../components/StatCard";
 
 // Full KES figures (no K abbreviation) — e.g. KES 2,000,000, not 2.0K.
 const K = (v) =>
@@ -189,50 +190,33 @@ function BillingDashboard() {
 
         {summary && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
-              <p className="text-green-100 text-xs uppercase">
-                This Month Billed
-              </p>
-              <p className="text-2xl font-bold mt-1">
-                {K(summary.current_month.total_billed)}
-              </p>
-              <p className="text-xs text-green-100 mt-1">
-                {summary.current_month.total_invoices} invoices
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-xl shadow-lg p-4">
-              <p className="text-ocean-100 text-xs uppercase">
-                This Month Collected
-              </p>
-              <p className="text-2xl font-bold mt-1">
-                {K(summary.current_month.total_collected)}
-              </p>
-              <p className="text-xs text-ocean-100 mt-1">
-                {summary.current_month.paid_count} paid
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-xl shadow-lg p-4">
-              <p className="text-orange-100 text-xs uppercase">Outstanding</p>
-              <p className="text-2xl font-bold mt-1">
-                {K(summary.current_month.outstanding)}
-              </p>
-              <p className="text-xs text-orange-100 mt-1">
-                {summary.current_month.pending_count +
-                  summary.current_month.overdue_count}{" "}
-                unpaid
-              </p>
-            </div>
-            <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
-              <p className="text-ocean-100 text-xs uppercase">
-                All-Time Revenue
-              </p>
-              <p className="text-2xl font-bold mt-1">
-                {K(summary.all_time.total_collected)}
-              </p>
-              <p className="text-xs text-ocean-100 mt-1">
-                {summary.all_time.total_invoices} total invoices
-              </p>
-            </div>
+            <StatCard
+              accent="green"
+              label="This Month Billed"
+              value={K(summary.current_month.total_billed)}
+              sub={`${summary.current_month.total_invoices} invoices`}
+            />
+            <StatCard
+              accent="ocean"
+              label="This Month Collected"
+              value={K(summary.current_month.total_collected)}
+              sub={`${summary.current_month.paid_count} paid`}
+            />
+            <StatCard
+              accent="amber"
+              label="Outstanding"
+              value={K(summary.current_month.outstanding)}
+              sub={`${
+                summary.current_month.pending_count +
+                summary.current_month.overdue_count
+              } unpaid`}
+            />
+            <StatCard
+              accent="violet"
+              label="All-Time Revenue"
+              value={K(summary.all_time.total_collected)}
+              sub={`${summary.all_time.total_invoices} total invoices`}
+            />
           </div>
         )}
 

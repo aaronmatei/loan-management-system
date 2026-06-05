@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
-import { Crown, BarChart3, Briefcase, Trophy, UserPlus } from "lucide-react";
+import { Crown, BarChart3, Briefcase, Trophy, UserPlus, Banknote } from "lucide-react";
 import Spinner from "../../components/Spinner";
+import StatCard from "../components/StatCard";
 
 // Full KES figures (no K/M abbreviation) — e.g. KES 2,000,000, not 2.0M.
 const M = (v) =>
@@ -33,8 +34,14 @@ function PlatformDashboard() {
   }
   if (!data) return <PlatformLayout><div /></PlatformLayout>;
 
-  const { tenants_overview: to, platform_metrics: pm, recent_signups, top_tenants } =
-    data;
+  const {
+    tenants_overview: to,
+    platform_metrics: pm,
+    recent_signups,
+    top_tenants,
+    monthly_revenue = [],
+  } = data;
+  const maxRev = Math.max(...monthly_revenue.map((r) => r.revenue), 1);
 
   return (
     <PlatformLayout>
@@ -44,33 +51,72 @@ function PlatformDashboard() {
         </h1>
         <p className="text-gray-600 mt-1 mb-6">Your SaaS at a glance</p>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-4">
-            <p className="text-ocean-100 text-xs uppercase">Total Tenants</p>
-            <p className="text-3xl font-bold mt-1">{to.total_tenants}</p>
-            <p className="text-xs text-ocean-100 mt-1">
-              {to.active_tenants} active
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          <StatCard
+            accent="ocean"
+            label="Total Tenants"
+            value={to.total_tenants}
+            sub={`${to.active_tenants} active`}
+          />
+          <StatCard
+            accent="green"
+            label="Active Loans"
+            value={pm.total_active_loans}
+            sub={`of ${pm.total_loans_ever} total`}
+          />
+          <StatCard
+            accent="violet"
+            label="Total Disbursed"
+            value={M(pm.total_disbursed)}
+            sub="Across all tenants"
+          />
+          <StatCard
+            accent="amber"
+            label="All-Time Revenue"
+            value={M(pm.total_revenue)}
+            sub="Platform fees collected"
+          />
+          <StatCard
+            accent="rose"
+            label="Total Clients"
+            value={pm.total_customers}
+            sub={`${pm.total_customer_links} tenant links`}
+          />
+        </div>
+
+        {/* Per-month platform revenue (fees received), most recent first. */}
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 mb-6">
+          <h2 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <Banknote size={18} /> Revenue by Month
+          </h2>
+          {monthly_revenue.length === 0 ? (
+            <p className="text-sm text-slate-400 py-4 text-center">
+              No platform revenue recorded yet — it appears here as tenants pay
+              their invoices.
             </p>
-          </div>
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-green-100 text-xs uppercase">Active Loans</p>
-            <p className="text-3xl font-bold mt-1">{pm.total_active_loans}</p>
-            <p className="text-xs text-green-100 mt-1">
-              of {pm.total_loans_ever} total
-            </p>
-          </div>
-          <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
-            <p className="text-xl font-bold mt-1">{M(pm.total_disbursed)}</p>
-            <p className="text-xs text-ocean-100 mt-1">Across all tenants</p>
-          </div>
-          <div className="bg-gradient-to-br from-pink-500 to-rose-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-pink-100 text-xs uppercase">Total Clients</p>
-            <p className="text-3xl font-bold mt-1">{pm.total_customers}</p>
-            <p className="text-xs text-pink-100 mt-1">
-              {pm.total_customer_links} tenant links
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-2.5">
+              {monthly_revenue.map((r) => {
+                const pct = Math.max(3, Math.round((r.revenue / maxRev) * 100));
+                return (
+                  <div key={r.month} className="flex items-center gap-3">
+                    <span className="text-xs text-slate-500 w-20 shrink-0">
+                      {r.month}
+                    </span>
+                    <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-ocean-gradient"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700 w-32 text-right">
+                      {M(r.revenue)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">

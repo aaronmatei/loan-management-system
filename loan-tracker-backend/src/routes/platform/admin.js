@@ -58,7 +58,21 @@ router.get("/dashboard", async (req, res) => {
           JOIN loans l ON l.id = ps.loan_id) AS total_interest_collected,
         (SELECT COUNT(*) FROM users WHERE is_platform_admin = false)::int AS total_staff_users,
         (SELECT COUNT(*) FROM platform_customers)::int AS total_customers,
-        (SELECT COUNT(*) FROM customer_tenant_links)::int AS total_customer_links
+        (SELECT COUNT(*) FROM customer_tenant_links)::int AS total_customer_links,
+        -- All-time platform revenue = every payment received against an invoice.
+        (SELECT COALESCE(SUM(amount),0) FROM invoice_payments) AS total_revenue
+    `);
+
+    // Revenue per month (last 12 months) — platform fees actually received,
+    // grouped by the month the invoice payment landed.
+    const monthlyRevenue = await query(`
+      SELECT TO_CHAR(date_trunc('month', payment_date), 'Mon YYYY') AS month,
+             date_trunc('month', payment_date)                      AS month_sort,
+             COALESCE(SUM(amount),0)::float                          AS revenue
+      FROM invoice_payments
+      WHERE payment_date >= date_trunc('month', NOW()) - INTERVAL '11 months'
+      GROUP BY 1, 2
+      ORDER BY month_sort DESC
     `);
 
     const recentSignups = await query(`
@@ -105,6 +119,7 @@ router.get("/dashboard", async (req, res) => {
         recent_signups: recentSignups.rows,
         top_tenants: topTenants.rows,
         growth_chart: growthChart.rows,
+        monthly_revenue: monthlyRevenue.rows,
       },
     });
   } catch (error) {

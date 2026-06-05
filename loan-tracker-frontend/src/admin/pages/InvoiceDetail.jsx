@@ -75,14 +75,14 @@ function InvoiceDetail() {
           ← Back to Billing
         </button>
 
-        <div className="bg-ocean-gradient text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 lg:p-8 mb-6">
           <div className="flex justify-between items-start flex-wrap gap-3">
             <div>
-              <p className="text-ocean-200 text-sm">Invoice</p>
+              <p className="text-slate-500 text-sm">Invoice</p>
               <h1 className="text-3xl font-bold font-mono">
                 {invoice.invoice_number}
               </h1>
-              <p className="text-ocean-100 mt-2">
+              <p className="text-slate-500 mt-2">
                 Period{" "}
                 {String(invoice.billing_month).padStart(2, "0")}/
                 {invoice.billing_year} · Due{" "}
@@ -90,7 +90,7 @@ function InvoiceDetail() {
               </p>
             </div>
             <span
-              className={`px-3 py-1 rounded-full text-sm font-bold ${
+              className={`px-3 py-1 rounded-full text-sm font-bold text-white ${
                 invoice.status === "paid"
                   ? "bg-green-500"
                   : invoice.status === "overdue"
@@ -105,21 +105,21 @@ function InvoiceDetail() {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
             <div>
-              <p className="text-ocean-200 text-xs">Tenant</p>
+              <p className="text-slate-500 text-xs">Tenant</p>
               <p className="text-lg font-bold">{invoice.tenant_name}</p>
             </div>
             <div>
-              <p className="text-ocean-200 text-xs">Interest Earned</p>
+              <p className="text-slate-500 text-xs">Interest Earned</p>
               <p className="text-lg font-bold">
                 {KES(invoice.interest_earned)}
               </p>
             </div>
             <div>
-              <p className="text-ocean-200 text-xs">Fee Rate</p>
+              <p className="text-slate-500 text-xs">Fee Rate</p>
               <p className="text-lg font-bold">{invoice.fee_percentage}%</p>
             </div>
             <div>
-              <p className="text-ocean-200 text-xs">Total Amount</p>
+              <p className="text-slate-500 text-xs">Total Amount</p>
               <p className="text-2xl font-bold">
                 {KES(invoice.total_amount)}
               </p>
