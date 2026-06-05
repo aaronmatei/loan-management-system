@@ -30,13 +30,23 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, "..", ".env") });
 
 const { Pool } = pg;
-const pool = new Pool({
-  user: process.env.DB_USER || "aron",
-  host: process.env.DB_HOST || "localhost",
-  database: process.env.DB_NAME || "loan_tracker",
-  password: process.env.DB_PASSWORD || "",
-  port: process.env.DB_PORT || 5432,
-});
+// Prefer DATABASE_URL (prod/Render — needs SSL) so the nightly reset and a
+// manual run both hit the right database; fall back to discrete DB_* vars
+// for local dev.
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+      }
+    : {
+        user: process.env.DB_USER || "aron",
+        host: process.env.DB_HOST || "localhost",
+        database: process.env.DB_NAME || "loan_tracker",
+        password: process.env.DB_PASSWORD || "",
+        port: process.env.DB_PORT || 5432,
+      },
+);
 const q = (text, params) => pool.query(text, params);
 
 const FIRST = ["Mary","John","Grace","Peter","Faith","James","Lucy","David","Esther","Samuel","Joyce","Daniel","Ann","Paul","Sarah","Robert","Margaret","Patrick","Jane","Anthony"];

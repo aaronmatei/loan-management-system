@@ -10,7 +10,7 @@
 --   • A "Demo Lenders" tenant row at subdomain='demo' with all the
 --     NOT-NULL fields the tenants schema actually requires
 --     (tenant_code, contact_name, contact_email, contact_phone).
---   • Demo admin user (demo@loanfix.com / password 'demo123' —
+--   • Demo admin user (demo@lenderfest.loans / password 'demo123' —
 --     intentionally simple; only reachable via the public /api/demo/start
 --     endpoint which mints a short-lived JWT, not via /login).
 --
@@ -41,7 +41,7 @@ INSERT INTO tenants (
   contact_name, contact_email, contact_phone,
   status, plan,
   billing_enabled, billing_fee_percentage,
-  white_label_tier, brand_color,
+  white_label_tier, brand_color, business_type,
   onboarding_completed, onboarding_completed_at,
   is_demo,
   default_interest_rate, default_loan_duration,
@@ -50,15 +50,32 @@ INSERT INTO tenants (
 )
 SELECT
   'DEMO', 'Demo Lenders', 'demo',
-  'Demo Admin', 'demo@loanfix.com', '+254700000099',
+  'Demo Admin', 'demo@lenderfest.loans', '+254700000099',
   'active', 'demo',
   false, 0,
-  'pro', '#7C3AED',
+  'pro', '#0E8A6E', 'microfinance',
   true, NOW(),
   true,
   50.00, 6,
   1000, 1000000,
   NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM tenants WHERE subdomain = 'demo');
+
+-- Demo admin user (insert if the demo tenant has none). Reached ONLY via
+-- POST /api/demo/start, which mints a short-lived JWT — never via /login.
+-- password_hash is bcrypt('demo123').
+INSERT INTO users (
+  username, email, password_hash,
+  first_name, last_name, role, is_active,
+  tenant_id, created_at, updated_at
+)
+SELECT
+  'demo_admin', 'demo@lenderfest.loans',
+  '$2b$10$nUfBuASYmkIxMjKFXO8mjOqnlaSYWcOTNIkqw1i0FRog0AwSMQmui',
+  'Demo', 'Admin', 'admin', true,
+  t.id, NOW(), NOW()
+FROM tenants t
+WHERE t.subdomain = 'demo'
+  AND NOT EXISTS (SELECT 1 FROM users u WHERE u.tenant_id = t.id);
 
 COMMIT;
