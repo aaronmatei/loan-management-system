@@ -98,7 +98,7 @@ function LandingHome() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <div className="inline-flex items-center gap-1.5 px-4 py-1 bg-ocean-100 text-ocean-700 rounded-full text-sm font-semibold mb-4">
-                <Rocket size={14} /> Built for Kenyan Lenders
+                <Rocket size={14} /> Built for Lenders Everywhere
               </div>
               <h1 className="text-4xl lg:text-6xl font-bold leading-tight text-gray-900 mb-6">
                 Run Your{" "}
@@ -108,9 +108,9 @@ function LandingHome() {
                 Without the Spreadsheets
               </h1>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                The cloud-based loan management system for microfinance, chamas,
-                and individual lenders. Track loans, manage clients, and grow
-                your portfolio — all in one place.
+                The cloud-based loan management system for microfinance,
+                cooperatives, and individual lenders. Track loans, manage
+                clients, and grow your portfolio — all in one place.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
@@ -143,21 +143,24 @@ function LandingHome() {
                 </div>
               </div>
               <p className="mt-5 text-sm text-gray-600 border-t border-slate-200 pt-5 flex items-start gap-1.5">
-                <User size={14} className="mt-0.5 shrink-0" /> Borrowing from a LenderFest lender?{" "}
-                <Link
-                  to="/portal/register"
-                  className="font-bold text-ocean-600 hover:text-ocean-700"
-                >
-                  Create a free account
-                </Link>{" "}
-                or{" "}
-                <Link
-                  to="/portal/login"
-                  className="font-bold text-ocean-600 hover:text-ocean-700"
-                >
-                  log in
-                </Link>
-                .
+                <User size={14} className="mt-0.5 shrink-0" />
+                <span>
+                  <strong className="text-gray-900">Borrow from LenderFest</strong> — one free account to apply to trusted lenders, track every loan, and get reminders so you never miss a payment.{" "}
+                  <Link
+                    to="/portal/register"
+                    className="font-bold text-ocean-600 hover:text-ocean-700"
+                  >
+                    Create a free account
+                  </Link>{" "}
+                  or{" "}
+                  <Link
+                    to="/portal/login"
+                    className="font-bold text-ocean-600 hover:text-ocean-700"
+                  >
+                    log in
+                  </Link>
+                  .
+                </span>
               </p>
             </div>
 
@@ -178,21 +181,21 @@ function LandingHome() {
                     </div>
                     <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-lg p-3">
                       <p className="text-xs opacity-80">Collected Today</p>
-                      <p className="text-2xl font-bold">KES 84K</p>
+                      <p className="text-2xl font-bold">$84K</p>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="bg-gray-50 rounded p-2 flex justify-between items-center">
                       <div>
                         <p className="text-sm font-semibold">LN-2026-145</p>
-                        <p className="text-xs text-gray-500">Mary Akinyi</p>
+                        <p className="text-xs text-gray-500">Maria Santos</p>
                       </div>
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
                     </div>
                     <div className="bg-gray-50 rounded p-2 flex justify-between items-center">
                       <div>
                         <p className="text-sm font-semibold">LN-2026-144</p>
-                        <p className="text-xs text-gray-500">Peter Kamau</p>
+                        <p className="text-xs text-gray-500">David Lee</p>
                       </div>
                       <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Due</span>
                     </div>
@@ -200,7 +203,7 @@ function LandingHome() {
                 </div>
               </div>
               <div className="absolute -bottom-4 -right-4 bg-yellow-300 rounded-full px-4 py-2 shadow-lg transform -rotate-12">
-                <p className="text-sm font-bold">Made in Kenya</p>
+                <p className="text-sm font-bold">Built for the World</p>
               </div>
             </div>
           </div>
@@ -212,16 +215,16 @@ function LandingHome() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             <div>
-              <p className="text-3xl lg:text-4xl font-bold">4+</p>
+              <p className="text-3xl lg:text-4xl font-bold">100+</p>
               <p className="text-ocean-100 text-sm">Active Lenders</p>
             </div>
             <div>
-              <p className="text-3xl lg:text-4xl font-bold">1.2K+</p>
+              <p className="text-3xl lg:text-4xl font-bold">1.2M+</p>
               <p className="text-ocean-100 text-sm">Borrowers Served</p>
             </div>
             <div>
-              <p className="text-3xl lg:text-4xl font-bold">5M+</p>
-              <p className="text-ocean-100 text-sm">KES Disbursed</p>
+              <p className="text-3xl lg:text-4xl font-bold">50M+</p>
+              <p className="text-ocean-100 text-sm">Disbursed</p>
             </div>
             <div>
               <p className="text-3xl lg:text-4xl font-bold">99.9%</p>
@@ -251,7 +254,7 @@ function LandingHome() {
               { icon: <Coins size={28} className="text-white" />, title: "Loan Tracking", description: "Manage active loans, payment schedules, and automatic interest calculations.", color: "from-green-500 to-emerald-600" },
               { icon: <Smartphone size={28} className="text-white" />, title: "Client Portal", description: "Your borrowers get their own login to view loans and apply online — 24/7.", color: "from-ocean-400 to-pink-600" },
               { icon: <BarChart3 size={28} className="text-white" />, title: "Reports & Analytics", description: "Real-time insights into your portfolio. Export to Excel or PDF anytime.", color: "from-orange-500 to-red-600" },
-              { icon: <CreditCard size={28} className="text-white" />, title: "M-Pesa Ready", description: "Built for the Kenyan market. Record M-Pesa payments instantly.", color: "from-yellow-500 to-orange-600" },
+              { icon: <CreditCard size={28} className="text-white" />, title: "Mobile Money Ready", description: "Record mobile money, bank and cash payments in seconds.", color: "from-yellow-500 to-orange-600" },
               { icon: <Bell size={28} className="text-white" />, title: "SMS Notifications", description: "Automatic SMS for payment reminders, loan approvals, and overdue alerts.", color: "from-ocean-500 to-ocean-600" },
               { icon: <Briefcase size={28} className="text-white" />, title: "Multi-User Roles", description: "Add staff with different permission levels. Track who did what.", color: "from-teal-500 to-cyan-600" },
               { icon: <Lock size={28} className="text-white" />, title: "Secure & Encrypted", description: "Bank-grade security. Your data is encrypted and backed up daily.", color: "from-rose-500 to-red-600" },
@@ -339,16 +342,16 @@ function LandingHome() {
                 </span>
               </h2>
               <p className="text-lg text-ocean-100/80 mb-6 leading-relaxed">
-                Borrowing from a LenderFest lender? Create one account to apply for
-                loans, track repayments, build your credit score, and manage all
-                your lenders in a single place.
+                Borrow from LenderFest — one free account to apply to trusted
+                lenders, get faster decisions, track every repayment, and build a
+                credit profile that unlocks bigger loans and better rates over time.
               </p>
               <ul className="grid sm:grid-cols-2 gap-3 mb-8">
                 {[
                   "Apply for loans online, 24/7",
                   "One login for every lender",
                   "Track payments & schedules",
-                  "Build your credit score",
+                  "Build credit for bigger loans",
                   "SMS & email updates",
                   "Upload your documents once",
                 ].map((item) => (
@@ -392,8 +395,8 @@ function LandingHome() {
                 </p>
                 <div className="space-y-2">
                   {[
-                    { code: "LN-MFI-2026-031", lender: "Faulu Microfinance", tag: "Active", color: "bg-ocean-100 text-ocean-700" },
-                    { code: "LN-SAC-2026-118", lender: "Unity SACCO", tag: "On track", color: "bg-emerald-100 text-emerald-700" },
+                    { code: "LN-MFI-2026-031", lender: "Summit Microfinance", tag: "Active", color: "bg-ocean-100 text-ocean-700" },
+                    { code: "LN-COP-2026-118", lender: "Unity Credit Union", tag: "On track", color: "bg-emerald-100 text-emerald-700" },
                     { code: "LN-IND-2026-007", lender: "Jane (Individual)", tag: "Due soon", color: "bg-amber-100 text-amber-700" },
                   ].map((l) => (
                     <div
@@ -437,7 +440,7 @@ function LandingHome() {
               <h3 className="text-2xl font-bold mb-2">Free Trial</h3>
               <p className="text-gray-500 mb-4">14 days</p>
               <p className="text-5xl font-bold mb-6">
-                KES 0
+                $0
                 <span className="text-lg font-normal text-gray-500">/14 days</span>
               </p>
               <ul className="space-y-2 mb-6 text-sm">
@@ -478,7 +481,7 @@ function LandingHome() {
                 Start Free Trial
               </Link>
               <p className="text-xs text-ocean-200 text-center mt-3">
-                Example: Earn KES 100K interest → Pay KES 5K
+                Example: Earn $100K interest → Pay $5K
               </p>
             </div>
 
@@ -498,7 +501,7 @@ function LandingHome() {
                 <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> White-label option</li>
               </ul>
               <a
-                href="mailto:sales@lenderfest.loans"
+                href="mailto:aronique@gmail.com"
                 className="block w-full py-3 text-center border-2 border-ocean-600 text-ocean-600 rounded-lg font-bold hover:bg-ocean-50"
               >
                 Contact Sales
@@ -521,7 +524,7 @@ function LandingHome() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl lg:text-5xl font-bold mb-4">
-              Loved by Kenyan Lenders
+              Loved by Lenders Everywhere
             </h2>
             <p className="text-xl text-gray-600">
               Real stories from real lenders using LenderFest
@@ -530,9 +533,9 @@ function LandingHome() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {[
-              { quote: "Before LenderFest, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance, Nairobi", rating: 5 },
-              { quote: "The SMS notifications alone are worth it. Clients don't forget to pay anymore. My collection rate is up 30%.", author: "John K.", business: "Quick Loans Co, Mombasa", rating: 5 },
-              { quote: "I run a chama with 50 members. LenderFest keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Chama, Kisumu", rating: 5 },
+              { quote: "Before LenderFest, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance", rating: 5 },
+              { quote: "The SMS notifications alone are worth it. Clients don't forget to pay anymore. My collection rate is up 30%.", author: "John K.", business: "Quick Loans Co", rating: 5 },
+              { quote: "I run a lending group with 50 members. LenderFest keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Lending Group", rating: 5 },
             ].map((t, idx) => (
               <div key={idx} className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-md p-6">
                 <div className="flex gap-1 mb-3">
@@ -567,7 +570,7 @@ function LandingHome() {
               { q: "Can my customers really apply for loans online?", a: "Yes! Each tenant gets their own customer portal where borrowers can register, apply for new loans, track applications, and view their existing loans 24/7. It's a separate experience from your admin dashboard." },
               { q: "Do I need technical skills?", a: "Not at all. If you can use WhatsApp, you can use LenderFest. We provide free onboarding and training. Most lenders are up and running in less than an hour." },
               { q: "What if I want to leave?", a: "You can export all your data anytime in Excel or CSV format. No vendor lock-in. We're confident you'll love it, but your data is always yours." },
-              { q: "Do you integrate with M-Pesa?", a: "Yes, you can record M-Pesa payments manually now. Direct M-Pesa STK Push integration is coming soon for tenants with a business paybill account." },
+              { q: "Do you support mobile money?", a: "Yes, you can record mobile money, bank and cash payments now. Direct mobile-money integration is on the roadmap." },
               { q: "Is there a setup fee?", a: "No. Sign up is free, the 14-day trial is free, and there are no setup fees. You only pay 5% of interest earned after your trial ends." },
             ].map((faq, idx) => (
               <FAQItem key={idx} {...faq} />
@@ -584,7 +587,7 @@ function LandingHome() {
             Ready to Transform Your Lending Business?
           </h2>
           <p className="text-xl lg:text-2xl text-ocean-100 mb-8">
-            Join Kenyan lenders already growing with LenderFest
+            Join lenders worldwide already growing with LenderFest
           </p>
           <Link
             to="/signup"
@@ -620,8 +623,7 @@ function LandingHome() {
                 />
               </div>
               <p className="text-sm">
-                Cloud-based loan management for African lenders. Built in Kenya,
-                for Kenya.
+                Cloud-based loan management for lenders worldwide.
               </p>
             </div>
             <div>
@@ -638,8 +640,8 @@ function LandingHome() {
               <h4 className="font-bold text-white mb-3">Support</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#faq" className="hover:text-white">FAQ</a></li>
-                <li><a href="mailto:support@lenderfest.loans" className="hover:text-white">Contact Support</a></li>
-                <li><a href="tel:+254700000000" className="hover:text-white">+254 700 000 000</a></li>
+                <li><a href="mailto:aronique@gmail.com" className="hover:text-white">Contact Support</a></li>
+                <li><a href="tel:+254722680861" className="hover:text-white">+254 722 680 861</a></li>
               </ul>
             </div>
             <div>
@@ -652,7 +654,7 @@ function LandingHome() {
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col lg:flex-row justify-between items-center text-sm">
             <p>© {new Date().getFullYear()} LenderFest. All rights reserved.</p>
-            <p>Proudly built in Kenya</p>
+            <p>Built for lenders worldwide</p>
           </div>
         </div>
       </footer>
