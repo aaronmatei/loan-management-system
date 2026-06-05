@@ -97,9 +97,6 @@ function LandingHome() {
         <div className="max-w-7xl mx-auto px-4 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-4 py-1 bg-ocean-100 text-ocean-700 rounded-full text-sm font-semibold mb-4">
-                <Rocket size={14} /> Built for Lenders Everywhere
-              </div>
               <h1 className="text-4xl lg:text-6xl font-bold leading-tight text-gray-900 mb-6">
                 Run Your{" "}
                 <span className="bg-ocean-gradient bg-clip-text text-transparent">
@@ -203,7 +200,7 @@ function LandingHome() {
                 </div>
               </div>
               <div className="absolute -bottom-4 -right-4 bg-yellow-300 rounded-full px-4 py-2 shadow-lg transform -rotate-12">
-                <p className="text-sm font-bold">Built for the World</p>
+                <p className="text-sm font-bold">Built for every Lender, Everywhere</p>
               </div>
             </div>
           </div>
