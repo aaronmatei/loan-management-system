@@ -413,7 +413,7 @@ function Dashboard() {
             {isAdmin && (
               <button
                 onClick={() => setShowTopUp(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-white text-amber-700 text-sm font-medium hover:bg-amber-50 hover:border-amber-300 transition shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ocean-700 text-white text-sm font-medium hover:bg-ocean-800 transition shadow-sm"
               >
                 Top up capital
                 <Plus size={15} />
