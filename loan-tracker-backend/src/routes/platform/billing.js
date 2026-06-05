@@ -212,6 +212,125 @@ router.get("/preview/:tenant_id", async (req, res) => {
   }
 });
 
+// Per-tenant monthly billing statement. For every calendar month the tenant
+// collected interest, shows what they're SUPPOSED to pay (platform fee on
+// that month's interest + base fee) vs what's actually been invoiced/paid —
+// so historical months that were never invoiced still surface with their
+// owed/outstanding amount.
+router.get("/tenant/:tenantId/monthly", async (req, res) => {
+  try {
+    const tenantId = parseInt(req.params.tenantId, 10);
+    if (!tenantId) return res.status(400).json({ error: "Invalid tenant id" });
+
+    const tr = await query(
+      `SELECT id, business_name, subdomain, brand_color,
+              billing_fee_percentage, billing_base_fee, billing_enabled
+         FROM tenants WHERE id = $1`,
+      [tenantId],
+    );
+    if (tr.rows.length === 0)
+      return res.status(404).json({ error: "Tenant not found" });
+    const tenant = tr.rows[0];
+    const feePct = parseFloat(tenant.billing_fee_percentage || 0);
+    const baseFee = parseFloat(tenant.billing_base_fee || 0);
+
+    // Interest earned per calendar month — same split convention as
+    // calculateTenantInterest/generateInvoice — LEFT JOINed to the invoice
+    // (if any) raised for that billing period.
+    const rows = await query(
+      `WITH monthly AS (
+         SELECT EXTRACT(YEAR  FROM t.payment_date)::int AS year,
+                EXTRACT(MONTH FROM t.payment_date)::int AS month,
+                COALESCE(SUM(
+                  t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due, 0))
+                ), 0) AS interest_earned,
+                COUNT(DISTINCT t.id)::int AS payment_count
+         FROM transactions t
+         JOIN loans l ON l.id = t.loan_id
+         WHERE t.tenant_id = $1 AND t.payment_status = 'completed'
+         GROUP BY 1, 2
+       )
+       SELECT m.year, m.month, m.interest_earned::float AS interest_earned,
+              m.payment_count,
+              inv.id AS invoice_id, inv.invoice_number,
+              inv.status AS invoice_status,
+              COALESCE(inv.total_amount, 0)::float AS invoiced_amount,
+              COALESCE(inv.amount_paid, 0)::float   AS amount_paid,
+              inv.due_date
+       FROM monthly m
+       LEFT JOIN invoices inv
+         ON inv.tenant_id = $1
+        AND inv.billing_year = m.year
+        AND inv.billing_month = m.month
+       ORDER BY m.year DESC, m.month DESC`,
+      [tenantId],
+    );
+
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const months = rows.rows.map((r) => {
+      const interest = parseFloat(r.interest_earned) || 0;
+      const expectedFee = round2(interest * (feePct / 100) + baseFee);
+      const invoiced = !!r.invoice_id;
+      // Supposed to pay = the actual invoice total once raised, else the
+      // computed expected fee for that month.
+      const supposed = invoiced ? parseFloat(r.invoiced_amount) : expectedFee;
+      const paid = parseFloat(r.amount_paid) || 0;
+      return {
+        year: r.year,
+        month: r.month,
+        interest_earned: round2(interest),
+        payment_count: r.payment_count,
+        fee_percentage: feePct,
+        base_fee: baseFee,
+        expected_fee: expectedFee,
+        supposed_to_pay: round2(supposed),
+        amount_paid: paid,
+        outstanding: round2(Math.max(0, supposed - paid)),
+        invoiced,
+        invoice_id: r.invoice_id || null,
+        invoice_number: r.invoice_number || null,
+        invoice_status: r.invoice_status || null,
+        due_date: r.due_date || null,
+      };
+    });
+
+    const totals = months.reduce(
+      (a, m) => ({
+        interest_earned: a.interest_earned + m.interest_earned,
+        supposed_to_pay: a.supposed_to_pay + m.supposed_to_pay,
+        amount_paid: a.amount_paid + m.amount_paid,
+        outstanding: a.outstanding + m.outstanding,
+      }),
+      { interest_earned: 0, supposed_to_pay: 0, amount_paid: 0, outstanding: 0 },
+    );
+
+    res.json({
+      success: true,
+      data: {
+        tenant: {
+          id: tenant.id,
+          business_name: tenant.business_name,
+          subdomain: tenant.subdomain,
+          brand_color: tenant.brand_color,
+          billing_fee_percentage: feePct,
+          billing_base_fee: baseFee,
+          billing_enabled: tenant.billing_enabled,
+        },
+        months,
+        totals: {
+          interest_earned: round2(totals.interest_earned),
+          supposed_to_pay: round2(totals.supposed_to_pay),
+          amount_paid: round2(totals.amount_paid),
+          outstanding: round2(totals.outstanding),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Tenant monthly billing error:", error);
+    res.status(500).json({ error: "Failed to fetch tenant billing" });
+  }
+});
+
 // Billing summary
 router.get("/summary", async (req, res) => {
   try {

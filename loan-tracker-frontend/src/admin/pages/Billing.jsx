@@ -12,6 +12,7 @@ import Spinner from "../../components/Spinner";
 const K = (v) =>
   `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const STATUS_BADGE = {
   paid: "bg-green-100 text-green-700",
@@ -30,6 +31,11 @@ function BillingDashboard() {
   const [filter, setFilter] = useState("all");
   // Billing-period filter — empty = show all months. Format: "YYYY-MM".
   const [monthFilter, setMonthFilter] = useState("");
+  // Per-tenant monthly statement (what a tenant owes each month vs paid).
+  const [tenants, setTenants] = useState([]);
+  const [stmtTenant, setStmtTenant] = useState("");
+  const [statement, setStatement] = useState(null);
+  const [stmtLoading, setStmtLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -63,6 +69,28 @@ function BillingDashboard() {
   useEffect(() => {
     load();
   }, [filter, monthFilter]);
+
+  // Tenant list for the statement dropdown.
+  useEffect(() => {
+    platformApi
+      .get("/platform/admin/tenants")
+      .then((r) => setTenants(r.data.data || []))
+      .catch(() => {});
+  }, []);
+
+  // Load the selected tenant's monthly statement.
+  useEffect(() => {
+    if (!stmtTenant) {
+      setStatement(null);
+      return;
+    }
+    setStmtLoading(true);
+    platformApi
+      .get(`/platform/billing/tenant/${stmtTenant}/monthly`)
+      .then((r) => setStatement(r.data.data))
+      .catch(() => setStatement(null))
+      .finally(() => setStmtLoading(false));
+  }, [stmtTenant]);
 
   // Human-readable label for the currently-selected period — used in
   // the active-filter pill so the staff can see at a glance what
@@ -185,6 +213,129 @@ function BillingDashboard() {
             </div>
           </div>
         )}
+
+        {/* Per-tenant monthly statement — what a tenant is supposed to pay
+            each month (platform fee on interest collected) vs what's been
+            paid. Surfaces every month with activity, including months that
+            were never invoiced. */}
+        <div className="bg-white rounded-xl shadow p-4 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <h2 className="font-bold text-gray-800 flex items-center gap-2">
+              <ClipboardList size={18} /> Tenant Monthly Statement
+            </h2>
+            <select
+              value={stmtTenant}
+              onChange={(e) => setStmtTenant(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-ocean-500/40"
+            >
+              <option value="">Select a tenant…</option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.business_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!stmtTenant ? (
+            <p className="text-sm text-gray-400 py-6 text-center">
+              Pick a tenant to see what they owe each month, based on the
+              interest they collected.
+            </p>
+          ) : stmtLoading ? (
+            <Spinner centered className="py-8" label="Loading…" />
+          ) : !statement || statement.months.length === 0 ? (
+            <p className="text-sm text-gray-400 py-6 text-center">
+              No billable activity for this tenant yet.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500 mb-2">
+                Fee: {statement.tenant.billing_fee_percentage}% of interest
+                collected
+                {statement.tenant.billing_base_fee > 0
+                  ? ` + ${K(statement.tenant.billing_base_fee)} base`
+                  : ""}{" "}
+                ·{" "}
+                {statement.tenant.billing_enabled
+                  ? "billing enabled"
+                  : "billing disabled"}
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr className="text-gray-500">
+                      <th className="text-left p-2">Month</th>
+                      <th className="text-right p-2">Interest Collected</th>
+                      <th className="text-right p-2">Supposed to Pay</th>
+                      <th className="text-right p-2">Paid</th>
+                      <th className="text-right p-2">Outstanding</th>
+                      <th className="text-center p-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statement.months.map((m) => (
+                      <tr
+                        key={`${m.year}-${m.month}`}
+                        className="border-b last:border-0 hover:bg-gray-50"
+                      >
+                        <td className="p-2 font-medium text-gray-800 whitespace-nowrap">
+                          {MONTHS[m.month - 1]} {m.year}
+                        </td>
+                        <td className="text-right p-2">
+                          {K(m.interest_earned)}
+                        </td>
+                        <td className="text-right p-2 font-semibold">
+                          {K(m.supposed_to_pay)}
+                        </td>
+                        <td className="text-right p-2 text-green-700">
+                          {K(m.amount_paid)}
+                        </td>
+                        <td
+                          className={`text-right p-2 font-semibold ${
+                            m.outstanding > 0 ? "text-red-600" : "text-gray-400"
+                          }`}
+                        >
+                          {K(m.outstanding)}
+                        </td>
+                        <td className="text-center p-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              m.invoiced
+                                ? STATUS_BADGE[m.invoice_status] ||
+                                  "bg-gray-100 text-gray-600"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {m.invoiced ? m.invoice_status : "not invoiced"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold text-gray-800">
+                      <td className="p-2">Total</td>
+                      <td className="text-right p-2">
+                        {K(statement.totals.interest_earned)}
+                      </td>
+                      <td className="text-right p-2">
+                        {K(statement.totals.supposed_to_pay)}
+                      </td>
+                      <td className="text-right p-2 text-green-700">
+                        {K(statement.totals.amount_paid)}
+                      </td>
+                      <td className="text-right p-2 text-red-600">
+                        {K(statement.totals.outstanding)}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="flex flex-wrap gap-2 mb-4 items-center">
           {[
