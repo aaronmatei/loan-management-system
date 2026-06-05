@@ -113,7 +113,7 @@ function Signup() {
     <div className="min-h-screen bg-ocean-gradient py-8 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white">LoanFix</h1>
+          <h1 className="text-4xl font-bold text-white">LendFest</h1>
           <p className="text-ocean-100 mt-2">
             Loan Management System for Kenyan Lenders
           </p>
@@ -127,7 +127,7 @@ function Signup() {
                 {" "}You'll get <strong>{referralInfo.bonus}</strong>.
               </>
             ) : (
-              <> Welcome to LoanFix.</>
+              <> Welcome to LendFest.</>
             )}
           </div>
         )}
@@ -197,7 +197,7 @@ function Signup() {
                         className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-l-lg focus:border-ocean-500 focus:outline-none"
                       />
                       <span className="px-3 py-2 bg-gray-100 border-2 border-l-0 border-gray-200 rounded-r-lg text-sm text-gray-600">
-                        .loanfix.co.ke
+                        .lendfest.loans
                       </span>
                     </div>
                     {subdomainStatus === "checking" && (

@@ -1,7 +1,7 @@
 // Platform-admin analytics dashboard. Backed by /api/analytics/platform,
 // which guards on req.user.is_platform_admin and aggregates KPIs +
 // revenue trend + leaderboard in one round-trip. Demo and founding
-// (LoanFix, id=1) tenants are excluded server-side so this view is
+// (LendFest, id=1) tenants are excluded server-side so this view is
 // always "real paying customers".
 
 import React, { useState, useEffect } from "react";

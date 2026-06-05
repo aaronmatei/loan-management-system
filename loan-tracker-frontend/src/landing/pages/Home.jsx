@@ -65,7 +65,7 @@ function LandingHome() {
                 <Landmark size={20} className="text-white" />
               </span>
               <span className="text-xl font-extrabold bg-ocean-gradient bg-clip-text text-transparent">
-                LoanFix
+                LendFest
               </span>
             </Link>
 
@@ -174,7 +174,7 @@ function LandingHome() {
                 </div>
               </div>
               <p className="mt-5 text-sm text-gray-600 border-t border-slate-200 pt-5 flex items-start gap-1.5">
-                <User size={14} className="mt-0.5 shrink-0" /> Borrowing from a LoanFix lender?{" "}
+                <User size={14} className="mt-0.5 shrink-0" /> Borrowing from a LendFest lender?{" "}
                 <Link
                   to="/portal/register"
                   className="font-bold text-ocean-600 hover:text-ocean-700"
@@ -199,7 +199,7 @@ function LandingHome() {
                   <div className="w-3 h-3 bg-red-400 rounded-full"></div>
                   <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
                   <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  <div className="ml-2 text-xs text-gray-500 font-mono">yourbusiness.loanfix.co.ke</div>
+                  <div className="ml-2 text-xs text-gray-500 font-mono">yourbusiness.lendfest.loans</div>
                 </div>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -370,7 +370,7 @@ function LandingHome() {
                 </span>
               </h2>
               <p className="text-lg text-ocean-100/80 mb-6 leading-relaxed">
-                Borrowing from a LoanFix lender? Create one account to apply for
+                Borrowing from a LendFest lender? Create one account to apply for
                 loans, track repayments, build your credit score, and manage all
                 your lenders in a single place.
               </p>
@@ -529,7 +529,7 @@ function LandingHome() {
                 <li className="flex items-center gap-2"><Check size={14} className="text-green-500 shrink-0" /> White-label option</li>
               </ul>
               <a
-                href="mailto:sales@loanfix.co.ke"
+                href="mailto:sales@lendfest.loans"
                 className="block w-full py-3 text-center border-2 border-ocean-600 text-ocean-600 rounded-lg font-bold hover:bg-ocean-50"
               >
                 Contact Sales
@@ -555,15 +555,15 @@ function LandingHome() {
               Loved by Kenyan Lenders
             </h2>
             <p className="text-xl text-gray-600">
-              Real stories from real lenders using LoanFix
+              Real stories from real lenders using LendFest
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {[
-              { quote: "Before LoanFix, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance, Nairobi", rating: 5 },
+              { quote: "Before LendFest, I tracked 200 loans in Excel. It took hours. Now I get reports in seconds and my customers love the portal.", author: "Sarah W.", business: "ABC Microfinance, Nairobi", rating: 5 },
               { quote: "The SMS notifications alone are worth it. Clients don't forget to pay anymore. My collection rate is up 30%.", author: "John K.", business: "Quick Loans Co, Mombasa", rating: 5 },
-              { quote: "I run a chama with 50 members. LoanFix keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Chama, Kisumu", rating: 5 },
+              { quote: "I run a chama with 50 members. LendFest keeps everything transparent and my members can apply for emergency loans online.", author: "Mary A.", business: "Unity Chama, Kisumu", rating: 5 },
             ].map((t, idx) => (
               <div key={idx} className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-md p-6">
                 <div className="flex gap-1 mb-3">
@@ -596,7 +596,7 @@ function LandingHome() {
               { q: "Is my data safe?", a: "Yes! We use bank-grade encryption. Your data is backed up daily and stored in secure data centers. Only authorized staff at YOUR business can access YOUR data." },
               { q: "How does the 5% pricing work?", a: "At the end of each month, we calculate the interest you earned from loan repayments. You pay 5% of that interest as a platform fee. If you had a quiet month with no payments, you don't pay anything." },
               { q: "Can my customers really apply for loans online?", a: "Yes! Each tenant gets their own customer portal where borrowers can register, apply for new loans, track applications, and view their existing loans 24/7. It's a separate experience from your admin dashboard." },
-              { q: "Do I need technical skills?", a: "Not at all. If you can use WhatsApp, you can use LoanFix. We provide free onboarding and training. Most lenders are up and running in less than an hour." },
+              { q: "Do I need technical skills?", a: "Not at all. If you can use WhatsApp, you can use LendFest. We provide free onboarding and training. Most lenders are up and running in less than an hour." },
               { q: "What if I want to leave?", a: "You can export all your data anytime in Excel or CSV format. No vendor lock-in. We're confident you'll love it, but your data is always yours." },
               { q: "Do you integrate with M-Pesa?", a: "Yes, you can record M-Pesa payments manually now. Direct M-Pesa STK Push integration is coming soon for tenants with a business paybill account." },
               { q: "Is there a setup fee?", a: "No. Sign up is free, the 14-day trial is free, and there are no setup fees. You only pay 5% of interest earned after your trial ends." },
@@ -615,7 +615,7 @@ function LandingHome() {
             Ready to Transform Your Lending Business?
           </h2>
           <p className="text-xl lg:text-2xl text-ocean-100 mb-8">
-            Join Kenyan lenders already growing with LoanFix
+            Join Kenyan lenders already growing with LendFest
           </p>
           <Link
             to="/signup"
@@ -645,7 +645,7 @@ function LandingHome() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Landmark size={28} className="text-ocean-400" />
-                <span className="text-xl font-bold text-white">LoanFix</span>
+                <span className="text-xl font-bold text-white">LendFest</span>
               </div>
               <p className="text-sm">
                 Cloud-based loan management for African lenders. Built in Kenya,
@@ -666,7 +666,7 @@ function LandingHome() {
               <h4 className="font-bold text-white mb-3">Support</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#faq" className="hover:text-white">FAQ</a></li>
-                <li><a href="mailto:support@loanfix.co.ke" className="hover:text-white">Contact Support</a></li>
+                <li><a href="mailto:support@lendfest.loans" className="hover:text-white">Contact Support</a></li>
                 <li><a href="tel:+254700000000" className="hover:text-white">+254 700 000 000</a></li>
               </ul>
             </div>
@@ -679,7 +679,7 @@ function LandingHome() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col lg:flex-row justify-between items-center text-sm">
-            <p>© {new Date().getFullYear()} LoanFix. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} LendFest. All rights reserved.</p>
             <p>Proudly built in Kenya</p>
           </div>
         </div>

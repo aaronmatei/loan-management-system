@@ -2,7 +2,7 @@
 // setup-db.js seeds exactly these credentials; the specs log in with them.
 
 export const ADMIN = {
-  email: "e2e.admin@loanfix.test",
+  email: "e2e.admin@lendfest.test",
   password: "E2eAdmin1234!",
 };
 

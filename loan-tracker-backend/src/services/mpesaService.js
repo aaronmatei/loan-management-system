@@ -167,7 +167,7 @@ export async function initiateSTKPush({
     PartyB: shortcode,
     PhoneNumber: normalizedPhone,
     CallBackURL: callbackUrl,
-    AccountReference: (accountReference || "LoanFix").substring(0, 12),
+    AccountReference: (accountReference || "LendFest").substring(0, 12),
     TransactionDesc: (transactionDesc || "Payment").substring(0, 13),
   };
 

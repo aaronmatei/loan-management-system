@@ -46,7 +46,7 @@ router.get("/validate/:code", async (req, res) => {
 
     // Translate referred_reward_type → human-readable bonus string.
     // Default config has 'none', so most signups won't promise extras
-    // — the banner will only say "Referred by X. Welcome to LoanFix."
+    // — the banner will only say "Referred by X. Welcome to LendFest."
     let bonus = null;
     if (
       config.referred_reward_type === "extended_trial" &&

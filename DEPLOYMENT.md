@@ -1,12 +1,12 @@
-# Deployment Runbook — loanfix.co.ke
+# Deployment Runbook — lendfest.loans
 
 ```
-loanfix.co.ke       ─┐
-app.loanfix.co.ke   ─┴─▶ Vercel  (one React SPA; logged-out "/" = landing,
+lendfest.loans       ─┐
+app.lendfest.loans   ─┴─▶ Vercel  (one React SPA; logged-out "/" = landing,
                      │            logged-in = the app)
-                     │   build-time: VITE_API_URL=https://api.loanfix.co.ke/api
+                     │   build-time: VITE_API_URL=https://api.lendfest.loans/api
                      ▼
-api.loanfix.co.ke    ──▶ Render  (Node/Express backend; CORS allows the two above)
+api.lendfest.loans    ──▶ Render  (Node/Express backend; CORS allows the two above)
                      │
                      └──▶ Neon   (Postgres, DATABASE_URL + SSL)
 
@@ -15,13 +15,13 @@ DNS for all 3 hostnames is managed at HostPinnacle.
 
 The landing page and the app are the **same** SPA (`src/landing/pages/Home`
 renders at `/` when logged out). So one Vercel project serves both
-`loanfix.co.ke` and `app.loanfix.co.ke`.
+`lendfest.loans` and `app.lendfest.loans`.
 
 ### What's already wired in this repo
-- `loan-tracker-frontend/.env.production` → `VITE_API_URL=https://api.loanfix.co.ke/api`
+- `loan-tracker-frontend/.env.production` → `VITE_API_URL=https://api.lendfest.loans/api`
   (baked into the build — verified present in `dist`).
-- `render.yaml` → backend service with `CORS_ORIGINS=https://app.loanfix.co.ke,https://loanfix.co.ke`
-  and `MPESA_CALLBACK_URL=https://api.loanfix.co.ke/api/mpesa/callback`.
+- `render.yaml` → backend service with `CORS_ORIGINS=https://app.lendfest.loans,https://lendfest.loans`
+  and `MPESA_CALLBACK_URL=https://api.lendfest.loans/api/mpesa/callback`.
 - `database.js` supports Neon (`DATABASE_URL` + SSL); `app.js` CORS via `CORS_ORIGINS`.
 
 > Prereq: push this repo to GitHub (Render and Vercel deploy from it). Free
@@ -34,7 +34,7 @@ renders at `/` when logged out). So one Vercel project serves both
 ## Quick path: deploy now on default URLs (no DNS / custom domain)
 
 No DNS access yet? Launch on the free default URLs Vercel and Render hand you,
-then attach `loanfix.co.ke` later. Nothing in the repo changes — you override
+then attach `lendfest.loans` later. Nothing in the repo changes — you override
 two values in the dashboards:
 
 1. **Neon** — same as Step 1 below; get `DATABASE_URL`.
@@ -70,7 +70,7 @@ domains and point `VITE_API_URL` / `CORS_ORIGINS` back to them.
    ```
 3. That's it — you'll create the first tenant/admin via `/signup` in Step 5.
 
-## Step 2 — Backend: Render → api.loanfix.co.ke
+## Step 2 — Backend: Render → api.lendfest.loans
 
 1. Render → **New → Blueprint**, select this GitHub repo (it reads
    `render.yaml`). Or **New → Web Service**: root `loan-tracker-backend`,
@@ -81,20 +81,20 @@ domains and point `VITE_API_URL` / `CORS_ORIGINS` back to them.
    - Enable email/M-Pesa later by flipping `EMAIL_ENABLED`/`SMS_ENABLED` and
      adding their secrets.
 3. Deploy. Confirm `https://<service>.onrender.com/health` returns `{"status":"OK"}`.
-4. **Settings → Custom Domains → add `api.loanfix.co.ke`.** Render shows a
+4. **Settings → Custom Domains → add `api.lendfest.loans`.** Render shows a
    **CNAME target** (e.g. `loanfix-backend.onrender.com`) — note it for Step 4.
 
-## Step 3 — Frontend: Vercel → app.loanfix.co.ke + loanfix.co.ke
+## Step 3 — Frontend: Vercel → app.lendfest.loans + lendfest.loans
 
 1. Vercel → **Add New → Project** → import this repo.
 2. **Root Directory: `loan-tracker-frontend`.** Framework auto-detects Vite
    (build `npm run build`, output `dist`; `vercel.json` adds SPA rewrites).
 3. `VITE_API_URL` is already in `.env.production`, so no env var is needed.
    (To override, set `VITE_API_URL` in Vercel → Settings → Environment.)
-4. Deploy. **Settings → Domains → add both** `app.loanfix.co.ke` **and**
-   `loanfix.co.ke`. Vercel shows the DNS targets:
+4. Deploy. **Settings → Domains → add both** `app.lendfest.loans` **and**
+   `lendfest.loans`. Vercel shows the DNS targets:
    - subdomain `app` → CNAME → `cname.vercel-dns.com`
-   - apex `loanfix.co.ke` → A → `76.76.21.21`
+   - apex `lendfest.loans` → A → `76.76.21.21`
    (Use the exact values Vercel displays.)
 
 ## Step 4 — DNS at HostPinnacle
@@ -108,21 +108,21 @@ In HostPinnacle's DNS / Zone Editor add (use the exact targets from Steps 2–3)
 | `@` (apex)  | A     | `76.76.21.21` (from Vercel)                  | 3600 |
 
 Notes:
-- `@` is the apex `loanfix.co.ke`. HostPinnacle cPanel uses an A record for the
+- `@` is the apex `lendfest.loans`. HostPinnacle cPanel uses an A record for the
   apex (CNAME isn't allowed at the apex).
 - If you also want `www`, add `www` CNAME → `cname.vercel-dns.com` and add
-  `www.loanfix.co.ke` in Vercel.
+  `www.lendfest.loans` in Vercel.
 - TLS certificates are issued automatically by Render and Vercel (Let's
   Encrypt) once DNS resolves — allow a few minutes up to ~an hour for
   propagation + cert issuance.
 
 ## Step 5 — Go live
 
-1. Once `https://api.loanfix.co.ke/health` and `https://app.loanfix.co.ke`
-   both load over HTTPS, open **https://app.loanfix.co.ke/signup** and create
+1. Once `https://api.lendfest.loans/health` and `https://app.lendfest.loans`
+   both load over HTTPS, open **https://app.lendfest.loans/signup** and create
    your first tenant + admin account.
 2. If using M-Pesa: in the Daraja portal set the callback URL to
-   `https://api.loanfix.co.ke/api/mpesa/callback` (already the backend's
+   `https://api.lendfest.loans/api/mpesa/callback` (already the backend's
    `MPESA_CALLBACK_URL`).
 
 ---
@@ -142,7 +142,7 @@ Notes:
 Railway doesn't sleep (usage-based). New Project → Deploy from GitHub → set
 root to `loan-tracker-backend`, start `npm start`. Add the same env vars
 (`DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`, `MPESA_CALLBACK_URL`). Add a
-custom domain `api.loanfix.co.ke`; Railway gives a CNAME target to use at
+custom domain `api.lendfest.loans`; Railway gives a CNAME target to use at
 HostPinnacle instead of the Render one.
 
 ## Redis (later)

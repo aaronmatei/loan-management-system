@@ -348,7 +348,7 @@ function WhiteLabelSettings() {
                 Current URL
               </label>
               <input
-                value={`https://${s.subdomain}.loanfix.co.ke`}
+                value={`https://${s.subdomain}.lendfest.loans`}
                 readOnly
                 className={`${fld} bg-gray-50 font-mono`}
               />
@@ -366,7 +366,7 @@ function WhiteLabelSettings() {
                 className={`${fld} font-mono`}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Needs a CNAME → <code>loanfix.co.ke</code>.
+                Needs a CNAME → <code>lendfest.loans</code>.
               </p>
             </div>
             <div>

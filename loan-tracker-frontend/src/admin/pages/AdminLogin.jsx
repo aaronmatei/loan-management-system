@@ -50,7 +50,7 @@ function AdminLogin() {
             <ShieldCheck size={48} className="text-slate-700" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            LoanFix Platform Admin
+            LendFest Platform Admin
           </h1>
           <h2 className="text-gray-600 text-sm">
             Restricted area — platform administrators only
@@ -72,7 +72,7 @@ function AdminLogin() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@loanfix.com"
+              placeholder="admin@lendfest.loans"
               required
               autoFocus
               disabled={loading}

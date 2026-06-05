@@ -594,7 +594,7 @@ router.get("/platform/export/pdf", async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     doc.pipe(res);
 
-    doc.fontSize(20).fillColor("#0086cc").text("LoanFix Platform Report", {
+    doc.fontSize(20).fillColor("#0086cc").text("LendFest Platform Report", {
       align: "center",
     });
     doc
@@ -667,7 +667,7 @@ router.get("/platform/export/excel", async (req, res) => {
     const wb = new ExcelJS.Workbook();
     const s = wb.addWorksheet("Summary");
     s.columns = [{ width: 32 }, { width: 22 }];
-    s.addRow(["LoanFix Platform Report", ""]);
+    s.addRow(["LendFest Platform Report", ""]);
     s.addRow(["Generated", new Date().toLocaleString("en-KE")]);
     s.addRow([]);
     s.addRow(["Metric", "Value"]);

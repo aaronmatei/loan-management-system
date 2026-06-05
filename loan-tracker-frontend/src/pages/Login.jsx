@@ -29,7 +29,7 @@ function Login() {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(u));
       // Subdomain self-correction: if the user authenticated on the
-      // wrong *.loanfix.net subdomain (e.g. landed on kuwazo's URL
+      // wrong *.lendfest.loans subdomain (e.g. landed on kuwazo's URL
       // but credentials belong to payoneer), hop to the right one
       // BEFORE handing control to setUser/navigate. The auth token +
       // user are passed via fragment (#__lf_auth=…) so the target
@@ -37,19 +37,19 @@ function Login() {
       // session before its App.jsx reads it — without that, any
       // stale session under a different tenant on the target would
       // immediately bounce us back here in an infinite ping-pong.
-      // Skipped on non-loanfix.net hosts so dev/preview aren't
+      // Skipped on non-lendfest.loans hosts so dev/preview aren't
       // affected.
       const desired = u?.tenant?.subdomain;
       const host = window.location.hostname;
       if (
         desired
-        && host.endsWith('.loanfix.net')
-        && host.slice(0, -('.loanfix.net'.length)) !== desired
+        && host.endsWith('.lendfest.loans')
+        && host.slice(0, -('.lendfest.loans'.length)) !== desired
       ) {
         const handoff = buildAuthHandoff(response.data.token, u);
         const hash = handoff ? `#${handoff}` : '';
         window.location.replace(
-          `https://${desired}.loanfix.net/${hash}`,
+          `https://${desired}.lendfest.loans/${hash}`,
         );
         return;
       }
@@ -66,7 +66,7 @@ function Login() {
     <div className="min-h-screen flex items-center justify-center bg-ocean-gradient p-4">
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">LoanFix</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">LendFest</h1>
           <h2 className="text-gray-600">Login to your account</h2>
         </div>
 

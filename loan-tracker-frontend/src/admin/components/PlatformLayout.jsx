@@ -72,7 +72,7 @@ function PlatformLayout({ children }) {
             <div className="flex items-center gap-2.5">
               <IconTile icon={Crown} variant="ocean" size={38} />
               <div>
-                <h2 className="text-lg font-bold tracking-tight">LoanFix</h2>
+                <h2 className="text-lg font-bold tracking-tight">LendFest</h2>
                 <p className="text-xs text-ocean-200/60">Platform Admin</p>
               </div>
             </div>

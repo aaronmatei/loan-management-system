@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Ocean-blue design tokens (LoanFix platform/product chrome).
+   Ocean-blue design tokens (LendFest platform/product chrome).
    Tailwind v4 reads the theme from this @theme block (the JS
    tailwind.config.js is NOT auto-loaded in v4). This is the single
    source of truth for the ocean/navy palette — every component pulls
    `bg-ocean-600`, `text-ocean-100`, `border-navy-900`, etc. from here.
 
-   NOTE: this themes LoanFix's OWN surfaces (tenant-admin app shell,
+   NOTE: this themes LendFest's OWN surfaces (tenant-admin app shell,
    platform admin, public landing). Tenant-facing surfaces (customer
    portal, receipts, embed widget) stay driven by each tenant's
    brand_color and must NOT use these tokens.

@@ -4,7 +4,7 @@ import React from "react";
 // the ocean design system. Used in the sidebar nav, KPI cards, and
 // section headers/empty states so the icon language is consistent.
 //
-// This is LoanFix product chrome (ocean gradients). It is NOT for
+// This is LendFest product chrome (ocean gradients). It is NOT for
 // tenant-facing surfaces — those stay driven by the tenant brand_color.
 
 const GRADIENTS = {

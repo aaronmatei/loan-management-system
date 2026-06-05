@@ -261,7 +261,7 @@ function Layout({ children }) {
     if (current) return current.label;
     if (location.pathname.startsWith("/clients/")) return "Client";
     if (location.pathname.startsWith("/loans/")) return "Loan";
-    return "LoanFix";
+    return "LendFest";
   };
 
   const handleLogout = () => {
@@ -339,7 +339,7 @@ function Layout({ children }) {
             <div className="flex items-center gap-2.5">
               <IconTile icon={Wallet} variant="ocean" size={38} />
               <div>
-                <h2 className="text-xl font-bold tracking-tight">LoanFix</h2>
+                <h2 className="text-xl font-bold tracking-tight">LendFest</h2>
                 <p className="text-ocean-200/60 text-xs">Loan Manager</p>
               </div>
             </div>

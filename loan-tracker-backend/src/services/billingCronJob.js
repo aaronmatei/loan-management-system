@@ -1,7 +1,7 @@
 // Daily cron: tenant-invoice lifecycle automation.
 // Distinct from paymentReminderJob.js (which handles customer-facing
 // loan payment_reminder + payment_overdue). This one handles the
-// PLATFORM side — LoanFix billing tenants:
+// PLATFORM side — LendFest billing tenants:
 //
 //   1. markOverdueInvoices()  invoices past due_date → status='overdue'
 //                              + email tenant's billing contact.
@@ -58,7 +58,7 @@ export async function markOverdueInvoices() {
         to,
         subject: `⚠️ Invoice Overdue — ${inv.invoice_number}`,
         html: invoiceOverdueHtml(inv, tenant, outstanding),
-        fromName: "LoanFix Billing",
+        fromName: "LendFest Billing",
       });
       // Audit + email log
       await query(
@@ -133,9 +133,9 @@ export async function autoSuspendTenants() {
       if (to) {
         const res = await sendEmail({
           to,
-          subject: "🚫 LoanFix Account Suspended",
+          subject: "🚫 LendFest Account Suspended",
           html: suspensionHtml(row),
-          fromName: "LoanFix Billing",
+          fromName: "LendFest Billing",
         });
         await query(
           `INSERT INTO email_logs
@@ -144,7 +144,7 @@ export async function autoSuspendTenants() {
           [
             row.id,
             to,
-            "🚫 LoanFix Account Suspended",
+            "🚫 LendFest Account Suspended",
             res?.success ? "sent" : "failed",
             JSON.stringify(res || {}),
           ],
@@ -218,9 +218,9 @@ export async function autoReactivateTenants() {
       if (to) {
         const res = await sendEmail({
           to,
-          subject: "✅ LoanFix Account Reactivated",
+          subject: "✅ LendFest Account Reactivated",
           html: reactivationHtml(row),
-          fromName: "LoanFix Billing",
+          fromName: "LendFest Billing",
         });
         await query(
           `INSERT INTO email_logs
@@ -229,7 +229,7 @@ export async function autoReactivateTenants() {
           [
             row.id,
             to,
-            "✅ LoanFix Account Reactivated",
+            "✅ LendFest Account Reactivated",
             res?.success ? "sent" : "failed",
             JSON.stringify(res || {}),
           ],
@@ -283,9 +283,9 @@ export async function sendDailySummary(results = {}) {
     try {
       const res = await sendEmail({
         to: a.email,
-        subject: `📊 LoanFix Daily Summary — ${new Date().toLocaleDateString("en-GB")}`,
+        subject: `📊 LendFest Daily Summary — ${new Date().toLocaleDateString("en-GB")}`,
         html: dailySummaryHtml(results, stats),
-        fromName: "LoanFix System",
+        fromName: "LendFest System",
       });
       await query(
         `INSERT INTO email_logs
@@ -293,7 +293,7 @@ export async function sendDailySummary(results = {}) {
          VALUES (NULL, $1, $2, 'daily_summary', false, $3, $4)`,
         [
           a.email,
-          `📊 LoanFix Daily Summary — ${new Date().toLocaleDateString("en-GB")}`,
+          `📊 LendFest Daily Summary — ${new Date().toLocaleDateString("en-GB")}`,
           res?.success ? "sent" : "failed",
           JSON.stringify(res || {}),
         ],
@@ -405,7 +405,7 @@ async function sendInvoiceGenerationSummary(results) {
     for (const a of admins.rows) {
       const res = await sendEmail({
         to: a.email,
-        fromName: "LoanFix System",
+        fromName: "LendFest System",
         subject,
         html: invoiceGenerationHtml(results),
       });
@@ -453,7 +453,7 @@ function invoiceOverdueHtml(inv, tenant, outstanding) {
       </td></tr>
       <tr><td style="padding:30px;">
         <p>Hi <strong>${tenant.business_name}</strong>,</p>
-        <p>Your LoanFix invoice is now overdue.</p>
+        <p>Your LendFest invoice is now overdue.</p>
         <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:16px;border-radius:8px;margin:20px 0;">
           <p style="margin:0 0 4px 0;"><strong>Invoice:</strong> ${inv.invoice_number}</p>
           <p style="margin:0 0 4px 0;"><strong>Due:</strong> ${new Date(inv.due_date).toLocaleDateString("en-GB")}</p>
@@ -472,7 +472,7 @@ function suspensionHtml(tenant) {
       </td></tr>
       <tr><td style="padding:30px;">
         <p>Hi <strong>${tenant.business_name}</strong>,</p>
-        <p>Your LoanFix account has been suspended due to unpaid invoices past the grace period.</p>
+        <p>Your LendFest account has been suspended due to unpaid invoices past the grace period.</p>
         <ul>
           <li>Staff dashboard access is blocked</li>
           <li>Customer portal continues to work (we don't penalize customers)</li>
@@ -531,7 +531,7 @@ function dailySummaryHtml(results, stats) {
   return `<html><body style="font-family:Arial,sans-serif;background:#f3f4f6;padding:20px;">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;margin:0 auto;overflow:hidden;">
       <tr><td style="background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;padding:30px;text-align:center;">
-        <h1 style="margin:0;">📊 LoanFix Daily Summary</h1>
+        <h1 style="margin:0;">📊 LendFest Daily Summary</h1>
         <p style="margin:8px 0 0 0;opacity:.9;">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
       </td></tr>
       <tr><td style="padding:30px;">

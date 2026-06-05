@@ -63,9 +63,9 @@ const app = express();
 
 // CORS — local dev origins plus any extra origins from CORS_ORIGINS
 // (comma-separated). Each CORS_ORIGINS entry may be an exact origin
-// (https://app.loanfix.net) OR a single-wildcard subdomain pattern
-// (https://*.loanfix.net) — needed because tenant customer portals
-// live at <subdomain>.loanfix.net and new subdomains appear every
+// (https://app.lendfest.loans) OR a single-wildcard subdomain pattern
+// (https://*.lendfest.loans) — needed because tenant customer portals
+// live at <subdomain>.lendfest.loans and new subdomains appear every
 // time a lender signs up. The * matches one DNS label (no dots).
 const corsEntries = [
   "http://localhost:5173",

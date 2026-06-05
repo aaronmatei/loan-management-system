@@ -43,12 +43,12 @@ services:
       - key: JWT_EXPIRE
         value: 7d
       # Comma-separated allowed browser origins. Apex (landing + app), the
-      # app subdomain, and every tenant customer portal (kuwazo.loanfix.net,
-      # payoneerr.loanfix.net, …) all hit this API. The wildcard entry tells
+      # app subdomain, and every tenant customer portal (kuwazo.lendfest.loans,
+      # payoneerr.lendfest.loans, …) all hit this API. The wildcard entry tells
       # the CORS matcher (app.js) to accept any one-label subdomain of
-      # loanfix.net.
+      # lendfest.loans.
       - key: CORS_ORIGINS
-        value: https://loanfix.net,https://www.loanfix.net,https://app.loanfix.net,https://*.loanfix.net
+        value: https://lendfest.loans,https://www.lendfest.loans,https://app.lendfest.loans,https://*.lendfest.loans
       # External integrations OFF by default; flip the flag + add the secrets
       # in the dashboard when ready. Forced to "false" in preview envs too so
       # a reviewer poking at a PR can't accidentally page a real borrower
@@ -91,7 +91,7 @@ services:
       - key: MPESA_PASSKEY
         sync: false
       - key: MPESA_CALLBACK_URL
-        value: https://api.loanfix.net/api/mpesa/callback
+        value: https://api.lendfest.loans/api/mpesa/callback
       - key: BACKUP_SCHEDULE_ENABLED
         value: "false"
         previewValue: "false" # never run backup jobs from a preview env

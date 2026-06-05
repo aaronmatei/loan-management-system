@@ -178,7 +178,7 @@ function Profile() {
             )}
           </Row>
           <Row label="ID Number">{customer.id_number}</Row>
-          <Row label="LoanFix ID">
+          <Row label="LendFest ID">
             <span className="font-mono">{customer.customer_code || "—"}</span>
           </Row>
           <Row label="Member Since">

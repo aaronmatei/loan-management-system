@@ -11,7 +11,7 @@
 // We do NOT pull from req here — scoping lives in the route handler
 // so this stays unit-testable and reusable from cron/CLI later if
 // needed. Platform-level methods always filter out is_demo tenants
-// (and the founding LoanFix tenant id=1 for the leaderboard).
+// (and the founding LendFest tenant id=1 for the leaderboard).
 
 import { query } from "../config/database.js";
 import logger from "../config/logger.js";
@@ -883,7 +883,7 @@ class AnalyticsService {
   }
 
   // Tenant leaderboard by disbursement volume. Excludes (a) demo
-  // tenants and (b) whichever tenant owns the LoanFix platform admins
+  // tenants and (b) whichever tenant owns the LendFest platform admins
   // — the spec assumed id=1 but in this DB id=1 is a real lender, so
   // we detect the platform tenant by its is_platform_admin users
   // instead.

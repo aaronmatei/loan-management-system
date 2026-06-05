@@ -80,7 +80,7 @@ const isAtOrPastCurrent = (period) => {
 // so shared links open the same window; subsequent changes write
 // back to both.
 
-export const STORAGE_KEY = "loanfix:period";
+export const STORAGE_KEY = "lendfest:period";
 
 function readFromUrl(search) {
   const sp = new URLSearchParams(search);

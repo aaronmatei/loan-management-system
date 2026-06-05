@@ -463,7 +463,7 @@ function Expenses() {
               Platform billing
             </h3>
             <p className="text-sm text-stone-600 leading-relaxed">
-              The invoices LoanFix sends you. Settle them, then mirror as an
+              The invoices LendFest sends you. Settle them, then mirror as an
               expense entry under "Platform Billing".
             </p>
             <p className="text-xs mt-3 text-stone-700 font-medium inline-flex items-center gap-1.5">
@@ -1067,7 +1067,7 @@ function CategoriesModal({ categories, onClose }) {
                   {c.is_system ? (
                     <span
                       className="px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 text-[10px] font-bold uppercase"
-                      title="Auto-managed by LoanFix — populated from paid Platform Billing invoices"
+                      title="Auto-managed by LendFest — populated from paid Platform Billing invoices"
                     >
                       Auto
                     </span>

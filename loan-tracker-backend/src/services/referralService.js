@@ -193,7 +193,7 @@ class ReferralService {
           to: r.contact_email,
           subject: "🎁 You earned a referral reward!",
           html: this.getRewardEmail(r.business_name, referral),
-          fromName: "LoanFix",
+          fromName: "LendFest",
         });
       }
 
@@ -294,7 +294,7 @@ class ReferralService {
         </td></tr>
         <tr><td style="padding:30px;">
           <p>Hi <strong>${businessName}</strong>,</p>
-          <p>Great news! <strong>${referral.referred_business_name}</strong> signed up for LoanFix using your referral link and is now active.</p>
+          <p>Great news! <strong>${referral.referred_business_name}</strong> signed up for LendFest using your referral link and is now active.</p>
           <div style="background:#dcfce7;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">
             <p style="margin:0;color:#15803d;font-size:20px;font-weight:bold;">🎉 You've earned 1 FREE MONTH!</p>
             <p style="margin:8px 0 0 0;color:#166534;">Your next platform fee will be waived automatically.</p>

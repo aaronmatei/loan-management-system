@@ -1,7 +1,7 @@
 // Brand theming for the tenant-facing customer portal. The portal is
 // white-labeled: every accent/gradient derives from the CURRENT lender's
 // brand_color (read from the same localStorage key PortalLayout uses),
-// never LoanFix ocean. Falls back to a neutral blue if unset/invalid.
+// never LendFest ocean. Falls back to a neutral blue if unset/invalid.
 //
 // Usage:
 //   const { brand, gradient, rgba } = getPortalBrand();

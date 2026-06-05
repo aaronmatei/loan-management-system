@@ -264,10 +264,10 @@ router.post(
     // { success:false } instead of throwing, so it won't break user creation.
     // `password` is the plaintext temp password from req.body.
     /*
-    const loginUrl = process.env.APP_URL || "https://app.loanfix.co.ke";
+    const loginUrl = process.env.APP_URL || "https://app.lendfest.loans";
     await sendEmail({
       to: normalizedEmail,
-      subject: "You've been invited to LoanFix",
+      subject: "You've been invited to LendFest",
       html: `
         <p>Hi ${first_name},</p>
         <p>An account has been created for you (role: <b>${role}</b>).</p>
