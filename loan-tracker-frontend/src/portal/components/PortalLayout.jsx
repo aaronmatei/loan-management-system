@@ -83,20 +83,20 @@ function PortalLayout({ children }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } flex flex-col`}
       >
-        <div className="p-6 pb-4 border-b border-white/10 flex items-center justify-between">
+        <div className="p-6 pb-4 bg-cream-50 border-b border-cream-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <LogoMark variant="color" className="h-9 w-9 shrink-0" />
             <div>
               <span className="font-display text-xl font-extrabold tracking-tight leading-none">
-                <span className="text-cream-50">Lend</span>
-                <span className="text-ocean-400">Fest</span>
+                <span className="text-navy-900">Lend</span>
+                <span className="text-ocean-600">Fest</span>
               </span>
-              <p className="text-ocean-200/60 text-xs">Client Portal</p>
+              <p className="text-slate-500 text-xs">Client Portal</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-ocean-200/70 hover:text-white"
+            className="lg:hidden text-slate-400 hover:text-slate-700"
             aria-label="Close menu"
           >
             <X size={22} />

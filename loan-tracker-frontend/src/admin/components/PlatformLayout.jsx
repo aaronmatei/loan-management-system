@@ -68,15 +68,15 @@ function PlatformLayout({ children }) {
             sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           } bg-navy-gradient text-white flex flex-col`}
         >
-          <div className="p-6 border-b border-white/10">
+          <div className="p-6 bg-cream-50 border-b border-cream-100">
             <div className="flex items-center gap-2.5">
               <LogoMark variant="color" className="h-9 w-9 shrink-0" />
               <div>
                 <span className="font-display text-lg font-extrabold tracking-tight leading-none">
-                  <span className="text-cream-50">Lend</span>
-                  <span className="text-ocean-400">Fest</span>
+                  <span className="text-navy-900">Lend</span>
+                  <span className="text-ocean-600">Fest</span>
                 </span>
-                <p className="text-xs text-ocean-200/60">Platform Admin</p>
+                <p className="text-xs text-slate-500">Platform Admin</p>
               </div>
             </div>
           </div>
