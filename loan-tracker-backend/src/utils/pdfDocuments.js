@@ -1597,7 +1597,17 @@ export const buildInvoicePdf = async (invoiceId, tid) => {
     });
   }
 
-  drawBrandMark(doc, { x: (PAGE_W - 10) / 2, y: 774, size: 10 });
+  // Official LenderFest stamp, bottom-right (this is LenderFest's bill).
+  drawPdfStamp(doc, {
+    x: PAGE_W - 168,
+    y: 612,
+    size: 118,
+    tenant: { business_name: "LenderFest", city: "Nairobi", country: "Kenya" },
+  });
+
+  // Footer — kept clear of the A4 bottom margin (842 − 50 = 792) and marked
+  // lineBreak:false so a single line never tips the doc onto a 2nd page.
+  drawBrandMark(doc, { x: (PAGE_W - 10) / 2, y: 756, size: 10 });
   doc
     .font(FONT.reg)
     .fontSize(8)
@@ -1605,17 +1615,9 @@ export const buildInvoicePdf = async (invoiceId, tid) => {
     .text(
       `Generated ${new Date().toLocaleDateString("en-KE")} · Powered by LenderFest`,
       M,
-      790,
-      { width: PAGE_W - M * 2, align: "center" },
+      772,
+      { width: PAGE_W - M * 2, align: "center", lineBreak: false },
     );
-
-  // Official LenderFest stamp, bottom-right (this is LenderFest's bill).
-  drawPdfStamp(doc, {
-    x: PAGE_W - 168,
-    y: 628,
-    size: 120,
-    tenant: { business_name: "LenderFest", city: "Nairobi", country: "Kenya" },
-  });
 
   doc.end();
   const buffer = await done;
