@@ -155,22 +155,28 @@ export async function resetDemoData() {
   // ── 18 loans — a realistic mix: completed, current, overdue and
   //    defaulted, all dated within the current year.
   console.log("💰 loans + schedules…");
-  const amounts = [5000, 10000, 15000, 25000, 40000, 50000, 75000, 100000];
+  const amounts = [25000, 50000, 75000, 100000, 150000, 200000, 250000];
   const durations = [3, 6, 12];
   // Profile drives status, how far back the loan started, and repayment.
+  // Weighted heavily toward completed/current so realised interest income
+  // clearly beats expenses — a profitable book entices investors; a loss
+  // scares them off. Only a couple of small defaults for realism.
   const profiles = [
-    ...Array(5).fill("completed"),
-    ...Array(6).fill("current"),
+    ...Array(16).fill("completed"),
+    ...Array(12).fill("current"),
     ...Array(4).fill("overdue"),
-    ...Array(3).fill("defaulted"),
+    ...Array(2).fill("defaulted"),
   ];
   const lapsedLoans = []; // overdue/defaulted loans → candidates for waivers
 
   for (let i = 0; i < profiles.length; i++) {
     const profile = profiles[i];
     const clientId = pick(clientIds);
-    const principal = pick(amounts);
-    const months = profile === "completed" ? pick([3, 6]) : pick(durations);
+    // Keep defaulted loans small so the written-off principal stays minor.
+    const principal =
+      profile === "defaulted" ? pick([25000, 50000]) : pick(amounts);
+    // Completed loans skew longer → more interest actually realised.
+    const months = profile === "completed" ? pick([6, 12]) : pick(durations);
     const annualRate = 50; // platform default
     const monthlyRatePct = annualRate / 12; // monthly % (loans.interest_rate)
     const totalInterest = principal * (monthlyRatePct / 100) * months;
