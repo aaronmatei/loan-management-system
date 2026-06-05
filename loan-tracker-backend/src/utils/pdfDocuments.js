@@ -1429,10 +1429,191 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   return { buffer, filename };
 };
 
+// ============================================================
+// PLATFORM INVOICE — the LenderFest bill a tenant gets each month (a fee
+// on the interest they earned). Tenant-scoped; downloadable from the
+// tenant Billing page. Same {buffer, filename} contract as the others.
+// ============================================================
+export const buildInvoicePdf = async (invoiceId, tid) => {
+  const it = tClause(tid, 1, "i.tenant_id");
+  const invRes = await query(
+    `SELECT i.*,
+            tn.business_name AS tenant_name,
+            tn.subdomain     AS tenant_subdomain,
+            tn.contact_email AS tenant_email
+       FROM invoices i
+       JOIN tenants tn ON tn.id = i.tenant_id
+      WHERE i.id = $1${it.clause}`,
+    [invoiceId, ...it.params],
+  );
+  if (invRes.rows.length === 0) throw new NotFoundError("Invoice not found");
+  const inv = invRes.rows[0];
+
+  const payRes = await query(
+    `SELECT amount, payment_method, payment_reference, payment_date
+       FROM invoice_payments WHERE invoice_id = $1
+      ORDER BY payment_date ASC, id ASC`,
+    [invoiceId],
+  );
+
+  const MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const money = (n) =>
+    "KES " +
+    parseFloat(n || 0).toLocaleString("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  const fmtDate = (d) =>
+    d
+      ? new Date(d).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
+  registerPdfFonts(doc);
+  const filename = `invoice_${inv.invoice_number}.pdf`;
+  const done = streamToBuffer(doc);
+
+  const PAGE_W = doc.page.width;
+  const M = 50;
+  const RIGHT = PAGE_W - M;
+  const period = `${MONTHS[(inv.billing_month || 1) - 1]} ${inv.billing_year}`;
+
+  // Header band
+  doc.rect(0, 0, PAGE_W, 96).fill("#0e8a6e");
+  doc.fillColor("#ffffff").font(FONT.display).fontSize(24).text("LenderFest", M, 30);
+  doc.font(FONT.reg).fontSize(10).fillColor("#dff3ec").text("Platform Invoice", M, 64);
+  doc
+    .font(FONT.bold)
+    .fontSize(16)
+    .fillColor("#ffffff")
+    .text(inv.invoice_number, M, 32, { width: PAGE_W - M * 2, align: "right" });
+  doc
+    .font(FONT.reg)
+    .fontSize(10)
+    .fillColor("#dff3ec")
+    .text(String(inv.status || "pending").toUpperCase(), M, 64, {
+      width: PAGE_W - M * 2,
+      align: "right",
+    });
+
+  doc.fillColor("#000");
+  let y = 130;
+
+  // Billed-to + period/dates
+  doc.font(FONT.bold).fontSize(9).fillColor("#64748b").text("BILLED TO", M, y);
+  doc.font(FONT.bold).fontSize(13).fillColor("#122a2e").text(inv.tenant_name || "—", M, y + 14);
+  doc
+    .font(FONT.reg)
+    .fontSize(10)
+    .fillColor("#475569")
+    .text(
+      `${inv.tenant_subdomain || ""}${inv.tenant_email ? " · " + inv.tenant_email : ""}`,
+      M,
+      y + 32,
+    );
+
+  doc
+    .font(FONT.bold)
+    .fontSize(9)
+    .fillColor("#64748b")
+    .text("BILLING PERIOD", RIGHT - 220, y, { width: 220, align: "right" });
+  doc
+    .font(FONT.bold)
+    .fontSize(13)
+    .fillColor("#122a2e")
+    .text(period, RIGHT - 220, y + 14, { width: 220, align: "right" });
+  doc
+    .font(FONT.reg)
+    .fontSize(10)
+    .fillColor("#475569")
+    .text(`Issued ${fmtDate(inv.issued_date)} · Due ${fmtDate(inv.due_date)}`, RIGHT - 260, y + 32, {
+      width: 260,
+      align: "right",
+    });
+
+  y += 72;
+  doc.moveTo(M, y).lineTo(RIGHT, y).strokeColor("#e2e8f0").stroke();
+  y += 16;
+
+  const row = (label, value, opts = {}) => {
+    doc
+      .font(opts.bold ? FONT.bold : FONT.reg)
+      .fontSize(opts.size || 10)
+      .fillColor(opts.color || "#334155");
+    doc.text(label, M, y, { width: 320 });
+    doc.text(value, RIGHT - 200, y, { width: 200, align: "right" });
+    y += opts.gap || 20;
+  };
+
+  doc.font(FONT.bold).fontSize(9).fillColor("#64748b").text("DESCRIPTION", M, y);
+  doc.text("AMOUNT", RIGHT - 200, y, { width: 200, align: "right" });
+  y += 18;
+  row(`Interest you earned (${period})`, money(inv.interest_earned));
+  row(`Platform fee (${parseFloat(inv.fee_percentage)}% of interest)`, money(inv.amount_due));
+  if (parseFloat(inv.base_fee) > 0) row("Base fee", money(inv.base_fee));
+  if (parseFloat(inv.addon_fees) > 0) row("Add-on fees", money(inv.addon_fees));
+  if (parseFloat(inv.discount) > 0) row("Discount", "-" + money(inv.discount));
+  y += 4;
+  doc.moveTo(M, y).lineTo(RIGHT, y).strokeColor("#e2e8f0").stroke();
+  y += 14;
+  row("Total", money(inv.total_amount), { bold: true, size: 12, color: "#122a2e", gap: 22 });
+  row("Paid", money(inv.amount_paid), { color: "#0e8a6e" });
+  const balance = Math.max(
+    0,
+    parseFloat(inv.total_amount) - parseFloat(inv.amount_paid || 0),
+  );
+  row("Balance due", money(balance), {
+    bold: true,
+    size: 12,
+    color: balance > 0 ? "#dc2626" : "#0e8a6e",
+    gap: 24,
+  });
+
+  if (payRes.rows.length) {
+    y += 8;
+    doc.font(FONT.bold).fontSize(9).fillColor("#64748b").text("PAYMENT HISTORY", M, y);
+    y += 16;
+    payRes.rows.forEach((p) => {
+      doc.font(FONT.reg).fontSize(9.5).fillColor("#475569");
+      doc.text(
+        `${fmtDate(p.payment_date)} · ${p.payment_method || "—"}${p.payment_reference ? " · " + p.payment_reference : ""}`,
+        M,
+        y,
+        { width: 340 },
+      );
+      doc.text(money(p.amount), RIGHT - 200, y, { width: 200, align: "right" });
+      y += 16;
+    });
+  }
+
+  doc
+    .font(FONT.reg)
+    .fontSize(8)
+    .fillColor("#94a3b8")
+    .text(
+      `Generated ${new Date().toLocaleDateString("en-KE")} · Powered by LenderFest`,
+      M,
+      790,
+      { width: PAGE_W - M * 2, align: "center" },
+    );
+
+  doc.end();
+  const buffer = await done;
+  return { buffer, filename };
+};
+
 export default {
   buildClientStatementPdf,
   buildLoanStatementPdf,
   buildReceiptPdf,
   buildLoanAgreementPdf,
+  buildInvoicePdf,
   NotFoundError,
 };

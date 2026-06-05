@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Receipt, AlertTriangle, CheckCircle, Smartphone } from "lucide-react";
+import { Receipt, AlertTriangle, CheckCircle, Smartphone, Download } from "lucide-react";
 import api from "../services/api";
 import Spinner from "../components/Spinner";
 
@@ -23,6 +23,7 @@ function Billing() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [paying, setPaying] = useState(null);
+  const [downloading, setDownloading] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -67,6 +68,28 @@ function Billing() {
       alert("Failed: " + (err.response?.data?.error || err.message));
     } finally {
       setPaying(null);
+    }
+  };
+
+  // Download the invoice as a branded PDF (authenticated blob fetch).
+  const downloadInvoice = async (inv) => {
+    setDownloading(inv.id);
+    try {
+      const res = await api.get(`/billing/invoices/${inv.id}/pdf`, {
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice_${inv.invoice_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Failed to download invoice");
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -189,18 +212,26 @@ function Billing() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {payable ? (
+                            <div className="inline-flex items-center gap-2 justify-end">
                               <button
-                                onClick={() => payInvoice(inv)}
-                                disabled={paying === inv.id}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
+                                onClick={() => downloadInvoice(inv)}
+                                disabled={downloading === inv.id}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-lg disabled:opacity-50"
                               >
-                                <Smartphone size={14} />
-                                {paying === inv.id ? "Sending…" : "Pay (M-Pesa)"}
+                                <Download size={14} />
+                                {downloading === inv.id ? "…" : "Download"}
                               </button>
-                            ) : (
-                              <span className="text-xs text-gray-400">—</span>
-                            )}
+                              {payable && (
+                                <button
+                                  onClick={() => payInvoice(inv)}
+                                  disabled={paying === inv.id}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
+                                >
+                                  <Smartphone size={14} />
+                                  {paying === inv.id ? "Sending…" : "Pay (M-Pesa)"}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );

@@ -6,6 +6,7 @@ import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import logger from "../config/logger.js";
+import { buildInvoicePdf } from "../utils/pdfDocuments.js";
 
 const router = express.Router();
 router.use(verifyToken, authorize("admin", "manager"));
@@ -89,6 +90,27 @@ router.get("/invoices/:id", async (req, res) => {
   } catch (error) {
     logger.error("Tenant invoice detail error:", error);
     res.status(500).json({ error: "Failed to fetch invoice" });
+  }
+});
+
+// Download an invoice as a branded PDF (tenant-scoped).
+router.get("/invoices/:id/pdf", async (req, res) => {
+  try {
+    const tid = requireTenant(req, res);
+    if (!tid) return;
+    const { buffer, filename } = await buildInvoicePdf(
+      parseInt(req.params.id, 10),
+      tid,
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    if (error.name === "NotFoundError") {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+    logger.error("Tenant invoice PDF error:", error);
+    res.status(500).json({ error: "Failed to generate invoice PDF" });
   }
 });
 
