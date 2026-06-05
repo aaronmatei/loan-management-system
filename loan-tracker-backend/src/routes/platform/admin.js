@@ -42,6 +42,20 @@ router.get("/dashboard", async (req, res) => {
            WHERE status IN ('active','completed','defaulted')) AS total_disbursed,
         (SELECT COALESCE(SUM(amount_paid),0) FROM transactions
            WHERE payment_status='completed') AS total_collected,
+        -- Interest the platform's lenders are contracted to earn on disbursed loans.
+        (SELECT COALESCE(SUM(total_interest),0) FROM loans
+           WHERE status IN ('active','completed','defaulted')) AS total_contract_interest,
+        -- Interest actually earned to date — the same per-installment formula
+        -- the loan summary + tenant leaderboard use (waiver interest + cash
+        -- share of each installment's interest, capped at its interest share).
+        (SELECT COALESCE(SUM(LEAST(
+            l.total_interest / NULLIF(l.loan_duration_months, 0),
+            COALESCE(ps.interest_paid, 0)
+              + (l.total_interest / NULLIF(l.loan_duration_months, 0))
+                * LEAST(1, ps.amount_paid / NULLIF(ps.amount_due, 0))
+          )), 0)
+          FROM payment_schedules ps
+          JOIN loans l ON l.id = ps.loan_id) AS total_interest_collected,
         (SELECT COUNT(*) FROM users WHERE is_platform_admin = false)::int AS total_staff_users,
         (SELECT COUNT(*) FROM platform_customers)::int AS total_customers,
         (SELECT COUNT(*) FROM customer_tenant_links)::int AS total_customer_links

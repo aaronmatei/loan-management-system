@@ -113,6 +113,18 @@ function PlatformDashboard() {
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b">
+                <span>Contract Interest</span>
+                <span className="font-bold">
+                  {M(pm.total_contract_interest)}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span>Interest Collected</span>
+                <span className="font-bold text-green-600">
+                  {M(pm.total_interest_collected)}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
                 <span>Staff Users</span>
                 <span className="font-bold">{pm.total_staff_users}</span>
               </div>
