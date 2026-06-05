@@ -101,11 +101,16 @@ export async function resetDemoData() {
 
   // ── Clear in dependency order (applications live in loans table,
   //    so the loans DELETE covers them too).
+  await q(`DELETE FROM invoice_payments   WHERE invoice_id IN (SELECT id FROM invoices WHERE tenant_id = $1)`, [tid]);
+  await q(`DELETE FROM invoices           WHERE tenant_id = $1`, [tid]);
+  await q(`DELETE FROM expenses           WHERE tenant_id = $1`, [tid]);
+  await q(`DELETE FROM capital_transactions WHERE tenant_id = $1`, [tid]);
   await q(`DELETE FROM transactions       WHERE tenant_id = $1`, [tid]);
   await q(`DELETE FROM loan_waivers       WHERE tenant_id = $1`, [tid]);
   await q(`DELETE FROM payment_schedules  WHERE loan_id IN (SELECT id FROM loans WHERE tenant_id = $1)`, [tid]);
   await q(`DELETE FROM loans              WHERE tenant_id = $1`, [tid]);
   await q(`DELETE FROM clients            WHERE tenant_id = $1`, [tid]);
+  await q(`DELETE FROM capital_pool       WHERE tenant_id = $1`, [tid]);
   await q(`DELETE FROM audit_logs         WHERE tenant_id = $1`, [tid]);
 
   // ── 25 clients
@@ -334,6 +339,147 @@ export async function resetDemoData() {
     );
   }
 
+  // ── Capital pool + ledger (drives the Dashboard "Capital Pool" card).
+  console.log("🏦 capital pool…");
+  const agg = await q(
+    `SELECT
+       (SELECT COALESCE(SUM(principal_amount),0) FROM loans
+          WHERE tenant_id=$1 AND status <> 'pending')::float AS disbursed,
+       (SELECT COALESCE(SUM(amount_paid),0) FROM transactions
+          WHERE tenant_id=$1)::float AS collected,
+       (SELECT COALESCE(SUM(t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due,0))),0)
+          FROM transactions t JOIN loans l ON l.id=t.loan_id
+          WHERE t.tenant_id=$1)::float AS interest,
+       (SELECT COALESCE(SUM(amount),0) FROM loan_waivers
+          WHERE tenant_id=$1 AND status='approved')::float AS waived`,
+    [tid],
+  );
+  const { disbursed, collected, interest: interestEarned, waived } = agg.rows[0];
+  // Fund the pool comfortably above what's been lent out.
+  const initialCapital = Math.ceil(disbursed / 500000) * 500000 + 1500000;
+  const fundDate = iso(day(150));
+
+  await q(
+    `INSERT INTO capital_pool
+       (tenant_id, initial_capital, total_disbursed, total_collected,
+        total_interest_earned, total_waived, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7::timestamp,NOW())`,
+    [tid, initialCapital, disbursed, collected, interestEarned, waived, fundDate],
+  );
+  // Ledger: the funding top-up, a disbursement per loan, a receipt per payment.
+  await q(
+    `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, description, created_at)
+     VALUES ($1, 'capital_added', $2, 'Initial capital injection', $3::timestamp)`,
+    [tid, initialCapital, fundDate],
+  );
+  await q(
+    `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, description, created_at)
+     SELECT tenant_id, 'loan_disbursed', principal_amount, id,
+            'Disbursed ' || loan_code, start_date::timestamp
+       FROM loans WHERE tenant_id=$1 AND status <> 'pending'`,
+    [tid],
+  );
+  await q(
+    `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, transaction_id, description, created_at)
+     SELECT tenant_id, 'payment_received', amount_paid, loan_id, id,
+            'Payment ' || transaction_code, payment_date::timestamp
+       FROM transactions WHERE tenant_id=$1`,
+    [tid],
+  );
+
+  // ── Expenses (default categories created once, then a spread of spend).
+  console.log("🧾 expenses…");
+  await q(
+    `INSERT INTO expense_categories (tenant_id, name, icon, is_default, sort_order)
+     VALUES
+       ($1,'Salaries & Wages','users',true,10),
+       ($1,'Office Supplies & Equipment','package',true,30),
+       ($1,'Transport & Travel','car',true,40),
+       ($1,'Rent & Utilities','home',true,80),
+       ($1,'Marketing & Promotion','megaphone',true,90)
+     ON CONFLICT (tenant_id, name) DO NOTHING`,
+    [tid],
+  );
+  const cats = await q(`SELECT id, name FROM expense_categories WHERE tenant_id=$1`, [tid]);
+  const catId = (name) => (cats.rows.find((c) => c.name === name) || cats.rows[0]).id;
+  const EXPENSES = [
+    ["Rent & Utilities", 25000, "Office rent — main branch"],
+    ["Salaries & Wages", 60000, "Staff salaries"],
+    ["Transport & Travel", 4500, "Field visits — fuel"],
+    ["Marketing & Promotion", 8000, "Local radio advert"],
+    ["Office Supplies & Equipment", 12000, "Printer + stationery"],
+    ["Rent & Utilities", 6200, "Electricity & water"],
+    ["Transport & Travel", 3200, "Boda for collections"],
+    ["Salaries & Wages", 15000, "Casual — data entry"],
+    ["Marketing & Promotion", 5000, "Posters & flyers"],
+    ["Office Supplies & Equipment", 2800, "Airtime & bundles"],
+    ["Rent & Utilities", 25000, "Office rent — main branch"],
+    ["Transport & Travel", 3800, "Field visits — fuel"],
+  ];
+  for (let i = 0; i < EXPENSES.length; i++) {
+    const [cat, amount, desc] = EXPENSES[i];
+    const when = iso(day(10 + Math.floor(Math.random() * 140)));
+    await q(
+      `INSERT INTO expenses
+         (tenant_id, category_id, amount, description, expense_date,
+          payment_method, recorded_by, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5::date,'M-Pesa',$6,$5::timestamp,$5::timestamp)`,
+      [tid, catId(cat), amount, desc, when, uid],
+    );
+  }
+
+  // ── Platform invoices (the lender's monthly LenderFest bill).
+  console.log("📑 invoices…");
+  const yr = new Date().getFullYear();
+  const curMonth = new Date().getMonth() + 1; // 1..12
+  const FEE_PCT = 5;
+  for (let m = 1; m < curMonth; m++) {
+    const r = await q(
+      `SELECT COALESCE(SUM(t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due,0))),0)::float AS interest
+         FROM transactions t JOIN loans l ON l.id=t.loan_id
+        WHERE t.tenant_id=$1
+          AND EXTRACT(YEAR  FROM t.payment_date)=$2
+          AND EXTRACT(MONTH FROM t.payment_date)=$3`,
+      [tid, yr, m],
+    );
+    const intEarned = Math.round(r.rows[0].interest * 100) / 100;
+    if (intEarned <= 0) continue;
+    const amountDue = Math.round(intEarned * FEE_PCT) / 100;
+    const periodStart = `${yr}-${String(m).padStart(2, "0")}-01`;
+    const periodEnd = iso(new Date(yr, m, 0)); // last day of month m
+    const issued = iso(new Date(yr, m, 1)); // 1st of the following month
+    const due = iso(new Date(yr, m, 14));
+    const paid = m < curMonth - 1; // latest stays unpaid
+    const invNumber = `INV-${tid}-${yr}${String(m).padStart(2, "0")}`;
+    const paidDate = `${yr}-${String(m).padStart(2, "0")}-20`;
+    const inv = await q(
+      `INSERT INTO invoices (
+         tenant_id, invoice_number, billing_month, billing_year,
+         period_start, period_end, interest_earned, fee_percentage,
+         amount_due, base_fee, discount, total_amount, status,
+         amount_paid, paid_at, payment_method, issued_date, due_date
+       ) VALUES ($1,$2,$3,$4,$5::date,$6::date,$7,$8,$9,0,0,$10,$11,$12,$13,$14,$15::date,$16::date)
+       RETURNING id`,
+      [
+        tid, invNumber, m, yr,
+        periodStart, periodEnd, intEarned, FEE_PCT,
+        amountDue, amountDue, paid ? "paid" : "pending",
+        paid ? amountDue : 0,
+        paid ? `${paidDate}T10:00:00` : null,
+        paid ? "M-Pesa" : null,
+        issued, due,
+      ],
+    );
+    if (paid) {
+      await q(
+        `INSERT INTO invoice_payments
+           (invoice_id, amount, payment_method, payment_reference, payment_date, recorded_by_user_id, created_at)
+         VALUES ($1,$2,'M-Pesa',$3,$4::date,$5,NOW())`,
+        [inv.rows[0].id, amountDue, `MPESA-INV-${m}`, paidDate, uid],
+      );
+    }
+  }
+
   // Summary
   const s = await q(
     `SELECT
@@ -345,6 +491,9 @@ export async function resetDemoData() {
           WHERE l.tenant_id = $1 AND ps.status = 'overdue')::int AS loans_overdue,
         (SELECT COUNT(*) FROM loans        WHERE tenant_id = $1 AND status  = 'pending')::int AS pending_apps,
         (SELECT COUNT(*) FROM loan_waivers WHERE tenant_id = $1)::int AS waivers,
+        (SELECT COUNT(*) FROM expenses     WHERE tenant_id = $1)::int AS expenses,
+        (SELECT COUNT(*) FROM invoices     WHERE tenant_id = $1)::int AS invoices,
+        (SELECT initial_capital::float FROM capital_pool WHERE tenant_id = $1) AS capital,
         (SELECT COUNT(*) FROM transactions WHERE tenant_id = $1)::int AS payments`,
     [tid],
   );
