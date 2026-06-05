@@ -168,6 +168,7 @@ export async function resetDemoData() {
     ...Array(2).fill("defaulted"),
   ];
   const lapsedLoans = []; // overdue/defaulted loans → candidates for waivers
+  let txSeq = 0; // running transaction-code counter (avoids a COUNT per row)
 
   for (let i = 0; i < profiles.length; i++) {
     const profile = profiles[i];
@@ -246,19 +247,24 @@ export async function resetDemoData() {
 
       const psStatus = isPaid ? "paid" : past ? "overdue" : "pending";
 
+      // Split each installment into interest + principal so the Reports
+      // P&L (which earns interest from ps.interest_portion) shows real
+      // income — without this every schedule has interest_portion=0 and
+      // Reports reads zero income (and no profit).
       await q(
         `INSERT INTO payment_schedules
-           (loan_id, payment_number, due_date, amount_due, status, amount_paid, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [loanId, p, iso(dueDate), monthlyPayment, psStatus, isPaid ? monthlyPayment : 0, tid],
+           (loan_id, payment_number, due_date, amount_due, status, amount_paid,
+            interest_portion, principal_portion, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          loanId, p, iso(dueDate), monthlyPayment, psStatus,
+          isPaid ? monthlyPayment : 0,
+          totalInterest / months, principal / months, tid,
+        ],
       );
 
       if (isPaid) {
-        const txCnt = await q(
-          `SELECT COUNT(*)::int AS n FROM transactions WHERE tenant_id = $1`,
-          [tid],
-        );
-        const txCode = `TXN-${new Date().getFullYear()}-${String(txCnt.rows[0].n + 1).padStart(5, "0")}`;
+        const txCode = `TXN-${new Date().getFullYear()}-${String(++txSeq).padStart(5, "0")}`;
         // Paid on/around the due date — never in the future.
         const payISO = iso(dueDate < new Date() ? dueDate : new Date());
         await q(
