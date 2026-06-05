@@ -1,9 +1,9 @@
-# LendFest — Borrower User Manual
+# LenderFest — Borrower User Manual
 
-A step-by-step guide for **borrowers** using the LendFest customer portal to apply
+A step-by-step guide for **borrowers** using the LenderFest customer portal to apply
 for and manage loans.
 
-> **One account, every lender.** With a single LendFest login you can borrow from
+> **One account, every lender.** With a single LenderFest login you can borrow from
 > many lenders (microfinances, SACCOs, chamas, individuals), track all your loans
 > in one place, and build a credit score that follows you across all of them.
 
@@ -11,7 +11,7 @@ for and manage loans.
 
 ## 1. Create your account
 
-1. From the LendFest home page, click **Create a free account** (or go to
+1. From the LenderFest home page, click **Create a free account** (or go to
    **`/portal/register`**).
 2. **Step 1 — Your details:** first & last name, phone number, national ID,
    email, date of birth, gender. You can also add your **business & location**
@@ -35,7 +35,7 @@ Forgot it? Use **Forgot password** on the login screen.
 
 ## 2. Find a lender
 
-Open **Lenders** (`/lenders`) to browse every lender on LendFest.
+Open **Lenders** (`/lenders`) to browse every lender on LenderFest.
 
 - Each lender shows a **type badge** — **Microfinance**, **SACCO**, **Chama**, or
   **Individual** — and is **colour-coded by type** so you can tell at a glance.
@@ -154,4 +154,4 @@ confirmations, and due-date reminders.
 | Can't see a lender after linking | Use the **Lenders** page; linked lenders are marked, and "See all lenders" reopens the directory |
 | A counter-offer is waiting | Open *My Applications* and **Accept** or **Decline** it |
 
-**Need help?** Contact your lender directly, or LendFest support from the site footer.
+**Need help?** Contact your lender directly, or LenderFest support from the site footer.

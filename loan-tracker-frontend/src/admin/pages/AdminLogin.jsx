@@ -75,7 +75,7 @@ function AdminLogin() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@lendfest.loans"
+              placeholder="admin@lenderfest.loans"
               required
               autoFocus
               disabled={loading}

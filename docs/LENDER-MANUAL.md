@@ -1,9 +1,9 @@
-# LendFest — Lender User Manual
+# LenderFest — Lender User Manual
 
 A step-by-step guide for **lenders** (microfinance institutions, SACCOs, chamas,
-and individual lenders) using LendFest to run their lending business.
+and individual lenders) using LenderFest to run their lending business.
 
-> **What is LendFest?** A cloud loan-management system. You manage clients, loans,
+> **What is LenderFest?** A cloud loan-management system. You manage clients, loans,
 > repayments, capital, staff, and reports from one dashboard — and your borrowers
 > get their own self-service portal.
 
@@ -12,11 +12,11 @@ and individual lenders) using LendFest to run their lending business.
 ## 1. Getting started
 
 ### Create your account (free trial)
-1. Go to the LendFest home page and click **Start Free Trial**.
+1. Go to the LenderFest home page and click **Start Free Trial**.
 2. Fill in:
    - **Business name** (e.g. *Faulu Microfinance*)
    - **Business type** — Microfinance, SACCO, Chama, or Individual Lender
-   - **Your subdomain** (e.g. *faulu* → your space at `faulu.lendfest.loans`)
+   - **Your subdomain** (e.g. *faulu* → your space at `faulu.lenderfest.loans`)
    - **Admin first & last name, email, password**
 3. Click **Create account**. Your 14-day free trial starts immediately — no card needed.
 
@@ -179,7 +179,7 @@ Every action is recorded in the **Audit Log** (who did what, and when).
 
 ## 11. The borrower portal (what your clients see)
 
-Your borrowers get a single LendFest account that works across every lender they
+Your borrowers get a single LenderFest account that works across every lender they
 borrow from. They can:
 - browse lenders, **link to you**, and apply online,
 - track applications and respond to your counter-offers,
@@ -200,4 +200,4 @@ borrow from. They can:
 | Capital pool looks wrong | It updates on disburse/collect; top up if low |
 | SMS/Email not sending | The provider must be enabled for your account |
 
-**Need help?** Contact LendFest support from the footer of the site.
+**Need help?** Contact LenderFest support from the footer of the site.

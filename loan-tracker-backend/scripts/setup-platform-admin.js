@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Provision a dedicated LendFest platform admin (admin@lendfest.loans)
-// living on a "LendFest Platform" tenant. The existing tenant admin
+// Provision a dedicated LenderFest platform admin (admin@lenderfest.loans)
+// living on a "LenderFest Platform" tenant. The existing tenant admin
 // (admin@techtsadong.com, user id=1) keeps `is_platform_admin=true`
 // so neither account is taken down by this script.
 //
@@ -27,14 +27,14 @@ dotenv.config({ path: join(__dirname, "..", ".env") });
 const { default: pool, query: q } = await import("../src/config/database.js");
 
 // ── Config ───────────────────────────────────────────────────────
-const EMAIL = "admin@lendfest.loans";
+const EMAIL = "admin@lenderfest.loans";
 const PASSWORD = "Admin@2026";
 const USERNAME = "platform_admin"; // 'admin' is taken by id=1
 const FIRST_NAME = "Platform";
 const LAST_NAME = "Admin";
 const PHONE = "+254700000000";
 
-const TENANT_NAME = "LendFest Platform";
+const TENANT_NAME = "LenderFest Platform";
 const TENANT_SUBDOMAIN = "platform";
 // ─────────────────────────────────────────────────────────────────
 
@@ -172,7 +172,7 @@ async function main() {
 
   const a = v.rows[0];
   console.log(`\n${sep}\n✅ READY\n${sep}\n`);
-  console.log("👑 LendFest platform admin:");
+  console.log("👑 LenderFest platform admin:");
   console.log(`   id:                 ${a.id}`);
   console.log(`   name:               ${a.full_name}`);
   console.log(`   username:           ${a.username}`);

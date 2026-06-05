@@ -1,12 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 // NOTE: This project runs Tailwind v4 (`@import "tailwindcss"` with no
 // `@config`), so this file is NOT auto-loaded. The ACTIVE source of
-// truth for the LendFest design tokens is the `@theme` block in
+// truth for the LenderFest design tokens is the `@theme` block in
 // src/index.css. This config mirrors that palette for documentation and
 // for any future migration/tooling that reads the JS config.
 //
 // The `ocean`/`navy` names are stable identifiers; their values are the
-// LendFest brand palette (ocean = teal→green primary ramp, navy = ink).
+// LenderFest brand palette (ocean = teal→green primary ramp, navy = ink).
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {

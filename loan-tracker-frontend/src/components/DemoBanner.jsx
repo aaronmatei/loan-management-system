@@ -36,7 +36,7 @@ function DemoBanner() {
       <div className="flex items-center gap-2">
         <Gamepad2 size={18} className="shrink-0" />
         <span className="font-semibold">
-          You're exploring the LendFest demo. Data is sample only and resets nightly.
+          You're exploring the LenderFest demo. Data is sample only and resets nightly.
         </span>
       </div>
       <div className="flex items-center gap-2">

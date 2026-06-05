@@ -230,7 +230,7 @@ router.post("/stk/invoice", verifyToken, async (req, res) => {
       phone,
       amount: balance,
       accountReference: (inv.invoice_number || `INV${inv.id}`).substring(0, 12),
-      transactionDesc: "LendFest Fee",
+      transactionDesc: "LenderFest Fee",
     });
 
     await query(
@@ -246,7 +246,7 @@ router.post("/stk/invoice", verifyToken, async (req, res) => {
         result.normalizedPhone,
         result.amount,
         inv.invoice_number || `INV${inv.id}`,
-        "LendFest Fee",
+        "LenderFest Fee",
         result.merchantRequestId,
         result.checkoutRequestId,
         JSON.stringify(result.raw),

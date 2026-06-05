@@ -1,31 +1,31 @@
-# Deployment Runbook — lendfest.loans
+# Deployment Runbook — lenderfest.loans
 
 ```
-lendfest.loans        ─┐
-www.lendfest.loans    ─┤  (307 → apex)
-app.lendfest.loans    ─┼─▶ Vercel  (one React SPA; logged-out "/" = landing,
-*.lendfest.loans      ─┘            logged-in = the app; "*" = per-tenant portals)
-                      │   build-time: VITE_API_URL=https://api.lendfest.loans/api
+lenderfest.loans        ─┐
+www.lenderfest.loans    ─┤  (307 → apex)
+app.lenderfest.loans    ─┼─▶ Vercel  (one React SPA; logged-out "/" = landing,
+*.lenderfest.loans      ─┘            logged-in = the app; "*" = per-tenant portals)
+                      │   build-time: VITE_API_URL=https://api.lenderfest.loans/api
                       ▼
-api.lendfest.loans     ──▶ Render  (Node/Express backend; CORS allows the above)
+api.lenderfest.loans     ──▶ Render  (Node/Express backend; CORS allows the above)
                       │
                       └──▶ Neon   (Postgres, DATABASE_URL + SSL)
 
 Registrar nameservers point to Vercel (ns1/ns2.vercel-dns.com) — Vercel IS the
 DNS. The four frontend names auto-resolve once added as Vercel project domains;
-only api.lendfest.loans is a manual CNAME → Render.
+only api.lenderfest.loans is a manual CNAME → Render.
 ```
 
 The landing page and the app are the **same** SPA (`src/landing/pages/Home`
 renders at `/` when logged out). So one Vercel project serves the apex,
-`app.lendfest.loans`, and every `*.lendfest.loans` tenant portal.
+`app.lenderfest.loans`, and every `*.lenderfest.loans` tenant portal.
 
 ### What's already wired in this repo
-- `loan-tracker-frontend/.env.production` → `VITE_API_URL=https://api.lendfest.loans/api`
+- `loan-tracker-frontend/.env.production` → `VITE_API_URL=https://api.lenderfest.loans/api`
   (baked into the build — verified present in `dist`).
-- `render.yaml` → backend service with `CORS_ORIGINS=https://lendfest.loans,https://www.lendfest.loans,https://app.lendfest.loans,https://*.lendfest.loans`
+- `render.yaml` → backend service with `CORS_ORIGINS=https://lenderfest.loans,https://www.lenderfest.loans,https://app.lenderfest.loans,https://*.lenderfest.loans`
   (the `*` entry lets every tenant portal subdomain call the API)
-  and `MPESA_CALLBACK_URL=https://api.lendfest.loans/api/mpesa/callback`.
+  and `MPESA_CALLBACK_URL=https://api.lenderfest.loans/api/mpesa/callback`.
 - `database.js` supports Neon (`DATABASE_URL` + SSL); `app.js` CORS via `CORS_ORIGINS`.
 
 > Prereq: push this repo to GitHub (Render and Vercel deploy from it). Free
@@ -38,7 +38,7 @@ renders at `/` when logged out). So one Vercel project serves the apex,
 ## Quick path: deploy now on default URLs (no DNS / custom domain)
 
 No DNS access yet? Launch on the free default URLs Vercel and Render hand you,
-then attach `lendfest.loans` later. Nothing in the repo changes — you override
+then attach `lenderfest.loans` later. Nothing in the repo changes — you override
 two values in the dashboards:
 
 1. **Neon** — same as Step 1 below; get `DATABASE_URL`.
@@ -74,7 +74,7 @@ domains and point `VITE_API_URL` / `CORS_ORIGINS` back to them.
    ```
 3. That's it — you'll create the first tenant/admin via `/signup` in Step 5.
 
-## Step 2 — Backend: Render → api.lendfest.loans
+## Step 2 — Backend: Render → api.lenderfest.loans
 
 1. Render → **New → Blueprint**, select this GitHub repo (it reads
    `render.yaml`). Or **New → Web Service**: root `loan-tracker-backend`,
@@ -85,7 +85,7 @@ domains and point `VITE_API_URL` / `CORS_ORIGINS` back to them.
    - Enable email/M-Pesa later by flipping `EMAIL_ENABLED`/`SMS_ENABLED` and
      adding their secrets.
 3. Deploy. Confirm `https://<service>.onrender.com/health` returns `{"status":"OK"}`.
-4. **Settings → Custom Domains → add `api.lendfest.loans`.** Render shows a
+4. **Settings → Custom Domains → add `api.lenderfest.loans`.** Render shows a
    **CNAME target** (e.g. `loan-management-system-1-2pw8.onrender.com`) — note it
    for Step 4. Render auto-issues a Let's Encrypt cert once the CNAME resolves
    (Verified → Certificate Pending → Certificate Issued).
@@ -98,11 +98,11 @@ domains and point `VITE_API_URL` / `CORS_ORIGINS` back to them.
 3. `VITE_API_URL` is already in `.env.production`, so no env var is needed.
    (To override, set `VITE_API_URL` in Vercel → Settings → Environment.)
 4. **Settings → Domains → add all four:**
-   - `lendfest.loans` — set as **primary**
-   - `app.lendfest.loans`
-   - `*.lendfest.loans` — wildcard; every tenant gets `<sub>.lendfest.loans`
+   - `lenderfest.loans` — set as **primary**
+   - `app.lenderfest.loans`
+   - `*.lenderfest.loans` — wildcard; every tenant gets `<sub>.lenderfest.loans`
      with no extra DNS work
-   - `www.lendfest.loans` — set to **redirect → `lendfest.loans`**
+   - `www.lenderfest.loans` — set to **redirect → `lenderfest.loans`**
 
    Because the registrar's nameservers point at Vercel, **Vercel creates the DNS
    records and issues the TLS certs itself** — you do **not** add A/CNAME records
@@ -117,7 +117,7 @@ The apex, `app`, `www`, and `*` records were created automatically when you adde
 those project domains in Step 3 — **nothing to do there.** The only record you add
 by hand is the API host, because it points to Render, not Vercel:
 
-In **Vercel → Domains → `lendfest.loans` → DNS records → Add**:
+In **Vercel → Domains → `lenderfest.loans` → DNS records → Add**:
 
 | Type  | Name  | Value / Target                                        | TTL     |
 |-------|-------|-------------------------------------------------------|---------|
@@ -129,17 +129,17 @@ Notes:
 - TLS certs are issued automatically by Vercel (frontend names) and Render
   (`api`) once DNS resolves — usually minutes; the wildcard and a brand-new
   domain can take up to ~30 min.
-- Sanity-check delegation: `dig NS lendfest.loans +short` should return the two
-  `vercel-dns.com` nameservers, and `dig CAA lendfest.loans +short` should allow
+- Sanity-check delegation: `dig NS lenderfest.loans +short` should return the two
+  `vercel-dns.com` nameservers, and `dig CAA lenderfest.loans +short` should allow
   `letsencrypt.org` (the CA both Vercel and Render use).
 
 ## Step 5 — Go live
 
-1. Once `https://api.lendfest.loans/health` and `https://app.lendfest.loans`
-   both load over HTTPS, open **https://app.lendfest.loans/signup** and create
+1. Once `https://api.lenderfest.loans/health` and `https://app.lenderfest.loans`
+   both load over HTTPS, open **https://app.lenderfest.loans/signup** and create
    your first tenant + admin account.
 2. If using M-Pesa: in the Daraja portal set the callback URL to
-   `https://api.lendfest.loans/api/mpesa/callback` (already the backend's
+   `https://api.lenderfest.loans/api/mpesa/callback` (already the backend's
    `MPESA_CALLBACK_URL`).
 
 ---
@@ -159,7 +159,7 @@ Notes:
 Railway doesn't sleep (usage-based). New Project → Deploy from GitHub → set
 root to `loan-tracker-backend`, start `npm start`. Add the same env vars
 (`DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`, `MPESA_CALLBACK_URL`). Add a
-custom domain `api.lendfest.loans`; Railway gives a CNAME target to use as the
+custom domain `api.lenderfest.loans`; Railway gives a CNAME target to use as the
 `api` record in Vercel DNS instead of the Render one.
 
 ## Redis (later)

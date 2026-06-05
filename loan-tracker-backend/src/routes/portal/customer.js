@@ -215,7 +215,7 @@ router.get("/available-tenants", async (req, res) => {
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true
          AND t.allow_self_signup = true
-         -- Same exclusion as the /lenders directory: the LendFest platform
+         -- Same exclusion as the /lenders directory: the LenderFest platform
          -- owner and the demo sandbox are not real lenders to add.
          AND COALESCE(t.is_demo, false) = false
          AND COALESCE(t.plan, '') <> 'platform'
@@ -270,7 +270,7 @@ router.get("/lenders", async (req, res) => {
        FROM tenants t
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true
-         -- Exclude the LendFest platform owner and the demo sandbox — they
+         -- Exclude the LenderFest platform owner and the demo sandbox — they
          -- are not real lenders a customer can borrow from.
          AND COALESCE(t.is_demo, false) = false
          AND COALESCE(t.plan, '') <> 'platform'
@@ -1381,7 +1381,7 @@ router.get("/profile", async (req, res) => {
     const c = req.customer;
     const customer = {
       id: c.id,
-      // Platform-level identifier — the customer belongs to LendFest; their
+      // Platform-level identifier — the customer belongs to LenderFest; their
       // per-lender client_code differs at each lender.
       customer_code: lfxCode(c.id),
       phone_number: c.phone_number,

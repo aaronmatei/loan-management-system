@@ -30,7 +30,7 @@ function Login() {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(u));
       // Subdomain self-correction: if the user authenticated on the
-      // wrong *.lendfest.loans subdomain (e.g. landed on kuwazo's URL
+      // wrong *.lenderfest.loans subdomain (e.g. landed on kuwazo's URL
       // but credentials belong to payoneer), hop to the right one
       // BEFORE handing control to setUser/navigate. The auth token +
       // user are passed via fragment (#__lf_auth=…) so the target
@@ -38,19 +38,19 @@ function Login() {
       // session before its App.jsx reads it — without that, any
       // stale session under a different tenant on the target would
       // immediately bounce us back here in an infinite ping-pong.
-      // Skipped on non-lendfest.loans hosts so dev/preview aren't
+      // Skipped on non-lenderfest.loans hosts so dev/preview aren't
       // affected.
       const desired = u?.tenant?.subdomain;
       const host = window.location.hostname;
       if (
         desired
-        && host.endsWith('.lendfest.loans')
-        && host.slice(0, -('.lendfest.loans'.length)) !== desired
+        && host.endsWith('.lenderfest.loans')
+        && host.slice(0, -('.lenderfest.loans'.length)) !== desired
       ) {
         const handoff = buildAuthHandoff(response.data.token, u);
         const hash = handoff ? `#${handoff}` : '';
         window.location.replace(
-          `https://${desired}.lendfest.loans/${hash}`,
+          `https://${desired}.lenderfest.loans/${hash}`,
         );
         return;
       }

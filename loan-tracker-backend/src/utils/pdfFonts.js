@@ -1,4 +1,4 @@
-// LendFest PDF fonts. pdfkit ships only the 14 standard PDF fonts
+// LenderFest PDF fonts. pdfkit ships only the 14 standard PDF fonts
 // (Helvetica/Times/Courier); to render documents in the brand typefaces we
 // embed static TTFs and register them per-document.
 //

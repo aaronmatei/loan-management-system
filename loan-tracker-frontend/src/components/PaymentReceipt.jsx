@@ -424,7 +424,7 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
               {!tenant?.hide_platform_branding && (
                 <p className="text-[10px] uppercase tracking-[0.18em] text-stone-400 mt-3">
                   Powered by{" "}
-                  <span className="text-stone-600 font-semibold">LendFest</span>
+                  <span className="text-stone-600 font-semibold">LenderFest</span>
                 </p>
               )}
             </div>

@@ -33,7 +33,7 @@ const CMP = {
   },
 };
 
-// Marketplace directory of every active lender on LendFest (platform owner +
+// Marketplace directory of every active lender on LenderFest (platform owner +
 // demo sandbox excluded server-side). Filter by terms, sort by any column,
 // paginate. Each row's arrow opens the lender's detail page where the
 // link/apply/unlink actions live.
@@ -126,7 +126,7 @@ function Lenders() {
           <Building2 size={28} className="text-navy-900" /> Lenders
         </h1>
         <p className="text-slate-500 mb-3">
-          Browse every lender on LendFest and compare their terms.
+          Browse every lender on LenderFest and compare their terms.
         </p>
         {/* Borrowing rule — front-and-centre so a customer doesn't
             tap a lender expecting a one-tap apply and bounce off the

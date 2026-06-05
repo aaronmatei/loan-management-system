@@ -73,7 +73,7 @@ function PlatformLayout({ children }) {
               <LogoMark variant="color" className="h-9 w-9 shrink-0" />
               <div>
                 <span className="font-display text-lg font-extrabold tracking-tight leading-none">
-                  <span className="text-navy-900">Lend</span>
+                  <span className="text-navy-900">Lender</span>
                   <span className="text-ocean-600">Fest</span>
                 </span>
                 <p className="text-xs text-slate-500">Platform Admin</p>

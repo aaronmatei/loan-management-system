@@ -1,4 +1,4 @@
-// Render the LendFest markdown manuals into branded PDFs using pdfkit
+// Render the LenderFest markdown manuals into branded PDFs using pdfkit
 // (the only PDF tool available here). Supports the markdown subset used in
 // docs/*.md: # / ## / ### headings, paragraphs, **bold**, `code`, "- " bullet
 // and "N." numbered lists, > blockquotes, --- rules, and | pipe | tables.
@@ -25,8 +25,8 @@ const DISPLAY = FONT.display;
 const MONO = "Courier";
 
 const MANUALS = [
-  { md: "LENDER-MANUAL.md", pdf: "LendFest-Lender-Manual.pdf", audience: "Lender Guide" },
-  { md: "BORROWER-MANUAL.md", pdf: "LendFest-Borrower-Manual.pdf", audience: "Borrower Guide" },
+  { md: "LENDER-MANUAL.md", pdf: "LenderFest-Lender-Manual.pdf", audience: "Lender Guide" },
+  { md: "BORROWER-MANUAL.md", pdf: "LenderFest-Borrower-Manual.pdf", audience: "Borrower Guide" },
 ];
 
 // ── inline: split a line into {text, bold, code} runs ─────────────
@@ -76,7 +76,7 @@ function build({ md, pdf, audience }) {
 
   // ── Cover ───────────────────────────────────────────────────────
   doc.rect(0, 0, doc.page.width, 220).fill(OCEAN);
-  doc.fillColor("#ffffff").font(DISPLAY).fontSize(15).text("LendFest", M, 70);
+  doc.fillColor("#ffffff").font(DISPLAY).fontSize(15).text("LenderFest", M, 70);
   doc.font(DISPLAY).fontSize(34).text(
     md.includes("LENDER") ? "Lender User Manual" : "Borrower User Manual",
     M, 110, { width: W },
@@ -90,7 +90,7 @@ function build({ md, pdf, audience }) {
   );
   doc.y = 260;
   doc.fillColor(MUTED).font(REG).fontSize(10);
-  doc.text(`LendFest • ${audience} • Generated ${new Date().toLocaleDateString("en-KE")}`, M, 250);
+  doc.text(`LenderFest • ${audience} • Generated ${new Date().toLocaleDateString("en-KE")}`, M, 250);
   doc.moveDown(2);
 
   // ── Body ────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ function build({ md, pdf, audience }) {
     doc.switchToPage(p);
     const y = doc.page.height - 38;
     doc.font(REG).fontSize(8).fillColor(MUTED);
-    doc.text("LendFest — confidential", M, y, { width: W / 2, lineBreak: false });
+    doc.text("LenderFest — confidential", M, y, { width: W / 2, lineBreak: false });
     doc.text(`Page ${p + 1} of ${range.count}`, M + W / 2, y, {
       width: W / 2, align: "right", lineBreak: false,
     });

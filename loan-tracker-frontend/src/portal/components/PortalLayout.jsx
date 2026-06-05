@@ -17,7 +17,7 @@ import PortalNotificationBell from "./PortalNotificationBell";
 
 // Shared shell for the authenticated portal pages. The portal is a single
 // global customer account that aggregates lenders, so the chrome here is
-// LendFest's own ocean/navy product theme (matching the staff dashboard) —
+// LenderFest's own ocean/navy product theme (matching the staff dashboard) —
 // NOT a tenant brand. Per-lender brand colors live inside the page content
 // (lender cards, loan rows, receipts), never in this shell.
 const MENU = [
@@ -88,7 +88,7 @@ function PortalLayout({ children }) {
             <LogoMark variant="color" className="h-9 w-9 shrink-0" />
             <div>
               <span className="font-display text-xl font-extrabold tracking-tight leading-none">
-                <span className="text-navy-900">Lend</span>
+                <span className="text-navy-900">Lender</span>
                 <span className="text-ocean-600">Fest</span>
               </span>
               <p className="text-slate-500 text-xs">Client Portal</p>

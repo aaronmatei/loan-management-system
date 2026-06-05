@@ -601,7 +601,7 @@ router.get("/platform/export/pdf", async (req, res) => {
       .font(FONT.display)
       .fontSize(20)
       .fillColor("#0e8a6e")
-      .text("LendFest Platform Report", {
+      .text("LenderFest Platform Report", {
         align: "center",
       });
     doc.font(FONT.reg);
@@ -675,7 +675,7 @@ router.get("/platform/export/excel", async (req, res) => {
     const wb = new ExcelJS.Workbook();
     const s = wb.addWorksheet("Summary");
     s.columns = [{ width: 32 }, { width: 22 }];
-    s.addRow(["LendFest Platform Report", ""]);
+    s.addRow(["LenderFest Platform Report", ""]);
     s.addRow(["Generated", new Date().toLocaleString("en-KE")]);
     s.addRow([]);
     s.addRow(["Metric", "Value"]);

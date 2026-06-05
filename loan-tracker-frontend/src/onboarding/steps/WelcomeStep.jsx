@@ -7,7 +7,7 @@ function WelcomeStep({ onNext, onSkip }) {
       <div className="bg-white rounded-3xl shadow-2xl p-8 lg:p-12 text-center">
         <div className="flex justify-center mb-4"><PartyPopper size={72} className="text-ocean-500" /></div>
         <h1 className="text-3xl lg:text-5xl font-bold text-gray-900 mb-4">
-          Welcome to LendFest!
+          Welcome to LenderFest!
         </h1>
         <p className="text-xl text-gray-600 mb-8">
           Let's get you set up in just 5 minutes

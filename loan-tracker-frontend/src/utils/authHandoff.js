@@ -1,5 +1,5 @@
 // Cross-subdomain auth handoff. When a redirect bounces between
-// *.lendfest.loans subdomains (e.g. logged into the wrong tenant's
+// *.lenderfest.loans subdomains (e.g. logged into the wrong tenant's
 // URL), each subdomain has its OWN localStorage and the target
 // may hold stale state from a prior session under a different
 // tenant. Without a handoff, the target's stale user fires the

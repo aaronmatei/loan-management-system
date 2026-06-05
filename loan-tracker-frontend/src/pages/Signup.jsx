@@ -133,7 +133,7 @@ function Signup() {
                 {" "}You'll get <strong>{referralInfo.bonus}</strong>.
               </>
             ) : (
-              <> Welcome to LendFest.</>
+              <> Welcome to LenderFest.</>
             )}
           </div>
         )}
@@ -203,7 +203,7 @@ function Signup() {
                         className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-l-lg focus:border-ocean-500 focus:outline-none"
                       />
                       <span className="px-3 py-2 bg-gray-100 border-2 border-l-0 border-gray-200 rounded-r-lg text-sm text-gray-600">
-                        .lendfest.loans
+                        .lenderfest.loans
                       </span>
                     </div>
                     {subdomainStatus === "checking" && (

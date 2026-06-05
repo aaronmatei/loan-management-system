@@ -140,7 +140,7 @@ function CustomerRegister() {
         setStep(3);
       } else {
         alert(
-          `Registration successful!\nYour LendFest ID: ${res.data.customer?.customer_code || ""}`,
+          `Registration successful!\nYour LenderFest ID: ${res.data.customer?.customer_code || ""}`,
         );
         finishSignup();
       }

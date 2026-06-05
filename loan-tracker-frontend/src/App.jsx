@@ -110,10 +110,10 @@ function App() {
     // Clear the persisted period picker so the next login starts on
     // the current-year default rather than inheriting the last
     // session's window.
-    localStorage.removeItem("lendfest:period");
+    localStorage.removeItem("lenderfest:period");
   };
 
-  // Subdomain self-correction. If the URL says "kuwazo.lendfest.loans"
+  // Subdomain self-correction. If the URL says "kuwazo.lenderfest.loans"
   // but the signed JWT/user belongs to a different tenant (e.g. you
   // logged in via the wrong subdomain), redirect to the user's own
   // subdomain so the URL, branding, and tenant always agree. The
@@ -121,8 +121,8 @@ function App() {
   // this is purely a UX fix; data was never crossed.
   //
   // Guards:
-  //   • only acts on *.lendfest.loans hosts (skips localhost / preview
-  //     / IP / bare lendfest.loans so dev + landing aren't redirected)
+  //   • only acts on *.lenderfest.loans hosts (skips localhost / preview
+  //     / IP / bare lenderfest.loans so dev + landing aren't redirected)
   //   • skips platform admins (they're meant to roam tenants)
   //   • preserves the current path + query so the user lands where
   //     they were trying to go, just on the right subdomain
@@ -132,8 +132,8 @@ function App() {
     if (!desired) return; // pre-tenant accounts: no subdomain to enforce
     if (user.is_platform_admin) return;
     const host = window.location.hostname;
-    if (!host.endsWith(".lendfest.loans")) return;
-    const current = host.slice(0, host.length - ".lendfest.loans".length);
+    if (!host.endsWith(".lenderfest.loans")) return;
+    const current = host.slice(0, host.length - ".lenderfest.loans".length);
     // Ignore the reserved labels — landing/api shouldn't redirect.
     if (["www", "api", ""].includes(current)) return;
     if (current === desired) return;
@@ -150,7 +150,7 @@ function App() {
         ? `${existingHash}&${handoff}`
         : `#${handoff}`
       : existingHash;
-    const target = `https://${desired}.lendfest.loans${window.location.pathname}${window.location.search}${targetHash}`;
+    const target = `https://${desired}.lenderfest.loans${window.location.pathname}${window.location.search}${targetHash}`;
     window.location.replace(target);
   }, [user]);
 

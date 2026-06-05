@@ -3,7 +3,7 @@ import { getPortalBrand } from "../brand";
 
 // Rounded gradient icon tile (lucide icon), themed by the current lender's
 // brand_color. Portal-side counterpart of components/IconTile.jsx (which is
-// ocean — LendFest chrome). Keeps the customer portal white-labeled.
+// ocean — LenderFest chrome). Keeps the customer portal white-labeled.
 export default function BrandTile({ icon: Icon, size = 40, className = "" }) {
   const { gradient } = getPortalBrand();
   return (

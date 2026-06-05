@@ -1,5 +1,5 @@
--- Rebrand (LoanFix -> LendFest): the platform default tenant brand color
--- moves from the old indigo (#4F46E5) to LendFest teal (#0E8A6E).
+-- Rebrand (LoanFix -> LenderFest): the platform default tenant brand color
+-- moves from the old indigo (#4F46E5) to LenderFest teal (#0E8A6E).
 --
 -- 1. New tenants get teal by default.
 -- 2. Backfill every tenant still sitting on the old default. The app

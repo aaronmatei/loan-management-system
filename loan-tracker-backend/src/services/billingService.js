@@ -46,7 +46,7 @@ async function notifyInvoiceGenerated(tenant, invoice) {
           : "";
       await sendEmail({
         to: tenant.contact_email,
-        fromName: "LendFest",
+        fromName: "LenderFest",
         subject: `New invoice ${invoice.invoice_number} — KES ${amount}`,
         html: `<p>Hi ${tenant.business_name},</p>
                <p>${summary}</p>
@@ -109,7 +109,7 @@ export async function syncInvoiceToExpense(tenantId, invoice) {
     invoice.issued_date ||
     invoice.created_at;
 
-  const description = `LendFest invoice ${invoice.invoice_number} · ${
+  const description = `LenderFest invoice ${invoice.invoice_number} · ${
     invoice.status || "paid"
   } · paid ${new Date(firstPaid).toLocaleDateString("en-KE", {
     day: "numeric",

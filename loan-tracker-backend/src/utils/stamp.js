@@ -49,7 +49,7 @@ function fitTopArc(name) {
 
 // Pick a (fontSize, letterSpacing) pair that fits `text` inside
 // the stamp's top arc (radius 120, ~π·r = 377pt of arc length).
-// Defaults match the original "LENDFEST LTD" hand-tuned spec;
+// Defaults match the original "LENDERFEST LTD" hand-tuned spec;
 // progressively shrunken as the name gets longer so a 24-char
 // "PAYONEER LIMITED COMPANY" renders complete instead of
 // overflowing past the rings. Arial Bold uppercase width is
@@ -164,7 +164,7 @@ export function drawPdfStamp(doc, { x, y, size = 110, tenant = {}, date } = {}) 
 //
 //   ┌──────────────────────────────┐
 //   │  STAMPED                     │
-//   │  LENDFEST LTD · NAIROBI · KE  │
+//   │  LENDERFEST LTD · NAIROBI · KE  │
 //   │  04 JUN 2026                 │
 //   └──────────────────────────────┘
 export function addExcelStamp(sheet, { tenant = {}, date } = {}) {

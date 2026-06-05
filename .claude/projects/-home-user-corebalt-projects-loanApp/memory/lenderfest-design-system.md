@@ -1,11 +1,11 @@
 ---
-name: lendfest-design-system
-description: LendFest brand tokens/fonts/logo — the `ocean`/`navy` Tailwind names now hold TEAL/INK values, not blue
+name: lenderfest-design-system
+description: LenderFest brand tokens/fonts/logo — the `ocean`/`navy` Tailwind names now hold TEAL/INK values, not blue
 metadata:
   type: project
 ---
 
-LendFest visual identity (shipped commit ddfbab0). Palette: teal `#0E8A6E`
+LenderFest visual identity (shipped commit ddfbab0). Palette: teal `#0E8A6E`
 (primary), green `#22B488`, teal-deep `#0A5C4C`, ink `#122A2E`, amber
 `#F6A92B` (spark), cream `#FBF7EF`/`#F3ECDD`. Fonts: **Hanken Grotesk**
 (body) + **Bricolage Grotesque** (display/wordmark).
@@ -31,5 +31,5 @@ PDFDocument()`.
 `#0E8A6E` (migration 044). The frontend `portal/lenderColor.js`
 `DEFAULT_BRAND` constant MUST stay in sync with that DB default — it's how
 the app detects an un-customized tenant. Tenant portals are still
-white-labeled on each tenant's own color; the LendFest tokens are only for
-LendFest's own chrome. See [[rebrand-loanfix-to-lendfest]].
+white-labeled on each tenant's own color; the LenderFest tokens are only for
+LenderFest's own chrome. See [[rebrand-loanfix-to-lenderfest]].

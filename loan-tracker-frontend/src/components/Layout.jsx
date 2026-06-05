@@ -262,7 +262,7 @@ function Layout({ children }) {
     if (current) return current.label;
     if (location.pathname.startsWith("/clients/")) return "Client";
     if (location.pathname.startsWith("/loans/")) return "Loan";
-    return "LendFest";
+    return "LenderFest";
   };
 
   const handleLogout = () => {
@@ -341,7 +341,7 @@ function Layout({ children }) {
               <LogoMark variant="color" className="h-9 w-9 shrink-0" />
               <div>
                 <span className="font-display text-xl font-extrabold tracking-tight leading-none">
-                  <span className="text-navy-900">Lend</span>
+                  <span className="text-navy-900">Lender</span>
                   <span className="text-ocean-600">Fest</span>
                 </span>
                 <p className="text-slate-500 text-xs">Loan Manager</p>

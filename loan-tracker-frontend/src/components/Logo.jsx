@@ -1,4 +1,4 @@
-// LendFest logo — mark + wordmark.
+// LenderFest logo — mark + wordmark.
 //
 // The mark is three ascending rounded bars (growth) with an amber spark.
 // The wordmark is Bricolage Grotesque extrabold, "Lend" + "Fest". Both
@@ -22,7 +22,7 @@ const C = {
   cream: "#FBF7EF",
 };
 
-export function LogoMark({ variant = "color", className = "", title = "LendFest" }) {
+export function LogoMark({ variant = "color", className = "", title = "LenderFest" }) {
   let b1, b2, b3, sp;
   if (variant === "ink") b1 = b2 = b3 = sp = C.ink;
   else if (variant === "light") b1 = b2 = b3 = sp = C.cream;
@@ -66,7 +66,7 @@ export default function Logo({
       <span
         className={`font-display font-extrabold leading-none tracking-tight ${textClassName}`}
       >
-        <span style={{ color: reversed ? C.cream : C.ink }}>Lend</span>
+        <span style={{ color: reversed ? C.cream : C.ink }}>Lender</span>
         <span style={{ color: reversed ? C.green : C.teal }}>Fest</span>
       </span>
     </span>

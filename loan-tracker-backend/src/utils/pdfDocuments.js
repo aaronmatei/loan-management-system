@@ -941,7 +941,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
       .font(FONT.reg)
       .fontSize(7)
       .fillColor([200, 200, 200])
-      .text("Powered by LendFest", PAD, by, { width: CW, align: "center" });
+      .text("Powered by LenderFest", PAD, by, { width: CW, align: "center" });
   }
 
   // Stamp the receipt — A5 page (420×595pt), so use a small

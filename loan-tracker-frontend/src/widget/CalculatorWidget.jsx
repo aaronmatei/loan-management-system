@@ -264,7 +264,7 @@ function CalculatorWidget() {
             </div>
             {!tenant.hide_platform_branding && (
               <span className="text-gray-400">
-                Powered by <strong>LendFest</strong>
+                Powered by <strong>LenderFest</strong>
               </span>
             )}
           </div>

@@ -57,7 +57,7 @@ function Referrals() {
   };
 
   const shareWhatsApp = () => {
-    const text = `Apply for loans and manage your repayments online with us on LendFest. Create your free account here: ${referralLink}`;
+    const text = `Apply for loans and manage your repayments online with us on LenderFest. Create your free account here: ${referralLink}`;
     window.open(
       `https://wa.me/?text=${encodeURIComponent(text)}`,
       "_blank",

@@ -35,7 +35,7 @@ function DemoSignupPrompt() {
       <div className="flex mb-2">
         <Rocket size={32} className="text-ocean-600" />
       </div>
-      <h3 className="font-bold text-lg mb-1">Enjoying LendFest?</h3>
+      <h3 className="font-bold text-lg mb-1">Enjoying LenderFest?</h3>
       <p className="text-sm text-gray-600 mb-3">
         Create your own account in 60 seconds. Free 14-day trial, no credit
         card needed.
