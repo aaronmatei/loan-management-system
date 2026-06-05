@@ -112,7 +112,11 @@ const CSS = `
   .lf-rcpt .btn-close{flex:1 1 100%;max-width:none}
 }
 @media print{
-  .lf-rcpt .actions{display:none}
+  @page{size:landscape;margin:8mm}
+  body *{visibility:hidden!important}
+  .lf-rcpt,.lf-rcpt *{visibility:visible!important}
+  .lf-rcpt{position:absolute!important;left:0;top:0;width:100%!important;max-width:none!important;padding:0!important;margin:0!important}
+  .lf-rcpt .actions{display:none!important}
   .lf-rcpt .receipt{box-shadow:none;border-radius:0}
 }
 `;
