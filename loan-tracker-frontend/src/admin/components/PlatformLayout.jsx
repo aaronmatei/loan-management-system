@@ -51,7 +51,14 @@ function PlatformLayout({ children }) {
 
   const logout = () => {
     localStorage.clear();
-    navigate("/"); // back to the public home page
+    // Hard-redirect to the apex admin login, leaving any subdomain, with
+    // ?loggedout=1 so the destination wipes its own storage too — no stale
+    // token can silently re-authenticate.
+    const host = window.location.hostname;
+    const onLF =
+      host === "lenderfest.loans" || host.endsWith(".lenderfest.loans");
+    const base = onLF ? "https://lenderfest.loans" : window.location.origin;
+    window.location.href = `${base}/admin/login?loggedout=1`;
   };
 
   return (
