@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Logo from "../../components/Logo";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { ShieldCheck } from "lucide-react";
@@ -46,11 +47,13 @@ function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-slate-800 p-4">
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-3">
-            <ShieldCheck size={48} className="text-slate-700" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            LendFest Platform Admin
+          <Logo
+            className="justify-center mb-3"
+            markClassName="h-8 w-8"
+            textClassName="text-2xl"
+          />
+          <h1 className="text-base font-semibold text-slate-700 mb-1 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={18} className="text-slate-500" /> Platform Admin
           </h1>
           <h2 className="text-gray-600 text-sm">
             Restricted area — platform administrators only

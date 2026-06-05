@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { buildAuthHandoff } from '../utils/authHandoff';
@@ -66,7 +67,11 @@ function Login() {
     <div className="min-h-screen flex items-center justify-center bg-ocean-gradient p-4">
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">LendFest</h1>
+          <Logo
+            className="justify-center mb-3"
+            markClassName="h-9 w-9"
+            textClassName="text-3xl"
+          />
           <h2 className="text-gray-600">Login to your account</h2>
         </div>
 

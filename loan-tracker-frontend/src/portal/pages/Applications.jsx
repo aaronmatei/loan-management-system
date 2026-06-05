@@ -24,7 +24,7 @@ const STATUS = {
     label: "Awaiting Review",
   },
   under_review: {
-    color: "bg-blue-100 text-blue-700",
+    color: "bg-ocean-100 text-ocean-700",
     Icon: Search,
     label: "Under Review",
   },
@@ -266,12 +266,12 @@ function CustomerApplications() {
                       </div>
                     )}
                     {a.status === "under_review" && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                        <p className="text-blue-800 flex items-center gap-1.5">
-                          <Search size={16} className="text-blue-700 shrink-0" /> A loan officer is reviewing your application.
+                      <div className="bg-ocean-50 border border-ocean-200 rounded-lg p-3 text-sm">
+                        <p className="text-ocean-800 flex items-center gap-1.5">
+                          <Search size={16} className="text-ocean-700 shrink-0" /> A loan officer is reviewing your application.
                         </p>
                         {a.reviewer_name && (
-                          <p className="text-xs text-blue-700 mt-1">
+                          <p className="text-xs text-ocean-700 mt-1">
                             Reviewing: {a.reviewer_name}
                           </p>
                         )}

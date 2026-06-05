@@ -106,7 +106,7 @@ function CalculatorWidget() {
     );
   }
 
-  const brand = tenant?.brand_color || "#4F46E5";
+  const brand = tenant?.brand_color || "#0e8a6e";
   const KES = (v) =>
     `KES ${parseFloat(v || 0).toLocaleString(undefined, {
       maximumFractionDigits: 0,

@@ -34,7 +34,7 @@ import {
 } from "recharts";
 
 const COLORS = [
-  "#4F46E5",
+  "#0a5c4c",
   "#10B981",
   "#F59E0B",
   "#EF4444",
@@ -163,12 +163,12 @@ function Analytics() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-ocean-600 text-white rounded-xl shadow-lg p-4 lg:p-6">
-          <p className="text-blue-100 text-xs uppercase">Active Portfolio</p>
+        <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-xl shadow-lg p-4 lg:p-6">
+          <p className="text-ocean-100 text-xs uppercase">Active Portfolio</p>
           <p className="text-xl lg:text-2xl font-bold mt-2">
             {formatKES(data.kpis?.active_portfolio)}
           </p>
-          <p className="text-xs text-blue-200 mt-1">
+          <p className="text-xs text-ocean-200 mt-1">
             {data.kpis?.active_loans} active loans
           </p>
         </div>
@@ -208,8 +208,8 @@ function Analytics() {
           <AreaChart data={data.revenueTrends}>
             <defs>
               <linearGradient id="colorDisbursed" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
+                <stop offset="5%" stopColor="#0a5c4c" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#0a5c4c" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
@@ -225,7 +225,7 @@ function Analytics() {
               type="monotone"
               dataKey="disbursed"
               name="Disbursed"
-              stroke="#4F46E5"
+              stroke="#0a5c4c"
               fill="url(#colorDisbursed)"
               strokeWidth={2}
             />
@@ -403,7 +403,7 @@ function Analytics() {
                 return null;
               }}
             />
-            <Bar dataKey="count" fill="#4F46E5" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="count" fill="#0a5c4c" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

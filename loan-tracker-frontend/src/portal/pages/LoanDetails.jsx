@@ -53,7 +53,7 @@ function LoanDetails() {
       return null;
     }
   })();
-  const brand = portalTenant?.brand_color || "#0086cc";
+  const brand = portalTenant?.brand_color || "#0e8a6e";
 
   const downloadStatement = async () => {
     setDownloading(true);
@@ -399,7 +399,7 @@ function LoanDetails() {
                 <span
                   className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                     loan.interest_method === "reducing"
-                      ? "bg-indigo-100 text-indigo-700"
+                      ? "bg-ocean-100 text-ocean-700"
                       : "bg-slate-100 text-slate-700"
                   }`}
                 >
@@ -853,10 +853,10 @@ function LoanDetails() {
                             <p className="text-xs text-gray-500 inline-flex items-center gap-1 justify-center">
                               <Calendar size={12} /> Next Payment
                             </p>
-                            <p className="font-bold text-lg text-blue-600">
+                            <p className="font-bold text-lg text-ocean-600">
                               {KES(receiptSummary.next_payment_amount)}
                             </p>
-                            <p className="text-xs text-blue-600">
+                            <p className="text-xs text-ocean-600">
                               {day(receiptSummary.next_payment_date)}
                             </p>
                           </div>

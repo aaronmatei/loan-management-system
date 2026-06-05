@@ -48,8 +48,8 @@ const TABS = [
     key: "partial",
     label: "Partial",
     icon: CircleDashed,
-    activeCls: "border-sky-600 text-sky-700",
-    pillCls: "bg-sky-100 text-sky-800",
+    activeCls: "border-ocean-600 text-ocean-700",
+    pillCls: "bg-ocean-100 text-ocean-800",
   },
   {
     key: "broken",
@@ -358,11 +358,11 @@ function Promises() {
                         ? Math.min(100, Math.round((paid / amount) * 100))
                         : 0;
                     return (
-                      <div className="mb-2 rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2">
+                      <div className="mb-2 rounded-lg border border-ocean-100 bg-ocean-50/60 px-3 py-2">
                         <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 text-xs">
                           <span className="text-slate-600">
                             Paid{" "}
-                            <strong className="text-sky-800">{fmt(paid)}</strong>{" "}
+                            <strong className="text-ocean-800">{fmt(paid)}</strong>{" "}
                             of{" "}
                             <strong className="text-slate-700">
                               {fmt(amount)}
@@ -372,9 +372,9 @@ function Promises() {
                             Remaining {fmt(remaining)}
                           </span>
                         </div>
-                        <div className="mt-1.5 w-full h-1.5 rounded-full bg-sky-100 overflow-hidden">
+                        <div className="mt-1.5 w-full h-1.5 rounded-full bg-ocean-100 overflow-hidden">
                           <div
-                            className="h-full bg-sky-500 transition-all"
+                            className="h-full bg-ocean-500 transition-all"
                             style={{ width: `${pct}%` }}
                           />
                         </div>

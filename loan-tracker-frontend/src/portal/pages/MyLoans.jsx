@@ -13,10 +13,10 @@ const PAGE_SIZE = 15;
 
 const STATUS_BADGE = {
   active: "bg-green-100 text-green-700",
-  completed: "bg-blue-100 text-blue-700",
+  completed: "bg-ocean-100 text-ocean-700",
   defaulted: "bg-red-100 text-red-700",
   pending: "bg-yellow-100 text-yellow-700",
-  under_review: "bg-sky-100 text-sky-700",
+  under_review: "bg-ocean-100 text-ocean-700",
   approved: "bg-emerald-100 text-emerald-700",
   rejected: "bg-gray-200 text-gray-600",
 };
@@ -157,7 +157,7 @@ function MyLoans() {
               skip the lender choice. */}
           <button
             onClick={() => navigate("/lenders")}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 shadow-sm hover:shadow-md transition shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-white bg-gradient-to-r from-ocean-600 to-purple-700 shadow-sm hover:shadow-md transition shrink-0"
           >
             <Plus size={16} /> Apply for a loan
           </button>

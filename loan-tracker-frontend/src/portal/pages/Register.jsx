@@ -177,10 +177,10 @@ function CustomerRegister() {
   };
 
   const field =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-ocean-600 to-purple-700 flex items-center justify-center p-4">
       <div
         className={`bg-white rounded-2xl shadow-2xl w-full p-6 lg:p-8 ${
           step === 3 ? "max-w-xl" : "max-w-md"
@@ -193,7 +193,7 @@ function CustomerRegister() {
           </div>
         )}
         {fromWidget && widgetAmount && (
-          <div className="mb-4 bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm rounded-lg py-2 px-3">
+          <div className="mb-4 bg-ocean-50 border border-ocean-200 text-ocean-900 text-sm rounded-lg py-2 px-3">
             Applying for KES{" "}
             <strong>{parseFloat(widgetAmount).toLocaleString()}</strong>
             {widgetDuration ? ` over ${widgetDuration} months` : ""}. Finish
@@ -232,7 +232,7 @@ function CustomerRegister() {
                       }
                       className={`text-center p-2 rounded-lg border-2 transition ${
                         selected
-                          ? "border-indigo-600 bg-indigo-50"
+                          ? "border-ocean-600 bg-ocean-50"
                           : "border-gray-200 hover:border-gray-300 bg-white"
                       }`}
                     >
@@ -419,7 +419,7 @@ function CustomerRegister() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-ocean-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
             >
               {submitting ? "Saving..." : "Continue →"}
             </button>
@@ -469,7 +469,7 @@ function CustomerRegister() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-ocean-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
             >
               {submitting ? "Verifying..." : "Verify & Finish"}
             </button>
@@ -477,7 +477,7 @@ function CustomerRegister() {
               <button
                 type="button"
                 onClick={resend}
-                className="w-full text-sm text-indigo-600"
+                className="w-full text-sm text-ocean-600"
               >
                 Resend code
               </button>
@@ -492,7 +492,7 @@ function CustomerRegister() {
             Already have an account?{" "}
             <Link
               to="/portal/login"
-              className="text-indigo-600 font-semibold"
+              className="text-ocean-600 font-semibold"
             >
               Login
             </Link>

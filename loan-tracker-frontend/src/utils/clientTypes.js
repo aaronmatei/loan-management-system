@@ -75,7 +75,7 @@ export function tagChipClass(tone) {
     case "emerald":
       return "bg-emerald-100 text-emerald-700";
     case "sky":
-      return "bg-sky-100 text-sky-700";
+      return "bg-ocean-100 text-ocean-700";
     default:
       return "bg-gray-100 text-gray-700";
   }

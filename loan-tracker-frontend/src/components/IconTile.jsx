@@ -8,10 +8,10 @@ import React from "react";
 // tenant-facing surfaces — those stay driven by the tenant brand_color.
 
 const GRADIENTS = {
-  ocean: "linear-gradient(135deg, #2cbeff 0%, #0086cc 100%)",
+  ocean: "linear-gradient(135deg, #22b488 0%, #0e8a6e 100%)",
   teal: "linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)",
   emerald: "linear-gradient(135deg, #34d399 0%, #059669 100%)",
-  indigo: "linear-gradient(135deg, #818cf8 0%, #4f46e5 100%)",
+  indigo: "linear-gradient(135deg, #818cf8 0%, #0a5c4c 100%)",
   rose: "linear-gradient(135deg, #fb7185 0%, #e11d48 100%)",
   amber: "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)",
 };

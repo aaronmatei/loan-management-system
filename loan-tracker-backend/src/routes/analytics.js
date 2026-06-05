@@ -1,5 +1,6 @@
 import express from "express";
 import PDFDocument from "pdfkit";
+import { FONT, registerPdfFonts } from "../utils/pdfFonts.js";
 import ExcelJS from "exceljs";
 import { query } from "../config/database.js";
 import { stampExcelSheet, drawPdfStamp } from "../utils/stamp.js";
@@ -590,13 +591,20 @@ router.get("/platform/export/pdf", async (req, res) => {
       parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
     const filename = `platform-report-${new Date().toISOString().split("T")[0]}.pdf`;
     const doc = new PDFDocument({ margin: 50 });
+    registerPdfFonts(doc);
+    doc.font(FONT.reg);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     doc.pipe(res);
 
-    doc.fontSize(20).fillColor("#0086cc").text("LendFest Platform Report", {
-      align: "center",
-    });
+    doc
+      .font(FONT.display)
+      .fontSize(20)
+      .fillColor("#0e8a6e")
+      .text("LendFest Platform Report", {
+        align: "center",
+      });
+    doc.font(FONT.reg);
     doc
       .fontSize(10)
       .fillColor("#999")
@@ -795,6 +803,8 @@ router.get("/export/pdf", async (req, res) => {
       : `last-${months}-months`;
     const filename = `portfolio-report-${periodSlug}.pdf`;
     const doc = new PDFDocument({ margin: 50 });
+    registerPdfFonts(doc);
+    doc.font(FONT.reg);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -809,9 +819,10 @@ router.get("/export/pdf", async (req, res) => {
       });
 
     // ── Header ──
-    doc.fontSize(20).fillColor("#4F46E5").text(businessName, {
+    doc.font(FONT.display).fontSize(20).fillColor("#0e8a6e").text(businessName, {
       align: "center",
     });
+    doc.font(FONT.reg);
     doc.fontSize(14).fillColor("#666").text("Portfolio Report", {
       align: "center",
     });

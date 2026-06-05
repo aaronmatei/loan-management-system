@@ -140,7 +140,7 @@ function CustomerDashboard() {
     loan_progress,
     status_breakdown,
   } = d;
-  const scoreColor = rated ? RISK_HEX[risk?.color] || "#0086cc" : "#94a3b8";
+  const scoreColor = rated ? RISK_HEX[risk?.color] || "#0e8a6e" : "#94a3b8";
 
   const kpis = [
     { label: "Total Borrowed", value: KES(stats.total_borrowed), icon: Coins },
@@ -281,8 +281,8 @@ function CustomerDashboard() {
                 >
                   <defs>
                     <linearGradient id="repayFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0086cc" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#0086cc" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#0e8a6e" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#0e8a6e" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -309,7 +309,7 @@ function CustomerDashboard() {
                   <Area
                     type="monotone"
                     dataKey="amount"
-                    stroke="#0086cc"
+                    stroke="#0e8a6e"
                     strokeWidth={2.5}
                     fill="url(#repayFill)"
                   />
@@ -383,7 +383,7 @@ function CustomerDashboard() {
             {
               label: "Interest paid",
               value: KES(stats.interest_paid),
-              color: "#0086cc",
+              color: "#0e8a6e",
               wide: true,
             },
           ].map((s) => (

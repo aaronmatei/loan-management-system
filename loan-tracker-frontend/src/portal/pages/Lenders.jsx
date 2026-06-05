@@ -136,13 +136,13 @@ function Lenders() {
             on the next screen. */}
         <div
           role="note"
-          className="mb-5 flex items-start gap-3 rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-sm text-sky-900"
+          className="mb-5 flex items-start gap-3 rounded-xl border border-ocean-100 bg-ocean-50/70 p-3 text-sm text-ocean-900"
         >
-          <Info size={18} className="mt-0.5 shrink-0 text-sky-600" />
+          <Info size={18} className="mt-0.5 shrink-0 text-ocean-600" />
           <p className="leading-relaxed">
             <span className="font-semibold">You can only borrow from lenders you've linked.</span>{" "}
             Tap a lender to view their terms and{" "}
-            <span className="inline-flex items-center gap-1 font-semibold text-sky-700">
+            <span className="inline-flex items-center gap-1 font-semibold text-ocean-700">
               <Link2 size={13} /> Link
             </span>{" "}
             them — applications and repayments open up once the link

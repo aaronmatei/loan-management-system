@@ -35,7 +35,7 @@ function EmbedSettings() {
   const baseUrl =
     import.meta.env.VITE_FRONTEND_URL || window.location.origin;
   const widgetUrl = `${baseUrl}/widget/calculator/${tenant.subdomain}`;
-  const brand = tenant.brand_color || "#4F46E5";
+  const brand = tenant.brand_color || "#0e8a6e";
 
   const iframeCode = `<iframe
   src="${widgetUrl}"

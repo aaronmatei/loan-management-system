@@ -14,7 +14,7 @@ const validPassword = (p) =>
   /[^A-Za-z0-9]/.test(p);
 
 const field =
-  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
+  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
 function ForgotPassword() {
   const navigate = useNavigate();
@@ -87,7 +87,7 @@ function ForgotPassword() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-ocean-600 to-purple-700 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">
             Reset Password
@@ -116,7 +116,7 @@ function ForgotPassword() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+                className="w-full py-3 bg-gradient-to-r from-ocean-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
               >
                 {submitting ? "Checking…" : "Continue →"}
               </button>
@@ -154,7 +154,7 @@ function ForgotPassword() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+                className="w-full py-3 bg-gradient-to-r from-ocean-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
               >
                 {submitting ? "Resetting…" : "Reset password"}
               </button>
@@ -162,7 +162,7 @@ function ForgotPassword() {
           )}
 
           <p className="text-center text-sm mt-6">
-            <Link to="/portal/login" className="text-indigo-600 font-semibold">
+            <Link to="/portal/login" className="text-ocean-600 font-semibold">
               ← Back to login
             </Link>
           </p>

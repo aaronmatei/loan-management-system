@@ -168,11 +168,11 @@ function WhiteLabelSettings() {
               <div className="flex items-center gap-3">
                 <div
                   className="w-12 h-12 rounded-lg border-2 border-gray-200"
-                  style={{ backgroundColor: s.brand_color || "#4F46E5" }}
+                  style={{ backgroundColor: s.brand_color || "#0e8a6e" }}
                 />
                 <input
                   type="color"
-                  value={s.brand_color || "#4F46E5"}
+                  value={s.brand_color || "#0e8a6e"}
                   onChange={(e) =>
                     setS({ ...s, brand_color: e.target.value })
                   }
@@ -180,7 +180,7 @@ function WhiteLabelSettings() {
                 />
                 <input
                   type="text"
-                  value={s.brand_color || "#4F46E5"}
+                  value={s.brand_color || "#0e8a6e"}
                   onChange={(e) =>
                     setS({ ...s, brand_color: e.target.value })
                   }
@@ -215,8 +215,8 @@ function WhiteLabelSettings() {
         {tab === "communications" && isPro && (
           <div className="space-y-4">
             <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><Mail size={20} /> Communications</h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2 text-sm text-blue-800 flex items-start gap-2">
-              <Info size={14} className="mt-0.5 shrink-0 text-blue-600" /> What customers see — your brand, not the platform's, on
+            <div className="bg-ocean-50 border border-ocean-200 rounded-lg p-3 mb-2 text-sm text-ocean-800 flex items-start gap-2">
+              <Info size={14} className="mt-0.5 shrink-0 text-ocean-600" /> What customers see — your brand, not the platform's, on
               SMS / email / reports.
             </div>
             {[

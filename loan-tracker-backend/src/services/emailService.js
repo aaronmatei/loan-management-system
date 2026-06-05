@@ -148,7 +148,7 @@ const baseLayout = ({ accent, contentBg, border, title, subtitle, body, company 
     .header p { margin: 0; opacity: 0.9; }
     .content { background: ${contentBg}; padding: 30px; border: 1px solid ${border}; }
     .footer { background: #1f2937; color: #fff; padding: 20px; text-align: center; font-size: 12px; border-radius: 0 0 10px 10px; }
-    .info-box { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #4F46E5; }
+    .info-box { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0e8a6e; }
     .info-row { padding: 6px 0; border-bottom: 1px solid #f1f1f1; }
     .info-row .label { color: #6b7280; }
     .info-row .value { font-weight: bold; color: #1f2937; float: right; }
@@ -190,7 +190,7 @@ export const templates = {
   }) => ({
     subject: `Payment Received - ${loanCode}`,
     html: baseLayout({
-      accent: "linear-gradient(135deg, #4F46E5, #7C3AED)",
+      accent: "linear-gradient(135deg, #0e8a6e, #0a5c4c)",
       contentBg: "#f9fafb",
       border: "#e5e7eb",
       title: "✅ Payment Received",
@@ -372,7 +372,7 @@ export const templates = {
   }) => ({
     subject: `🎉 Loan Fully Repaid + Refund Due - ${loanCode}`,
     html: baseLayout({
-      accent: "linear-gradient(135deg, #7C3AED, #4F46E5)",
+      accent: "linear-gradient(135deg, #0a5c4c, #0e8a6e)",
       contentBg: "#faf5ff",
       border: "#e9d5ff",
       title: "🎊 Loan Fully Repaid!",
@@ -386,14 +386,14 @@ export const templates = {
           <p style="font-size:30px;font-weight:bold;color:#059669;margin:10px 0;">PAID IN FULL ✓</p>
           <p style="margin:0;">Loan ${loanCode}</p>
         </div>
-        <div style="background:linear-gradient(135deg,#7C3AED,#4F46E5);color:#fff;padding:22px;border-radius:8px;margin:20px 0;text-align:center;">
+        <div style="background:linear-gradient(135deg,#0a5c4c,#0e8a6e);color:#fff;padding:22px;border-radius:8px;margin:20px 0;text-align:center;">
           <p style="margin:0;font-size:15px;">💰 Refund Due to You</p>
           <p style="font-size:30px;font-weight:bold;margin:10px 0;">${money(
             overpaymentAmount,
           )}</p>
           <p style="margin:0;font-size:13px;opacity:0.9;">We will process your refund within 3–5 business days</p>
         </div>
-        <div class="info-box" style="border-left-color:#7C3AED;">
+        <div class="info-box" style="border-left-color:#0a5c4c;">
           <div class="info-row"><span class="label">Principal Amount:</span><span class="value">${money(
             principalAmount,
           )}</span></div>
@@ -403,7 +403,7 @@ export const templates = {
           <div class="info-row"><span class="label">Total Paid:</span><span class="value">${money(
             totalPaid,
           )}</span></div>
-          <div class="info-row" style="border-bottom:none;"><span class="label" style="color:#7C3AED;font-weight:bold;">Overpayment (Refund Due):</span><span class="value" style="color:#7C3AED;">${money(
+          <div class="info-row" style="border-bottom:none;"><span class="label" style="color:#0a5c4c;font-weight:bold;">Overpayment (Refund Due):</span><span class="value" style="color:#0a5c4c;">${money(
             overpaymentAmount,
           )}</span></div>
         </div>
@@ -461,7 +461,7 @@ export const templates = {
   custom: ({ subject, message, clientName, company }) => ({
     subject,
     html: baseLayout({
-      accent: "linear-gradient(135deg, #4F46E5, #7C3AED)",
+      accent: "linear-gradient(135deg, #0e8a6e, #0a5c4c)",
       contentBg: "#f9fafb",
       border: "#e5e7eb",
       title: subject,
@@ -481,7 +481,7 @@ export const templates = {
   applicationSubmitted: ({ clientName, amount, loanCode, months, company }) => ({
     subject: `Loan Application Received — ${loanCode}`,
     html: baseLayout({
-      accent: "linear-gradient(135deg, #4F46E5, #7C3AED)",
+      accent: "linear-gradient(135deg, #0e8a6e, #0a5c4c)",
       contentBg: "#f9fafb",
       border: "#e5e7eb",
       title: "✅ Application Received",

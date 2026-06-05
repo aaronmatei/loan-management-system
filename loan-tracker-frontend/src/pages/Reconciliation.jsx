@@ -67,7 +67,7 @@ const METHOD_META = {
 const COLOR_CLS = {
   emerald: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-100" },
   green: { bg: "bg-green-50", text: "text-green-700", border: "border-green-100" },
-  sky: { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-100" },
+  sky: { bg: "bg-ocean-50", text: "text-ocean-700", border: "border-ocean-100" },
   amber: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-100" },
   slate: { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-100" },
 };
@@ -205,7 +205,7 @@ function Reconciliation() {
           onClick={() => setTab("unmatched")}
           className={`relative inline-flex items-center gap-2 px-4 py-2.5 -mb-px text-sm font-semibold transition border-b-2 ${
             tab === "unmatched"
-              ? "border-sky-600 text-sky-700"
+              ? "border-ocean-600 text-ocean-700"
               : "border-transparent text-slate-500 hover:text-slate-700"
           }`}
         >
@@ -636,8 +636,8 @@ function Reconciliation() {
       {tab === "unmatched" && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 lg:p-14">
           <div className="max-w-2xl mx-auto text-center">
-            <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto mb-5">
-              <Inbox size={28} className="text-sky-600" />
+            <div className="w-16 h-16 rounded-2xl bg-ocean-50 flex items-center justify-center mx-auto mb-5">
+              <Inbox size={28} className="text-ocean-600" />
             </div>
             <h3 className="text-2xl font-bold text-navy-900 mb-2">
               Unmatched M-Pesa payments

@@ -11,6 +11,7 @@
 import PDFDocument from "pdfkit";
 import { query } from "../config/database.js";
 import { drawPdfStamp } from "./stamp.js";
+import { FONT, registerPdfFonts } from "./pdfFonts.js";
 
 // Thrown when the primary record (client/loan/transaction) does
 // not exist, so callers can map it to an HTTP 404.
@@ -67,7 +68,7 @@ const streamToBuffer = (doc) =>
 // (pdfkit's native color form).
 const receiptTheme = (brandColor) => {
   const valid = brandColor && /^#[0-9a-fA-F]{6}$/.test(brandColor);
-  const n = parseInt((valid ? brandColor : "#0f3d2e").slice(1), 16);
+  const n = parseInt((valid ? brandColor : "#0a5c4c").slice(1), 16);
   const base = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   const shift = (amt) =>
     base.map((v) => Math.max(0, Math.min(255, v + amt)));
@@ -137,12 +138,13 @@ export const buildClientStatementPdf = async (clientId, tid) => {
   );
 
   const doc = new PDFDocument({ size: "A4", margin: 50 });
+  registerPdfFonts(doc);
   const filename = `client_statement_${client.client_code}_${new Date().toISOString().split("T")[0]}.pdf`;
   const done = streamToBuffer(doc);
 
   doc
     .fontSize(20)
-    .fillColor("#4F46E5")
+    .fillColor("#0e8a6e")
     .text("LOAN MANAGEMENT SYSTEM", { align: "center" });
   doc
     .fontSize(14)
@@ -156,7 +158,7 @@ export const buildClientStatementPdf = async (clientId, tid) => {
     .text(`Generated: ${formatDate(new Date())}`, { align: "right" });
   doc.moveDown();
 
-  doc.rect(50, doc.y, 500, 100).stroke("#4F46E5");
+  doc.rect(50, doc.y, 500, 100).stroke("#0e8a6e");
   doc.fontSize(12).fillColor("#000");
   const boxY = doc.y + 10;
   doc.text(`Client Code: ${client.client_code}`, 60, boxY);
@@ -183,7 +185,7 @@ export const buildClientStatementPdf = async (clientId, tid) => {
   );
   const outstanding = totalDue - totalPaid;
 
-  doc.fontSize(14).fillColor("#4F46E5").text("SUMMARY", { underline: true });
+  doc.fontSize(14).fillColor("#0e8a6e").text("SUMMARY", { underline: true });
   doc.moveDown(0.5);
   doc.fontSize(10).fillColor("#000");
   doc.text(`Total Loans: ${loansResult.rows.length}`);
@@ -201,7 +203,7 @@ export const buildClientStatementPdf = async (clientId, tid) => {
   if (loansResult.rows.length > 0) {
     doc
       .fontSize(14)
-      .fillColor("#4F46E5")
+      .fillColor("#0e8a6e")
       .text("LOAN HISTORY", { underline: true });
     doc.moveDown(0.5);
 
@@ -246,7 +248,7 @@ export const buildClientStatementPdf = async (clientId, tid) => {
 
     doc
       .fontSize(14)
-      .fillColor("#4F46E5")
+      .fillColor("#0e8a6e")
       .text("PAYMENT HISTORY (Last 20)", { underline: true });
     doc.moveDown(0.5);
 
@@ -358,12 +360,13 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
   );
 
   const doc = new PDFDocument({ size: "A4", margin: 50 });
+  registerPdfFonts(doc);
   const filename = `loan_statement_${loan.loan_code}_${new Date().toISOString().split("T")[0]}.pdf`;
   const done = streamToBuffer(doc);
 
   doc
     .fontSize(20)
-    .fillColor("#4F46E5")
+    .fillColor("#0e8a6e")
     .text("LOAN STATEMENT", { align: "center" });
   doc.fontSize(14).fillColor("#000").text(loan.loan_code, { align: "center" });
   doc.moveDown();
@@ -373,7 +376,7 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
     .text(`Generated: ${formatDate(new Date())}`, { align: "right" });
   doc.moveDown();
 
-  doc.rect(50, doc.y, 500, 80).stroke("#4F46E5");
+  doc.rect(50, doc.y, 500, 80).stroke("#0e8a6e");
   const boxY = doc.y + 10;
   doc.fontSize(11).fillColor("#000");
   doc.text(`Client: ${loan.first_name} ${loan.last_name}`, 60, boxY);
@@ -425,7 +428,7 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
 
   doc
     .fontSize(14)
-    .fillColor("#4F46E5")
+    .fillColor("#0e8a6e")
     .text("LOAN DETAILS", { underline: true });
   doc.moveDown(0.5);
   doc.fontSize(10).fillColor("#000");
@@ -482,7 +485,7 @@ export const buildLoanStatementPdf = async (loanId, tid) => {
 
   doc
     .fontSize(14)
-    .fillColor("#4F46E5")
+    .fillColor("#0e8a6e")
     .text("PAYMENT SCHEDULE", { underline: true });
   doc.moveDown(0.5);
 
@@ -639,6 +642,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     (txn.first_name || "").trim() || txn.business_name || "there";
 
   const doc = new PDFDocument({ size: "A5", margin: 0 });
+  registerPdfFonts(doc);
   const filename = `receipt_${txn.transaction_code}.pdf`;
   const done = streamToBuffer(doc);
 
@@ -648,7 +652,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   const WHITE = [255, 255, 255];
   const microLabel = (txt, x, yy, w) =>
     doc
-      .font("Helvetica-Bold")
+      .font(FONT.bold)
       .fontSize(7)
       .fillColor([150, 150, 150])
       .text(txt, x, yy, { characterSpacing: 1, ...(w ? { width: w } : {}) });
@@ -662,14 +666,14 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   // top-left: glow dot + PAYMENT RECEIVED
   doc.circle(PAD + 3, 33, 3).fill(theme.accentLight);
   doc
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .fontSize(8)
     .fillColor(theme.accentLight)
     .text("PAYMENT RECEIVED", PAD + 12, 29, { characterSpacing: 1.5 });
 
   // top-right: TRANSACTION / code / PAID pill
   doc
-    .font("Helvetica")
+    .font(FONT.reg)
     .fontSize(7)
     .fillColor(WHITE)
     .fillOpacity(0.5)
@@ -681,7 +685,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     .text(txn.transaction_code, PAD, 40, { width: CW, align: "right" });
   doc.fillOpacity(1);
   // pill (avoid the ✓ glyph — not in WinAnsi; "PAID" reads like a stamp)
-  doc.font("Helvetica-Bold").fontSize(7.5);
+  doc.font(FONT.bold).fontSize(7.5);
   const pillTxt = "PAID";
   const pillW = doc.widthOfString(pillTxt) + 18;
   const pillX = W - PAD - pillW;
@@ -699,14 +703,14 @@ export const buildReceiptPdf = async (transactionId, tid) => {
 
   // headline
   doc
-    .font("Helvetica")
+    .font(FONT.reg)
     .fontSize(17)
     .fillColor(WHITE)
     .fillOpacity(0.9)
     .text("Thank you,", PAD, 92);
   doc
     .fillOpacity(1)
-    .font("Times-Italic")
+    .font(FONT.italic)
     .fontSize(28)
     .fillColor(theme.accentLight)
     .text(`${firstName}.`, PAD, 112, { width: CW });
@@ -717,7 +721,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     .split(".");
   const wholeFmt = Number(whole).toLocaleString();
   doc
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .fontSize(7.5)
     .fillColor(WHITE)
     .fillOpacity(0.5)
@@ -725,17 +729,17 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   doc.fillOpacity(1);
   const amtY = 176;
   doc
-    .font("Helvetica")
+    .font(FONT.reg)
     .fontSize(12)
     .fillColor(WHITE)
     .fillOpacity(0.6)
     .text("KES ", PAD, amtY + 14, { continued: true });
   doc
     .fillOpacity(1)
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .fontSize(34)
     .text(wholeFmt, { continued: true });
-  doc.font("Helvetica-Bold").fontSize(20).fillOpacity(0.4).text(`.${dec}`);
+  doc.font(FONT.bold).fontSize(20).fillOpacity(0.4).text(`.${dec}`);
   doc.fillOpacity(1);
 
   // meta: date · time · via method
@@ -754,7 +758,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     .filter(Boolean)
     .join("  ·  ");
   doc
-    .font("Helvetica")
+    .font(FONT.reg)
     .fontSize(8.5)
     .fillColor(WHITE)
     .fillOpacity(0.55)
@@ -784,13 +788,13 @@ export const buildReceiptPdf = async (transactionId, tid) => {
 
   microLabel("CLIENT", colL, by);
   doc
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .fontSize(10)
     .fillColor([40, 40, 40])
     .text(`${txn.first_name} ${txn.last_name}`.trim(), colL, by + 9);
   if (txn.phone_number)
     doc
-      .font("Helvetica")
+      .font(FONT.reg)
       .fontSize(8.5)
       .fillColor([130, 130, 130])
       .text(txn.phone_number, colL, by + 22);
@@ -812,7 +816,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     .text(txn.loan_code, colL, by + 9);
   microLabel("METHOD", colR, by);
   doc
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .fontSize(10)
     .fillColor([40, 40, 40])
     .text(txn.payment_method || "—", colR, by + 9);
@@ -840,12 +844,12 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   py += 15;
   const sumRow = (label, valStr, opts = {}) => {
     doc
-      .font("Helvetica")
+      .font(FONT.reg)
       .fontSize(9)
       .fillColor([120, 120, 120])
       .text(label, PAD + 12, py, { width: CW - 24 });
     doc
-      .font(opts.font || "Helvetica")
+      .font(opts.font || FONT.reg)
       .fontSize(9)
       .fillColor(opts.color || [60, 60, 60])
       .text(valStr, PAD + 12, py, { width: CW - 24, align: "right" });
@@ -855,7 +859,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   sumRow("Total due", formatCurrency(txn.total_amount_due));
   sumRow("This payment", `- ${formatCurrency(txn.amount_paid)}`, {
     color: theme.accent,
-    font: "Helvetica-Bold",
+    font: FONT.bold,
   });
   doc
     .lineWidth(0.5)
@@ -865,12 +869,12 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     .stroke();
   py += 7;
   doc
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .fontSize(10)
     .fillColor([80, 80, 80])
     .text("Remaining balance", PAD + 12, py + 5);
   doc
-    .font("Times-Roman")
+    .font(FONT.reg)
     .fontSize(17)
     .fillColor([20, 20, 20])
     .text(formatCurrency(remaining), PAD + 12, py, {
@@ -884,7 +888,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     const ph = 44;
     doc.roundedRect(PAD, by, CW, ph, 10).lineWidth(1).stroke(theme.accent);
     doc
-      .font("Times-Italic")
+      .font(FONT.italic)
       .fontSize(13)
       .fillColor(theme.accent)
       .text("Loan fully paid", PAD, by + 15, { width: CW, align: "center" });
@@ -894,17 +898,17 @@ export const buildReceiptPdf = async (transactionId, tid) => {
     doc.roundedRect(PAD, by, CW, ph, 10).lineWidth(0.7).stroke([225, 225, 225]);
     microLabel("NEXT PAYMENT", PAD + 14, by + 12);
     doc
-      .font("Times-Roman")
+      .font(FONT.reg)
       .fontSize(15)
       .fillColor([20, 20, 20])
       .text(formatCurrency(nextDue), PAD + 14, by + 24);
     doc
-      .font("Helvetica-Bold")
+      .font(FONT.bold)
       .fontSize(7)
       .fillColor([150, 150, 150])
       .text("DUE", PAD, by + 12, { width: CW - 14, align: "right", characterSpacing: 1 });
     doc
-      .font("Helvetica-Bold")
+      .font(FONT.bold)
       .fontSize(10)
       .fillColor([70, 70, 70])
       .text(formatDate(next.due_date), PAD, by + 24, {
@@ -917,13 +921,13 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   // footer
   by += 4;
   doc
-    .font("Times-Italic")
+    .font(FONT.italic)
     .fontSize(11)
     .fillColor([130, 130, 130])
     .text("A receipt for your records.", PAD, by, { width: CW, align: "center" });
   by += 16;
   doc
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .fontSize(7)
     .fillColor([165, 165, 165])
     .text("SYSTEM GENERATED · NO SIGNATURE REQUIRED", PAD, by, {
@@ -934,7 +938,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   if (!txn.hide_platform_branding) {
     by += 13;
     doc
-      .font("Helvetica")
+      .font(FONT.reg)
       .fontSize(7)
       .fillColor([200, 200, 200])
       .text("Powered by LendFest", PAD, by, { width: CW, align: "center" });
@@ -1013,13 +1017,14 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
     parseInt(loan.loan_duration_months, 10);
 
   const doc = new PDFDocument({ size: "A4", margin: 50 });
+  registerPdfFonts(doc);
   const filename = `loan_agreement_${loan.loan_code}.pdf`;
   const done = streamToBuffer(doc);
 
   // ===== PAGE 1: AGREEMENT =====
   doc
     .fontSize(20)
-    .fillColor("#4F46E5")
+    .fillColor("#0e8a6e")
     .text(company.company_name.toUpperCase(), { align: "center" });
   doc
     .fontSize(10)
@@ -1036,7 +1041,7 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   }
   doc.moveDown();
 
-  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#4F46E5");
+  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#0e8a6e");
   doc.moveDown();
 
   doc
@@ -1055,14 +1060,14 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
 
   doc.fontSize(11).fillColor("#000");
   doc.text("THIS LOAN AGREEMENT is made on ", { continued: true });
-  doc.font("Helvetica-Bold").text(formatDate(loan.start_date), {
+  doc.font(FONT.bold).text(formatDate(loan.start_date), {
     continued: true,
   });
-  doc.font("Helvetica").text(" BETWEEN:");
+  doc.font(FONT.reg).text(" BETWEEN:");
   doc.moveDown(0.5);
 
-  doc.fontSize(11).font("Helvetica-Bold").text("LENDER:");
-  doc.font("Helvetica").fontSize(10);
+  doc.fontSize(11).font(FONT.bold).text("LENDER:");
+  doc.font(FONT.reg).fontSize(10);
   doc.text(`${company.company_name}`);
   doc.text(`${company.company_address}`);
   doc.text(`Phone: ${company.company_phone}`);
@@ -1070,11 +1075,11 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   doc.text('(hereinafter referred to as "the Lender")');
   doc.moveDown(0.5);
 
-  doc.fontSize(11).font("Helvetica-Bold").text("AND");
+  doc.fontSize(11).font(FONT.bold).text("AND");
   doc.moveDown(0.3);
 
-  doc.fontSize(11).font("Helvetica-Bold").text("BORROWER:");
-  doc.font("Helvetica").fontSize(10);
+  doc.fontSize(11).font(FONT.bold).text("BORROWER:");
+  doc.font(FONT.reg).fontSize(10);
   doc.text(`Name: ${loan.first_name} ${loan.last_name}`);
   doc.text(`ID Number: ${loan.id_number || "N/A"}`);
   doc.text(`Phone: ${loan.phone_number}`);
@@ -1094,11 +1099,11 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
 
   doc
     .fontSize(12)
-    .fillColor("#4F46E5")
-    .font("Helvetica-Bold")
+    .fillColor("#0e8a6e")
+    .font(FONT.bold)
     .text("1. LOAN TERMS", { underline: true });
   doc.moveDown(0.3);
-  doc.fontSize(10).fillColor("#000").font("Helvetica");
+  doc.fontSize(10).fillColor("#000").font(FONT.reg);
 
   const terms = [
     ["Principal Amount:", formatCurrency(loan.principal_amount)],
@@ -1133,9 +1138,9 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
 
   terms.forEach(([label, value]) => {
     doc
-      .font("Helvetica-Bold")
+      .font(FONT.bold)
       .text(label, 70, doc.y, { continued: true, width: 200 });
-    doc.font("Helvetica").text(value);
+    doc.font(FONT.reg).text(value);
     doc.moveDown(0.2);
   });
   doc.moveDown();
@@ -1143,14 +1148,14 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   if (loan.collateral_description) {
     doc
       .fontSize(12)
-      .fillColor("#4F46E5")
-      .font("Helvetica-Bold")
+      .fillColor("#0e8a6e")
+      .font(FONT.bold)
       .text("2. COLLATERAL/SECURITY", { underline: true });
     doc.moveDown(0.3);
     doc
       .fontSize(10)
       .fillColor("#000")
-      .font("Helvetica")
+      .font(FONT.reg)
       .text(loan.collateral_description);
     doc.moveDown();
   }
@@ -1158,11 +1163,11 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   if (loan.guarantor_name) {
     doc
       .fontSize(12)
-      .fillColor("#4F46E5")
-      .font("Helvetica-Bold")
+      .fillColor("#0e8a6e")
+      .font(FONT.bold)
       .text("3. GUARANTOR", { underline: true });
     doc.moveDown(0.3);
-    doc.fontSize(10).fillColor("#000").font("Helvetica");
+    doc.fontSize(10).fillColor("#000").font(FONT.reg);
     doc.text(`Name: ${loan.guarantor_name}`);
     if (loan.guarantor_id_number)
       doc.text(`ID Number: ${loan.guarantor_id_number}`);
@@ -1178,8 +1183,8 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   doc.addPage();
   doc
     .fontSize(14)
-    .fillColor("#4F46E5")
-    .font("Helvetica-Bold")
+    .fillColor("#0e8a6e")
+    .font(FONT.bold)
     .text("TERMS AND CONDITIONS", { align: "center", underline: true });
   doc.moveDown();
 
@@ -1244,12 +1249,12 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
     doc
       .fontSize(11)
       .fillColor("#000")
-      .font("Helvetica-Bold")
+      .font(FONT.bold)
       .text(section.title);
     doc.moveDown(0.2);
     doc
       .fontSize(10)
-      .font("Helvetica")
+      .font(FONT.reg)
       .text(section.content, { align: "justify" });
     doc.moveDown(0.5);
   });
@@ -1258,14 +1263,14 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   doc.addPage();
   doc
     .fontSize(14)
-    .fillColor("#4F46E5")
-    .font("Helvetica-Bold")
+    .fillColor("#0e8a6e")
+    .font(FONT.bold)
     .text("PAYMENT SCHEDULE", { align: "center", underline: true });
   doc.moveDown();
 
   let scheduleY = doc.y;
-  doc.fontSize(10).fillColor("#fff").rect(50, scheduleY - 5, 495, 25).fill("#4F46E5");
-  doc.fillColor("#fff").font("Helvetica-Bold");
+  doc.fontSize(10).fillColor("#fff").rect(50, scheduleY - 5, 495, 25).fill("#0e8a6e");
+  doc.fillColor("#fff").font(FONT.bold);
   doc.text("#", 60, scheduleY + 3);
   doc.text("Due Date", 100, scheduleY + 3);
   doc.text("Principal", 220, scheduleY + 3);
@@ -1274,7 +1279,7 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   doc.text("Status", 470, scheduleY + 3);
 
   scheduleY += 30;
-  doc.fillColor("#000").font("Helvetica");
+  doc.fillColor("#000").font(FONT.reg);
 
   const principalPerMonth =
     parseFloat(loan.principal_amount) /
@@ -1304,8 +1309,8 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
     scheduleY += 22;
   });
 
-  doc.rect(50, scheduleY - 3, 495, 22).fillAndStroke("#4F46E5", "#4F46E5");
-  doc.fillColor("#fff").font("Helvetica-Bold").fontSize(10);
+  doc.rect(50, scheduleY - 3, 495, 22).fillAndStroke("#0e8a6e", "#0e8a6e");
+  doc.fillColor("#fff").font(FONT.bold).fontSize(10);
   doc.text("TOTAL", 60, scheduleY + 3);
   doc.text(formatCurrency(loan.principal_amount), 220, scheduleY + 3);
   doc.text(formatCurrency(loan.total_interest), 300, scheduleY + 3);
@@ -1315,18 +1320,18 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   doc.addPage();
   doc
     .fontSize(14)
-    .fillColor("#4F46E5")
-    .font("Helvetica-Bold")
+    .fillColor("#0e8a6e")
+    .font(FONT.bold)
     .text("SIGNATURES", { align: "center", underline: true });
   doc.moveDown(2);
 
   doc
     .fontSize(11)
     .fillColor("#000")
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .text("BORROWER:");
   doc.moveDown(0.5);
-  doc.fontSize(10).font("Helvetica");
+  doc.fontSize(10).font(FONT.reg);
   doc.text(`Name: ${loan.first_name} ${loan.last_name}`);
   doc.text(`ID Number: ${loan.id_number || "________________"}`);
   doc.moveDown();
@@ -1336,9 +1341,9 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   doc.moveDown(2);
 
   if (loan.guarantor_name) {
-    doc.fontSize(11).font("Helvetica-Bold").text("GUARANTOR:");
+    doc.fontSize(11).font(FONT.bold).text("GUARANTOR:");
     doc.moveDown(0.5);
-    doc.fontSize(10).font("Helvetica");
+    doc.fontSize(10).font(FONT.reg);
     doc.text(`Name: ${loan.guarantor_name}`);
     doc.text(`ID Number: ${loan.guarantor_id_number || "________________"}`);
     doc.text(`Phone: ${loan.guarantor_phone || "________________"}`);
@@ -1351,12 +1356,12 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
 
   doc
     .fontSize(11)
-    .font("Helvetica-Bold")
+    .font(FONT.bold)
     .text(
       "LENDER (for and on behalf of " + company.company_name + "):",
     );
   doc.moveDown(0.5);
-  doc.fontSize(10).font("Helvetica");
+  doc.fontSize(10).font(FONT.reg);
   doc.text("Name: _________________________________________");
   doc.text("Position: ______________________________________");
   doc.moveDown();
@@ -1395,16 +1400,16 @@ export const buildLoanAgreementPdf = async (loanId, tid) => {
   // cursor position.
   doc.y = stampBoxY + stampBoxSize + 30;
 
-  doc.fontSize(11).font("Helvetica-Bold").text("WITNESS:");
+  doc.fontSize(11).font(FONT.bold).text("WITNESS:");
   doc.moveDown(0.5);
-  doc.fontSize(10).font("Helvetica");
+  doc.fontSize(10).font(FONT.reg);
   doc.text("Name: _________________________________________");
   doc.text("ID Number: _____________________________________");
   doc.text("Phone: _________________________________________");
   doc.text("Signature: _____________________________________");
   doc.text("Date: _________________________________________");
 
-  doc.fontSize(8).fillColor("#999").font("Helvetica");
+  doc.fontSize(8).fillColor("#999").font(FONT.reg);
   doc.text(
     `This document is a legal binding agreement between ${company.company_name} and the named borrower.`,
     50,

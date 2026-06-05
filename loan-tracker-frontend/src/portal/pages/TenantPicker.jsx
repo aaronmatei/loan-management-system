@@ -40,16 +40,16 @@ function TenantPicker() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-ocean-600 to-purple-700 p-4">
       <div className="max-w-2xl mx-auto pt-12">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">
             Hi {customer?.first_name}!
           </h1>
-          <p className="text-indigo-100 text-lg">
+          <p className="text-ocean-100 text-lg">
             You have accounts with {tenants.length} lenders
           </p>
-          <p className="text-indigo-200 text-sm mt-2">
+          <p className="text-ocean-200 text-sm mt-2">
             Select a lender to view your loans
           </p>
         </div>
@@ -67,7 +67,7 @@ function TenantPicker() {
                   <div
                     className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl"
                     style={{
-                      backgroundColor: tenant.brand_color || "#4F46E5",
+                      backgroundColor: tenant.brand_color || "#0e8a6e",
                     }}
                   >
                     {tenant.business_name?.charAt(0)}
@@ -83,7 +83,7 @@ function TenantPicker() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-indigo-600">
+                  <p className="text-2xl font-bold text-ocean-600">
                     {tenant.active_loans}
                   </p>
                   <p className="text-xs text-gray-500">active loans</p>
@@ -96,7 +96,7 @@ function TenantPicker() {
                     {tenant.client_code}
                   </span>
                 </p>
-                <span className="text-indigo-600 font-semibold">View →</span>
+                <span className="text-ocean-600 font-semibold">View →</span>
               </div>
             </button>
           ))}
@@ -108,7 +108,7 @@ function TenantPicker() {
               localStorage.removeItem("portal_token");
               navigate("/portal/login");
             }}
-            className="text-indigo-100 hover:text-white text-sm"
+            className="text-ocean-100 hover:text-white text-sm"
           >
             Logout
           </button>

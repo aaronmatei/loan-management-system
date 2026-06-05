@@ -96,7 +96,7 @@ function InvoiceDetail() {
                   : invoice.status === "overdue"
                     ? "bg-red-500"
                     : invoice.status === "partial"
-                      ? "bg-blue-500"
+                      ? "bg-ocean-500"
                       : "bg-yellow-500"
               }`}
             >

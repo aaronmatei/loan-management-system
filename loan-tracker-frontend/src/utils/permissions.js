@@ -60,7 +60,7 @@ export const canAccess = (userRole, requiredRoles) => {
 export const getRoleBadge = (role) => {
   const badges = {
     admin: { label: "👑 Admin", color: "bg-purple-100 text-purple-700" },
-    manager: { label: "📊 Manager", color: "bg-blue-100 text-blue-700" },
+    manager: { label: "📊 Manager", color: "bg-ocean-100 text-ocean-700" },
     loan_officer: {
       label: "💼 Loan Officer",
       color: "bg-green-100 text-green-700",

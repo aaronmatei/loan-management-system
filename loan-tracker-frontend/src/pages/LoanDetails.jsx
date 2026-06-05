@@ -660,7 +660,7 @@ function LoanDetails() {
                           }}
                           className={itemBase}
                         >
-                          <Pencil size={16} className="text-indigo-600" />
+                          <Pencil size={16} className="text-ocean-600" />
                           Edit Loan
                         </button>
                       </PermissionGate>
@@ -795,7 +795,7 @@ function LoanDetails() {
                 loan.status === "active"
                   ? "bg-green-500 text-white"
                   : loan.status === "completed"
-                    ? "bg-blue-500 text-white"
+                    ? "bg-ocean-500 text-white"
                     : loan.status === "defaulted"
                       ? "bg-red-500 text-white"
                       : "bg-gray-500 text-white"
@@ -972,7 +972,7 @@ function LoanDetails() {
               <span
                 className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                   loan.interest_method === "reducing"
-                    ? "bg-indigo-100 text-indigo-700"
+                    ? "bg-ocean-100 text-ocean-700"
                     : "bg-slate-100 text-slate-700"
                 }`}
               >
@@ -1093,7 +1093,7 @@ function LoanDetails() {
                 <span
                   className={`inline-block px-2.5 py-0.5 rounded-full text-sm font-semibold ${
                     loan.interest_method === "reducing"
-                      ? "bg-indigo-100 text-indigo-700"
+                      ? "bg-ocean-100 text-ocean-700"
                       : "bg-slate-100 text-slate-700"
                   }`}
                 >
@@ -1577,7 +1577,7 @@ function LoanDetails() {
                       })()}
                     </td>
                     <td className="px-6 py-3">
-                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                      <span className="inline-block px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                         {txn.payment_method}
                       </span>
                     </td>
@@ -1620,7 +1620,7 @@ function LoanDetails() {
                             `receipt_${txn.transaction_code}.pdf`,
                           )
                         }
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-ocean-600 hover:text-ocean-800"
                         title="Download Receipt"
                       >
                         <Download size={18}/>
@@ -1672,13 +1672,13 @@ function LoanDetails() {
               !receiptSummary.is_fully_paid && (
                 <div className="mt-3 pt-3 border-t border-ocean-200 text-center">
                   <p className="text-xs text-gray-500 flex items-center justify-center gap-1"><Calendar size={12}/> Next Payment Due</p>
-                  <p className="font-bold text-xl text-blue-600">
+                  <p className="font-bold text-xl text-ocean-600">
                     KES{" "}
                     {parseFloat(
                       receiptSummary.next_payment_amount,
                     ).toLocaleString()}
                   </p>
-                  <p className="text-sm text-blue-600">
+                  <p className="text-sm text-ocean-600">
                     {new Date(
                       receiptSummary.next_payment_date,
                     ).toLocaleDateString("en-GB", {
@@ -2074,8 +2074,8 @@ function LoanDetails() {
                 (loan.package_name = null) don't render this banner
                 and keep every field free. */}
             {loan.package_name && (
-              <div className="bg-sky-50 border border-sky-200 text-sky-900 text-sm rounded-lg p-3 mb-4 flex items-start gap-2">
-                <Info size={16} className="flex-shrink-0 mt-0.5 text-sky-600" />
+              <div className="bg-ocean-50 border border-ocean-200 text-ocean-900 text-sm rounded-lg p-3 mb-4 flex items-start gap-2">
+                <Info size={16} className="flex-shrink-0 mt-0.5 text-ocean-600" />
                 <span>
                   This loan is bound by the <strong>{loan.package_name}</strong>{" "}
                   package. Rate, processing fee and interest method are fixed
@@ -2122,7 +2122,7 @@ function LoanDetails() {
                   {loan.package_name &&
                     (loan.package_min_amount != null ||
                       loan.package_max_amount != null) && (
-                      <p className="text-xs text-sky-700 mt-1">
+                      <p className="text-xs text-ocean-700 mt-1">
                         Package range: KES{" "}
                         {Number(loan.package_min_amount || 0).toLocaleString()}
                         {" – "}
@@ -2149,7 +2149,7 @@ function LoanDetails() {
                     }`}
                   />
                   {loan.package_name && (
-                    <p className="text-xs text-sky-700 mt-1">
+                    <p className="text-xs text-ocean-700 mt-1">
                       Fixed by package
                     </p>
                   )}
@@ -2171,7 +2171,7 @@ function LoanDetails() {
                     }`}
                   />
                   {loan.package_name && (
-                    <p className="text-xs text-sky-700 mt-1">
+                    <p className="text-xs text-ocean-700 mt-1">
                       Fixed by package
                     </p>
                   )}
@@ -2197,7 +2197,7 @@ function LoanDetails() {
                   {loan.package_name &&
                     (loan.package_min_duration_months != null ||
                       loan.package_max_duration_months != null) && (
-                      <p className="text-xs text-sky-700 mt-1">
+                      <p className="text-xs text-ocean-700 mt-1">
                         Package range: {loan.package_min_duration_months ?? 1}
                         {" – "}
                         {loan.package_max_duration_months ?? "60"} months
@@ -2230,7 +2230,7 @@ function LoanDetails() {
                   }`}
                 />
                 {loan.package_name && (
-                  <p className="text-xs text-sky-700 mt-1">
+                  <p className="text-xs text-ocean-700 mt-1">
                     Fixed by package
                   </p>
                 )}
@@ -2440,7 +2440,7 @@ function LoanDetails() {
                       Late Payment Fee (KES)
                     </label>
                     {loan.package_name && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-ocean-700 bg-ocean-50 border border-ocean-200 px-1.5 py-0.5 rounded whitespace-nowrap">
                         Per-loan · editable
                       </span>
                     )}
@@ -2501,7 +2501,7 @@ function LoanDetails() {
                       Penalty Rate (%)
                     </label>
                     {loan.package_name && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-ocean-700 bg-ocean-50 border border-ocean-200 px-1.5 py-0.5 rounded whitespace-nowrap">
                         Per-loan · editable
                       </span>
                     )}
@@ -2591,7 +2591,7 @@ function LoanDetails() {
                 <button
                   type="submit"
                   disabled={editing}
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
+                  className="px-6 py-2 bg-ocean-600 hover:bg-ocean-700 text-white font-semibold rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
                 >
                   <Pencil size={16} />
                   {editing ? "Saving…" : "Save Changes"}
@@ -2803,7 +2803,7 @@ function LoanDetails() {
                   <Row
                     label="Interest outstanding"
                     value={interestOutstanding}
-                    color="text-sky-700"
+                    color="text-ocean-700"
                     fillType="interest"
                   />
                   <Row
@@ -2941,7 +2941,7 @@ function LoanDetails() {
                                   overCap
                                     ? "bg-rose-500"
                                     : waiverForm.type === "interest"
-                                      ? "bg-sky-500"
+                                      ? "bg-ocean-500"
                                       : "bg-rose-500"
                                 }`}
                                 style={{

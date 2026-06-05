@@ -23,7 +23,7 @@ const LOAN_STATUS_BADGE = {
   active: "bg-green-100 text-green-700",
   defaulted: "bg-red-100 text-red-700",
   suspended: "bg-amber-100 text-amber-700",
-  completed: "bg-blue-100 text-blue-700",
+  completed: "bg-ocean-100 text-ocean-700",
 };
 
 const RANGE_FILTERS = [

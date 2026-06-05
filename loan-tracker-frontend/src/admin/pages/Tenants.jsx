@@ -172,7 +172,7 @@ function PlatformTenants() {
                           <div
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
                             style={{
-                              backgroundColor: t.brand_color || "#4F46E5",
+                              backgroundColor: t.brand_color || "#0e8a6e",
                             }}
                           >
                             {t.business_name?.charAt(0)}

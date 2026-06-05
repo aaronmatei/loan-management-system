@@ -56,10 +56,10 @@ function PlatformDashboard() {
               of {pm.total_loans_ever} total
             </p>
           </div>
-          <div className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-xl shadow-lg p-4">
-            <p className="text-blue-100 text-xs uppercase">Total Disbursed</p>
+          <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-xl shadow-lg p-4">
+            <p className="text-ocean-100 text-xs uppercase">Total Disbursed</p>
             <p className="text-xl font-bold mt-1">{M(pm.total_disbursed)}</p>
-            <p className="text-xs text-blue-100 mt-1">Across all tenants</p>
+            <p className="text-xs text-ocean-100 mt-1">Across all tenants</p>
           </div>
           <div className="bg-gradient-to-br from-pink-500 to-rose-600 text-white rounded-xl shadow-lg p-4">
             <p className="text-pink-100 text-xs uppercase">Total Clients</p>
@@ -156,7 +156,7 @@ function PlatformDashboard() {
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
                           style={{
-                            backgroundColor: t.brand_color || "#4F46E5",
+                            backgroundColor: t.brand_color || "#0e8a6e",
                           }}
                         >
                           {t.business_name?.charAt(0)}

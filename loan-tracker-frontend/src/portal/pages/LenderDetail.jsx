@@ -111,7 +111,7 @@ function LenderDetail() {
   }
   if (!lender) return <PortalLayout><div /></PortalLayout>;
 
-  const bc = lender.brand_color || "#0086cc";
+  const bc = lender.brand_color || "#0e8a6e";
 
   // Unlinking is blocked while any obligation is still in flight — active
   // loans OR a pending/under-review/approved application.
@@ -257,7 +257,7 @@ function LenderDetail() {
                             </span>
                           )}
                           {!elig.recommended && elig.eligible && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-ocean-100 text-ocean-700 px-1.5 py-0.5 rounded">
                               <CheckCircle size={10} /> Eligible
                             </span>
                           )}
@@ -288,7 +288,7 @@ function LenderDetail() {
                           {p.interest_method === "reducing" && (
                             <TrendingDown
                               size={12}
-                              className="text-indigo-500"
+                              className="text-ocean-500"
                             />
                           )}
                           {p.interest_method === "reducing"

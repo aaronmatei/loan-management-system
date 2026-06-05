@@ -60,11 +60,11 @@ function EmptyChart({ label }) {
 // Loan-status → ocean-aware colour. Semantic only where it's genuinely
 // semantic (defaulted = rose, completed = emerald, pending = amber).
 const STATUS_COLORS = {
-  active: "#0086cc",
+  active: "#0e8a6e",
   completed: "#10b981",
   defaulted: "#ef4444",
   pending: "#f59e0b",
-  approved: "#2cbeff",
+  approved: "#22b488",
   under_review: "#a78bfa",
   rejected: "#94a3b8",
   cancelled: "#64748b",
@@ -329,7 +329,7 @@ function Dashboard() {
     card: "Card",
     cheque: "Cheque",
   };
-  const METHOD_COLORS = ["#0086cc", "#2cbeff", "#4f46e5", "#0d9488", "#94a3b8"];
+  const METHOD_COLORS = ["#0e8a6e", "#22b488", "#0a5c4c", "#0d9488", "#94a3b8"];
   const methodData = (metrics.payment_method_split || [])
     .map((m, i) => ({
       name: METHOD_LABELS[(m.method || "").toLowerCase()] || cap(m.method),
@@ -394,17 +394,17 @@ function Dashboard() {
           header + Top up capital on top, hero numbers, utilization
           bar, then the five pastel All-time tiles all live INSIDE. */}
       {poolStatus && (
-        <div className="relative overflow-hidden rounded-3xl ring-1 ring-slate-200/60 shadow-[0_10px_40px_-20px_rgba(15,30,60,0.18)] p-6 lg:p-8 mb-6 bg-gradient-to-br from-slate-50 via-sky-50 to-indigo-50/70">
+        <div className="relative overflow-hidden rounded-3xl ring-1 ring-slate-200/60 shadow-[0_10px_40px_-20px_rgba(15,30,60,0.18)] p-6 lg:p-8 mb-6 bg-gradient-to-br from-slate-50 via-ocean-50 to-ocean-50/70">
           {/* Soft tinted glows for that premium light-mode feel. */}
-          <div className="pointer-events-none absolute -top-32 -right-24 w-96 h-96 rounded-full bg-sky-200/40 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-indigo-200/30 blur-3xl" />
+          <div className="pointer-events-none absolute -top-32 -right-24 w-96 h-96 rounded-full bg-ocean-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-ocean-200/30 blur-3xl" />
 
           {/* Header — icon chip + title on the left, Top up capital
               pill on the right. */}
           <div className="relative flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="relative w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-sm flex items-center justify-center">
-                <Coins size={20} className="text-sky-500" />
+                <Coins size={20} className="text-ocean-500" />
               </div>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">
                 Capital Pool
@@ -513,11 +513,11 @@ function Dashboard() {
                   Math.min(Math.max(poolStatus.utilization_rate, 0), 100) / 10,
                 );
                 const filled = i < filledCount;
-                // cyan-400 (34,211,238) → violet-500 (139,92,246)
+                // brand green #22B488 (34,180,136) → teal-deep #0A5C4C (10,92,76)
                 const t = i / 9;
-                const r = Math.round(34 + (139 - 34) * t);
-                const g = Math.round(211 + (92 - 211) * t);
-                const b = Math.round(238 + (246 - 238) * t);
+                const r = Math.round(34 + (10 - 34) * t);
+                const g = Math.round(180 + (92 - 180) * t);
+                const b = Math.round(136 + (76 - 136) * t);
                 return (
                   <div
                     key={i}
@@ -616,28 +616,28 @@ function Dashboard() {
                 (booked into capital_pool.total_interest_earned) but
                 surfacing it separately makes the income story
                 explicit instead of bundled into Net Interest. */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-indigo-50/80 to-violet-100/40 ring-1 ring-indigo-200/60 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-ocean-50/80 to-violet-100/40 ring-1 ring-ocean-200/60 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-indigo-100 ring-1 ring-indigo-200/70 flex items-center justify-center shadow-sm">
-                  <Receipt size={15} className="text-indigo-600" />
+                <div className="w-8 h-8 rounded-xl bg-ocean-100 ring-1 ring-ocean-200/70 flex items-center justify-center shadow-sm">
+                  <Receipt size={15} className="text-ocean-600" />
                 </div>
-                <Receipt size={12} className="text-indigo-300" />
+                <Receipt size={12} className="text-ocean-300" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
                 Processing Fees
               </p>
-              <p className="text-lg lg:text-xl font-extrabold text-indigo-700 mt-1 tracking-tight whitespace-nowrap">
+              <p className="text-lg lg:text-xl font-extrabold text-ocean-700 mt-1 tracking-tight whitespace-nowrap">
                 +{fmtKES(poolStatus.processing_fees ?? 0)}
               </p>
             </div>
 
             {/* All time Collection Rate — soft sky */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-sky-50/90 to-indigo-50/60 ring-1 ring-sky-200/60 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-ocean-50/90 to-ocean-50/60 ring-1 ring-ocean-200/60 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-sky-200/70 flex items-center justify-center shadow-sm">
-                  <Target size={15} className="text-sky-500" />
+                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-ocean-200/70 flex items-center justify-center shadow-sm">
+                  <Target size={15} className="text-ocean-500" />
                 </div>
-                <Target size={12} className="text-sky-300" />
+                <Target size={12} className="text-ocean-300" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
                 Lifetime Collection Rate
@@ -810,8 +810,8 @@ function Dashboard() {
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="0%" stopColor="#0086cc" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#0086cc" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#0e8a6e" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#0e8a6e" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -845,7 +845,7 @@ function Dashboard() {
                   type="monotone"
                   dataKey="collected"
                   name="Collected"
-                  stroke="#0086cc"
+                  stroke="#0e8a6e"
                   strokeWidth={2.5}
                   fill="url(#collectedFill)"
                 />
@@ -853,7 +853,7 @@ function Dashboard() {
                   type="monotone"
                   dataKey="disbursed"
                   name="Disbursed"
-                  stroke="#2cbeff"
+                  stroke="#22b488"
                   strokeWidth={2}
                   strokeDasharray="5 4"
                   dot={false}
@@ -1038,7 +1038,7 @@ function Dashboard() {
                 <Bar
                   dataKey="count"
                   name="Loans"
-                  fill="#0086cc"
+                  fill="#0e8a6e"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={48}
                 />

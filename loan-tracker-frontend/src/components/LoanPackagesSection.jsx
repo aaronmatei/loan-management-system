@@ -583,7 +583,7 @@ function LoanPackagesSection() {
                         <span
                           className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                             p.interest_method === "reducing"
-                              ? "bg-indigo-100 text-indigo-700"
+                              ? "bg-ocean-100 text-ocean-700"
                               : "bg-slate-100 text-slate-700"
                           }`}
                         >

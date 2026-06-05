@@ -15,7 +15,7 @@ const STATUS_BADGE = {
   paid: "bg-green-100 text-green-700",
   pending: "bg-yellow-100 text-yellow-700",
   overdue: "bg-red-100 text-red-700",
-  partial: "bg-blue-100 text-blue-700",
+  partial: "bg-ocean-100 text-ocean-700",
   cancelled: "bg-gray-200 text-gray-600",
 };
 
@@ -148,14 +148,14 @@ function BillingDashboard() {
                 {summary.current_month.total_invoices} invoices
               </p>
             </div>
-            <div className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-xl shadow-lg p-4">
-              <p className="text-blue-100 text-xs uppercase">
+            <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-xl shadow-lg p-4">
+              <p className="text-ocean-100 text-xs uppercase">
                 This Month Collected
               </p>
               <p className="text-2xl font-bold mt-1">
                 {K(summary.current_month.total_collected)}
               </p>
-              <p className="text-xs text-blue-100 mt-1">
+              <p className="text-xs text-ocean-100 mt-1">
                 {summary.current_month.paid_count} paid
               </p>
             </div>
@@ -297,7 +297,7 @@ function BillingDashboard() {
                             className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
                             style={{
                               backgroundColor:
-                                i.tenant_brand_color || "#4F46E5",
+                                i.tenant_brand_color || "#0e8a6e",
                             }}
                           >
                             {i.tenant_name?.charAt(0)}

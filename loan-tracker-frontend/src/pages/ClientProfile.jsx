@@ -39,7 +39,7 @@ function Card({ title, value, icon, color }) {
     {
       indigo: "border-ocean-500",
       green: "border-green-500",
-      blue: "border-blue-500",
+      blue: "border-ocean-500",
       red: "border-red-500",
       purple: "border-ocean-500",
     }[color] || "border-gray-300";
@@ -58,7 +58,7 @@ function Card({ title, value, icon, color }) {
 
 function statusBadge(status) {
   if (status === "active") return "bg-green-100 text-green-700";
-  if (status === "completed") return "bg-blue-100 text-blue-700";
+  if (status === "completed") return "bg-ocean-100 text-ocean-700";
   if (status === "defaulted") return "bg-red-100 text-red-700";
   return "bg-gray-100 text-gray-700";
 }
@@ -390,7 +390,7 @@ function ClientProfile() {
         <Card
           title="Completed"
           value={summary.completed_loans_count}
-          icon={<CheckCircle size={14} className="inline mr-1 text-blue-500" />}
+          icon={<CheckCircle size={14} className="inline mr-1 text-ocean-500" />}
           color="blue"
         />
         <Card
@@ -673,7 +673,7 @@ function ClientProfile() {
                       {new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
                     <td className="px-6 py-3">
-                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                      <span className="inline-block px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                         {p.payment_method}
                       </span>
                     </td>

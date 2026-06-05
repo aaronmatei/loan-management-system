@@ -290,15 +290,15 @@ function Reports() {
               : "0.0";
           const periodSubtitle = periodLabel(period);
           return (
-            <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-6 mb-6 bg-gradient-to-br from-ocean-100/70 via-white/55 to-indigo-100/60 backdrop-blur-md">
+            <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-6 mb-6 bg-gradient-to-br from-ocean-100/70 via-white/55 to-ocean-100/60 backdrop-blur-md">
               {/* Soft auroras behind the frosted glass, matching the
                   Capital Pool card on the Dashboard. */}
               <div className="pointer-events-none absolute -top-20 -right-12 w-64 h-64 rounded-full bg-ocean-300/30 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-indigo-300/25 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-ocean-300/25 blur-3xl" />
 
               <div className="relative flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-ocean-400 to-indigo-500 flex items-center justify-center shadow-sm">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-ocean-400 to-ocean-500 flex items-center justify-center shadow-sm">
                     <TrendingUp size={22} className="text-white" />
                   </div>
                   <div>
@@ -476,10 +476,10 @@ function Reports() {
                         <div className="mt-2 flex flex-wrap gap-1">
                           {waiversInterest > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[10px] font-semibold"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-ocean-50 text-ocean-700 text-[10px] font-semibold"
                               title="Sum of interest portions waived"
                             >
-                              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-ocean-500" />
                               Interest {fmt(waiversInterest)}
                             </span>
                           )}
@@ -522,8 +522,8 @@ function Reports() {
             group with their summed Income reading at the top). */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
-              <DollarSign size={20} className="text-blue-600" />
+            <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center mb-3">
+              <DollarSign size={20} className="text-ocean-600" />
             </div>
             <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
               Total Disbursed
@@ -653,8 +653,8 @@ function Reports() {
                     </div>
                   </div>
                   <div className="bg-white rounded-xl border border-emerald-100/80 p-3.5">
-                    <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center mb-2">
-                      <Banknote size={15} className="text-sky-600" />
+                    <div className="w-8 h-8 rounded-lg bg-ocean-50 flex items-center justify-center mb-2">
+                      <Banknote size={15} className="text-ocean-600" />
                     </div>
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500">
                       Processing Fees
@@ -821,9 +821,9 @@ function Reports() {
                   type="monotone"
                   dataKey="net"
                   name="Net"
-                  stroke="#0086cc"
+                  stroke="#0e8a6e"
                   strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#0086cc" }}
+                  dot={{ r: 3, fill: "#0e8a6e" }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -897,7 +897,7 @@ function Reports() {
                 <Bar
                   dataKey="collected"
                   name="Collected"
-                  fill="#0086cc"
+                  fill="#0e8a6e"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={28}
                 />
@@ -1114,11 +1114,11 @@ function Reports() {
         </div>
 
         {/* About */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-          <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+        <div className="bg-ocean-50 border border-ocean-200 rounded-xl p-5">
+          <h3 className="font-bold text-ocean-900 mb-2 flex items-center gap-2">
             <Lightbulb size={18} /> About reports
           </h3>
-          <ul className="text-sm text-blue-800 space-y-1">
+          <ul className="text-sm text-ocean-800 space-y-1">
             <li>
               • The PDF / Excel buttons at the top export the portfolio summary
               for the period you've picked above.

@@ -177,7 +177,7 @@ function PlatformReports() {
                 <Line
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#4F46E5"
+                  stroke="#0a5c4c"
                   strokeWidth={3}
                 />
               </LineChart>
@@ -214,7 +214,7 @@ function PlatformReports() {
                           <div
                             className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs"
                             style={{
-                              backgroundColor: t.brand_color || "#4F46E5",
+                              backgroundColor: t.brand_color || "#0e8a6e",
                             }}
                           >
                             {t.business_name.charAt(0)}

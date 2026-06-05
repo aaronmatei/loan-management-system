@@ -180,7 +180,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-ocean-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-6 py-2 bg-gradient-to-r from-ocean-600 to-ocean-700 text-white rounded-lg disabled:opacity-50"
                 >
                   {submitting ? "Sending..." : <span className="inline-flex items-center gap-1.5"><Mail size={15} /> Send to All</span>}
                 </button>

@@ -1,11 +1,11 @@
 // A lender's display color for multi-lender lists (directory, My Loans).
 //
 // Honors a CUSTOMIZED brand_color, but lenders that never set one keep the
-// tenants table default (#4F46E5) — so they'd all look identical. For those
+// tenants table default (#0E8A6E) — so they'd all look identical. For those
 // we derive a stable, distinct color from the lender's id so rows are
 // visually distinguishable. (Single-lender white-label surfaces — receipts,
 // the widget, loan details — still use the real brand_color via getPortalBrand.)
-const DEFAULT_BRAND = "#4f46e5"; // tenants.brand_color column default
+const DEFAULT_BRAND = "#0e8a6e"; // tenants.brand_color column default
 
 const PALETTE = [
   "#0086cc", "#0d9488", "#7c3aed", "#db2777", "#ea580c",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import Logo from "../components/Logo";
 import { Gift, Building2, User, Lock, Phone, Rocket, Eye, EyeOff } from "lucide-react";
 import api from "../services/api";
 
@@ -113,7 +114,12 @@ function Signup() {
     <div className="min-h-screen bg-ocean-gradient py-8 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white">LendFest</h1>
+          <Logo
+            variant="reversed"
+            className="justify-center"
+            markClassName="h-11 w-11"
+            textClassName="text-4xl"
+          />
           <p className="text-ocean-100 mt-2">
             Loan Management System for Kenyan Lenders
           </p>

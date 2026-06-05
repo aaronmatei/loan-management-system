@@ -174,7 +174,7 @@ function ApplyLoan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const brand = lender?.brand_color || "#0086cc";
+  const brand = lender?.brand_color || "#0e8a6e";
 
   const calc = (() => {
     if (!form.principal_amount || !form.loan_duration_months || !policy)

@@ -38,7 +38,7 @@ function CustomerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-ocean-600 to-purple-700 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-2">
           Welcome Back
@@ -60,7 +60,7 @@ function CustomerLogin() {
               }
               required
               placeholder="0712345678"
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <div>
@@ -74,20 +74,20 @@ function CustomerLogin() {
                 setCredentials({ ...credentials, password: e.target.value })
               }
               required
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
+            className="w-full py-3 bg-gradient-to-r from-ocean-600 to-purple-700 text-white font-bold rounded-lg disabled:opacity-50"
           >
             {submitting ? "Logging in..." : <span className="inline-flex items-center gap-1.5"><Lock size={16} /> Login</span>}
           </button>
           <div className="text-center text-sm space-y-2">
             <Link
               to="/portal/forgot-password"
-              className="text-indigo-600 block"
+              className="text-ocean-600 block"
             >
               Forgot password?
             </Link>
@@ -95,7 +95,7 @@ function CustomerLogin() {
               New here?{" "}
               <Link
                 to="/portal/register"
-                className="text-indigo-600 font-semibold"
+                className="text-ocean-600 font-semibold"
               >
                 Register
               </Link>

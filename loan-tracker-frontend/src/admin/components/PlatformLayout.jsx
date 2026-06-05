@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LogoMark } from "../../components/Logo";
 import {
   LayoutDashboard,
   Building2,
@@ -7,7 +8,6 @@ import {
   TrendingUp,
   Clock,
   ScrollText,
-  Crown,
   LogOut,
   Globe,
   MessageSquare,
@@ -70,9 +70,12 @@ function PlatformLayout({ children }) {
         >
           <div className="p-6 border-b border-white/10">
             <div className="flex items-center gap-2.5">
-              <IconTile icon={Crown} variant="ocean" size={38} />
+              <LogoMark variant="color" className="h-9 w-9 shrink-0" />
               <div>
-                <h2 className="text-lg font-bold tracking-tight">LendFest</h2>
+                <span className="font-display text-lg font-extrabold tracking-tight leading-none">
+                  <span className="text-cream-50">Lend</span>
+                  <span className="text-ocean-400">Fest</span>
+                </span>
                 <p className="text-xs text-ocean-200/60">Platform Admin</p>
               </div>
             </div>

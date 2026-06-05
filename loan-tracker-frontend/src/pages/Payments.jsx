@@ -531,8 +531,8 @@ function Payments() {
               const hasPenaltyActivity = penaltyAccrued > 0;
               const totalToPay = balance + penaltyOutstanding;
               return (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                <div className="bg-ocean-50 border border-ocean-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-ocean-900 mb-3 flex items-center gap-2">
                     <BarChart3 size={16} /> Loan Status
                   </h3>
 
@@ -594,7 +594,7 @@ function Payments() {
                   <div className="mt-3">
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-gray-600">Progress</span>
-                      <span className="font-semibold text-blue-700">
+                      <span className="font-semibold text-ocean-700">
                         {progress}%
                       </span>
                     </div>
@@ -669,17 +669,17 @@ function Payments() {
                       penaltyOutstanding is the still-accruing fine on
                       whatever's still overdue. Both are live figures. */}
                   {totalToPay > 0 && (
-                    <div className="mt-3 bg-blue-100/60 border border-blue-200 rounded-md p-3 text-sm">
+                    <div className="mt-3 bg-ocean-100/60 border border-ocean-200 rounded-md p-3 text-sm">
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold text-blue-900 uppercase text-xs tracking-wide">
+                        <span className="font-semibold text-ocean-900 uppercase text-xs tracking-wide">
                           Total to pay now
                         </span>
-                        <span className="font-bold text-blue-900 text-lg">
+                        <span className="font-bold text-ocean-900 text-lg">
                           KES {fmt(totalToPay)}
                         </span>
                       </div>
                       {penaltyOutstanding > 0 && balance > 0 && (
-                        <p className="text-[11px] text-blue-700/80 mt-1">
+                        <p className="text-[11px] text-ocean-700/80 mt-1">
                           KES {fmt(balance)} balance + KES{" "}
                           {fmt(penaltyOutstanding)} penalty
                         </p>
@@ -1085,7 +1085,7 @@ function Payments() {
                                     {parseFloat(p.amount_paid).toLocaleString()}
                                   </td>
                                   <td className="py-1.5">
-                                    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                                    <span className="inline-block px-2 py-0.5 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                                       {p.payment_method}
                                     </span>
                                   </td>

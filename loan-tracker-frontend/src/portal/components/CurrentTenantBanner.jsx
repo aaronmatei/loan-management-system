@@ -15,7 +15,7 @@ function CurrentTenantBanner() {
   }, []);
 
   if (!tenant?.business_name) return null;
-  const color = tenant.brand_color || "#4F46E5";
+  const color = tenant.brand_color || "#0e8a6e";
 
   return (
     <div

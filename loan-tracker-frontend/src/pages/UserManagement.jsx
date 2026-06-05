@@ -266,7 +266,7 @@ function UserManagement() {
                           });
                           setShowEditModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800 text-sm inline-flex items-center gap-1"
+                        className="text-ocean-600 hover:text-ocean-800 text-sm inline-flex items-center gap-1"
                       >
                         <Pencil size={14} /> Edit
                       </button>
@@ -557,7 +557,7 @@ function UserManagement() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-1"
+                  className="px-6 py-2 bg-ocean-600 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-1"
                 >
                   {submitting ? "Saving..." : <><Check size={14} /> Save Changes</>}
                 </button>

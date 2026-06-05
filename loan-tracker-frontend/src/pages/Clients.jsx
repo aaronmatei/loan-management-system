@@ -257,11 +257,11 @@ function Clients() {
               </span>{" "}
               clients
             </span>
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
               Search: "{searchTerm.trim()}"
               <button
                 onClick={() => setSearchTerm("")}
-                className="hover:text-blue-900"
+                className="hover:text-ocean-900"
                 aria-label="Clear search"
               >
                 <X size={12} />

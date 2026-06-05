@@ -96,26 +96,26 @@ export function buildStampSvg({
     <path id="topArc" d="M41,99 A120,120 0 0 1 259,99"/>
     <path id="botArc" d="M52,219 A120,120 0 0 0 248,219"/>
   </defs>
-  <g fill="none" stroke="#0A183F">
+  <g fill="none" stroke="#122A2E">
     <circle cx="150" cy="150" r="146" stroke-width="2.5"/>
     <circle cx="150" cy="150" r="138" stroke-width="5"/>
     <circle cx="150" cy="150" r="103" stroke-width="2"/>
   </g>
-  <g fill="#0A183F" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+  <g fill="#122A2E" font-family="Arial, Helvetica, sans-serif" font-weight="700">
     <text font-size="${topType.fontSize}" letter-spacing="${topType.letterSpacing}" text-anchor="middle"><textPath href="#topArc" startOffset="50%">${escapeXml(top)}</textPath></text>
     <text font-size="${botType.fontSize}" letter-spacing="${botType.letterSpacing}" text-anchor="middle"><textPath href="#botArc" startOffset="50%">${escapeXml(bot)}</textPath></text>
   </g>
-  <polygon points="30,144 36,150 30,156 24,150" fill="#0A183F"/>
-  <polygon points="270,144 276,150 270,156 264,150" fill="#0A183F"/>
-  <g fill="#0A183F">
+  <polygon points="30,144 36,150 30,156 24,150" fill="#122A2E"/>
+  <polygon points="270,144 276,150 270,156 264,150" fill="#122A2E"/>
+  <g fill="#122A2E">
     <rect x="121" y="92" width="15" height="86" rx="3.5"/>
     <rect x="121" y="162" width="44" height="16" rx="3.5"/>
     <rect x="149" y="92" width="14" height="70" rx="3.5"/>
     <rect x="149" y="92" width="30" height="16" rx="3.5"/>
     <rect x="149" y="111" width="24" height="14" rx="3.5"/>
   </g>
-  <rect x="96" y="196" width="108" height="26" rx="5" fill="none" stroke="#0A183F" stroke-width="2"/>
-  <text x="150" y="214" fill="#0A183F" font-family="Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="2" text-anchor="middle">${escapeXml(stamp)}</text>
+  <rect x="96" y="196" width="108" height="26" rx="5" fill="none" stroke="#122A2E" stroke-width="2"/>
+  <text x="150" y="214" fill="#122A2E" font-family="Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="2" text-anchor="middle">${escapeXml(stamp)}</text>
 </svg>`;
 }
 

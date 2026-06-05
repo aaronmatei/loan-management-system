@@ -510,7 +510,7 @@ function invoiceGenerationHtml(results) {
       : "<p style='color:#6b7280;margin:6px 0;'>None</p>";
   return `<html><body style="font-family:Arial,sans-serif;background:#f3f4f6;padding:20px;">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;margin:0 auto;overflow:hidden;">
-      <tr><td style="background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;padding:30px;text-align:center;">
+      <tr><td style="background:linear-gradient(135deg,#0e8a6e,#0a5c4c);color:#fff;padding:30px;text-align:center;">
         <h1 style="margin:0;">Monthly Invoices Generated</h1>
         <p style="margin:8px 0 0 0;opacity:.9;">Period: ${results.period}</p>
       </td></tr>
@@ -530,7 +530,7 @@ function dailySummaryHtml(results, stats) {
     `<tr><td style="padding:6px 0;">${label}</td><td style="text-align:right;font-weight:bold;${color ? `color:${color};` : ""}">${value}</td></tr>`;
   return `<html><body style="font-family:Arial,sans-serif;background:#f3f4f6;padding:20px;">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;margin:0 auto;overflow:hidden;">
-      <tr><td style="background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;padding:30px;text-align:center;">
+      <tr><td style="background:linear-gradient(135deg,#0e8a6e,#0a5c4c);color:#fff;padding:30px;text-align:center;">
         <h1 style="margin:0;">📊 LendFest Daily Summary</h1>
         <p style="margin:8px 0 0 0;opacity:.9;">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
       </td></tr>

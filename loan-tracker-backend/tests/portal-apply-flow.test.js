@@ -148,8 +148,10 @@ describe("customer portal — full apply flow", () => {
     expect(analytics.body.data.monthly_repayments).toHaveLength(6);
     expect(Array.isArray(analytics.body.data.loan_progress)).toBe(true);
 
-    // 11c. Payments + notifications endpoints respond (empty for a fresh
-    // borrower with only a pending application)
+    // 11c. Payments + notifications endpoints respond. A fresh borrower who
+    // just submitted an application has no payments yet, but DOES have one
+    // unread "application received" acknowledgement (see customerNotification
+    // Service — the first touchpoint that closes the silent-pending gap).
     const payments = await api()
       .get("/api/portal/customer/payments")
       .set(auth);
@@ -160,7 +162,10 @@ describe("customer portal — full apply flow", () => {
       .set(auth);
     expect(notifs.status).toBe(200);
     expect(Array.isArray(notifs.body.data)).toBe(true);
-    expect(notifs.body.unread).toBe(0);
+    expect(notifs.body.unread).toBe(1);
+    expect(
+      notifs.body.data.some((n) => n.type === "application_received"),
+    ).toBe(true);
 
     // 12. Lender detail now reflects the link + the pending application
     const detail2 = await api()

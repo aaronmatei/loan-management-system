@@ -1,11 +1,18 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Ocean-blue design tokens (LendFest platform/product chrome).
+   LendFest design tokens (platform/product chrome).
    Tailwind v4 reads the theme from this @theme block (the JS
    tailwind.config.js is NOT auto-loaded in v4). This is the single
-   source of truth for the ocean/navy palette — every component pulls
+   source of truth for the brand palette — every component pulls
    `bg-ocean-600`, `text-ocean-100`, `border-navy-900`, etc. from here.
+
+   The `ocean`/`navy` token NAMES are kept as stable identifiers
+   (878 references across the app) but their VALUES are the LendFest
+   palette: `ocean` = the teal→green primary ramp, `navy` = ink.
+
+   Brand anchors: ink #122A2E · teal #0E8A6E (primary) · teal-deep
+   #0A5C4C · green #22B488 · amber #F6A92B (spark) · cream #FBF7EF.
 
    NOTE: this themes LendFest's OWN surfaces (tenant-admin app shell,
    platform admin, public landing). Tenant-facing surfaces (customer
@@ -14,42 +21,65 @@
    ============================================================ */
 @theme {
   --font-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display:
+    "Bricolage Grotesque", "Hanken Grotesk", -apple-system, "Segoe UI",
+    sans-serif;
 
-  --color-ocean-50: #eff9ff;
-  --color-ocean-100: #def2ff;
-  --color-ocean-200: #b6e7ff;
-  --color-ocean-300: #75d4ff;
-  --color-ocean-400: #2cbeff;
-  --color-ocean-500: #06a6f0; /* primary cyan-blue */
-  --color-ocean-600: #0086cc; /* primary blue */
-  --color-ocean-700: #006ba6;
-  --color-ocean-800: #075a88;
-  --color-ocean-900: #0c4b70;
-  --color-ocean-950: #082f49;
+  /* Primary ramp — teal→green (was ocean blue). 600 = brand teal
+     (primary), 400 = brand green, 700 = brand teal-deep, 950 = ink. */
+  --color-ocean-50: #ecfbf5;
+  --color-ocean-100: #cff6e6;
+  --color-ocean-200: #a3ecd1;
+  --color-ocean-300: #69dcb6;
+  --color-ocean-400: #22b488; /* brand green — bright accent */
+  --color-ocean-500: #14a07c;
+  --color-ocean-600: #0e8a6e; /* brand teal — PRIMARY */
+  --color-ocean-700: #0a5c4c; /* brand teal-deep */
+  --color-ocean-800: #0a4d40;
+  --color-ocean-900: #0b3e34;
+  --color-ocean-950: #07271f;
 
-  --color-navy-800: #0f1b2d;
-  --color-navy-900: #0a1422; /* sidebar background */
-  --color-navy-950: #060d18; /* sidebar deepest */
+  /* Dark chrome — ink (was navy). Sidebar / deep surfaces. */
+  --color-navy-800: #17363a;
+  --color-navy-900: #122a2e; /* brand ink — sidebar background */
+  --color-navy-950: #0b1c1f; /* deepest */
+
+  /* Spark accent — amber. New token; use sparingly for highlights. */
+  --color-amber-300: #f8c061;
+  --color-amber-400: #f6a92b; /* brand spark */
+  --color-amber-500: #e0941a;
+
+  /* Cream surfaces — page background + soft panels. */
+  --color-cream-50: #fbf7ef; /* brand cream */
+  --color-cream-100: #f3ecdd; /* brand cream-2 */
 }
 
 /* Named gradients + the signature tile shadow. Defined as plain
    utility classes so they work regardless of v4 theme-namespace
-   quirks for background-image. */
+   quirks for background-image. Recolored to the LendFest palette;
+   class names kept for backward compatibility with existing markup. */
 .bg-ocean-gradient {
-  background-image: linear-gradient(135deg, #2cbeff 0%, #0086cc 100%);
+  background-image: linear-gradient(135deg, #22b488 0%, #0a5c4c 100%);
 }
 .bg-ocean-gradient-soft {
-  background-image: linear-gradient(135deg, #eff9ff 0%, #def2ff 100%);
+  background-image: linear-gradient(135deg, #ecfbf5 0%, #cff6e6 100%);
 }
 .bg-app-bg {
-  background-image: linear-gradient(180deg, #f3f8fb 0%, #eaf2f7 100%);
+  background-image: linear-gradient(180deg, #fbf7ef 0%, #f3ecdd 100%);
 }
 .bg-navy-gradient {
-  background-image: linear-gradient(180deg, #060d18 0%, #0a1422 100%);
+  background-image: linear-gradient(180deg, #0b1c1f 0%, #122a2e 100%);
 }
 .shadow-tile {
-  box-shadow: 0 8px 20px -6px rgba(6, 134, 240, 0.35);
+  box-shadow: 0 8px 20px -6px rgba(14, 138, 110, 0.35);
+}
+
+/* Display type — the LendFest wordmark / hero headings use Bricolage
+   Grotesque, extrabold with tight tracking (matches the logo spec). */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 * {
@@ -57,14 +87,14 @@
 }
 
 body {
-  background-color: #f9fafb;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  background-color: #fbf7ef; /* brand cream */
+  font-family:
+    "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   /* Tabular figures — every digit takes the same width, so KES amounts
      line up cleanly down columns and the number doesn't shift when the
      last digit changes. Equivalent to font-variant-numeric: tabular-nums
      but specified via feature settings so it survives mixed fonts. */
-  font-feature-settings: "tnum" 1, "cv11" 1;
+  font-feature-settings: "tnum" 1;
   font-variant-numeric: tabular-nums;
   margin: 0;
 }

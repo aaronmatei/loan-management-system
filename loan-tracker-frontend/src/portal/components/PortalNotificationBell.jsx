@@ -153,7 +153,7 @@ function PortalNotificationBell() {
                   <div
                     key={n.id}
                     className={`flex gap-3 px-4 py-3 border-b border-slate-50 last:border-0 ${
-                      !n.is_read ? "bg-sky-50" : ""
+                      !n.is_read ? "bg-ocean-50" : ""
                     }`}
                   >
                     <button

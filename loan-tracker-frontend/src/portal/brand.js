@@ -9,7 +9,7 @@
 //   <button style={{ background: gradient }} // primary CTA / tile
 //   style={{ backgroundColor: rgba(0.07) }}  // soft tint panel
 export function getPortalBrand() {
-  let hex = "#0086cc";
+  let hex = "#0e8a6e";
   try {
     const t = JSON.parse(localStorage.getItem("portal_current_tenant") || "{}");
     if (/^#[0-9a-fA-F]{6}$/.test(t?.brand_color || "")) hex = t.brand_color;

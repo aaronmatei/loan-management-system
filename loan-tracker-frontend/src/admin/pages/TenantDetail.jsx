@@ -58,7 +58,7 @@ function TenantDetail() {
   if (!data) return <PlatformLayout><div /></PlatformLayout>;
 
   const { tenant, financials, users } = data;
-  const brand = tenant.brand_color || "#4F46E5";
+  const brand = tenant.brand_color || "#0e8a6e";
 
   return (
     <PlatformLayout>

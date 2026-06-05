@@ -198,8 +198,8 @@ function Backup() {
           <p className="text-green-100 text-sm uppercase">Successful</p>
           <p className="text-3xl font-bold mt-2">{stats?.successful || 0}</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-blue-100 text-sm uppercase">Total Size</p>
+        <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-xl shadow-lg p-6">
+          <p className="text-ocean-100 text-sm uppercase">Total Size</p>
           <p className="text-3xl font-bold mt-2">
             {formatBytes(stats?.total_size)}
           </p>
@@ -214,11 +214,11 @@ function Backup() {
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-        <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
-          <Info size={16} className="text-blue-700" /> Backup Information
+      <div className="bg-ocean-50 border border-ocean-200 rounded-xl p-4 mb-6">
+        <h3 className="font-bold text-ocean-900 mb-2 flex items-center gap-2">
+          <Info size={16} className="text-ocean-700" /> Backup Information
         </h3>
-        <ul className="text-sm text-blue-800 space-y-1">
+        <ul className="text-sm text-ocean-800 space-y-1">
           <li>• Automatic backups run daily at 2:00 AM</li>
           <li>• Scheduled/manual backups older than 30 days are auto-deleted</li>
           <li>• A safety backup is created before any restore operation</li>
@@ -286,7 +286,7 @@ function Backup() {
                       <span
                         className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
                           backup.backup_type === "manual"
-                            ? "bg-blue-100 text-blue-700"
+                            ? "bg-ocean-100 text-ocean-700"
                             : backup.backup_type === "scheduled"
                               ? "bg-ocean-100 text-ocean-700"
                               : backup.backup_type === "pre_restore"
@@ -327,7 +327,7 @@ function Backup() {
                           <>
                             <button
                               onClick={() => handleDownload(backup)}
-                              className="text-blue-600 hover:text-blue-800"
+                              className="text-ocean-600 hover:text-ocean-800"
                               title="Download"
                             >
                               <Download size={16} />

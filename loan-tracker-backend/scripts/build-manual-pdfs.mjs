@@ -5,6 +5,7 @@
 //
 //   node scripts/build-manual-pdfs.mjs
 import PDFDocument from "pdfkit";
+import { FONT, registerPdfFonts } from "../src/utils/pdfFonts.js";
 import { readFileSync, createWriteStream, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -12,14 +13,15 @@ import { dirname, join } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DOCS = join(__dirname, "..", "..", "docs");
 
-const OCEAN = "#0086cc";
-const NAVY = "#0a1422";
+const OCEAN = "#0e8a6e";
+const NAVY = "#122a2e";
 const SLATE = "#475569";
 const MUTED = "#94a3b8";
-const LIGHT = "#eff9ff";
+const LIGHT = "#ecfbf5";
 const BORDER = "#e2e8f0";
-const REG = "Helvetica";
-const BOLD = "Helvetica-Bold";
+const REG = FONT.reg;
+const BOLD = FONT.bold;
+const DISPLAY = FONT.display;
 const MONO = "Courier";
 
 const MANUALS = [
@@ -48,6 +50,7 @@ function build({ md, pdf, audience }) {
   const lines = src.split("\n");
 
   const doc = new PDFDocument({ size: "A4", margin: 56, bufferPages: true });
+  registerPdfFonts(doc);
   doc.pipe(createWriteStream(join(DOCS, pdf)));
   const M = doc.page.margins.left;
   const W = doc.page.width - M * 2;
@@ -73,8 +76,8 @@ function build({ md, pdf, audience }) {
 
   // ── Cover ───────────────────────────────────────────────────────
   doc.rect(0, 0, doc.page.width, 220).fill(OCEAN);
-  doc.fillColor("#ffffff").font(BOLD).fontSize(13).text("LendFest", M, 70);
-  doc.font(BOLD).fontSize(34).text(
+  doc.fillColor("#ffffff").font(DISPLAY).fontSize(15).text("LendFest", M, 70);
+  doc.font(DISPLAY).fontSize(34).text(
     md.includes("LENDER") ? "Lender User Manual" : "Borrower User Manual",
     M, 110, { width: W },
   );

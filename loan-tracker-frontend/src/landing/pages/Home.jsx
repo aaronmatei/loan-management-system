@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import Logo from "../../components/Logo";
 import {
-  Landmark,
   Rocket,
   Gamepad2,
   Check,
@@ -60,13 +60,8 @@ function LandingHome() {
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
-            <Link to="/" className="flex items-center gap-2.5">
-              <span className="w-9 h-9 rounded-xl bg-ocean-gradient flex items-center justify-center shadow-md">
-                <Landmark size={20} className="text-white" />
-              </span>
-              <span className="text-xl font-extrabold bg-ocean-gradient bg-clip-text text-transparent">
-                LendFest
-              </span>
+            <Link to="/" className="flex items-center">
+              <Logo markClassName="h-9 w-9" textClassName="text-xl" />
             </Link>
 
             <div className="hidden lg:flex items-center gap-6">
@@ -644,8 +639,11 @@ function LandingHome() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Landmark size={28} className="text-ocean-400" />
-                <span className="text-xl font-bold text-white">LendFest</span>
+                <Logo
+                  variant="reversed"
+                  markClassName="h-7 w-7"
+                  textClassName="text-xl"
+                />
               </div>
               <p className="text-sm">
                 Cloud-based loan management for African lenders. Built in Kenya,

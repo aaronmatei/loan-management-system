@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LogoMark } from "./Logo";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -337,9 +338,12 @@ function Layout({ children }) {
         >
           <div className="p-6 pb-4 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <IconTile icon={Wallet} variant="ocean" size={38} />
+              <LogoMark variant="color" className="h-9 w-9 shrink-0" />
               <div>
-                <h2 className="text-xl font-bold tracking-tight">LendFest</h2>
+                <span className="font-display text-xl font-extrabold tracking-tight leading-none">
+                  <span className="text-cream-50">Lend</span>
+                  <span className="text-ocean-400">Fest</span>
+                </span>
                 <p className="text-ocean-200/60 text-xs">Loan Manager</p>
               </div>
             </div>

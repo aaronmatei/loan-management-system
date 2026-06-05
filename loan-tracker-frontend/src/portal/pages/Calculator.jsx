@@ -121,7 +121,7 @@ function CustomerCalculator() {
     );
   }
 
-  const brand = selected.brand_color || "#4F46E5";
+  const brand = selected.brand_color || "#0e8a6e";
   const min = parseInt(selected.min_amount, 10);
   const max = parseInt(selected.max_amount, 10);
 
@@ -395,7 +395,7 @@ function CustomerCalculator() {
                                 className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs"
                                 style={{
                                   backgroundColor:
-                                    t.brand_color || "#4F46E5",
+                                    t.brand_color || "#0e8a6e",
                                 }}
                               >
                                 {t.business_name?.charAt(0)}
@@ -428,9 +428,9 @@ function CustomerCalculator() {
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-1.5"><Lightbulb size={18} /> Tips</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
+        <div className="bg-ocean-50 border border-ocean-200 rounded-xl p-4">
+          <h3 className="font-bold text-ocean-900 mb-2 flex items-center gap-1.5"><Lightbulb size={18} /> Tips</h3>
+          <ul className="text-sm text-ocean-800 space-y-1">
             <li>• Shorter periods = less total interest but higher monthly payments</li>
             <li>• Longer periods = more total interest but easier monthly payments</li>
             <li>• Final approval depends on your lender's review</li>

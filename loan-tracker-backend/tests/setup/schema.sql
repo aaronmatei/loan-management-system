@@ -1172,7 +1172,7 @@ CREATE TABLE public.tenants (
     total_platform_fees_owed numeric(15,2) DEFAULT 0,
     last_billing_date date,
     logo_url text,
-    brand_color character varying(7) DEFAULT '#4F46E5'::character varying,
+    brand_color character varying(7) DEFAULT '#0E8A6E'::character varying,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now(),
     customer_portal_enabled boolean DEFAULT true,

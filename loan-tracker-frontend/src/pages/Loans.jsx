@@ -640,17 +640,17 @@ function Loans() {
           </h2>
 
           {poolStatus && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="bg-ocean-50 border border-ocean-200 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm font-semibold text-blue-900 flex items-center gap-1">
-                    <Coins size={16} className="text-blue-700"/> Available Pool Balance
+                  <p className="text-sm font-semibold text-ocean-900 flex items-center gap-1">
+                    <Coins size={16} className="text-ocean-700"/> Available Pool Balance
                   </p>
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-xs text-ocean-700 mt-1">
                     Maximum amount you can lend
                   </p>
                 </div>
-                <p className="text-2xl font-bold text-blue-700">
+                <p className="text-2xl font-bold text-ocean-700">
                   KES {poolStatus.available_pool.toLocaleString()}
                 </p>
               </div>
@@ -934,7 +934,7 @@ function Loans() {
                     className={`rounded-lg px-4 py-3 text-sm flex items-start gap-2 ${
                       verdict.recommended
                         ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
-                        : "bg-sky-50 border border-sky-200 text-sky-800"
+                        : "bg-ocean-50 border border-ocean-200 text-ocean-800"
                     }`}
                   >
                     <CheckCircle size={16} className="mt-0.5 shrink-0" />
@@ -1548,11 +1548,11 @@ function Loans() {
               </span>
 
               {searchQuery.trim() && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                   Search: "{searchQuery.trim()}"
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="hover:text-blue-900"
+                    className="hover:text-ocean-900"
                     aria-label="Remove search filter"
                   >
                     <X size={12}/>
@@ -1648,7 +1648,7 @@ function Loans() {
                         loan.status === "active"
                           ? "bg-green-100 text-green-700"
                           : loan.status === "completed"
-                            ? "bg-blue-100 text-blue-700"
+                            ? "bg-ocean-100 text-ocean-700"
                             : loan.status === "defaulted"
                               ? "bg-red-100 text-red-700"
                               : "bg-gray-100 text-gray-700"
@@ -1816,7 +1816,7 @@ function Loans() {
                             custom loans (package_name=null) skip the
                             tag entirely so the column stays compact. */}
                         {loan.package_name && (
-                          <p className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 inline-block px-1.5 py-0.5 rounded mt-1 font-sans">
+                          <p className="text-[10px] font-semibold text-ocean-700 bg-ocean-50 inline-block px-1.5 py-0.5 rounded mt-1 font-sans">
                             {loan.package_name}
                           </p>
                         )}
@@ -1923,7 +1923,7 @@ function Loans() {
                               loan.status === "active"
                                 ? "bg-green-100 text-green-700"
                                 : loan.status === "completed"
-                                  ? "bg-blue-100 text-blue-700"
+                                  ? "bg-ocean-100 text-ocean-700"
                                   : loan.status === "defaulted"
                                     ? "bg-red-100 text-red-700"
                                     : "bg-gray-100 text-gray-700"

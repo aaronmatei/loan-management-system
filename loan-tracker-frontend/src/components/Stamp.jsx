@@ -80,13 +80,13 @@ function Stamp({
         <path id="lf-stamp-topArc" d="M41,99 A120,120 0 0 1 259,99" />
         <path id="lf-stamp-botArc" d="M52,219 A120,120 0 0 0 248,219" />
       </defs>
-      <g fill="none" stroke="#0A183F">
+      <g fill="none" stroke="#122a2e">
         <circle cx="150" cy="150" r="146" strokeWidth="2.5" />
         <circle cx="150" cy="150" r="138" strokeWidth="5" />
         <circle cx="150" cy="150" r="103" strokeWidth="2" />
       </g>
       <g
-        fill="#0A183F"
+        fill="#122a2e"
         fontFamily="Arial, Helvetica, sans-serif"
         fontWeight="700"
       >
@@ -109,9 +109,9 @@ function Stamp({
           </textPath>
         </text>
       </g>
-      <polygon points="30,144 36,150 30,156 24,150" fill="#0A183F" />
-      <polygon points="270,144 276,150 270,156 264,150" fill="#0A183F" />
-      <g fill="#0A183F">
+      <polygon points="30,144 36,150 30,156 24,150" fill="#122a2e" />
+      <polygon points="270,144 276,150 270,156 264,150" fill="#122a2e" />
+      <g fill="#122a2e">
         <rect x="121" y="92" width="15" height="86" rx="3.5" />
         <rect x="121" y="162" width="44" height="16" rx="3.5" />
         <rect x="149" y="92" width="14" height="70" rx="3.5" />
@@ -125,13 +125,13 @@ function Stamp({
         height="26"
         rx="5"
         fill="none"
-        stroke="#0A183F"
+        stroke="#122a2e"
         strokeWidth="2"
       />
       <text
         x="150"
         y="214"
-        fill="#0A183F"
+        fill="#122a2e"
         fontFamily="Arial, sans-serif"
         fontWeight="700"
         fontSize="14"

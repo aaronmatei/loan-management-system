@@ -42,7 +42,7 @@ const CATEGORY_ICON_MAP = {
 };
 
 const SEVERITY_BADGE = {
-  info: "bg-blue-100 text-blue-700",
+  info: "bg-ocean-100 text-ocean-700",
   warning: "bg-yellow-100 text-yellow-700",
   critical: "bg-red-100 text-red-700",
 };

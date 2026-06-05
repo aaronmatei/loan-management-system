@@ -434,7 +434,7 @@ function Applications() {
   const getStatusBadge = (status) => {
     const badges = {
       pending: { color: "bg-yellow-100 text-yellow-700", icon: <Clock size={12}/> },
-      under_review: { color: "bg-blue-100 text-blue-700", icon: <Search size={12}/> },
+      under_review: { color: "bg-ocean-100 text-ocean-700", icon: <Search size={12}/> },
       counter_offered: { color: "bg-amber-100 text-amber-700", icon: <Banknote size={12}/> },
       approved: { color: "bg-green-100 text-green-700", icon: <CheckCircle size={12}/> },
       rejected: { color: "bg-red-100 text-red-700", icon: <X size={12}/> },
@@ -452,7 +452,7 @@ function Applications() {
         <PermissionGate role={["admin", "manager"]}>
           <button
             onClick={() => handleStartReview(app)}
-            className={`${actBtn} bg-blue-600 hover:bg-blue-700 text-white`}
+            className={`${actBtn} bg-ocean-600 hover:bg-ocean-700 text-white`}
           >
             <Search size={14} /> Review
           </button>
@@ -537,11 +537,11 @@ function Applications() {
           panel stays tidy for vanilla flat-rate custom loans. */}
       {(app.package_name ||
         (app.interest_method && app.interest_method !== "flat")) && (
-        <div className="flex flex-wrap gap-x-6 gap-y-2 bg-indigo-50/50 border border-indigo-100 rounded-lg p-3">
+        <div className="flex flex-wrap gap-x-6 gap-y-2 bg-ocean-50/50 border border-ocean-100 rounded-lg p-3">
           {app.package_name && (
             <div>
               <p className="text-xs text-gray-500">Package</p>
-              <p className="font-semibold text-indigo-800">
+              <p className="font-semibold text-ocean-800">
                 {app.package_name}
               </p>
             </div>
@@ -552,7 +552,7 @@ function Applications() {
               <span
                 className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                   app.interest_method === "reducing"
-                    ? "bg-indigo-100 text-indigo-700"
+                    ? "bg-ocean-100 text-ocean-700"
                     : "bg-slate-100 text-slate-700"
                 }`}
               >
@@ -722,14 +722,14 @@ function Applications() {
         <button
           onClick={() => setStatusFilter("under_review")}
           className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
-            statusFilter === "under_review" ? "ring-4 ring-blue-300" : ""
-          } bg-gradient-to-br from-blue-500 to-ocean-600 text-white`}
+            statusFilter === "under_review" ? "ring-4 ring-ocean-300" : ""
+          } bg-gradient-to-br from-ocean-500 to-ocean-600 text-white`}
         >
-          <p className="text-blue-100 text-xs uppercase">Under Review</p>
+          <p className="text-ocean-100 text-xs uppercase">Under Review</p>
           <p className="text-2xl lg:text-3xl font-bold mt-2">
             {stats?.under_review || 0}
           </p>
-          <p className="text-xs text-blue-100 mt-1">being reviewed</p>
+          <p className="text-xs text-ocean-100 mt-1">being reviewed</p>
         </button>
         <button
           onClick={() => setStatusFilter("counter_offered")}
@@ -881,7 +881,7 @@ function Applications() {
                                 off-product custom apps. Keeps the
                                 code column readable at a glance. */}
                             {app.package_name && (
-                              <p className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 inline-block px-1.5 py-0.5 rounded mt-1">
+                              <p className="text-[10px] font-semibold text-ocean-700 bg-ocean-50 inline-block px-1.5 py-0.5 rounded mt-1">
                                 {app.package_name}
                               </p>
                             )}

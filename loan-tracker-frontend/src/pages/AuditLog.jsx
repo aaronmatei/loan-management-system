@@ -129,7 +129,7 @@ function AuditLog() {
   const getActionBadge = (action) => {
     const styles = {
       created: "bg-green-100 text-green-700",
-      updated: "bg-blue-100 text-blue-700",
+      updated: "bg-ocean-100 text-ocean-700",
       deleted: "bg-red-100 text-red-700",
       status_changed: "bg-ocean-100 text-ocean-700",
       login: "bg-ocean-100 text-ocean-700",
@@ -137,8 +137,8 @@ function AuditLog() {
       logout: "bg-gray-100 text-gray-700",
       payment_recorded: "bg-emerald-100 text-emerald-700",
       refund_processed: "bg-ocean-100 text-ocean-700",
-      sms_sent: "bg-blue-100 text-blue-700",
-      email_sent: "bg-cyan-100 text-cyan-700",
+      sms_sent: "bg-ocean-100 text-ocean-700",
+      email_sent: "bg-ocean-100 text-ocean-700",
       capital_adjusted: "bg-yellow-100 text-yellow-700",
       report_exported: "bg-pink-100 text-pink-700",
     };
@@ -203,8 +203,8 @@ function AuditLog() {
             {stats?.totals?.total_logs || 0}
           </p>
         </div>
-        <div className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-xl shadow-lg p-6">
-          <p className="text-blue-100 text-sm uppercase">Today</p>
+        <div className="bg-gradient-to-br from-ocean-500 to-ocean-600 text-white rounded-xl shadow-lg p-6">
+          <p className="text-ocean-100 text-sm uppercase">Today</p>
           <p className="text-3xl font-bold mt-2">
             {stats?.totals?.today_count || 0}
           </p>
@@ -517,10 +517,10 @@ function AuditLog() {
 
               {selectedLog.metadata && (
                 <div className="mt-4">
-                  <p className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-1">
+                  <p className="text-sm font-semibold text-ocean-700 mb-2 flex items-center gap-1">
                     <Info size={14} /> Metadata:
                   </p>
-                  <pre className="bg-blue-50 p-3 rounded-lg text-xs overflow-x-auto">
+                  <pre className="bg-ocean-50 p-3 rounded-lg text-xs overflow-x-auto">
                     {renderJson(selectedLog.metadata)}
                   </pre>
                 </div>

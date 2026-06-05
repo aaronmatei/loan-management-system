@@ -13,7 +13,7 @@ const period = (inv) => `${MONTHS[(inv.billing_month || 1) - 1]} ${inv.billing_y
 const STATUS_BADGE = {
   paid: "bg-green-100 text-green-700",
   pending: "bg-yellow-100 text-yellow-700",
-  partial: "bg-blue-100 text-blue-700",
+  partial: "bg-ocean-100 text-ocean-700",
   overdue: "bg-red-100 text-red-700",
 };
 

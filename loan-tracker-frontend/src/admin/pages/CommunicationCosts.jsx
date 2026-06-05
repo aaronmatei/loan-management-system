@@ -112,7 +112,7 @@ function CommunicationCosts() {
                   @ {KES(data.rates.sms_kes)} each
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-indigo-500">
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
                 <p className="text-xs text-gray-500 uppercase font-semibold flex items-center gap-1.5">
                   <Mail size={14} /> Emails Sent
                 </p>

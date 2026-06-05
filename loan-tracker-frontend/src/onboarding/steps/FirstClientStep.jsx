@@ -80,7 +80,7 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
         <button
           type="button"
           onClick={useSampleData}
-          className="w-full mb-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-100 inline-flex items-center justify-center gap-2"
+          className="w-full mb-4 py-2 bg-ocean-50 text-ocean-700 rounded-lg text-sm font-semibold hover:bg-ocean-100 inline-flex items-center justify-center gap-2"
         >
           <Shuffle size={14} /> Fill with Sample Data (Mary Wanjiku)
         </button>

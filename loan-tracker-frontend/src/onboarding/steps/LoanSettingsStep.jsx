@@ -215,11 +215,11 @@ function LoanSettingsStep({ data, onNext, onBack }) {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-ocean-50 border-2 border-blue-200 rounded-xl p-4">
-            <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+          <div className="bg-gradient-to-br from-ocean-50 to-ocean-50 border-2 border-ocean-200 rounded-xl p-4">
+            <h3 className="font-bold text-ocean-900 mb-2 flex items-center gap-2">
               <BarChart3 size={16} /> Example Calculation
             </h3>
-            <p className="text-sm text-blue-800 mb-3">
+            <p className="text-sm text-ocean-800 mb-3">
               For a KES 50,000 loan over {form.default_duration_months} months
               at {annual}% p.a.:
             </p>

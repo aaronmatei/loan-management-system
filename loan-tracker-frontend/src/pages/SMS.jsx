@@ -250,7 +250,7 @@ function SMS() {
 
       {/* ── Stat cards — frosted-glass pastel with corner icon ──── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
-        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-ocean-100/70 via-white/55 to-blue-100/60 backdrop-blur-md">
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-ocean-100/70 via-white/55 to-ocean-100/60 backdrop-blur-md">
           <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-ocean-300/25 blur-3xl pointer-events-none" />
           <div className="relative flex items-start justify-between">
             <p className="text-xs uppercase tracking-wider font-semibold text-ocean-700">
@@ -288,14 +288,14 @@ function SMS() {
           </p>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-sky-100/70 via-white/55 to-cyan-100/60 backdrop-blur-md">
-          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-sky-300/25 blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-ocean-100/70 via-white/55 to-ocean-100/60 backdrop-blur-md">
+          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-ocean-300/25 blur-3xl pointer-events-none" />
           <div className="relative flex items-start justify-between">
-            <p className="text-xs uppercase tracking-wider font-semibold text-sky-700">
+            <p className="text-xs uppercase tracking-wider font-semibold text-ocean-700">
               Last 30 Days
             </p>
             <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
-              <Clock size={16} className="text-sky-600" />
+              <Clock size={16} className="text-ocean-600" />
             </div>
           </div>
           <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
@@ -306,14 +306,14 @@ function SMS() {
           </p>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-indigo-100/70 via-white/55 to-violet-100/60 backdrop-blur-md">
-          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-indigo-300/25 blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-2xl shadow-sm border border-white/60 p-5 bg-gradient-to-br from-ocean-100/70 via-white/55 to-violet-100/60 backdrop-blur-md">
+          <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-ocean-300/25 blur-3xl pointer-events-none" />
           <div className="relative flex items-start justify-between">
-            <p className="text-xs uppercase tracking-wider font-semibold text-indigo-700">
+            <p className="text-xs uppercase tracking-wider font-semibold text-ocean-700">
               Unique Clients
             </p>
             <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
-              <Users size={16} className="text-indigo-600" />
+              <Users size={16} className="text-ocean-600" />
             </div>
           </div>
           <p className="relative text-3xl lg:text-4xl font-bold text-navy-900 mt-3">
@@ -491,7 +491,7 @@ function SMS() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm text-gray-600">Filters:</span>
               {searchQuery && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                   "{searchQuery}"
                   <button
                     onClick={() => setSearchQuery("")}
@@ -599,7 +599,7 @@ function SMS() {
                             ? "bg-red-100 text-red-700"
                             : log.message_type === "payment_received"
                               ? "bg-green-100 text-green-700"
-                              : "bg-blue-100 text-blue-700"
+                              : "bg-ocean-100 text-ocean-700"
                         }`}
                       >
                         {log.message_type}

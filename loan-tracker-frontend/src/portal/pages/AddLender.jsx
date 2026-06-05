@@ -143,21 +143,21 @@ function AddLender() {
           </div>
         )}
 
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-          <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-1.5">
+        <div className="bg-ocean-50 border border-ocean-200 rounded-xl p-4 mb-6">
+          <h3 className="font-bold text-ocean-900 mb-2 flex items-center gap-1.5">
             <ClipboardList size={18} /> Your Current Lenders
           </h3>
           <div className="flex flex-wrap gap-2">
             {currentTenants.map((t) => (
               <span
                 key={t.tenant_id}
-                className="px-3 py-1 bg-white rounded-full text-sm font-semibold text-blue-700 border border-blue-200"
+                className="px-3 py-1 bg-white rounded-full text-sm font-semibold text-ocean-700 border border-ocean-200"
               >
                 {t.business_name}
               </span>
             ))}
           </div>
-          <p className="text-xs text-blue-600 mt-2">
+          <p className="text-xs text-ocean-600 mt-2">
             Linked to {currentTenants.length} lender
             {currentTenants.length !== 1 ? "s" : ""}.
           </p>
@@ -193,12 +193,12 @@ function AddLender() {
               >
                 <div
                   className="absolute top-0 left-0 right-0 h-2"
-                  style={{ backgroundColor: t.brand_color || "#4F46E5" }}
+                  style={{ backgroundColor: t.brand_color || "#0e8a6e" }}
                 />
                 <div className="flex items-start gap-3 mb-3">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0"
-                    style={{ backgroundColor: t.brand_color || "#4F46E5" }}
+                    style={{ backgroundColor: t.brand_color || "#0e8a6e" }}
                   >
                     {t.business_name?.charAt(0)}
                   </div>
@@ -228,7 +228,7 @@ function AddLender() {
                 )}
                 <span
                   className="inline-flex items-center justify-center gap-1.5 w-full mt-4 py-2 rounded-lg font-semibold text-white text-center"
-                  style={{ backgroundColor: t.brand_color || "#4F46E5" }}
+                  style={{ backgroundColor: t.brand_color || "#0e8a6e" }}
                 >
                   <Plus size={16} /> Add This Lender
                 </span>
@@ -245,7 +245,7 @@ function AddLender() {
               <div
                 className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-white font-bold text-3xl"
                 style={{
-                  backgroundColor: selected.brand_color || "#4F46E5",
+                  backgroundColor: selected.brand_color || "#0e8a6e",
                 }}
               >
                 {selected.business_name?.charAt(0)}
@@ -298,7 +298,7 @@ function AddLender() {
                   disabled={submitting || !password}
                   className="flex-1 py-2 text-white rounded-lg font-semibold disabled:opacity-50"
                   style={{
-                    backgroundColor: selected.brand_color || "#4F46E5",
+                    backgroundColor: selected.brand_color || "#0e8a6e",
                   }}
                 >
                   {submitting ? "Adding…" : <span className="inline-flex items-center gap-1.5"><Check size={15} /> Confirm &amp; Add</span>}
