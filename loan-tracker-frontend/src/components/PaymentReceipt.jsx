@@ -102,7 +102,7 @@ const CSS = `
 .lf-rcpt .btn-print:hover{filter:brightness(1.05);transform:translateY(-1px)}
 .lf-rcpt .btn-wa{background:var(--wa)}
 .lf-rcpt .btn-wa:hover{filter:brightness(1.05);transform:translateY(-1px)}
-@media(max-width:860px){
+@media screen and (max-width:860px){
   .lf-rcpt .r-body{grid-template-columns:1fr}
   .lf-rcpt .col-mid,.lf-rcpt .col-right{border-left:none;border-top:1px solid var(--line)}
   .lf-rcpt .r-footer{flex-direction:column;text-align:center;align-items:center}
@@ -112,10 +112,15 @@ const CSS = `
   .lf-rcpt .btn-close{flex:1 1 100%;max-width:none}
 }
 @media print{
-  @page{size:landscape;margin:8mm}
+  @page{size:landscape;margin:6mm}
+  html,body{background:#fff!important}
   body *{visibility:hidden!important}
-  .lf-rcpt,.lf-rcpt *{visibility:visible!important}
+  .lf-rcpt,.lf-rcpt *{visibility:visible!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .lf-rcpt{position:absolute!important;left:0;top:0;width:100%!important;max-width:none!important;padding:0!important;margin:0!important}
+  /* keep the 3 columns side-by-side regardless of paper width */
+  .lf-rcpt .r-body{grid-template-columns:1.18fr 1fr 1.12fr!important}
+  .lf-rcpt .col-mid,.lf-rcpt .col-right{border-left:1px solid var(--line)!important;border-top:none!important}
+  .lf-rcpt .r-footer{flex-direction:row!important;text-align:left!important;align-items:center!important}
   .lf-rcpt .actions{display:none!important}
   .lf-rcpt .receipt{box-shadow:none;border-radius:0}
 }
