@@ -139,6 +139,18 @@ function MyLoans() {
   const start = (current - 1) * PAGE_SIZE;
   const paged = sorted.slice(start, start + PAGE_SIZE);
 
+  // Borrower-facing totals across the filtered set (every loan matching the
+  // current status/lender filter): total borrowed, repaid, and outstanding.
+  const loanTotals = (data?.loans || []).reduce(
+    (acc, l) => {
+      acc.principal += parseFloat(l.principal_amount || 0);
+      acc.paid += parseFloat(l.total_paid || 0);
+      acc.balance += Math.max(0, balOf(l));
+      return acc;
+    },
+    { principal: 0, paid: 0, balance: 0 },
+  );
+
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -218,6 +230,34 @@ function MyLoans() {
           </div>
         ) : (
           <>
+            {/* Totals across the filtered set — the borrower's at-a-glance
+                position: what they've borrowed, repaid, and still owe. */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                  Total borrowed
+                </p>
+                <p className="text-base lg:text-lg font-bold text-navy-900 mt-0.5">
+                  {KES(loanTotals.principal)}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                  Total repaid
+                </p>
+                <p className="text-base lg:text-lg font-bold text-green-700 mt-0.5">
+                  {KES(loanTotals.paid)}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                  Outstanding
+                </p>
+                <p className="text-base lg:text-lg font-bold text-red-600 mt-0.5">
+                  {KES(loanTotals.balance)}
+                </p>
+              </div>
+            </div>
             <p className="text-sm text-slate-500 mb-3">
               {sorted.length} loan{sorted.length !== 1 ? "s" : ""} · showing{" "}
               {start + 1}–{start + paged.length}
@@ -342,6 +382,21 @@ function MyLoans() {
                     );
                   })}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-slate-50/70 text-navy-900">
+                    <td className="px-4 py-3 font-semibold" colSpan={2}>
+                      Total · {sorted.length} loan
+                      {sorted.length !== 1 ? "s" : ""}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold whitespace-nowrap">
+                      {KES(loanTotals.principal)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-red-600 whitespace-nowrap">
+                      {KES(loanTotals.balance)}
+                    </td>
+                    <td className="px-4 py-3" colSpan={3} />
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
