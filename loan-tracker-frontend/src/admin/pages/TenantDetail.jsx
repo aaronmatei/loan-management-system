@@ -5,7 +5,9 @@ import PlatformLayout from "../components/PlatformLayout";
 import { AlertTriangle, BarChart3, Phone, Users, Gem, Percent } from "lucide-react";
 import Spinner from "../../components/Spinner";
 
-const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
+// Full KES figures (no K abbreviation) — e.g. KES 2,000,000, not 2.0K.
+const K = (v) =>
+  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 
 function TenantDetail() {
   const { id } = useParams();

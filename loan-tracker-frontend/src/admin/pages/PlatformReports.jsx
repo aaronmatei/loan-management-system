@@ -26,7 +26,10 @@ import Spinner from "../../components/Spinner";
 
 const fmt = (n) =>
   `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
-const fmtK = (n) => `${(parseFloat(n || 0) / 1000).toFixed(1)}K`;
+// Full figures (no K abbreviation) — e.g. 2,000,000, not 2.0K. Used by the
+// KPI cards and the revenue-trend Y-axis.
+const fmtK = (n) =>
+  parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
 
 function PlatformReports() {
   const [data, setData] = useState(null);

@@ -7,7 +7,9 @@ import SortableHeader from "../../components/SortableHeader";
 import { Building2, Search } from "lucide-react";
 import Spinner from "../../components/Spinner";
 
-const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
+// Full KES figures (no K abbreviation) — e.g. KES 2,000,000, not 2.0K.
+const K = (v) =>
+  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 
 function PlatformTenants() {
   const navigate = useNavigate();

@@ -5,8 +5,11 @@ import PlatformLayout from "../components/PlatformLayout";
 import { Crown, BarChart3, Briefcase, Trophy, UserPlus } from "lucide-react";
 import Spinner from "../../components/Spinner";
 
-const M = (v) => `KES ${(parseFloat(v || 0) / 1_000_000).toFixed(1)}M`;
-const K = (v) => `KES ${(parseFloat(v || 0) / 1_000).toFixed(0)}K`;
+// Full KES figures (no K/M abbreviation) — e.g. KES 2,000,000, not 2.0M.
+const M = (v) =>
+  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+const K = (v) =>
+  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 
 function PlatformDashboard() {
   const navigate = useNavigate();
