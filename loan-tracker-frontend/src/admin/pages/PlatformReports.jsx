@@ -201,6 +201,9 @@ function PlatformReports() {
                     <th className="text-left p-2">Tenant</th>
                     <th className="text-right p-2">Loans</th>
                     <th className="text-right p-2">Disbursed</th>
+                    <th className="text-right p-2">Total Collected</th>
+                    <th className="text-right p-2">Contract Interest</th>
+                    <th className="text-right p-2">Interest Collected</th>
                     <th className="text-right p-2">Fees Paid</th>
                     <th className="text-center p-2">Status</th>
                   </tr>
@@ -226,6 +229,13 @@ function PlatformReports() {
                       </td>
                       <td className="text-right p-2">{t.loans}</td>
                       <td className="text-right p-2">{fmt(t.disbursed)}</td>
+                      <td className="text-right p-2">{fmt(t.total_collected)}</td>
+                      <td className="text-right p-2">
+                        {fmt(t.contract_interest)}
+                      </td>
+                      <td className="text-right p-2 text-green-700">
+                        {fmt(t.interest_collected)}
+                      </td>
                       <td className="text-right p-2 font-bold text-green-600">
                         {fmt(t.fees_paid)}
                       </td>

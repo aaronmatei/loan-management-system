@@ -898,6 +898,24 @@ class AnalyticsService {
          COALESCE(SUM(l.principal_amount)
            FILTER (WHERE l.status IN ('active','completed','defaulted')), 0)::float
            AS disbursed,
+         -- Interest the tenant is contracted to earn on disbursed loans.
+         COALESCE(SUM(l.total_interest)
+           FILTER (WHERE l.status IN ('active','completed','defaulted')), 0)::float
+           AS contract_interest,
+         -- Cash actually collected from borrowers (net of refundable
+         -- overpayment — matches the staff Payments "collected" figure).
+         -- Correlated subquery so the loans join above doesn't fan it out.
+         COALESCE((
+           SELECT SUM(tx.amount_paid - COALESCE(tx.overpayment_portion, 0))
+           FROM transactions tx
+           WHERE tx.tenant_id = t.id
+         ), 0)::float                                       AS total_collected,
+         -- Of that, the interest portion actually received.
+         COALESCE((
+           SELECT SUM(ps.interest_paid)
+           FROM payment_schedules ps
+           WHERE ps.tenant_id = t.id
+         ), 0)::float                                       AS interest_collected,
          COALESCE((
            SELECT SUM(i.amount_paid)
            FROM invoices i
@@ -921,6 +939,9 @@ class AnalyticsService {
       status: r.status,
       loans: parseInt(r.loans, 10),
       disbursed: parseFloat(r.disbursed),
+      contract_interest: parseFloat(r.contract_interest),
+      total_collected: parseFloat(r.total_collected),
+      interest_collected: parseFloat(r.interest_collected),
       fees_paid: parseFloat(r.fees_paid),
     }));
   }
