@@ -74,7 +74,7 @@ function TenantDetail() {
 
         <div
           className="rounded-2xl shadow-xl p-6 lg:p-8 mb-6 text-white"
-          style={{ background: `linear-gradient(135deg, ${brand}, #7C3AED)` }}
+          style={{ background: brand }}
         >
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-4xl font-bold">
@@ -97,7 +97,7 @@ function TenantDetail() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
           <div className="bg-white rounded-xl shadow p-4">
             <p className="text-xs text-gray-500">Total Disbursed</p>
             <p className="text-2xl font-bold">
@@ -117,9 +117,15 @@ function TenantDetail() {
             </p>
           </div>
           <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500">Interest Earned</p>
+            <p className="text-xs text-gray-500">Contract Interest</p>
             <p className="text-2xl font-bold text-ocean-600">
               {K(financials.total_interest_earned)}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl shadow p-4">
+            <p className="text-xs text-gray-500">Collected Interest</p>
+            <p className="text-2xl font-bold text-green-600">
+              {K(financials.total_interest_collected)}
             </p>
           </div>
         </div>

@@ -241,7 +241,19 @@ router.get("/tenants/:id", async (req, res) => {
          COALESCE(SUM(principal_amount) FILTER (WHERE status='defaulted'),0) AS defaulted_amount,
          COALESCE(SUM(total_interest) FILTER (WHERE status IN ('active','completed','defaulted')),0) AS total_interest_earned,
          (SELECT COALESCE(SUM(amount_paid),0) FROM transactions
-            WHERE tenant_id = $1 AND payment_status='completed') AS total_collected
+            WHERE tenant_id = $1 AND payment_status='completed') AS total_collected,
+         -- Interest actually collected to date (same per-installment formula
+         -- the leaderboard / Overview use). total_interest_earned above is the
+         -- CONTRACTED interest; this is what's been earned so far.
+         (SELECT COALESCE(SUM(LEAST(
+            l.total_interest / NULLIF(l.loan_duration_months, 0),
+            COALESCE(ps.interest_paid, 0)
+              + (l.total_interest / NULLIF(l.loan_duration_months, 0))
+                * LEAST(1, ps.amount_paid / NULLIF(ps.amount_due, 0))
+          )), 0)
+          FROM payment_schedules ps
+          JOIN loans l ON l.id = ps.loan_id
+          WHERE ps.tenant_id = $1) AS total_interest_collected
        FROM loans WHERE tenant_id = $1`,
       [id],
     );
