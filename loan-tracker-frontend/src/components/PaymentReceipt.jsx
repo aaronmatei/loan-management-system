@@ -98,7 +98,7 @@ const CSS = `
 .lf-rcpt .actions button svg,.lf-rcpt .actions a svg{width:19px;height:19px}
 .lf-rcpt .btn-close{background:#E7E4DE;color:#4a4a46;max-width:200px;flex:0 0 200px}
 .lf-rcpt .btn-close:hover{background:#dcd8d0}
-.lf-rcpt .btn-print{background:linear-gradient(180deg,#F0772E,var(--orange))}
+.lf-rcpt .btn-print{background:linear-gradient(180deg,var(--red2),var(--red1))}
 .lf-rcpt .btn-print:hover{filter:brightness(1.05);transform:translateY(-1px)}
 .lf-rcpt .btn-wa{background:var(--wa)}
 .lf-rcpt .btn-wa:hover{filter:brightness(1.05);transform:translateY(-1px)}
@@ -187,8 +187,17 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
   };
 
   return (
-    <div className="lf-rcpt" style={{ "--red2": typeColor, "--red1": darken(typeColor, 0.72) }}>
-      <style>{CSS}</style>
+    <div
+      className="fixed inset-0 z-50 bg-black/60 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div className="min-h-full flex items-center justify-center p-4">
+        <div
+          className="lf-rcpt"
+          onClick={(e) => e.stopPropagation()}
+          style={{ "--red2": typeColor, "--red1": darken(typeColor, 0.72) }}
+        >
+          <style>{CSS}</style>
 
       <div className="receipt">
         {/* ===== HEADER ===== */}
@@ -203,7 +212,6 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
             </svg>
             <span className="word">
               <span className="name">LenderFest</span>
-              <span className="sub">Loan Management System</span>
             </span>
           </div>
           <div className="header-right">
@@ -333,6 +341,8 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
           </svg>
           WhatsApp
         </button>
+      </div>
+        </div>
       </div>
     </div>
   );
