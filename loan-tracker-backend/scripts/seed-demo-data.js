@@ -155,7 +155,7 @@ export async function resetDemoData() {
   // ── 18 loans — a realistic mix: completed, current, overdue and
   //    defaulted, all dated within the current year.
   console.log("💰 loans + schedules…");
-  const amounts = [25000, 50000, 75000, 100000, 150000, 200000, 250000];
+  const amounts = [10000, 15000, 20000, 25000, 30000, 40000];
   const durations = [3, 6, 12];
   // Profile drives status, how far back the loan started, and repayment.
   // Weighted heavily toward completed/current so realised interest income
@@ -163,9 +163,9 @@ export async function resetDemoData() {
   // scares them off. Only a couple of small defaults for realism.
   const profiles = [
     ...Array(16).fill("completed"),
-    ...Array(12).fill("current"),
-    ...Array(4).fill("overdue"),
-    ...Array(2).fill("defaulted"),
+    ...Array(5).fill("current"),
+    ...Array(2).fill("overdue"),
+    ...Array(1).fill("defaulted"),
   ];
   const lapsedLoans = []; // overdue/defaulted loans → candidates for waivers
   let txSeq = 0; // running transaction-code counter (avoids a COUNT per row)
@@ -175,7 +175,7 @@ export async function resetDemoData() {
     const clientId = pick(clientIds);
     // Keep defaulted loans small so the written-off principal stays minor.
     const principal =
-      profile === "defaulted" ? pick([25000, 50000]) : pick(amounts);
+      profile === "defaulted" ? pick([10000, 15000]) : pick(amounts);
     // Completed loans skew longer → more interest actually realised.
     const months = profile === "completed" ? pick([6, 12]) : pick(durations);
     const annualRate = 50; // platform default
@@ -209,13 +209,13 @@ export async function resetDemoData() {
          tenant_id, client_id, loan_code,
          principal_amount, interest_rate, loan_duration_months,
          total_interest, total_amount_due,
-         start_date, end_date, status,
+         start_date, end_date, status, disbursed_at,
          purpose, created_at, created_by
        ) VALUES (
          $1, $2, $3,
          $4, $5, $6,
          $7, $8,
-         $9::date, $10::date, $11,
+         $9::date, $10::date, $11, $9::timestamp,
          'Business expansion', $12::timestamp, $13
        ) RETURNING id`,
       [
@@ -367,8 +367,8 @@ export async function resetDemoData() {
     [tid],
   );
   const { disbursed, collected, interest: interestEarned, waived } = agg.rows[0];
-  // Fund the pool comfortably above what's been lent out.
-  const initialCapital = Math.ceil(disbursed / 500000) * 500000 + 1500000;
+  // Keep the capital pool at a realistic small-lender level (≤ 1,000,000).
+  const initialCapital = 1000000;
   const fundDate = iso(day(150));
 
   await q(
@@ -415,18 +415,18 @@ export async function resetDemoData() {
   const cats = await q(`SELECT id, name FROM expense_categories WHERE tenant_id=$1`, [tid]);
   const catId = (name) => (cats.rows.find((c) => c.name === name) || cats.rows[0]).id;
   const EXPENSES = [
-    ["Rent & Utilities", 25000, "Office rent — main branch"],
-    ["Salaries & Wages", 60000, "Staff salaries"],
-    ["Transport & Travel", 4500, "Field visits — fuel"],
-    ["Marketing & Promotion", 8000, "Local radio advert"],
-    ["Office Supplies & Equipment", 12000, "Printer + stationery"],
-    ["Rent & Utilities", 6200, "Electricity & water"],
-    ["Transport & Travel", 3200, "Boda for collections"],
-    ["Salaries & Wages", 15000, "Casual — data entry"],
-    ["Marketing & Promotion", 5000, "Posters & flyers"],
-    ["Office Supplies & Equipment", 2800, "Airtime & bundles"],
-    ["Rent & Utilities", 25000, "Office rent — main branch"],
-    ["Transport & Travel", 3800, "Field visits — fuel"],
+    ["Rent & Utilities", 12000, "Office rent — main branch"],
+    ["Salaries & Wages", 18000, "Staff salaries"],
+    ["Transport & Travel", 3000, "Field visits — fuel"],
+    ["Marketing & Promotion", 3500, "Local radio advert"],
+    ["Office Supplies & Equipment", 4000, "Printer + stationery"],
+    ["Rent & Utilities", 3200, "Electricity & water"],
+    ["Transport & Travel", 2200, "Boda for collections"],
+    ["Salaries & Wages", 6000, "Casual — data entry"],
+    ["Marketing & Promotion", 2500, "Posters & flyers"],
+    ["Office Supplies & Equipment", 1800, "Airtime & bundles"],
+    ["Rent & Utilities", 12000, "Office rent — main branch"],
+    ["Transport & Travel", 2500, "Field visits — fuel"],
   ];
   for (let i = 0; i < EXPENSES.length; i++) {
     const [cat, amount, desc] = EXPENSES[i];
