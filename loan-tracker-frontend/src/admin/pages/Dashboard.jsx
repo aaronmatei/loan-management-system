@@ -94,9 +94,10 @@ function PlatformDashboard() {
         </div>
 
         {/* Platform financials — figures in black, accent icons. */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
           <StatCard
             dark
+            compact
             accent="ocean"
             icon={HandCoins}
             label="Disbursed"
@@ -105,6 +106,7 @@ function PlatformDashboard() {
           />
           <StatCard
             dark
+            compact
             accent="green"
             icon={Wallet}
             label="Collected"
@@ -113,6 +115,7 @@ function PlatformDashboard() {
           />
           <StatCard
             dark
+            compact
             accent="violet"
             icon={Percent}
             label="Contract Interest"
@@ -121,6 +124,7 @@ function PlatformDashboard() {
           />
           <StatCard
             dark
+            compact
             accent="amber"
             icon={TrendingUp}
             label="Collected Interest"
@@ -129,6 +133,7 @@ function PlatformDashboard() {
           />
           <StatCard
             dark
+            compact
             accent="ocean"
             icon={PieChart}
             label="Share"
@@ -137,6 +142,7 @@ function PlatformDashboard() {
           />
           <StatCard
             dark
+            compact
             accent="green"
             icon={CheckCircle}
             label="Paid"
@@ -145,6 +151,7 @@ function PlatformDashboard() {
           />
           <StatCard
             dark
+            compact
             accent="rose"
             icon={Clock}
             label="Pending"
