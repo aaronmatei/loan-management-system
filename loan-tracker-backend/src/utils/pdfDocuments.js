@@ -1609,6 +1609,14 @@ export const buildInvoicePdf = async (invoiceId, tid) => {
       { width: PAGE_W - M * 2, align: "center" },
     );
 
+  // Official LenderFest stamp, bottom-right (this is LenderFest's bill).
+  drawPdfStamp(doc, {
+    x: PAGE_W - 168,
+    y: 628,
+    size: 120,
+    tenant: { business_name: "LenderFest", city: "Nairobi", country: "Kenya" },
+  });
+
   doc.end();
   const buffer = await done;
   return { buffer, filename };
