@@ -128,6 +128,20 @@ router.get("/tenants", async (req, res) => {
            WHERE tenant_id = t.id AND status IN ('active','completed','defaulted')) AS total_disbursed,
         (SELECT COALESCE(SUM(amount_paid),0) FROM transactions
            WHERE tenant_id = t.id AND payment_status='completed') AS total_collected,
+        -- Interest this tenant is contracted to earn on disbursed loans.
+        (SELECT COALESCE(SUM(total_interest),0) FROM loans
+           WHERE tenant_id = t.id AND status IN ('active','completed','defaulted')) AS contract_interest,
+        -- Interest actually earned to date (same per-installment formula as
+        -- the leaderboard + Overview: waiver interest + cash share, capped).
+        (SELECT COALESCE(SUM(LEAST(
+            l.total_interest / NULLIF(l.loan_duration_months, 0),
+            COALESCE(ps.interest_paid, 0)
+              + (l.total_interest / NULLIF(l.loan_duration_months, 0))
+                * LEAST(1, ps.amount_paid / NULLIF(ps.amount_due, 0))
+          )), 0)
+          FROM payment_schedules ps
+          JOIN loans l ON l.id = ps.loan_id
+          WHERE ps.tenant_id = t.id) AS interest_collected,
         (SELECT MAX(created_at) FROM loans WHERE tenant_id = t.id) AS last_loan_date
       FROM tenants t
       WHERE 1=1

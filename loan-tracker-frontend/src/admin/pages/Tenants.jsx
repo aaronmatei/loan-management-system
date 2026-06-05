@@ -156,6 +156,30 @@ function PlatformTenants() {
                       className="text-right p-3 hidden lg:table-cell"
                     />
                     <SortableHeader
+                      label="Collected"
+                      sortKey="total_collected"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3 hidden lg:table-cell"
+                    />
+                    <SortableHeader
+                      label="Contract Interest"
+                      sortKey="contract_interest"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3 hidden lg:table-cell"
+                    />
+                    <SortableHeader
+                      label="Interest Collected"
+                      sortKey="interest_collected"
+                      requestSort={requestSort}
+                      getSortIndicator={getSortIndicator}
+                      align="right"
+                      className="text-right p-3 hidden lg:table-cell"
+                    />
+                    <SortableHeader
                       label="Status"
                       sortKey="status"
                       requestSort={requestSort}
@@ -200,6 +224,15 @@ function PlatformTenants() {
                       </td>
                       <td className="text-right p-3 hidden lg:table-cell font-bold">
                         {K(t.total_disbursed)}
+                      </td>
+                      <td className="text-right p-3 hidden lg:table-cell">
+                        {K(t.total_collected)}
+                      </td>
+                      <td className="text-right p-3 hidden lg:table-cell">
+                        {K(t.contract_interest)}
+                      </td>
+                      <td className="text-right p-3 hidden lg:table-cell text-green-700">
+                        {K(t.interest_collected)}
                       </td>
                       <td className="text-center p-3">
                         <span
