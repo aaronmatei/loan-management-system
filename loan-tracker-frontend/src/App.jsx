@@ -247,6 +247,16 @@ function App() {
     };
   }, [user]);
 
+  // The demo subdomain is dedicated to the demo — visiting
+  // demo.lenderfest.loans directly should auto-start a session and drop you
+  // into the dashboard, not show the public landing page.
+  const onDemoSubdomain =
+    window.location.hostname.split(".")[0] === "demo" &&
+    window.location.hostname.endsWith(".lenderfest.loans");
+  if (onDemoSubdomain && !user) {
+    return <DemoStart />;
+  }
+
   return (
     <AuthContext.Provider value={{ user, setUser, logout }}>
       <Router>

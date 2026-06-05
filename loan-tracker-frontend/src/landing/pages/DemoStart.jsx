@@ -36,7 +36,14 @@ export default function DemoStart() {
       {error ? (
         <>
           <p className="text-lg font-semibold text-gray-900 mb-2">{error}</p>
-          <a href="/" className="text-ocean-600 font-semibold">
+          <a
+            href={
+              window.location.hostname.endsWith("lenderfest.loans")
+                ? "https://lenderfest.loans/"
+                : "/"
+            }
+            className="text-ocean-600 font-semibold"
+          >
             ← Back to home
           </a>
         </>
