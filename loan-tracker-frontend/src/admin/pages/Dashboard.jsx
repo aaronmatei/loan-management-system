@@ -2,7 +2,21 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
-import { Crown, BarChart3, Briefcase, Trophy, UserPlus, Banknote } from "lucide-react";
+import {
+  Crown,
+  BarChart3,
+  Briefcase,
+  Trophy,
+  UserPlus,
+  Banknote,
+  HandCoins,
+  Wallet,
+  Percent,
+  TrendingUp,
+  PieChart,
+  CheckCircle,
+  Clock,
+} from "lucide-react";
 import Spinner from "../../components/Spinner";
 import StatCard from "../components/StatCard";
 
@@ -79,47 +93,61 @@ function PlatformDashboard() {
           </p>
         </div>
 
-        {/* Platform financials — all figures in black. */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          <StatCard
-            dark
-            accent="violet"
-            label="Total Disbursed"
-            value={M(pm.total_disbursed)}
-            sub="Across all tenants"
-          />
+        {/* Platform financials — figures in black, accent icons. */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <StatCard
             dark
             accent="ocean"
+            icon={HandCoins}
+            label="Disbursed"
+            value={M(pm.total_disbursed)}
+            sub="All tenants"
+          />
+          <StatCard
+            dark
+            accent="green"
+            icon={Wallet}
+            label="Collected"
+            value={M(pm.total_collected)}
+            sub="Repayments in"
+          />
+          <StatCard
+            dark
+            accent="violet"
+            icon={Percent}
             label="Contract Interest"
             value={M(pm.total_contract_interest)}
             sub="On disbursed loans"
           />
           <StatCard
             dark
-            accent="green"
+            accent="amber"
+            icon={TrendingUp}
             label="Collected Interest"
             value={M(pm.total_interest_collected)}
             sub="Earned to date"
           />
           <StatCard
             dark
-            accent="amber"
-            label="My Expected Share"
+            accent="ocean"
+            icon={PieChart}
+            label="Share"
             value={M(expectedShare)}
-            sub="Fee on collected interest"
+            sub="My expected fee"
           />
           <StatCard
             dark
             accent="green"
-            label="What I've Been Paid"
+            icon={CheckCircle}
+            label="Paid"
             value={M(paid)}
             sub="Fees received"
           />
           <StatCard
             dark
             accent="rose"
-            label="What's Pending"
+            icon={Clock}
+            label="Pending"
             value={M(pending)}
             sub="Expected − paid"
           />

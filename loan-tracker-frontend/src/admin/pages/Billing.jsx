@@ -192,18 +192,21 @@ function BillingDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <StatCard
               accent="green"
+              icon={ClipboardList}
               label="This Month Billed"
               value={K(summary.current_month.total_billed)}
               sub={`${summary.current_month.total_invoices} invoices`}
             />
             <StatCard
               accent="ocean"
+              icon={CheckCircle}
               label="This Month Collected"
               value={K(summary.current_month.total_collected)}
               sub={`${summary.current_month.paid_count} paid`}
             />
             <StatCard
               accent="amber"
+              icon={Clock}
               label="Outstanding"
               value={K(summary.current_month.outstanding)}
               sub={`${
@@ -213,6 +216,7 @@ function BillingDashboard() {
             />
             <StatCard
               accent="violet"
+              icon={Coins}
               label="All-Time Revenue"
               value={K(summary.all_time.total_collected)}
               sub={`${summary.all_time.total_invoices} total invoices`}

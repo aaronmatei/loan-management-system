@@ -21,7 +21,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { BarChart3, Download, Banknote, Trophy } from "lucide-react";
+import { BarChart3, Download, Banknote, Trophy, Building2, Clock, Wallet } from "lucide-react";
 import Spinner from "../../components/Spinner";
 import StatCard from "../components/StatCard";
 
@@ -132,24 +132,28 @@ function PlatformReports() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <StatCard
             accent="ocean"
+            icon={Banknote}
             label="Total Revenue"
             value={fmt(kpis.revenue.total_revenue)}
             sub="all-time invoice receipts"
           />
           <StatCard
             accent="green"
+            icon={Building2}
             label="Active Tenants"
             value={kpis.tenants.active_tenants}
             sub={`+${kpis.tenants.new_this_month} this month`}
           />
           <StatCard
             accent="amber"
+            icon={Clock}
             label="Outstanding"
             value={fmt(kpis.revenue.outstanding)}
             sub="unpaid invoices"
           />
           <StatCard
             accent="violet"
+            icon={Wallet}
             label="Platform Loans"
             value={kpis.platform_loans.total_loans}
             sub={`${fmt(kpis.platform_loans.total_disbursed)} disbursed`}
