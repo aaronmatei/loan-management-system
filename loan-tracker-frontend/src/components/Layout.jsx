@@ -20,6 +20,7 @@ import {
   Database,
   Settings,
   Receipt,
+  FileText,
   Zap,
   ChevronRight,
   LogOut,
@@ -114,7 +115,8 @@ const navGroups = [
     variant: "amber",
     items: [
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
-      { path: "/expenses", label: "Expenses & Billing", icon: Receipt, roles: ["admin", "manager"] },
+      { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["admin", "manager"] },
+      { path: "/billing", label: "Platform Invoices", icon: FileText, roles: ["admin", "manager"] },
       // Audit Log is a compliance/security surface, not an analytical
       // one — sits closer to Users / Settings than to Reports / Analytics.
       { path: "/audit", label: "Audit Log", icon: ScrollText, permission: "audit:view" },
