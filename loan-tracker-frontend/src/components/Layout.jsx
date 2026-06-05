@@ -346,7 +346,6 @@ function Layout({ children }) {
                   <span className="text-navy-900">Lender</span>
                   <span className="text-ocean-600">Fest</span>
                 </span>
-                <p className="text-slate-500 text-xs">Loan Manager</p>
               </div>
             </div>
             <button
