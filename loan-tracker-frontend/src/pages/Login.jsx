@@ -29,29 +29,30 @@ function Login() {
       }
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(u));
-      // Subdomain self-correction: if the user authenticated on the
-      // wrong *.lenderfest.loans subdomain (e.g. landed on kuwazo's URL
-      // but credentials belong to payoneer), hop to the right one
-      // BEFORE handing control to setUser/navigate. The auth token +
-      // user are passed via fragment (#__lf_auth=…) so the target
-      // subdomain's localStorage gets overwritten with this fresh
-      // session before its App.jsx reads it — without that, any
-      // stale session under a different tenant on the target would
-      // immediately bounce us back here in an infinite ping-pong.
-      // Skipped on non-lenderfest.loans hosts so dev/preview aren't
-      // affected.
+      // Send a tenant user to their own subdomain after login. This fires
+      // whenever they signed in somewhere other than their own subdomain:
+      //   • the apex (lenderfest.loans — where "Lender Login" points)
+      //   • the generic app host (app.lenderfest.loans)
+      //   • a different tenant's subdomain (kuwazo's URL, payoneer's creds)
+      // The token + user are handed to the target via the fragment
+      // (#__lf_auth=…) so the target subdomain's localStorage gets this
+      // fresh session before its App.jsx reads it — without that, a stale
+      // session under a different tenant there would ping-pong us back.
+      // currentLabel is '' on the apex, the label on a *.lenderfest.loans
+      // host, or null on dev/preview/other hosts (where we never redirect).
       const desired = u?.tenant?.subdomain;
       const host = window.location.hostname;
-      if (
-        desired
-        && host.endsWith('.lenderfest.loans')
-        && host.slice(0, -('.lenderfest.loans'.length)) !== desired
-      ) {
+      const SUFFIX = '.lenderfest.loans';
+      const currentLabel =
+        host === 'lenderfest.loans'
+          ? ''
+          : host.endsWith(SUFFIX)
+            ? host.slice(0, -SUFFIX.length)
+            : null;
+      if (desired && currentLabel !== null && currentLabel !== desired) {
         const handoff = buildAuthHandoff(response.data.token, u);
         const hash = handoff ? `#${handoff}` : '';
-        window.location.replace(
-          `https://${desired}.lenderfest.loans/${hash}`,
-        );
+        window.location.replace(`https://${desired}.lenderfest.loans/${hash}`);
         return;
       }
       setUser(u);

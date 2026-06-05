@@ -121,9 +121,13 @@ function App() {
   // this is purely a UX fix; data was never crossed.
   //
   // Guards:
-  //   • only acts on *.lenderfest.loans hosts (skips localhost / preview
-  //     / IP / bare lenderfest.loans so dev + landing aren't redirected)
+  //   • only acts on lenderfest.loans hosts (skips localhost / preview / IP)
+  //   • requires an authenticated tenant user — logged-out visitors keep
+  //     the apex landing page (the `if (!user) return` below)
+  //   • redirects the apex (lenderfest.loans) too, so a logged-in tenant
+  //     who lands on the bare domain is sent to their own subdomain
   //   • skips platform admins (they're meant to roam tenants)
+  //   • leaves the www / api platform hosts alone
   //   • preserves the current path + query so the user lands where
   //     they were trying to go, just on the right subdomain
   useEffect(() => {
@@ -131,11 +135,15 @@ function App() {
     const desired = user?.tenant?.subdomain;
     if (!desired) return; // pre-tenant accounts: no subdomain to enforce
     if (user.is_platform_admin) return;
+    const SUFFIX = ".lenderfest.loans";
     const host = window.location.hostname;
-    if (!host.endsWith(".lenderfest.loans")) return;
-    const current = host.slice(0, host.length - ".lenderfest.loans".length);
-    // Ignore the reserved labels — landing/api shouldn't redirect.
-    if (["www", "api", ""].includes(current)) return;
+    let current;
+    if (host === "lenderfest.loans")
+      current = ""; // apex — redirect logged-in tenants to their subdomain
+    else if (host.endsWith(SUFFIX)) current = host.slice(0, -SUFFIX.length);
+    else return; // localhost / preview / IP — never cross-redirect
+    // www / api are platform hosts, not tenants — leave them alone.
+    if (["www", "api"].includes(current)) return;
     if (current === desired) return;
     // Hand the current token+user to the target subdomain via the
     // fragment so its (possibly stale) localStorage doesn't
