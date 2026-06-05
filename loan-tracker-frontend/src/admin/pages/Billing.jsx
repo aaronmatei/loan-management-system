@@ -79,18 +79,40 @@ function BillingDashboard() {
   }, []);
 
   // Load the selected tenant's monthly statement.
-  useEffect(() => {
-    if (!stmtTenant) {
+  const loadStatement = (tenantId) => {
+    if (!tenantId) {
       setStatement(null);
       return;
     }
     setStmtLoading(true);
     platformApi
-      .get(`/platform/billing/tenant/${stmtTenant}/monthly`)
+      .get(`/platform/billing/tenant/${tenantId}/monthly`)
       .then((r) => setStatement(r.data.data))
       .catch(() => setStatement(null))
       .finally(() => setStmtLoading(false));
-  }, [stmtTenant]);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => loadStatement(stmtTenant), [stmtTenant]);
+
+  // Generate + send the invoice for an un-invoiced month, then refresh the
+  // statement (row flips to "pending") and the invoice list / summary.
+  const [genMonth, setGenMonth] = useState(null);
+  const sendInvoice = async (m) => {
+    const key = `${m.year}-${m.month}`;
+    setGenMonth(key);
+    try {
+      await platformApi.post("/platform/billing/invoices/generate", {
+        tenant_id: parseInt(stmtTenant, 10),
+        year: m.year,
+        month: m.month,
+      });
+      await Promise.all([loadStatement(stmtTenant), load()]);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to generate invoice");
+    } finally {
+      setGenMonth(null);
+    }
+  };
 
   // Human-readable label for the currently-selected period — used in
   // the active-filter pill so the staff can see at a glance what
@@ -271,6 +293,7 @@ function BillingDashboard() {
                       <th className="text-right p-2">Paid</th>
                       <th className="text-right p-2">Outstanding</th>
                       <th className="text-center p-2">Status</th>
+                      <th className="text-right p-2">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -310,6 +333,21 @@ function BillingDashboard() {
                             {m.invoiced ? m.invoice_status : "not invoiced"}
                           </span>
                         </td>
+                        <td className="text-right p-2 whitespace-nowrap">
+                          {m.invoiced ? (
+                            <span className="text-xs text-gray-400">—</span>
+                          ) : (
+                            <button
+                              onClick={() => sendInvoice(m)}
+                              disabled={genMonth === `${m.year}-${m.month}`}
+                              className="px-2.5 py-1 bg-ocean-600 text-white rounded text-xs font-semibold hover:bg-ocean-700 disabled:opacity-50"
+                            >
+                              {genMonth === `${m.year}-${m.month}`
+                                ? "Sending…"
+                                : "Send invoice"}
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -328,6 +366,7 @@ function BillingDashboard() {
                       <td className="text-right p-2 text-red-600">
                         {K(statement.totals.outstanding)}
                       </td>
+                      <td />
                       <td />
                     </tr>
                   </tfoot>
