@@ -268,8 +268,8 @@ function Layout({ children }) {
   };
 
   const handleLogout = () => {
+    // logout() hard-redirects on its own (tenant → /login, demo → home).
     logout();
-    navigate("/login");
   };
 
   // ── Render helpers ─────────────────────────────────────────────────

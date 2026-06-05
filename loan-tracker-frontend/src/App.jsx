@@ -84,6 +84,28 @@ import { buildAuthHandoff, consumeAuthHandoff } from "./utils/authHandoff";
 
 function App() {
   const [user, setUser] = useState(() => {
+    // A just-logged-out redirect lands here with ?loggedout=1 — wipe THIS
+    // origin's storage so a stale token can't silently re-authenticate,
+    // then strip the flag and fall through to the public page.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("loggedout") === "1") {
+      [
+        "token",
+        "user",
+        "is_demo_session",
+        "demo_session_token",
+        "lenderfest:period",
+      ].forEach((k) => localStorage.removeItem(k));
+      params.delete("loggedout");
+      const qs = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash,
+      );
+      return null;
+    }
+
     // Hash handoff wins over localStorage so a cross-subdomain
     // redirect overwrites whatever stale session this subdomain
     // had — kills the ping-pong loop noted above.
@@ -105,13 +127,30 @@ function App() {
   });
 
   const logout = () => {
+    const wasDemo = localStorage.getItem("is_demo_session") === "true";
     setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    // Clear the persisted period picker so the next login starts on
-    // the current-year default rather than inheriting the last
-    // session's window.
-    localStorage.removeItem("lenderfest:period");
+    // Clear EVERY auth/session key (incl. the demo flags + the persisted
+    // period picker) so nothing on this origin can silently re-auth.
+    [
+      "token",
+      "user",
+      "is_demo_session",
+      "demo_session_token",
+      "lenderfest:period",
+    ].forEach((k) => localStorage.removeItem(k));
+
+    // Hard-redirect to the APEX (leaving the tenant subdomain entirely) so
+    // the app re-initialises from scratch. Each subdomain/apex keeps its
+    // OWN localStorage, so a stale token elsewhere used to log you straight
+    // back into the previous tenant — `?loggedout=1` makes the destination
+    // wipe its own storage first. Demo → landing home; tenant → login.
+    const host = window.location.hostname;
+    const onLF =
+      host === "lenderfest.loans" || host.endsWith(".lenderfest.loans");
+    const base = onLF ? "https://lenderfest.loans" : window.location.origin;
+    window.location.href = wasDemo
+      ? `${base}/?loggedout=1`
+      : `${base}/login?loggedout=1`;
   };
 
   // Subdomain self-correction. If the URL says "kuwazo.lenderfest.loans"

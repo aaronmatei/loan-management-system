@@ -1,12 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Gamepad2 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 // Sticky purple banner shown when a visitor entered via "Try Live
 // Demo". Drives conversion (Sign Up Free) and provides a clean
 // "Exit" that clears the demo token.
 function DemoBanner() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const isDemo = localStorage.getItem("is_demo_session") === "true";
   if (!isDemo) return null;
 
@@ -26,10 +28,9 @@ function DemoBanner() {
     navigate("/signup");
   };
 
-  const exitDemo = () => {
-    clearDemoState();
-    navigate("/");
-  };
+  // Shared logout — clears all state and hard-redirects the demo to the
+  // landing home (lenderfest.loans), same as the sidebar logout.
+  const exitDemo = () => logout();
 
   return (
     <div className="bg-ocean-gradient text-white px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
