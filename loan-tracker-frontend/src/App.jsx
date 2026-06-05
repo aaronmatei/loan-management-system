@@ -42,6 +42,7 @@ import PlatformBilling from "./admin/pages/Billing";
 import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
 import PlatformCommunicationCosts from "./admin/pages/CommunicationCosts";
 import LandingHome from "./landing/pages/Home";
+import DemoStart from "./landing/pages/DemoStart";
 import OnboardingWizard from "./onboarding/OnboardingWizard";
 import WhiteLabelSettings from "./pages/WhiteLabelSettings";
 import EmbedSettings from "./pages/EmbedSettings";
@@ -447,6 +448,7 @@ function App() {
                 </PortalProtectedRoute>
               }
             />
+            <Route path="/demo" element={<DemoStart />} />
             <Route path="/" element={<LandingHome />} />
             {/* Backwards compat — the customer portal used to live
                 under /loanfix/portal/* and /loanfix/lenders/*. Old

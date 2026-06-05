@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Logo from "../../components/Logo";
+import RequestDemoModal from "../components/RequestDemoModal";
 import {
   Rocket,
   Gamepad2,
@@ -24,35 +25,9 @@ import {
 // replace with real copy/links before going to production.
 function LandingHome() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
-
-  // "Try Live Demo" — POST /api/demo/start, persist the returned
-  // token + flag the session, then hard-nav to the staff dashboard.
-  // window.location.href instead of navigate() so AuthContext re-
-  // initializes from the just-set localStorage (same pattern as the
-  // customer portal register flow).
-  const startDemo = async () => {
-    setDemoLoading(true);
-    try {
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api";
-      const res = await fetch(`${apiUrl}/demo/start`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        alert(data.error || "Demo unavailable right now. Please try again.");
-        setDemoLoading(false);
-        return;
-      }
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("is_demo_session", "true");
-      localStorage.setItem("demo_session_token", data.session_token);
-      window.location.href = "/";
-    } catch (err) {
-      alert("Could not start demo. Please try again.");
-      setDemoLoading(false);
-    }
-  };
+  // "Request Demo" — opens the lead-capture form. We email the request and
+  // send the demo link (lenderfest.loans/demo) by hand after engaging.
+  const [showRequest, setShowRequest] = useState(false);
 
   return (
     <div className="min-h-screen bg-white">
@@ -145,11 +120,10 @@ function LandingHome() {
                   Start Free Trial →
                 </Link>
                 <button
-                  onClick={startDemo}
-                  disabled={demoLoading}
-                  className="px-8 py-4 bg-ocean-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 disabled:opacity-60"
+                  onClick={() => setShowRequest(true)}
+                  className="px-8 py-4 bg-ocean-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1"
                 >
-                  {demoLoading ? "Loading demo…" : <span className="inline-flex items-center gap-2"><Gamepad2 size={16} /> Try Live Demo</span>}
+                  <span className="inline-flex items-center gap-2"><Gamepad2 size={16} /> Request Demo</span>
                 </button>
                 <a
                   href="#features"
@@ -682,6 +656,8 @@ function LandingHome() {
           </div>
         </div>
       </footer>
+
+      <RequestDemoModal open={showRequest} onClose={() => setShowRequest(false)} />
     </div>
   );
 }
