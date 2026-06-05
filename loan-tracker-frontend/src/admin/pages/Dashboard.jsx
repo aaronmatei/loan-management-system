@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
-import { Crown, BarChart3, Trophy, UserPlus, Banknote } from "lucide-react";
+import { Crown, BarChart3, Briefcase, Trophy, UserPlus, Banknote } from "lucide-react";
 import Spinner from "../../components/Spinner";
 import StatCard from "../components/StatCard";
 
@@ -160,42 +160,83 @@ function PlatformDashboard() {
           )}
         </div>
 
-        {/* Tenants — status + the platform's tenant/client/staff counts,
-            consolidated into one panel (was two). */}
-        <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
-          <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-            <BarChart3 size={18} /> Tenants Status
-          </h2>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-green-50 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-green-700">
-                {to.active_tenants}
-              </p>
-              <p className="text-xs text-green-600">Active</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Tenants Status — status boxes + the moved count tiles. */}
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <BarChart3 size={18} /> Tenants Status
+            </h2>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-green-700">
+                  {to.active_tenants}
+                </p>
+                <p className="text-xs text-green-600">Active</p>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-yellow-700">
+                  {to.trial_tenants}
+                </p>
+                <p className="text-xs text-yellow-600">Trial</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-red-700">
+                  {to.suspended_tenants}
+                </p>
+                <p className="text-xs text-red-600">Suspended</p>
+              </div>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-yellow-700">
-                {to.trial_tenants}
-              </p>
-              <p className="text-xs text-yellow-600">Trial</p>
-            </div>
-            <div className="bg-red-50 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-red-700">
-                {to.suspended_tenants}
-              </p>
-              <p className="text-xs text-red-600">Suspended</p>
+            <div className="space-y-2 text-sm">
+              <Stat label="Total Tenants" value={to.total_tenants} />
+              <Stat
+                label="Active Loans"
+                value={`${pm.total_active_loans} of ${pm.total_loans_ever}`}
+              />
+              <Stat label="Total Clients" value={pm.total_customers} />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 text-sm">
-            <Stat label="Total Tenants" value={to.total_tenants} />
-            <Stat label="Active Loans" value={pm.total_active_loans} />
-            <Stat
-              label="Total Clients"
-              value={parseInt(pm.total_clients, 10).toLocaleString()}
-            />
-            <Stat label="Staff Users" value={pm.total_staff_users} />
-            <Stat label="New Tenants (30d)" value={`+${to.new_this_month}`} />
-            <Stat label="Total Collected" value={M(pm.total_collected)} />
+
+          {/* Platform Activity — restored. */}
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <Briefcase size={18} /> Platform Activity
+            </h2>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between py-2 border-b">
+                <span>Total Clients</span>
+                <span className="font-bold">
+                  {parseInt(pm.total_clients, 10).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span>Total Collected</span>
+                <span className="font-bold text-green-600">
+                  {M(pm.total_collected)}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span>Contract Interest</span>
+                <span className="font-bold">
+                  {M(pm.total_contract_interest)}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span>Interest Collected</span>
+                <span className="font-bold text-green-600">
+                  {M(pm.total_interest_collected)}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span>Staff Users</span>
+                <span className="font-bold">{pm.total_staff_users}</span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span>New Tenants (30 days)</span>
+                <span className="font-bold text-ocean-600">
+                  +{to.new_this_month}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
