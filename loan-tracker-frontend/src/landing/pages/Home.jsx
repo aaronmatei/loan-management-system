@@ -200,7 +200,7 @@ function LandingHome() {
                 </div>
               </div>
               <div className="absolute -bottom-4 -right-4 bg-yellow-300 rounded-full px-4 py-2 shadow-lg transform -rotate-12">
-                <p className="text-sm font-bold">Built for every Lender, Everywhere</p>
+                <p className="text-sm font-bold">Built for Every Lender, Everywhere</p>
               </div>
             </div>
           </div>
