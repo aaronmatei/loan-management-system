@@ -127,7 +127,19 @@ function App() {
   });
 
   const logout = () => {
-    const wasDemo = localStorage.getItem("is_demo_session") === "true";
+    // Detect a demo session from the USER object too, not just the flag:
+    // the cross-subdomain handoff carries `user` (with is_demo / tenant
+    // subdomain 'demo') but NOT the is_demo_session flag, so on
+    // demo.lenderfest.loans the flag is absent.
+    let wasDemo = localStorage.getItem("is_demo_session") === "true";
+    if (!wasDemo) {
+      try {
+        const u = JSON.parse(localStorage.getItem("user") || "null");
+        wasDemo = !!(u && (u.is_demo || u.tenant?.subdomain === "demo"));
+      } catch {
+        /* ignore */
+      }
+    }
     setUser(null);
     // Clear EVERY auth/session key (incl. the demo flags + the persisted
     // period picker) so nothing on this origin can silently re-auth.

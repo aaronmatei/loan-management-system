@@ -9,7 +9,17 @@ import { useAuth } from "../context/AuthContext";
 function DemoBanner() {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const isDemo = localStorage.getItem("is_demo_session") === "true";
+  // The is_demo_session flag isn't carried across the subdomain handoff, so
+  // also read the user object (which is) to decide if this is a demo.
+  const isDemo = (() => {
+    if (localStorage.getItem("is_demo_session") === "true") return true;
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "null");
+      return !!(u && (u.is_demo || u.tenant?.subdomain === "demo"));
+    } catch {
+      return false;
+    }
+  })();
   if (!isDemo) return null;
 
   const handleSignUp = () => {
