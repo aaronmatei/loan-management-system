@@ -910,10 +910,22 @@ class AnalyticsService {
            FROM transactions tx
            WHERE tx.tenant_id = t.id
          ), 0)::float                                       AS total_collected,
-         -- Of that, the interest portion actually received.
+         -- Interest actually earned to date — the SAME per-installment
+         -- formula the loan summary uses: waiver-covered interest plus the
+         -- cash share of each installment's interest (flat per-installment
+         -- share x fraction paid), capped at the installment's interest.
+         -- NOT SUM(interest_paid): that column holds ONLY *waiver* interest
+         -- (written by waiverService), so summing it reports zero for any
+         -- tenant without interest waivers.
          COALESCE((
-           SELECT SUM(ps.interest_paid)
+           SELECT SUM(LEAST(
+             l2.total_interest / NULLIF(l2.loan_duration_months, 0),
+             COALESCE(ps.interest_paid, 0)
+               + (l2.total_interest / NULLIF(l2.loan_duration_months, 0))
+                 * LEAST(1, ps.amount_paid / NULLIF(ps.amount_due, 0))
+           ))
            FROM payment_schedules ps
+           JOIN loans l2 ON l2.id = ps.loan_id
            WHERE ps.tenant_id = t.id
          ), 0)::float                                       AS interest_collected,
          COALESCE((

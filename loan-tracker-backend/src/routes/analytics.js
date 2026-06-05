@@ -641,7 +641,11 @@ router.get("/platform/export/pdf", async (req, res) => {
         doc.text(
           `${i + 1}. ${t.business_name} — ${t.loans} loans · ${fmtKES(
             t.disbursed,
-          )} disbursed · ${fmtKES(t.fees_paid)} fees`,
+          )} disbursed · ${fmtKES(t.total_collected)} collected · ${fmtKES(
+            t.contract_interest,
+          )} contract interest · ${fmtKES(
+            t.interest_collected,
+          )} interest collected · ${fmtKES(t.fees_paid)} fees`,
         );
       });
     }
@@ -697,6 +701,9 @@ router.get("/platform/export/excel", async (req, res) => {
       { header: "Status", key: "status", width: 12 },
       { header: "Loans", key: "loans", width: 10 },
       { header: "Disbursed (KES)", key: "disbursed", width: 18 },
+      { header: "Total Collected (KES)", key: "total_collected", width: 20 },
+      { header: "Contract Interest (KES)", key: "contract_interest", width: 22 },
+      { header: "Interest Collected (KES)", key: "interest_collected", width: 22 },
       { header: "Fees Paid (KES)", key: "fees", width: 18 },
     ];
     lb.getRow(1).font = { bold: true };
@@ -707,6 +714,9 @@ router.get("/platform/export/excel", async (req, res) => {
         status: t.status,
         loans: t.loans,
         disbursed: t.disbursed,
+        total_collected: t.total_collected,
+        contract_interest: t.contract_interest,
+        interest_collected: t.interest_collected,
         fees: t.fees_paid,
       }),
     );
