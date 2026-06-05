@@ -12,6 +12,7 @@ import PDFDocument from "pdfkit";
 import { query } from "../config/database.js";
 import { drawPdfStamp } from "./stamp.js";
 import { FONT, registerPdfFonts } from "./pdfFonts.js";
+import { drawBrandMark } from "./pdfBrand.js";
 
 // Thrown when the primary record (client/loan/transaction) does
 // not exist, so callers can map it to an HTTP 404.
@@ -936,7 +937,9 @@ export const buildReceiptPdf = async (transactionId, tid) => {
       characterSpacing: 1,
     });
   if (!txn.hide_platform_branding) {
-    by += 13;
+    by += 12;
+    drawBrandMark(doc, { x: PAD + (CW - 9) / 2, y: by, size: 9 });
+    by += 12;
     doc
       .font(FONT.reg)
       .fontSize(7)
@@ -1487,7 +1490,8 @@ export const buildInvoicePdf = async (invoiceId, tid) => {
 
   // Header band
   doc.rect(0, 0, PAGE_W, 96).fill("#0e8a6e");
-  doc.fillColor("#ffffff").font(FONT.display).fontSize(24).text("LenderFest", M, 30);
+  drawBrandMark(doc, { x: M, y: 26, size: 34, variant: "light" });
+  doc.fillColor("#ffffff").font(FONT.display).fontSize(24).text("LenderFest", M + 42, 30);
   doc.font(FONT.reg).fontSize(10).fillColor("#dff3ec").text("Platform Invoice", M, 64);
   doc
     .font(FONT.bold)
@@ -1593,6 +1597,7 @@ export const buildInvoicePdf = async (invoiceId, tid) => {
     });
   }
 
+  drawBrandMark(doc, { x: (PAGE_W - 10) / 2, y: 774, size: 10 });
   doc
     .font(FONT.reg)
     .fontSize(8)

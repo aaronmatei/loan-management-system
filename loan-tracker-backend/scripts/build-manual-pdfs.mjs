@@ -6,6 +6,7 @@
 //   node scripts/build-manual-pdfs.mjs
 import PDFDocument from "pdfkit";
 import { FONT, registerPdfFonts } from "../src/utils/pdfFonts.js";
+import { drawBrandMark } from "../src/utils/pdfBrand.js";
 import { readFileSync, createWriteStream, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -76,7 +77,8 @@ function build({ md, pdf, audience }) {
 
   // ── Cover ───────────────────────────────────────────────────────
   doc.rect(0, 0, doc.page.width, 220).fill(OCEAN);
-  doc.fillColor("#ffffff").font(DISPLAY).fontSize(15).text("LenderFest", M, 70);
+  drawBrandMark(doc, { x: M, y: 66, size: 22, variant: "light" });
+  doc.fillColor("#ffffff").font(DISPLAY).fontSize(15).text("LenderFest", M + 28, 70);
   doc.font(DISPLAY).fontSize(34).text(
     md.includes("LENDER") ? "Lender User Manual" : "Borrower User Manual",
     M, 110, { width: W },

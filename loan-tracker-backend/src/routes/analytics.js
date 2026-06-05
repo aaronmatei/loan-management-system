@@ -4,6 +4,7 @@ import { FONT, registerPdfFonts } from "../utils/pdfFonts.js";
 import ExcelJS from "exceljs";
 import { query } from "../config/database.js";
 import { stampExcelSheet, drawPdfStamp, addExcelStamp } from "../utils/stamp.js";
+import { drawBrandMark } from "../utils/pdfBrand.js";
 
 // The platform's own identity for stamping platform-level reports (these
 // aggregate every tenant, so there's no single tenant to brand them with).
@@ -605,6 +606,13 @@ router.get("/platform/export/pdf", async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     doc.pipe(res);
 
+    const lfMark = 26;
+    drawBrandMark(doc, {
+      x: (doc.page.width - lfMark) / 2,
+      y: doc.y,
+      size: lfMark,
+    });
+    doc.y += lfMark + 8;
     doc
       .font(FONT.display)
       .fontSize(20)
