@@ -46,3 +46,8 @@ Thumbs.db
 # Kept narrow so migrations/*.sql remain tracked.
 backup_before_*.sql
 **/loan-tracker-backend/backup_*.sql
+
+# Marketing video footage — large binaries, kept out of git
+marketing/*.webm
+marketing/*.mp4
+marketing/*.mov
