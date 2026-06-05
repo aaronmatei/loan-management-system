@@ -18,6 +18,7 @@ export default function StatCard({
   sub,
   accent = "ocean",
   className = "",
+  dark = false,
 }) {
   const a = ACCENTS[accent] || ACCENTS.ocean;
   return (
@@ -32,7 +33,11 @@ export default function StatCard({
           <span className={`w-2 h-2 rounded-full ${a.dot}`} />
           <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
         </div>
-        <p className={`text-2xl font-bold mt-1 ${a.val}`}>{value}</p>
+        <p
+          className={`text-2xl font-bold mt-1 ${dark ? "text-slate-900" : a.val}`}
+        >
+          {value}
+        </p>
         {sub != null && sub !== "" && (
           <p className="text-xs text-slate-400 mt-1">{sub}</p>
         )}

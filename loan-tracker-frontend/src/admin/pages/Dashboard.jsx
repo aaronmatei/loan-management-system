@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
-import { Crown, BarChart3, Briefcase, Trophy, UserPlus, Banknote } from "lucide-react";
+import { Crown, BarChart3, Trophy, UserPlus, Banknote } from "lucide-react";
 import Spinner from "../../components/Spinner";
 import StatCard from "../components/StatCard";
 
@@ -11,6 +11,16 @@ const M = (v) =>
   `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
 const K = (v) =>
   `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+
+// One labelled figure in the consolidated Tenants panel.
+function Stat({ label, value }) {
+  return (
+    <div className="flex justify-between py-2 border-b border-gray-100">
+      <span className="text-gray-600">{label}</span>
+      <span className="font-bold text-gray-800">{value}</span>
+    </div>
+  );
+}
 
 function PlatformDashboard() {
   const navigate = useNavigate();
@@ -42,6 +52,9 @@ function PlatformDashboard() {
     monthly_revenue = [],
   } = data;
   const maxRev = Math.max(...monthly_revenue.map((r) => r.revenue), 1);
+  const expectedShare = parseFloat(pm.expected_share || 0);
+  const paid = parseFloat(pm.total_revenue || 0);
+  const pending = Math.max(0, expectedShare - paid);
 
   return (
     <PlatformLayout>
@@ -51,36 +64,64 @@ function PlatformDashboard() {
         </h1>
         <p className="text-gray-600 mt-1 mb-6">Your SaaS at a glance</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {/* All-Time Revenue — headline, styled like the portal total bar. */}
+        <div className="flex items-center justify-between gap-3 bg-navy-900 text-white rounded-2xl px-6 py-5 mb-6">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wide text-ocean-200/70">
+              All-Time Revenue
+            </p>
+            <p className="text-xs text-ocean-200/50">
+              Platform fees collected from all tenants
+            </p>
+          </div>
+          <p className="text-3xl lg:text-4xl font-bold whitespace-nowrap">
+            {M(pm.total_revenue)}
+          </p>
+        </div>
+
+        {/* Platform financials — all figures in black. */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <StatCard
-            accent="ocean"
-            label="Total Tenants"
-            value={to.total_tenants}
-            sub={`${to.active_tenants} active`}
-          />
-          <StatCard
-            accent="green"
-            label="Active Loans"
-            value={pm.total_active_loans}
-            sub={`of ${pm.total_loans_ever} total`}
-          />
-          <StatCard
+            dark
             accent="violet"
             label="Total Disbursed"
             value={M(pm.total_disbursed)}
             sub="Across all tenants"
           />
           <StatCard
-            accent="amber"
-            label="All-Time Revenue"
-            value={M(pm.total_revenue)}
-            sub="Platform fees collected"
+            dark
+            accent="ocean"
+            label="Contract Interest"
+            value={M(pm.total_contract_interest)}
+            sub="On disbursed loans"
           />
           <StatCard
+            dark
+            accent="green"
+            label="Collected Interest"
+            value={M(pm.total_interest_collected)}
+            sub="Earned to date"
+          />
+          <StatCard
+            dark
+            accent="amber"
+            label="My Expected Share"
+            value={M(expectedShare)}
+            sub="Fee on collected interest"
+          />
+          <StatCard
+            dark
+            accent="green"
+            label="What I've Been Paid"
+            value={M(paid)}
+            sub="Fees received"
+          />
+          <StatCard
+            dark
             accent="rose"
-            label="Total Clients"
-            value={pm.total_customers}
-            sub={`${pm.total_customer_links} tenant links`}
+            label="What's Pending"
+            value={M(pending)}
+            sub="Expected − paid"
           />
         </div>
 
@@ -119,68 +160,42 @@ function PlatformDashboard() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><BarChart3 size={18} /> Tenants Status</h2>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-green-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-green-700">
-                  {to.active_tenants}
-                </p>
-                <p className="text-xs text-green-600">Active</p>
-              </div>
-              <div className="bg-yellow-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-yellow-700">
-                  {to.trial_tenants}
-                </p>
-                <p className="text-xs text-yellow-600">Trial</p>
-              </div>
-              <div className="bg-red-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-red-700">
-                  {to.suspended_tenants}
-                </p>
-                <p className="text-xs text-red-600">Suspended</p>
-              </div>
+        {/* Tenants — status + the platform's tenant/client/staff counts,
+            consolidated into one panel (was two). */}
+        <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
+          <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <BarChart3 size={18} /> Tenants Status
+          </h2>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="bg-green-50 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-green-700">
+                {to.active_tenants}
+              </p>
+              <p className="text-xs text-green-600">Active</p>
+            </div>
+            <div className="bg-yellow-50 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-yellow-700">
+                {to.trial_tenants}
+              </p>
+              <p className="text-xs text-yellow-600">Trial</p>
+            </div>
+            <div className="bg-red-50 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-red-700">
+                {to.suspended_tenants}
+              </p>
+              <p className="text-xs text-red-600">Suspended</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Briefcase size={18} /> Platform Activity</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between py-2 border-b">
-                <span>Total Clients</span>
-                <span className="font-bold">
-                  {parseInt(pm.total_clients, 10).toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span>Total Collected</span>
-                <span className="font-bold text-green-600">
-                  {M(pm.total_collected)}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span>Contract Interest</span>
-                <span className="font-bold">
-                  {M(pm.total_contract_interest)}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span>Interest Collected</span>
-                <span className="font-bold text-green-600">
-                  {M(pm.total_interest_collected)}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span>Staff Users</span>
-                <span className="font-bold">{pm.total_staff_users}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span>New Tenants (30 days)</span>
-                <span className="font-bold text-ocean-600">
-                  +{to.new_this_month}
-                </span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 text-sm">
+            <Stat label="Total Tenants" value={to.total_tenants} />
+            <Stat label="Active Loans" value={pm.total_active_loans} />
+            <Stat
+              label="Total Clients"
+              value={parseInt(pm.total_clients, 10).toLocaleString()}
+            />
+            <Stat label="Staff Users" value={pm.total_staff_users} />
+            <Stat label="New Tenants (30d)" value={`+${to.new_this_month}`} />
+            <Stat label="Total Collected" value={M(pm.total_collected)} />
           </div>
         </div>
 

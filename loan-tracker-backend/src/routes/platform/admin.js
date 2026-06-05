@@ -60,7 +60,24 @@ router.get("/dashboard", async (req, res) => {
         (SELECT COUNT(*) FROM platform_customers)::int AS total_customers,
         (SELECT COUNT(*) FROM customer_tenant_links)::int AS total_customer_links,
         -- All-time platform revenue = every payment received against an invoice.
-        (SELECT COALESCE(SUM(amount),0) FROM invoice_payments) AS total_revenue
+        (SELECT COALESCE(SUM(amount),0) FROM invoice_payments) AS total_revenue,
+        -- The platform's expected share: each tenant's fee% applied to the
+        -- interest they've actually collected (same earned-interest formula
+        -- used everywhere else). This is what billing SHOULD yield; "pending"
+        -- is this minus total_revenue (computed on the client).
+        (SELECT COALESCE(SUM(
+           (t.billing_fee_percentage / 100.0) * (
+             SELECT COALESCE(SUM(LEAST(
+               l.total_interest / NULLIF(l.loan_duration_months, 0),
+               COALESCE(ps.interest_paid, 0)
+                 + (l.total_interest / NULLIF(l.loan_duration_months, 0))
+                   * LEAST(1, ps.amount_paid / NULLIF(ps.amount_due, 0))
+             )), 0)
+             FROM payment_schedules ps
+             JOIN loans l ON l.id = ps.loan_id
+             WHERE ps.tenant_id = t.id
+           )
+         ), 0) FROM tenants t) AS expected_share
     `);
 
     // Revenue per month (last 12 months) — platform fees actually received,
