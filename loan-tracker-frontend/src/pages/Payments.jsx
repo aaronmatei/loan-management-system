@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search, ChevronRight, ChevronDown, Calendar } from "lucide-react";
+import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search, ChevronRight, ChevronDown, Calendar, Pencil } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
@@ -59,6 +59,11 @@ function Payments() {
   const [receiptModal, setReceiptModal] = useState(null);
   const [txnModal, setTxnModal] = useState(null);
   const [tenantBranding, setTenantBranding] = useState(null);
+
+  // Edit-payment modal (null = closed). Prepopulated from a transaction.
+  const [editForm, setEditForm] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState("");
 
   // ?loan=<id> deep-link — when LoanDetails' "Record Payment" action
   // (or any other surface) navigates here it pre-selects the loan,
@@ -224,6 +229,51 @@ function Payments() {
       setError(err.response?.data?.error || "Failed to record payment");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ── Edit a recorded payment ──────────────────────────────────────
+  // Prepopulate from the transaction. Date from payment_date; time from
+  // created_at (the receipt's clock).
+  const openEditPayment = (p) => {
+    const created = p.created_at ? new Date(p.created_at) : null;
+    const hh = created ? String(created.getHours()).padStart(2, "0") : "08";
+    const mm = created ? String(created.getMinutes()).padStart(2, "0") : "00";
+    setEditError("");
+    setEditForm({
+      id: p.id,
+      transaction_code: p.transaction_code,
+      amount_paid: String(parseFloat(p.amount_paid)),
+      payment_date: (p.payment_date || "").slice(0, 10),
+      payment_time: `${hh}:${mm}`,
+      payment_method: p.payment_method || "M-Pesa",
+      payment_reference: p.payment_reference || "",
+      notes: p.notes || "",
+    });
+  };
+
+  const submitEditPayment = async (e) => {
+    e.preventDefault();
+    setEditError("");
+    setEditSubmitting(true);
+    try {
+      await api.put(`/payments/${editForm.id}`, {
+        amount_paid: editForm.amount_paid,
+        payment_date: editForm.payment_date,
+        payment_time: editForm.payment_time,
+        payment_method: editForm.payment_method,
+        payment_reference: editForm.payment_reference,
+        notes: editForm.notes,
+      });
+      const code = editForm.transaction_code;
+      setEditForm(null);
+      setSuccess(`Payment ${code} updated successfully`);
+      fetchPayments();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setEditError(err.response?.data?.error || "Failed to update payment");
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -917,6 +967,13 @@ function Payments() {
                           <span className="font-bold text-green-600">
                             KES {parseFloat(p.amount_paid).toLocaleString()}
                           </span>
+                          <button
+                            onClick={() => openEditPayment(p)}
+                            title="Edit payment"
+                            className="text-gray-400 hover:text-ocean-600"
+                          >
+                            <Pencil size={13} />
+                          </button>
                         </span>
                       </div>
                     ))}
@@ -1093,9 +1150,18 @@ function Payments() {
                                     {p.payment_reference || "-"}
                                   </td>
                                   <td className="py-1.5 text-right text-gray-600">
-                                    {new Date(
-                                      p.payment_date,
-                                    ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                                    <span className="inline-flex items-center gap-2 justify-end">
+                                      {new Date(
+                                        p.payment_date,
+                                      ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                                      <button
+                                        onClick={() => openEditPayment(p)}
+                                        title="Edit payment"
+                                        className="text-gray-400 hover:text-ocean-600 transition"
+                                      >
+                                        <Pencil size={13} />
+                                      </button>
+                                    </span>
                                   </td>
                                 </tr>
                               ))}
@@ -1291,6 +1357,156 @@ function Payments() {
           }}
           onClose={() => setReceiptModal(null)}
         />
+      )}
+
+      {/* ===== EDIT PAYMENT MODAL ===== */}
+      {editForm && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setEditForm(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Pencil size={18} className="text-ocean-600" /> Edit Payment
+              </h3>
+              <button
+                onClick={() => setEditForm(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="font-mono text-xs text-gray-500 mb-4">
+              {editForm.transaction_code}
+            </p>
+
+            <form onSubmit={submitEditPayment} className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Amount (KES)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={editForm.amount_paid}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, amount_paid: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editForm.payment_date}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, payment_date: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editForm.payment_time}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, payment_time: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Method
+                  </label>
+                  <select
+                    value={editForm.payment_method}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, payment_method: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                  >
+                    {["M-Pesa", "Cash", "Bank", "Cheque", "Other"].map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Reference
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.payment_reference}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        payment_reference: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={editForm.notes}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, notes: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                />
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Changing the amount re-derives the loan's schedule, balance and
+                capital pool automatically.
+              </p>
+              {editError && (
+                <p className="text-rose-600 text-sm">{editError}</p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditForm(null)}
+                  className="px-5 py-2.5 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className="flex-1 px-5 py-2.5 bg-ocean-gradient text-white rounded-lg font-bold disabled:opacity-60"
+                >
+                  {editSubmitting ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

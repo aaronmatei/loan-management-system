@@ -9,7 +9,7 @@ import {
 } from "../services/emailService.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
-import { recordLoanPayment } from "../services/paymentService.js";
+import { recordLoanPayment, editLoanPayment } from "../services/paymentService.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
 import { validate, body, param } from "../utils/validate.js";
 import { captureException } from "../config/sentry.js";
@@ -176,6 +176,75 @@ router.post(
     });
     res.status(500).json({ error: "Failed to record payment" });
   }
+  },
+);
+
+// ============================================================
+// EDIT A PAYMENT  (amount / date / time / method / reference / notes)
+// ============================================================
+router.put(
+  "/:transactionId",
+  authorize("admin", "manager"),
+  validate(
+    param("transactionId").isInt({ min: 1 }).toInt(),
+    body("amount_paid")
+      .optional({ checkFalsy: true })
+      .isFloat({ gt: 0 })
+      .withMessage("must be a positive number")
+      .toFloat(),
+    body("payment_date")
+      .optional({ checkFalsy: true })
+      .isISO8601()
+      .withMessage("must be a YYYY-MM-DD date"),
+    body("payment_time")
+      .optional({ checkFalsy: true })
+      .matches(/^\d{1,2}:\d{2}$/)
+      .withMessage("must be HH:MM"),
+    body("payment_method")
+      .optional({ checkFalsy: true })
+      .custom((v) => {
+        const allowed = ["Cash", "M-Pesa", "Bank", "Cheque", "Other"];
+        if (!allowed.some((a) => a.toLowerCase() === String(v || "").toLowerCase()))
+          throw new Error("must be one of Cash / M-Pesa / Bank / Cheque / Other");
+        return true;
+      }),
+    body("payment_reference")
+      .optional({ checkFalsy: true })
+      .isString()
+      .isLength({ max: 100 })
+      .trim(),
+    body("notes")
+      .optional({ checkFalsy: true })
+      .isString()
+      .isLength({ max: 1000 })
+      .trim(),
+  ),
+  async (req, res) => {
+    try {
+      const result = await editLoanPayment({
+        transactionId: req.params.transactionId,
+        amountPaid: req.body.amount_paid,
+        paymentDate: req.body.payment_date,
+        paymentTime: req.body.payment_time,
+        paymentMethod: req.body.payment_method,
+        paymentReference: req.body.payment_reference,
+        notes: req.body.notes,
+        tenantId: tenantId(req),
+        actor: req.user,
+        req,
+      });
+      res.json(result);
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      logger.error("Edit payment error:", error);
+      captureException(error, {
+        route: { method: "PUT", path: "/api/payments/:transactionId" },
+        tenant_id: req.user?.tenant_id,
+      });
+      res.status(500).json({ error: "Failed to edit payment" });
+    }
   },
 );
 

@@ -392,7 +392,10 @@ export async function recordLoanPayment({
   // tolerates non-numeric noise, and ignores codes that don't
   // match the pattern. COALESCE handles "no prior codes" by
   // starting at 1.
-  const year = new Date().getFullYear();
+  // Code period is the PAYMENT month+year (mmyyyy), mirroring loan_code —
+  // so a backdated payment reads with the month it was actually paid.
+  const pd = new Date(paymentDate);
+  const codePeriod = `${String(pd.getMonth() + 1).padStart(2, "0")}${pd.getFullYear()}`;
   const tRes = await query("SELECT subdomain FROM tenants WHERE id = $1", [
     loan.tenant_id,
   ]);
@@ -405,7 +408,16 @@ export async function recordLoanPayment({
     [loan.tenant_id],
   );
   const txnCount = parseInt(lastNumRes.rows[0].last_num, 10) + 1;
-  const transactionCode = `TXN-${tenantPrefix(tRes.rows[0]?.subdomain)}-${year}-${String(txnCount).padStart(5, "0")}`;
+  const transactionCode = `TXN-${tenantPrefix(tRes.rows[0]?.subdomain)}-${codePeriod}-${String(txnCount).padStart(5, "0")}`;
+
+  // Backdated payments carry no clock time (the form is a date picker), so
+  // default their timestamp to 08:00 on the payment date instead of "now" —
+  // otherwise a past-dated receipt prints today's time. Same-day payments
+  // keep the real recording time.
+  const pdStr = pd.toISOString().split("T")[0];
+  const todayStr = new Date().toISOString().split("T")[0];
+  const createdAt =
+    pdStr < todayStr ? `${pdStr}T08:00:00` : new Date().toISOString();
 
   // Record the transaction. amount_paid is the gross client payment;
   // penalty_portion + overpayment_portion record what slice went to penalty
@@ -416,8 +428,8 @@ export async function recordLoanPayment({
         tenant_id, transaction_code, loan_id, client_id, amount_paid,
         penalty_portion, overpayment_portion,
         payment_date, payment_method, payment_reference,
-        payment_status, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'completed', $11)
+        payment_status, notes, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'completed', $11, $12)
       RETURNING *`,
     [
       loan.tenant_id,
@@ -431,6 +443,7 @@ export async function recordLoanPayment({
       paymentMethod,
       paymentReference || null,
       notes || null,
+      createdAt,
     ],
   );
   const transaction = txnResult.rows[0];
@@ -982,6 +995,205 @@ export async function recordLoanPayment({
       receipt,
     },
   };
+}
+
+// ── Editing a recorded payment ───────────────────────────────────────
+// A loan's realised interest + principal (from the schedule rows) and
+// penalties collected (from transactions). Used to compute the capital
+// pool DELTA on an edit — interest-first per row, matching analytics.
+async function loanRealizedFigures(loanId) {
+  const r = await query(
+    `SELECT
+       COALESCE(SUM(LEAST(amount_paid,
+         GREATEST(0, COALESCE(interest_portion,0) - COALESCE(interest_paid,0)))),0)::float AS interest,
+       COALESCE(SUM(LEAST(amount_paid, amount_due)),0)::float AS cash_to_due
+     FROM payment_schedules WHERE loan_id = $1`,
+    [loanId],
+  );
+  const p = await query(
+    `SELECT COALESCE(SUM(COALESCE(penalty_portion,0)),0)::float AS penalty
+       FROM transactions WHERE loan_id = $1 AND payment_status = 'completed'`,
+    [loanId],
+  );
+  return {
+    interest: r.rows[0].interest,
+    principal: r.rows[0].cash_to_due - r.rows[0].interest,
+    penalty: p.rows[0].penalty,
+  };
+}
+
+// Re-cascade the loan's completed cash onto its EXISTING schedule rows in
+// order — only amount_paid + status change; the interest/principal split
+// is preserved. Returns { fullyPaid }.
+async function recascadeLoanSchedule(loanId) {
+  const sched = await query(
+    `SELECT id, amount_due, due_date FROM payment_schedules
+      WHERE loan_id = $1 ORDER BY payment_number ASC`,
+    [loanId],
+  );
+  const cashRes = await query(
+    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0)),0)::float AS cash
+       FROM transactions WHERE loan_id = $1 AND payment_status = 'completed'`,
+    [loanId],
+  );
+  let remaining = cashRes.rows[0].cash;
+  const totalCash = cashRes.rows[0].cash;
+  const now = new Date();
+  let totalDue = 0;
+  for (const s of sched.rows) {
+    const due = parseFloat(s.amount_due);
+    totalDue += due;
+    let paid = 0;
+    let status;
+    if (remaining >= due) {
+      paid = due;
+      status = "paid";
+      remaining -= due;
+    } else {
+      if (remaining > 0) {
+        paid = round2(remaining);
+        remaining = 0;
+      }
+      status = new Date(s.due_date) < now ? "overdue" : "pending";
+    }
+    await query(
+      `UPDATE payment_schedules SET amount_paid = $1, status = $2, updated_at = NOW() WHERE id = $3`,
+      [paid, status, s.id],
+    );
+  }
+  return { fullyPaid: totalDue > 0 && totalCash + 0.01 >= totalDue };
+}
+
+/**
+ * Edit an already-recorded payment (amount / date / method / reference /
+ * notes). Re-derives the loan's schedule fill + status and reconciles the
+ * capital pool by the DELTA of realised principal/interest, so unrelated
+ * figures never drift. Penalty/overpayment portions are preserved — to
+ * change those, void & re-record instead.
+ */
+export async function editLoanPayment({
+  transactionId,
+  amountPaid,
+  paymentDate,
+  paymentTime, // "HH:MM" — optional explicit clock time
+  paymentMethod,
+  paymentReference,
+  notes,
+  tenantId = null,
+  actor = {},
+  req = null,
+}) {
+  const txnRes = await query(
+    `SELECT * FROM transactions
+      WHERE id = $1 AND ($2::int IS NULL OR tenant_id = $2)`,
+    [transactionId, tenantId],
+  );
+  if (txnRes.rows.length === 0) throw httpError(404, "Payment not found");
+  const txn = txnRes.rows[0];
+  if (txn.payment_status !== "completed")
+    throw httpError(400, "Only completed payments can be edited");
+
+  const loanRes = await query(`SELECT * FROM loans WHERE id = $1`, [txn.loan_id]);
+  const loan = loanRes.rows[0];
+  if (!loan) throw httpError(404, "Loan not found");
+
+  const newAmount =
+    amountPaid != null && amountPaid !== ""
+      ? parseFloat(amountPaid)
+      : parseFloat(txn.amount_paid);
+  if (!(newAmount > 0)) throw httpError(400, "Amount must be greater than zero");
+  const penalty = parseFloat(txn.penalty_portion || 0);
+  const overpay = parseFloat(txn.overpayment_portion || 0);
+  if (newAmount + 0.001 < penalty + overpay)
+    throw httpError(
+      400,
+      `Amount can't be less than its penalty + overpayment (KES ${(penalty + overpay).toFixed(2)})`,
+    );
+
+  const oldDateStr = new Date(txn.payment_date).toISOString().split("T")[0];
+  const newDateStr = paymentDate
+    ? new Date(paymentDate).toISOString().split("T")[0]
+    : oldDateStr;
+  const newMethod = paymentMethod || txn.payment_method;
+  const newRef =
+    paymentReference !== undefined ? paymentReference : txn.payment_reference;
+  const newNotes = notes !== undefined ? notes : txn.notes;
+
+  // Timestamp: an explicit time wins; otherwise, when the date moves to a
+  // past day, default to 08:00 (a same-day move uses the current time).
+  const todayStr = new Date().toISOString().split("T")[0];
+  let createdAt = txn.created_at;
+  if (paymentTime && /^\d{1,2}:\d{2}$/.test(paymentTime)) {
+    createdAt = `${newDateStr}T${paymentTime.padStart(5, "0")}:00`;
+  } else if (newDateStr !== oldDateStr) {
+    createdAt =
+      newDateStr < todayStr
+        ? `${newDateStr}T08:00:00`
+        : new Date().toISOString();
+  }
+
+  const before = await loanRealizedFigures(loan.id);
+
+  await query(
+    `UPDATE transactions
+        SET amount_paid = $1, payment_date = $2, payment_method = $3,
+            payment_reference = $4, notes = $5, created_at = $6, updated_at = NOW()
+      WHERE id = $7`,
+    [newAmount, newDateStr, newMethod, newRef || null, newNotes || null, createdAt, transactionId],
+  );
+  // Keep the capital ledger entry for this payment in step with the new net.
+  await query(
+    `UPDATE capital_transactions SET amount = $1 WHERE transaction_id = $2`,
+    [round2(newAmount - overpay), transactionId],
+  );
+
+  const { fullyPaid } = await recascadeLoanSchedule(loan.id);
+  if (loan.status === "active" && fullyPaid) {
+    await query(`UPDATE loans SET status='completed', updated_at=NOW() WHERE id=$1`, [loan.id]);
+  } else if (loan.status === "completed" && !fullyPaid) {
+    await query(`UPDATE loans SET status='active', updated_at=NOW() WHERE id=$1`, [loan.id]);
+  }
+
+  const after = await loanRealizedFigures(loan.id);
+  const dCollected = round2(after.principal - before.principal);
+  const dInterest = round2(
+    after.interest - before.interest + (after.penalty - before.penalty),
+  );
+  if (dCollected !== 0 || dInterest !== 0) {
+    await query(
+      `UPDATE capital_pool
+          SET total_collected = total_collected + $1,
+              total_interest_earned = total_interest_earned + $2,
+              updated_at = NOW()
+        WHERE tenant_id = $3`,
+      [dCollected, dInterest, loan.tenant_id],
+    );
+  }
+
+  await logAudit({
+    user: actor,
+    action: "payment_edited",
+    entityType: "transaction",
+    entityId: transactionId,
+    entityCode: txn.transaction_code,
+    description: `Edited payment ${txn.transaction_code} on ${loan.loan_code}`,
+    oldValues: {
+      amount_paid: txn.amount_paid,
+      payment_date: oldDateStr,
+      payment_method: txn.payment_method,
+    },
+    newValues: {
+      amount_paid: newAmount,
+      payment_date: newDateStr,
+      payment_method: newMethod,
+    },
+    req,
+  });
+
+  await recomputeCreditScore(loan.client_id, loan.tenant_id).catch(() => {});
+
+  const updated = await query(`SELECT * FROM transactions WHERE id = $1`, [transactionId]);
+  return { success: true, data: updated.rows[0] };
 }
 
 /**
