@@ -86,6 +86,9 @@ function Dashboard() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpDate, setTopUpDate] = useState(
+    () => new Date().toISOString().split("T")[0],
+  );
   const [topUpBusy, setTopUpBusy] = useState(false);
   const [period, setPeriod] = usePersistentPeriod();
   // Capital adjustments are admin-only on the backend.
@@ -103,12 +106,14 @@ function Dashboard() {
       await api.post("/capital/adjust", {
         type: "add",
         amount,
+        date: topUpDate,
         description: "Capital top-up",
       });
       const poolRes = await api.get("/capital/status");
       setPoolStatus(poolRes.data.data);
       setShowTopUp(false);
       setTopUpAmount("");
+      setTopUpDate(new Date().toISOString().split("T")[0]);
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
     } finally {
@@ -683,6 +688,20 @@ function Dashboard() {
               placeholder="e.g. 500000"
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
+            <label className="block text-sm font-semibold mt-4 mb-1 text-gray-700">
+              Date received
+            </label>
+            <input
+              type="date"
+              value={topUpDate}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setTopUpDate(e.target.value)}
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Defaults to today — set an earlier date if the capital came in
+              before.
+            </p>
             <div className="flex justify-end gap-3 mt-5">
               <button
                 onClick={() => setShowTopUp(false)}

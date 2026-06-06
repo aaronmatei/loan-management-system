@@ -1114,6 +1114,9 @@ export async function editLoanPayment({
   const newDateStr = paymentDate
     ? new Date(paymentDate).toISOString().split("T")[0]
     : oldDateStr;
+  if (newDateStr > new Date().toISOString().split("T")[0]) {
+    throw httpError(400, "Payment date cannot be in the future");
+  }
   const newMethod = paymentMethod || txn.payment_method;
   const newRef =
     paymentReference !== undefined ? paymentReference : txn.payment_reference;

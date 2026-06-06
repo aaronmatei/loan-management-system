@@ -356,7 +356,7 @@ router.get("/status", authorize("admin", "manager"), async (req, res) => {
 // ============================================================
 router.post("/adjust", authorize("admin"), async (req, res) => {
   try {
-    const { type, amount, description } = req.body;
+    const { type, amount, description, date } = req.body;
 
     if (!["add", "withdraw"].includes(type)) {
       return res
@@ -369,6 +369,21 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
       return res
         .status(400)
         .json({ error: "amount must be a positive number" });
+    }
+
+    // Optional back-date for the ledger entry (capital added earlier but
+    // logged now). Must not be in the future; defaults to today.
+    const todayStr = new Date().toISOString().split("T")[0];
+    let txnDate = todayStr;
+    if (date) {
+      const d = String(date).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        return res.status(400).json({ error: "Invalid date" });
+      }
+      if (d > todayStr) {
+        return res.status(400).json({ error: "Date cannot be in the future" });
+      }
+      txnDate = d;
     }
 
     const tid = req.user?.tenant_id;
@@ -412,13 +427,14 @@ router.post("/adjust", authorize("admin"), async (req, res) => {
     );
 
     await query(
-      `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, description)
-       VALUES ($1, $2, $3, $4)`,
+      `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, description, created_at)
+       VALUES ($1, $2, $3, $4, $5::timestamp)`,
       [
         tid,
         type === "add" ? "capital_added" : "capital_withdrawn",
         value,
         description || (type === "add" ? "Capital added" : "Capital withdrawn"),
+        `${txnDate}T12:00:00`,
       ],
     );
 

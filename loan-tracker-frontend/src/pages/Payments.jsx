@@ -768,6 +768,7 @@ function Payments() {
                   value={formData.payment_date}
                   onChange={handleInputChange}
                   required
+                  max={new Date().toISOString().split("T")[0]}
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
                 />
               </div>
@@ -1409,6 +1410,7 @@ function Payments() {
                   <input
                     type="date"
                     required
+                    max={new Date().toISOString().split("T")[0]}
                     value={editForm.payment_date}
                     onChange={(e) =>
                       setEditForm({ ...editForm, payment_date: e.target.value })
