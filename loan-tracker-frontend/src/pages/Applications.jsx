@@ -14,8 +14,10 @@ import {
   Coins,
   ChevronRight,
   ChevronDown,
+  ShieldCheck,
 } from "lucide-react";
 import api from "../services/api";
+import UnderwritingModal from "../components/UnderwritingModal";
 import PermissionGate from "../components/PermissionGate";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
@@ -43,6 +45,7 @@ function Applications() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDisburseModal, setShowDisburseModal] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(null);
+  const [underwriteLoan, setUnderwriteLoan] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [disburseData, setDisburseData] = useState({
     disbursement_method: "mpesa",
@@ -465,6 +468,16 @@ function Applications() {
             className={`${actBtn} bg-green-600 hover:bg-green-700 text-white`}
           >
             <CheckCircle size={14} /> Approve
+          </button>
+        </PermissionGate>
+      )}
+      {["pending", "under_review"].includes(app.status) && (
+        <PermissionGate role={["admin", "manager", "loan_officer"]}>
+          <button
+            onClick={() => setUnderwriteLoan(app)}
+            className={`${actBtn} bg-slate-700 hover:bg-slate-800 text-white`}
+          >
+            <ShieldCheck size={14} /> Underwrite
           </button>
         </PermissionGate>
       )}
@@ -1102,6 +1115,17 @@ function Applications() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Underwriting worksheet */}
+      {underwriteLoan && (
+        <UnderwritingModal
+          loan={underwriteLoan}
+          onClose={(changed) => {
+            setUnderwriteLoan(null);
+            if (changed) fetchData();
+          }}
+        />
       )}
 
       {/* Counter-offer modal */}
