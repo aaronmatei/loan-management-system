@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Lock, ShieldCheck } from "lucide-react";
 import portalApi from "../services/portalApi";
+import SocialAuth from "../components/SocialAuth";
 
 function CustomerLogin() {
   const navigate = useNavigate();
@@ -35,6 +36,15 @@ function CustomerLogin() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Shared landing for any successful auth (password or social).
+  const handleAuthed = (data) => {
+    localStorage.setItem("portal_token", data.token);
+    localStorage.setItem("portal_customer", JSON.stringify(data.customer));
+    localStorage.setItem("portal_tenants", JSON.stringify(data.tenants || []));
+    localStorage.removeItem("portal_current_tenant");
+    navigate("/portal/dashboard");
   };
 
   return (
@@ -102,6 +112,11 @@ function CustomerLogin() {
             </p>
           </div>
         </form>
+
+        <div className="mt-5">
+          <SocialAuth onAuthed={handleAuthed} />
+        </div>
+
         <div className="mt-6 pt-6 border-t border-gray-100">
           <p className="text-xs text-center text-gray-500 flex items-center justify-center gap-1.5">
             <ShieldCheck size={14} className="text-gray-400" /> One login • Many lenders • Secure

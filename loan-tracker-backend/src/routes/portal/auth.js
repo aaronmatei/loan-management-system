@@ -12,9 +12,41 @@ import { lfxCode } from "../../utils/customerCode.js";
 import { needsKyc } from "../../utils/kyc.js";
 import referralService from "../../services/referralService.js";
 import { normalizePromo } from "../promos.js";
+import {
+  verifySocialToken,
+  socialProviderStatus,
+} from "../../services/social/index.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
+
+// Mint the standard customer session token + response (mirrors /login).
+function issueCustomerToken(customer) {
+  const token = jwt.sign(
+    {
+      platform_customer_id: customer.id,
+      phone_number: customer.phone_number,
+      user_type: "customer",
+      current_tenant_id: null,
+      current_client_id: null,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+  return {
+    success: true,
+    token,
+    customer: {
+      id: customer.id,
+      customer_code: lfxCode(customer.id),
+      phone_number: customer.phone_number,
+      first_name: customer.first_name,
+      last_name: customer.last_name,
+      email: customer.email,
+    },
+    tenants: [], // the dashboard re-fetches the live linked-lender list
+  };
+}
 
 // Canonical platform phone: +254 + 9-digit subscriber number.
 const formatPhone = (phone) => {
@@ -997,6 +1029,187 @@ router.post("/resend-otp", async (req, res) => {
   } catch (error) {
     logger.error("Resend OTP error:", error);
     res.status(500).json({ error: "Failed" });
+  }
+});
+
+// ── Social login (Google / Apple / Facebook) ─────────────────────────
+// Borrower social login lives on the APEX (no lender attached at signup).
+
+// Which providers are configured — drives which buttons the portal shows.
+router.get("/social/providers", (req, res) => {
+  res.json({ success: true, providers: socialProviderStatus() });
+});
+
+// POST /social — verify a provider token, then login / link / or signal that
+// the borrower must finish signup (phone + national ID).
+router.post("/social", async (req, res) => {
+  try {
+    const { provider, token } = req.body || {};
+    const identity = await verifySocialToken({ provider, token });
+
+    // 1) Known social identity → login.
+    const known = await query(
+      `SELECT c.* FROM customer_social_identities s
+         JOIN platform_customers c ON c.id = s.customer_id
+        WHERE s.provider = $1 AND s.provider_user_id = $2 AND c.is_active = true`,
+      [identity.provider, identity.providerUserId],
+    );
+    if (known.rows.length) {
+      await query(`UPDATE platform_customers SET last_login = NOW() WHERE id = $1`, [known.rows[0].id]);
+      return res.json({ status: "login", ...issueCustomerToken(known.rows[0]) });
+    }
+
+    // 2) A verified email matching an existing account → auto-link + login.
+    if (identity.email && identity.emailVerified) {
+      const byEmail = await query(
+        `SELECT * FROM platform_customers WHERE LOWER(email) = LOWER($1) AND is_active = true LIMIT 1`,
+        [identity.email],
+      );
+      if (byEmail.rows.length) {
+        const cust = byEmail.rows[0];
+        await query(
+          `INSERT INTO customer_social_identities (customer_id, provider, provider_user_id, email)
+           VALUES ($1,$2,$3,$4) ON CONFLICT (provider, provider_user_id) DO NOTHING`,
+          [cust.id, identity.provider, identity.providerUserId, identity.email],
+        );
+        await query(`UPDATE platform_customers SET email_verified = true, last_login = NOW() WHERE id = $1`, [cust.id]);
+        return res.json({ status: "linked_login", ...issueCustomerToken(cust) });
+      }
+    }
+
+    // 3) New borrower → must finish with phone + national ID. Hand back a
+    //    short-lived signed token carrying the verified social identity.
+    const pendingToken = jwt.sign(
+      {
+        purpose: "social_signup",
+        provider: identity.provider,
+        provider_user_id: identity.providerUserId,
+        email: identity.email,
+        email_verified: identity.emailVerified,
+        first_name: identity.firstName,
+        last_name: identity.lastName,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "30m" },
+    );
+    return res.json({
+      status: "needs_signup",
+      pending_token: pendingToken,
+      prefill: {
+        provider: identity.provider,
+        first_name: identity.firstName,
+        last_name: identity.lastName,
+        email: identity.email,
+        photo: identity.photo,
+      },
+    });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("social login error:", e);
+    res.status(500).json({ error: "Social sign-in failed" });
+  }
+});
+
+// POST /social/complete — finish a social signup with phone + national ID.
+router.post("/social/complete", async (req, res) => {
+  try {
+    const {
+      pending_token,
+      phone_number,
+      id_number,
+      first_name,
+      last_name,
+      date_of_birth,
+      gender,
+      business_name,
+      business_type,
+      city,
+      county,
+      address,
+    } = req.body || {};
+
+    let claims;
+    try {
+      claims = jwt.verify(pending_token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ error: "Your sign-up session expired — please sign in again." });
+    }
+    if (claims.purpose !== "social_signup") {
+      return res.status(400).json({ error: "Invalid sign-up session" });
+    }
+
+    const fname = (first_name || claims.first_name || "").trim();
+    const lname = (last_name || claims.last_name || "").trim();
+    if (!phone_number || !id_number || !fname || !lname) {
+      return res.status(400).json({ error: "Name, phone and national ID are required" });
+    }
+    const fp = formatPhone(phone_number);
+    if (!/^\+254\d{9}$/.test(fp)) {
+      return res.status(400).json({ error: "Enter a valid phone number" });
+    }
+
+    // Phone already on an account → link the social identity to it + login.
+    const byPhone = await query(
+      `SELECT * FROM platform_customers WHERE phone_number = $1`,
+      [fp],
+    );
+    if (byPhone.rows.length) {
+      const cust = byPhone.rows[0];
+      if (cust.id_number && cust.id_number !== id_number) {
+        return res.status(409).json({ error: "This phone is registered with a different national ID." });
+      }
+      await query(
+        `INSERT INTO customer_social_identities (customer_id, provider, provider_user_id, email)
+         VALUES ($1,$2,$3,$4) ON CONFLICT (provider, provider_user_id) DO NOTHING`,
+        [cust.id, claims.provider, claims.provider_user_id, claims.email],
+      );
+      await query(`UPDATE platform_customers SET last_login = NOW() WHERE id = $1`, [cust.id]);
+      return res.json({ status: "linked_login", ...issueCustomerToken(cust) });
+    }
+
+    // National ID already used by another account.
+    const byId = await query(`SELECT id FROM platform_customers WHERE id_number = $1`, [id_number]);
+    if (byId.rows.length) {
+      return res.status(409).json({ error: "This national ID is already registered. Please sign in." });
+    }
+
+    // Create the account (email pre-verified by the provider).
+    const ins = await query(
+      `INSERT INTO platform_customers (
+         phone_number, id_number, first_name, last_name, email, email_verified,
+         date_of_birth, gender, business_name, business_type, city, county,
+         address, registration_ip, last_login
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, NOW())
+       RETURNING *`,
+      [
+        fp,
+        id_number,
+        fname,
+        lname,
+        claims.email || null,
+        !!claims.email_verified,
+        date_of_birth || null,
+        gender || null,
+        business_name || null,
+        business_type || null,
+        city || null,
+        county || null,
+        address || null,
+        ipOf(req),
+      ],
+    );
+    const cust = ins.rows[0];
+    await query(
+      `INSERT INTO customer_social_identities (customer_id, provider, provider_user_id, email)
+       VALUES ($1,$2,$3,$4)`,
+      [cust.id, claims.provider, claims.provider_user_id, claims.email],
+    );
+    logger.info(`✓ New platform customer via ${claims.provider}: ${fp}`);
+    return res.json({ status: "registered", ...issueCustomerToken(cust) });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("social complete error:", e);
+    res.status(500).json({ error: "Could not complete sign-up" });
   }
 });
 

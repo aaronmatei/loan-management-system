@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import portalApi from "../services/portalApi";
+import SocialAuth from "../components/SocialAuth";
 import PasswordInput from "../components/PasswordInput";
 import IdentityUploader from "../components/IdentityUploader";
 import { KENYA_COUNTIES } from "../../utils/counties";
@@ -176,6 +177,16 @@ function CustomerRegister() {
     navigate(dest);
   };
 
+  // Social signup landed an account (after the phone+ID step) — store the
+  // session and go to the aggregate dashboard.
+  const handleSocialAuthed = (data) => {
+    localStorage.setItem("portal_token", data.token);
+    localStorage.setItem("portal_customer", JSON.stringify(data.customer));
+    localStorage.setItem("portal_tenants", JSON.stringify(data.tenants || []));
+    localStorage.removeItem("portal_current_tenant");
+    navigate("/portal/dashboard");
+  };
+
   const field =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
@@ -212,6 +223,12 @@ function CustomerRegister() {
                 : "Set a password to finish"
               : "Upload your photo and ID to verify your identity"}
         </p>
+
+        {step === 1 && (
+          <div className="mb-5">
+            <SocialAuth onAuthed={handleSocialAuthed} />
+          </div>
+        )}
 
         {step === 1 ? (
           <form onSubmit={submitDetails} className="space-y-4">
