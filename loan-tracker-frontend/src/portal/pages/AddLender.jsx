@@ -9,6 +9,8 @@ import {
   Sparkles,
   X,
   Check,
+  ChevronDown,
+  Banknote,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -26,6 +28,36 @@ function AddLender() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [applyingId, setApplyingId] = useState(null);
+
+  const money = (v) => `KES ${Number(v || 0).toLocaleString()}`;
+  const toggleRow = (id) =>
+    setExpanded((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
+  // Apply for a loan with a linked lender: scope the session to that lender,
+  // then go to the apply page (which reads the current tenant).
+  const applyToLender = async (t) => {
+    setApplyingId(t.tenant_id);
+    try {
+      const r = await portalApi.post("/portal/auth/select-tenant", {
+        tenant_id: t.tenant_id,
+      });
+      localStorage.setItem("portal_token", r.data.token);
+      localStorage.setItem(
+        "portal_current_tenant",
+        JSON.stringify({ ...r.data.current_tenant, brand_color: t.brand_color }),
+      );
+      navigate("/portal/apply");
+    } catch {
+      alert("Could not start an application. Please try again.");
+      setApplyingId(null);
+    }
+  };
 
   const customer = (() => {
     try {
@@ -146,12 +178,22 @@ function AddLender() {
           </h3>
           <div className="flex flex-wrap gap-2">
             {currentTenants.map((t) => (
-              <span
+              <div
                 key={t.tenant_id}
-                className="px-3 py-1 bg-white rounded-full text-sm font-semibold text-ocean-700 border border-ocean-200"
+                className="inline-flex items-center gap-2 bg-white rounded-full pl-3 pr-1 py-1 border border-ocean-200"
               >
-                {t.business_name}
-              </span>
+                <span className="text-sm font-semibold text-ocean-700">
+                  {t.business_name}
+                </span>
+                <button
+                  onClick={() => applyToLender(t)}
+                  disabled={applyingId === t.tenant_id}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-white bg-ocean-600 hover:bg-ocean-700 disabled:opacity-60"
+                >
+                  <Banknote size={12} />
+                  {applyingId === t.tenant_id ? "Opening…" : "Apply for loan"}
+                </button>
+              </div>
             ))}
           </div>
           <p className="text-xs text-ocean-600 mt-2">
@@ -178,59 +220,94 @@ function AddLender() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {available.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => {
-                  setSelected(t);
-                  setPassword("");
-                }}
-                className="text-left bg-white rounded-xl shadow p-5 hover:shadow-lg transition relative overflow-hidden"
-              >
-                <div
-                  className="absolute top-0 left-0 right-0 h-2"
-                  style={{ backgroundColor: t.brand_color || "#0e8a6e" }}
-                />
-                <div className="flex items-start gap-3 mb-3">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0"
-                    style={{ backgroundColor: t.brand_color || "#0e8a6e" }}
-                  >
-                    {t.business_name?.charAt(0)}
+          <div className="bg-white rounded-xl shadow overflow-hidden divide-y divide-gray-100">
+            {available.map((t) => {
+              const open = expanded.has(t.id);
+              const accent = t.brand_color || "#0e8a6e";
+              return (
+                <div key={t.id}>
+                  {/* Row */}
+                  <div className="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-50 transition">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+                      style={{ backgroundColor: accent }}
+                    >
+                      {t.business_name?.charAt(0)}
+                    </div>
+                    <button
+                      onClick={() => toggleRow(t.id)}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <p className="font-bold text-navy-900 truncate">
+                        {t.business_name}
+                        {t.is_existing_client && (
+                          <span className="ml-2 align-middle text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">
+                            existing account
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize truncate">
+                        {t.business_type}
+                        {t.city || t.county
+                          ? ` · ${[t.city, t.county].filter(Boolean).join(", ")}`
+                          : ""}
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => toggleRow(t.id)}
+                      aria-label={open ? "Collapse" : "Expand"}
+                      className="text-gray-400 hover:text-gray-600 p-1 shrink-0"
+                    >
+                      <ChevronDown
+                        size={18}
+                        className={`transition-transform ${open ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                    <button
+                      onClick={() => setSelected(t)}
+                      className="px-3 py-2 rounded-lg text-sm font-semibold text-white inline-flex items-center gap-1.5 shrink-0"
+                      style={{ backgroundColor: accent }}
+                    >
+                      <Plus size={15} /> Add
+                    </button>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-navy-900">
-                      {t.business_name}
-                    </h3>
-                    <p className="text-xs text-gray-500 capitalize">
-                      {t.business_type}
-                    </p>
-                  </div>
+
+                  {/* Expanded detail */}
+                  {open && (
+                    <div className="px-4 pb-4 pt-1 bg-gray-50/60">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <Detail label="Interest" value={`${t.default_interest_rate}%`} />
+                        <Detail
+                          label="Loan range"
+                          value={`${money(t.min_amount)} – ${money(t.max_amount)}`}
+                        />
+                        <Detail label="Typical term" value={`${t.default_duration} mo`} />
+                        <Detail label="Type" value={t.business_type} capitalize />
+                      </div>
+                      {(t.physical_address || t.city || t.county) && (
+                        <p className="text-sm text-gray-600 mt-3 flex items-center gap-1.5">
+                          <MapPin size={14} className="text-gray-400 shrink-0" />
+                          {[t.physical_address, t.city, t.county].filter(Boolean).join(", ")}
+                        </p>
+                      )}
+                      {t.is_existing_client && (
+                        <p className="mt-2 text-xs text-green-700 flex items-center gap-1">
+                          <Sparkles size={12} className="text-green-600" /> We found
+                          your existing account here — your loans will auto-link.
+                        </p>
+                      )}
+                      <button
+                        onClick={() => setSelected(t)}
+                        className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white"
+                        style={{ backgroundColor: accent }}
+                      >
+                        <Plus size={15} /> Add this lender
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {(t.city || t.county) && (
-                  <p className="text-sm text-gray-600 mb-2 flex items-center gap-1">
-                    <MapPin size={14} className="text-gray-400 shrink-0" /> {[t.city, t.county].filter(Boolean).join(", ")}
-                  </p>
-                )}
-                {t.is_existing_client && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-3">
-                    <p className="text-xs font-semibold text-green-800 flex items-center gap-1">
-                      <Sparkles size={12} className="text-green-600" /> We found your existing account here!
-                    </p>
-                    <p className="text-xs text-green-700">
-                      Your loans will auto-link.
-                    </p>
-                  </div>
-                )}
-                <span
-                  className="inline-flex items-center justify-center gap-1.5 w-full mt-4 py-2 rounded-lg font-semibold text-white text-center"
-                  style={{ backgroundColor: t.brand_color || "#0e8a6e" }}
-                >
-                  <Plus size={16} /> Add This Lender
-                </span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -292,6 +369,19 @@ function AddLender() {
         </div>
       )}
     </PortalLayout>
+  );
+}
+
+function Detail({ label, value, capitalize }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">
+        {label}
+      </p>
+      <p className={`text-sm font-semibold text-gray-800 ${capitalize ? "capitalize" : ""}`}>
+        {value}
+      </p>
+    </div>
   );
 }
 

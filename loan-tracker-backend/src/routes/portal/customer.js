@@ -206,6 +206,10 @@ router.get("/available-tenants", async (req, res) => {
       `SELECT
          t.id, t.business_name, t.subdomain, t.brand_color,
          t.business_type, t.physical_address, t.city, t.county,
+         COALESCE(t.default_interest_rate, 50.00) AS default_interest_rate,
+         COALESCE(t.min_loan_amount,       1000)  AS min_amount,
+         COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
+         COALESCE(t.default_loan_duration, 6)     AS default_duration,
          EXISTS(
            SELECT 1 FROM clients c
            WHERE c.tenant_id = t.id
