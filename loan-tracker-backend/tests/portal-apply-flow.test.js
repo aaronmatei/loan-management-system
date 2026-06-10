@@ -84,11 +84,10 @@ describe("customer portal — full apply flow", () => {
     expect(detail1.body.data.is_linked).toBe(false);
 
     // 7. Link the lender (creates the client + active link)
-    const link = await api().post("/api/portal/auth/add-tenant").send({
-      target_tenant_id: tenant.id,
-      customer_id: customerId,
-      password: PASSWORD,
-    });
+    const link = await api()
+      .post("/api/portal/auth/add-tenant")
+      .set(auth)
+      .send({ target_tenant_id: tenant.id });
     expect(link.status).toBe(200);
 
     // 7b. Directory now marks the lender linked, with a link date
@@ -224,11 +223,10 @@ describe("customer portal — full apply flow", () => {
       .send({ phone_number: CUSTOMER.phone_number, password: PASSWORD });
     const token = login.body.token;
 
-    await api().post("/api/portal/auth/add-tenant").send({
-      target_tenant_id: tenant.id,
-      customer_id: customerId,
-      password: PASSWORD,
-    });
+    await api()
+      .post("/api/portal/auth/add-tenant")
+      .set({ Authorization: `Bearer ${token}` })
+      .send({ target_tenant_id: tenant.id });
     const sel = await api()
       .post("/api/portal/auth/select-tenant")
       .set({ Authorization: `Bearer ${token}` })

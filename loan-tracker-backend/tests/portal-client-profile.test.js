@@ -46,12 +46,13 @@ describe("portal sign-up captures business + location", () => {
     expect(pc.rows[0].business_type).toBe("Retail Shop");
     expect(pc.rows[0].county).toBe("Nairobi");
 
-    await api()
+    const verify = await api()
       .post("/api/portal/auth/verify-otp")
       .send({ customer_id: customerId, password: PASSWORD });
     await api()
       .post("/api/portal/auth/add-tenant")
-      .send({ target_tenant_id: tenant.id, customer_id: customerId, password: PASSWORD });
+      .set({ Authorization: `Bearer ${verify.body.token}` })
+      .send({ target_tenant_id: tenant.id });
 
     // The new client at the lender inherits the business + location.
     const client = await query(

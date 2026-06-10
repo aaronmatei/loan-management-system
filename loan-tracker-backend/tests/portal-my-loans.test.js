@@ -35,10 +35,11 @@ async function loginAndLink() {
   const login = await api()
     .post("/api/portal/auth/login")
     .send({ phone_number: CUSTOMER.phone_number, password: PASSWORD });
+  const auth = { Authorization: `Bearer ${login.body.token}` };
   await api()
     .post("/api/portal/auth/add-tenant")
-    .send({ target_tenant_id: tenant.id, customer_id: customerId, password: PASSWORD });
-  const auth = { Authorization: `Bearer ${login.body.token}` };
+    .set(auth)
+    .send({ target_tenant_id: tenant.id });
   const clientId = (
     await query(
       "SELECT id FROM clients WHERE tenant_id = $1 AND id_number = $2",
