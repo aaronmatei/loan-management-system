@@ -757,8 +757,25 @@ router.post("/select-tenant", async (req, res) => {
 // ── add tenant link (logged-in customer at a new lender) ──────
 router.post("/add-tenant", tenantContext, async (req, res) => {
   try {
-    const { customer_id, password, target_tenant_id, target_subdomain } =
-      req.body;
+    const { target_tenant_id, target_subdomain } = req.body;
+
+    // Authenticate the borrower from their session token — they're already
+    // logged in, so no password re-entry. This also lets social-only accounts
+    // (which have no password) link a lender.
+    let customer_id;
+    try {
+      const authHeader = req.headers.authorization || "";
+      const decoded = jwt.verify(
+        authHeader.replace(/^Bearer\s+/i, ""),
+        process.env.JWT_SECRET,
+      );
+      customer_id = decoded.platform_customer_id;
+    } catch {
+      return res.status(401).json({ error: "Please sign in again." });
+    }
+    if (!customer_id) {
+      return res.status(401).json({ error: "Please sign in again." });
+    }
 
     // Resolve the target tenant: explicit body id/subdomain (the
     // list-based Add-Lender UI) takes precedence; otherwise fall back
@@ -792,15 +809,14 @@ router.post("/add-tenant", tenantContext, async (req, res) => {
     }
 
     const cr = await query(
-      "SELECT * FROM platform_customers WHERE id = $1",
+      "SELECT * FROM platform_customers WHERE id = $1 AND is_active = true",
       [customer_id],
     );
     if (cr.rows.length === 0) {
       return res.status(404).json({ error: "Customer not found" });
     }
     const customer = cr.rows[0];
-    const ok = await bcryptjs.compare(password, customer.password_hash || "");
-    if (!ok) return res.status(401).json({ error: "Invalid password" });
+    // Session-authenticated above — no password re-confirmation needed.
 
     const exists = await query(
       "SELECT id FROM customer_tenant_links WHERE platform_customer_id = $1 AND tenant_id = $2",

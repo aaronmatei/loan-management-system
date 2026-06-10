@@ -70,13 +70,10 @@ function AddLender() {
 
   const confirmAdd = async (e) => {
     e.preventDefault();
-    if (!password) return;
     setSubmitting(true);
     try {
       const res = await portalApi.post("/portal/auth/add-tenant", {
         target_tenant_id: selected.id,
-        customer_id: customer.id,
-        password,
       });
       setSuccess({
         tenant: res.data.tenant,
@@ -266,28 +263,14 @@ function AddLender() {
               </div>
             )}
             <p className="text-gray-600 mb-4 text-sm">
-              Confirm your password to link{" "}
-              <strong>{selected.business_name}</strong> to your account.
+              Link <strong>{selected.business_name}</strong> to your account?
+              Your loans with them will show up in your portal.
             </p>
             <form onSubmit={confirmAdd}>
-              <label className="block text-sm font-semibold mb-1">
-                Confirm Password
-              </label>
-              <PasswordInput
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoFocus
-                placeholder="Enter your password"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none mb-4"
-              />
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelected(null);
-                    setPassword("");
-                  }}
+                  onClick={() => setSelected(null)}
                   disabled={submitting}
                   className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold"
                 >
@@ -295,7 +278,7 @@ function AddLender() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !password}
+                  disabled={submitting}
                   className="flex-1 py-2 text-white rounded-lg font-semibold disabled:opacity-50"
                   style={{
                     backgroundColor: selected.brand_color || "#0e8a6e",
