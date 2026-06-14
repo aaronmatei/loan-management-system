@@ -3259,6 +3259,7 @@ CREATE INDEX idx_loans_cycle ON public.loans(cycle_id);
 CREATE TABLE public.members (
   id                   serial PRIMARY KEY,
   tenant_id            integer NOT NULL,
+  welfare_id           integer,  -- migration 057 (members belong to a welfare/group)
   member_no            varchar(30),
   first_name           varchar(60) NOT NULL,
   last_name            varchar(60) NOT NULL,
@@ -3277,6 +3278,7 @@ CREATE TABLE public.members (
 CREATE TABLE public.member_pool_transactions (
   id             serial PRIMARY KEY,
   tenant_id      integer NOT NULL,
+  welfare_id     integer,  -- migration 057
   member_id      integer REFERENCES public.members(id) ON DELETE SET NULL,
   type           varchar(24) NOT NULL,
   amount         numeric NOT NULL CHECK (amount > 0),
@@ -3289,8 +3291,10 @@ CREATE TABLE public.member_pool_transactions (
   created_at     timestamp NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_members_tenant ON public.members(tenant_id, status);
+CREATE INDEX idx_members_welfare ON public.members(welfare_id);
 CREATE INDEX idx_member_pool_tenant ON public.member_pool_transactions(tenant_id, id);
 CREATE INDEX idx_member_pool_member ON public.member_pool_transactions(member_id);
+CREATE INDEX idx_member_pool_welfare ON public.member_pool_transactions(welfare_id, id);
 
 --
 -- Member loans funded by the member pool (migration 056).

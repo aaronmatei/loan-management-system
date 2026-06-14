@@ -15,6 +15,7 @@ import {
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 import GroupSavingsPanel from "../components/GroupSavingsPanel";
+import WelfareMembersPanel from "../components/WelfareMembersPanel";
 import GroupMeetingsPanel from "../components/GroupMeetingsPanel";
 import GroupCyclesPanel from "../components/GroupCyclesPanel";
 import Spinner from "../components/Spinner";
@@ -115,7 +116,7 @@ export default function GroupDetail() {
           onClick={() => navigate("/groups")}
           className="px-6 py-2 bg-ocean-600 text-white font-semibold rounded-lg hover:bg-ocean-700"
         >
-          ← Back to Groups
+          ← Back to Welfare
         </button>
       </div>
     );
@@ -137,7 +138,7 @@ export default function GroupDetail() {
         onClick={() => navigate("/groups")}
         className="mb-4 text-ocean-600 hover:text-ocean-800 font-semibold flex items-center gap-2"
       >
-        ← Back to Groups
+        ← Back to Welfare
       </button>
 
       {/* Header */}
@@ -187,6 +188,9 @@ export default function GroupDetail() {
         </div>
       )}
 
+      {/* Welfare members + their contributions pool + pool lending */}
+      <WelfareMembersPanel welfareId={id} />
+
       {/* Savings + joint-liability coverage */}
       <GroupSavingsPanel groupId={id} members={members} loans={loans} onChange={load} />
 
@@ -199,7 +203,7 @@ export default function GroupDetail() {
       {/* Members */}
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="font-bold text-slate-900">Members ({members.length})</h2>
+          <h2 className="font-bold text-slate-900">Loan Group Members ({members.length})</h2>
           <PermissionGate role={["admin", "manager", "loan_officer"]}>
             <button
               onClick={() => setShowAdd(true)}

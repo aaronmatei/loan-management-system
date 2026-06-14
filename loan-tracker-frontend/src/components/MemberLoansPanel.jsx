@@ -5,15 +5,16 @@ import PermissionGate from "./PermissionGate";
 
 // Member loans funded from the member pool. Issue a loan (drawing the pool
 // down), record repayments (restoring it), or mark a loan defaulted.
-export default function MemberLoansPanel({ memberId, poolBalance, onChange }) {
+export default function MemberLoansPanel({ welfareId, memberId, poolBalance, onChange }) {
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showIssue, setShowIssue] = useState(false);
   const [repayLoan, setRepayLoan] = useState(null);
+  const base = `/welfares/${welfareId}/members/${memberId}/loans`;
 
   const load = async () => {
     try {
-      const r = await api.get(`/members/${memberId}/loans`);
+      const r = await api.get(base);
       setLoans(r.data.data || []);
     } catch {
       /* non-fatal */
@@ -36,7 +37,7 @@ export default function MemberLoansPanel({ memberId, poolBalance, onChange }) {
   const markDefault = async (loan) => {
     if (!confirm(`Mark ${loan.loan_code} as defaulted?`)) return;
     try {
-      await api.post(`/members/${memberId}/loans/${loan.id}/default`, {});
+      await api.post(`${base}/${loan.id}/default`, {});
       refresh();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to default loan");
@@ -127,7 +128,7 @@ export default function MemberLoansPanel({ memberId, poolBalance, onChange }) {
 
       {showIssue && (
         <IssueLoanModal
-          memberId={memberId}
+          base={base}
           poolBalance={poolBalance}
           onClose={() => setShowIssue(false)}
           onDone={() => {
@@ -138,7 +139,7 @@ export default function MemberLoansPanel({ memberId, poolBalance, onChange }) {
       )}
       {repayLoan && (
         <RepayModal
-          memberId={memberId}
+          base={base}
           loan={repayLoan}
           onClose={() => setRepayLoan(null)}
           onDone={() => {
@@ -151,7 +152,7 @@ export default function MemberLoansPanel({ memberId, poolBalance, onChange }) {
   );
 }
 
-function IssueLoanModal({ memberId, poolBalance, onClose, onDone }) {
+function IssueLoanModal({ base, poolBalance, onClose, onDone }) {
   const [form, setForm] = useState({ principal: "", interest_rate: "12", duration_months: "6" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -171,7 +172,7 @@ function IssueLoanModal({ memberId, poolBalance, onClose, onDone }) {
     if (principal > poolBalance) return setError(`Pool only holds ${money(poolBalance)}.`);
     setBusy(true);
     try {
-      await api.post(`/members/${memberId}/loans`, {
+      await api.post(base, {
         principal,
         interest_rate: rate,
         duration_months: months,
@@ -211,7 +212,7 @@ function IssueLoanModal({ memberId, poolBalance, onClose, onDone }) {
   );
 }
 
-function RepayModal({ memberId, loan, onClose, onDone }) {
+function RepayModal({ base, loan, onClose, onDone }) {
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -226,7 +227,7 @@ function RepayModal({ memberId, loan, onClose, onDone }) {
     if (amt > outstanding) return setError(`Loan only owes ${money(outstanding)}.`);
     setBusy(true);
     try {
-      await api.post(`/members/${memberId}/loans/${loan.id}/payments`, { amount: amt });
+      await api.post(`${base}/${loan.id}/payments`, { amount: amt });
       onDone();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to record repayment.");

@@ -16,7 +16,7 @@ const TYPE_LABEL = {
 };
 
 export default function MemberDetail() {
-  const { id } = useParams();
+  const { welfareId, memberId } = useParams();
   const navigate = useNavigate();
   const [member, setMember] = useState(null);
   const [savings, setSavings] = useState(0);
@@ -26,10 +26,12 @@ export default function MemberDetail() {
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
 
+  const base = `/welfares/${welfareId}/members`;
+
   const load = async () => {
     try {
       setLoading(true);
-      const [r, p] = await Promise.all([api.get(`/members/${id}`), api.get("/members/pool")]);
+      const [r, p] = await Promise.all([api.get(`${base}/${memberId}`), api.get(`${base}/pool`)]);
       setMember(r.data.data.member);
       setSavings(r.data.data.savings_balance);
       setTxns(r.data.data.transactions || []);
@@ -42,7 +44,7 @@ export default function MemberDetail() {
   };
   useEffect(() => {
     load();
-  }, [id]);
+  }, [welfareId, memberId]);
 
   const money = (v) =>
     "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -55,14 +57,14 @@ export default function MemberDetail() {
     return (
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">{error || "Member not found"}</div>
-        <button onClick={() => navigate("/members")} className="px-6 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700">← Back to Members</button>
+        <button onClick={() => navigate(`/groups/${welfareId}`)} className="px-6 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700">← Back to Welfare</button>
       </div>
     );
   }
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto pb-24">
-      <button onClick={() => navigate("/members")} className="mb-4 text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-2">← Back to Members</button>
+      <button onClick={() => navigate(`/groups/${welfareId}`)} className="mb-4 text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-2">← Back to Welfare</button>
 
       <div className="bg-white rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -89,7 +91,7 @@ export default function MemberDetail() {
         </div>
       </PermissionGate>
 
-      <MemberLoansPanel memberId={id} poolBalance={poolBalance} onChange={load} />
+      <MemberLoansPanel welfareId={welfareId} memberId={memberId} poolBalance={poolBalance} onChange={load} />
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Activity</h2></div>
@@ -129,7 +131,8 @@ export default function MemberDetail() {
 
       {modal && (
         <TxnModal
-          memberId={id}
+          base={base}
+          memberId={memberId}
           kind={modal}
           max={modal === "withdrawal" ? savings : null}
           onClose={() => setModal(null)}
@@ -140,7 +143,7 @@ export default function MemberDetail() {
   );
 }
 
-function TxnModal({ memberId, kind, max, onClose, onDone }) {
+function TxnModal({ base, memberId, kind, max, onClose, onDone }) {
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -156,7 +159,7 @@ function TxnModal({ memberId, kind, max, onClose, onDone }) {
     if (max != null && amt > max) return setError(`Only ${money(max)} available.`);
     setBusy(true);
     try {
-      await api.post(`/members/${memberId}/${isContribution ? "contributions" : "withdrawals"}`, { amount: amt, notes });
+      await api.post(`${base}/${memberId}/${isContribution ? "contributions" : "withdrawals"}`, { amount: amt, notes });
       onDone();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to save.");

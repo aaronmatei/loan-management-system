@@ -49,10 +49,10 @@ export default function Groups() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <UsersRound className="text-ocean-600" /> Groups / Chama
+            <UsersRound className="text-ocean-600" /> Welfare
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            {groups.length} group{groups.length === 1 ? "" : "s"} · joint-liability lending
+            {groups.length} welfare group{groups.length === 1 ? "" : "s"} · members, savings & lending
           </p>
         </div>
         <PermissionGate role={["admin", "manager"]}>
@@ -61,7 +61,7 @@ export default function Groups() {
             className="px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
           >
             <span className="inline-flex items-center gap-1">
-              <Plus size={16} /> New Group
+              <Plus size={16} /> New Welfare
             </span>
           </button>
         </PermissionGate>
@@ -72,7 +72,7 @@ export default function Groups() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search groups by name or code…"
+          placeholder="Search welfare groups…"
           className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
         />
       </div>
@@ -84,8 +84,8 @@ export default function Groups() {
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-10 text-center text-gray-500">
           {groups.length === 0
-            ? "No groups yet. Create a group, enrol members, then lend to them."
-            : "No groups match your search."}
+            ? "No welfare groups yet. Create one, enrol members, then run their savings & loans."
+            : "No welfare groups match your search."}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -174,7 +174,7 @@ function NewGroupModal({ onClose, onCreated }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <UsersRound size={18} className="text-ocean-600" />
-            <h3 className="text-lg font-bold text-slate-900">New Group / Chama</h3>
+            <h3 className="text-lg font-bold text-slate-900">New Welfare</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
             <X size={20} />

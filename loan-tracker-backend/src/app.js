@@ -175,7 +175,7 @@ app.use("/api/loans", salaryAdvanceRoutes); // salary check-off details (dual-mo
 app.use("/api/groups", groupRoutes); // group / chama lending
 app.use("/api/groups", groupSavingsRoutes); // group savings + joint-liability coverage
 app.use("/api/groups", groupActivityRoutes); // group meetings + attendance + lending cycles
-app.use("/api/members", memberRoutes); // member contributions pool (separate from capital)
+app.use("/api/welfares/:welfareId/members", memberRoutes); // welfare members + pool + lending
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);

@@ -6,7 +6,6 @@ import {
   TrendingUp,
   Users,
   UsersRound,
-  PiggyBank,
   ClipboardList,
   Wallet,
   CreditCard,
@@ -54,7 +53,6 @@ const standaloneItems = [
   // workflow refers back to, so it deserves a single-click slot rather
   // than living inside a group with the loan items it intersects.
   { path: "/clients", label: "Clients", icon: Users, variant: "ocean", permission: "clients:view" },
-  { path: "/members", label: "Members", icon: PiggyBank, variant: "ocean", permission: "clients:view" },
 ];
 
 const navGroups = [
@@ -70,7 +68,7 @@ const navGroups = [
     items: [
       { path: "/applications", label: "Applications", icon: ClipboardList, permission: "loans:view" },
       { path: "/loans", label: "Loans", icon: Wallet, permission: "loans:view" },
-      { path: "/groups", label: "Groups / Chama", icon: UsersRound, permission: "loans:view" },
+      { path: "/groups", label: "Welfare", icon: UsersRound, permission: "loans:view" },
       { path: "/payments", label: "Payments", icon: CreditCard, permission: "payments:view" },
       // badgeKey lets renderItem read the live count (overdueCount) without
       // baking a number into the static config.
