@@ -216,11 +216,13 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
                     className={fld + " pl-9"}
                   />
                 </div>
-                {showDropdown && clientSearch && (
+                {showDropdown && (
                   <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
                     {filteredClients.length === 0 ? (
                       <div className="p-3 text-center text-gray-500 text-sm">
-                        No clients found
+                        {clients.length === 0
+                          ? "No clients yet — add a client first."
+                          : `No clients found matching "${clientSearch}"`}
                       </div>
                     ) : (
                       filteredClients.slice(0, 30).map((c) => (
