@@ -204,8 +204,13 @@ function PlatformTenants() {
                             {t.business_name?.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-semibold">
+                            <p className="font-semibold flex items-center gap-1.5">
                               {t.business_name}
+                              {t.kind === "welfare" && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wide">
+                                  Welfare
+                                </span>
+                              )}
                             </p>
                             <p className="text-xs text-gray-500">
                               {t.tenant_code}

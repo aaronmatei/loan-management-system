@@ -13,6 +13,12 @@ const RESERVED = [
   "help", "docs", "blog", "status",
 ];
 
+// Default platform billing for a self-registered welfare: a flat monthly fee
+// plus 5% of the interest it earns on member loans. The platform admin can
+// change either per welfare from the admin billing screen.
+const WELFARE_MONTHLY_FEE = 500;
+const WELFARE_FEE_PERCENTAGE = 5.0;
+
 // Public tenant signup. Creates tenant + admin user + capital pool +
 // company settings in ONE transaction so a partial failure can't
 // leave an orphaned tenant. (Requires the multitenancy migration to
@@ -338,8 +344,10 @@ router.post("/welfare-signup", async (req, res) => {
       `INSERT INTO tenants (
         tenant_code, business_name, business_type, kind, subdomain,
         registration_number, contact_name, contact_email, contact_phone,
-        city, county, plan, status
-      ) VALUES ($1,$2,'welfare','welfare',$3,$4,$5,$6,$7,$8,$9,'trial','active')
+        city, county, plan, status,
+        billing_enabled, billing_base_fee, billing_fee_percentage
+      ) VALUES ($1,$2,'welfare','welfare',$3,$4,$5,$6,$7,$8,$9,'trial','active',
+                true,$10,$11)
       RETURNING *`,
       [
         tenantCode,
@@ -351,6 +359,8 @@ router.post("/welfare-signup", async (req, res) => {
         contact_phone || null,
         city || null,
         county || null,
+        WELFARE_MONTHLY_FEE,
+        WELFARE_FEE_PERCENTAGE,
       ],
     );
     const tenant = tRes.rows[0];

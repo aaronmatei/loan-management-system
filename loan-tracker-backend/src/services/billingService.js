@@ -151,20 +151,44 @@ export async function calculateTenantInterest(tenantId, year, month) {
   // Day 0 of next month = last day of target month.
   const endDate = new Date(year, month, 0);
 
-  const result = await query(
-    `SELECT
-       COALESCE(SUM(
-         t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due, 0))
-       ), 0) AS interest_earned,
-       COUNT(DISTINCT t.id)::int AS payment_count
-     FROM transactions t
-     JOIN loans l ON t.loan_id = l.id
-     WHERE t.tenant_id = $1
-       AND t.payment_date >= $2
-       AND t.payment_date <= $3
-       AND t.payment_status = 'completed'`,
-    [tenantId, startDate, endDate],
-  );
+  // Welfare accounts don't lend from the lending capital — their interest is
+  // earned on MEMBER loans repaid into the welfare pool. Same per-payment split
+  // convention (payment * total_interest / total_amount_due).
+  const kindRes = await query("SELECT kind FROM tenants WHERE id = $1", [tenantId]);
+  const kind = kindRes.rows[0]?.kind || "lender";
+
+  let result;
+  if (kind === "welfare") {
+    result = await query(
+      `SELECT
+         COALESCE(SUM(
+           p.amount * (ml.total_interest / NULLIF(ml.total_amount_due, 0))
+         ), 0) AS interest_earned,
+         COUNT(*)::int AS payment_count
+       FROM member_pool_transactions p
+       JOIN member_loans ml ON ml.id = p.member_loan_id
+       WHERE p.tenant_id = $1
+         AND p.type = 'loan_repayment'
+         AND p.txn_date >= $2
+         AND p.txn_date <= $3`,
+      [tenantId, startDate, endDate],
+    );
+  } else {
+    result = await query(
+      `SELECT
+         COALESCE(SUM(
+           t.amount_paid * (l.total_interest / NULLIF(l.total_amount_due, 0))
+         ), 0) AS interest_earned,
+         COUNT(DISTINCT t.id)::int AS payment_count
+       FROM transactions t
+       JOIN loans l ON t.loan_id = l.id
+       WHERE t.tenant_id = $1
+         AND t.payment_date >= $2
+         AND t.payment_date <= $3
+         AND t.payment_status = 'completed'`,
+      [tenantId, startDate, endDate],
+    );
+  }
 
   return {
     interest_earned: parseFloat(result.rows[0].interest_earned),
