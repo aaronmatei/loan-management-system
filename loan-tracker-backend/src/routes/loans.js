@@ -6,6 +6,7 @@ import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
 import { stampExcelSheet } from "../utils/stamp.js";
 import { nextLoanCode } from "../utils/clientCode.js";
+import { resolveLoanType } from "../utils/loanTypes.js";
 import { getLoanStanding } from "../utils/loanEligibility.js";
 import {
   computeLoanTotals,
@@ -510,9 +511,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         collateral_description, late_payment_fee, penalty_rate,
         processing_fee_rate, processing_fee, net_disbursed_amount,
         application_date, application_source, review_notes,
-        package_id, interest_method
+        package_id, interest_method, loan_type
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, $15, $16,
-                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21, $23, $24)
+                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21, $23, $24, $25)
       RETURNING *`,
       [
         wTid,
@@ -544,6 +545,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         appDate,
         pkg ? pkg.id : null,
         interestMethod,
+        resolveLoanType(pkg?.loan_type),
       ],
     );
 

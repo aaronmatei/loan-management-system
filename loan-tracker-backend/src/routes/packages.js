@@ -13,6 +13,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause } from "../utils/tenantScope.js";
+import { resolveLoanType } from "../utils/loanTypes.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -226,8 +227,8 @@ router.post("/", authorize("admin", "manager"), async (req, res) => {
          annual_interest_rate, processing_fee_rate, interest_method,
          min_amount, max_amount, min_duration_months, max_duration_months,
          min_credit_score, allowed_client_types, allowed_branch_ids,
-         allowed_purposes
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         allowed_purposes, loan_type
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
         tid,
@@ -244,6 +245,7 @@ router.post("/", authorize("admin", "manager"), async (req, res) => {
         eligibleTypes,
         eligibleBranches,
         eligiblePurposes,
+        resolveLoanType(req.body.loan_type),
       ],
     );
 
@@ -357,6 +359,7 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
          allowed_client_types  = COALESCE($13::text[], allowed_client_types),
          allowed_branch_ids    = COALESCE($14::int[], allowed_branch_ids),
          allowed_purposes      = COALESCE($17::text[], allowed_purposes),
+         loan_type             = COALESCE($18, loan_type),
          updated_at            = NOW()
        WHERE id = $15 AND tenant_id = $16
        RETURNING *`,
@@ -390,6 +393,7 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
         id,
         cur.tenant_id,
         incomingPurposes,
+        req.body.loan_type === undefined ? null : resolveLoanType(req.body.loan_type),
       ],
     );
 

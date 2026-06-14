@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { LOAN_PURPOSES } from "../utils/loanPurposes";
+import { LOAN_TYPES, loanTypeLabel } from "../utils/loanTypes";
 import Spinner from "./Spinner";
 
 // Loan packages — per-tenant loan products. A package locks the
@@ -49,6 +50,7 @@ function LoanPackagesSection() {
     allowed_client_types: [],
     allowed_branch_ids: [],
     allowed_purposes: [],
+    loan_type: "personal",
   };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
@@ -129,6 +131,7 @@ function LoanPackagesSection() {
           : String(roundRate(parseFloat(annual) / 12)),
       processing_fee_rate: p.processing_fee_rate ?? "",
       interest_method: p.interest_method || "flat",
+      loan_type: p.loan_type || "personal",
       min_amount: p.min_amount ?? "",
       max_amount: p.max_amount ?? "",
       min_duration_months: p.min_duration_months ?? "",
@@ -217,6 +220,23 @@ function LoanPackagesSection() {
           onSubmit={save}
           className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50 space-y-3"
         >
+          <div>
+            <label className="block text-sm font-semibold mb-1">Loan Type *</label>
+            <select
+              value={form.loan_type}
+              onChange={(e) => setForm({ ...form, loan_type: e.target.value })}
+              className={fld}
+            >
+              {LOAN_TYPES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              {(LOAN_TYPES.find((t) => t.key === form.loan_type) || {}).description}
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-semibold mb-1">Name *</label>
@@ -578,6 +598,11 @@ function LoanPackagesSection() {
                             </span>
                           )}
                         </div>
+                        {p.loan_type && p.loan_type !== "personal" && (
+                          <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-bold uppercase tracking-wide">
+                            {loanTypeLabel(p.loan_type)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <span
