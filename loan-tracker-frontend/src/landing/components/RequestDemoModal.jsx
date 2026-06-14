@@ -4,7 +4,14 @@ import { X, Send, CheckCircle } from "lucide-react";
 // "Request Demo" lead-capture modal on the landing page. POSTs to
 // /api/demo/request, which emails the LenderFest team. The team then sends
 // the demo link (lenderfest.loans/demo) by hand after a conversation.
-const LENDER_TYPES = ["Microfinance", "SACCO", "Chama", "Individual lender", "Other"];
+const LENDER_TYPES = [
+  "Microfinance",
+  "SACCO",
+  "Chama / Welfare",
+  "Pawn lender",
+  "Individual lender",
+  "Other",
+];
 const inputCls =
   "w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500 text-gray-900 placeholder-gray-400";
 
