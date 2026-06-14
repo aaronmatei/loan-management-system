@@ -91,11 +91,8 @@ function LandingHome() {
         <div className="max-w-6xl mx-auto px-4 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ocean-700 bg-ocean-100/70 rounded-full px-3 py-1 mb-5">
-                Built in Nairobi for Kenyan lending
-              </p>
               <h1 className="text-4xl lg:text-[3.4rem] font-bold leading-[1.08] text-gray-900 mb-5">
-                Lending software for how Kenya actually lends.
+                Lending software for how you actually lend.
               </h1>
               <p className="text-lg text-gray-600 mb-7 leading-relaxed">
                 Microfinances, SACCOs, pawnshops, chamas and individual lenders run their
@@ -268,7 +265,7 @@ function LandingHome() {
             {[
               { icon: Layers, title: "Five loan types", body: "Personal, logbook (vehicle), salary check-off, group and pawn — each with the right fields and security record." },
               { icon: HandCoins, title: "Packages & underwriting", body: "Price products once, then range-check every application. Pull a Metropol CRB report before you approve." },
-              { icon: Smartphone, title: "Payments that fit Kenya", body: "Record M-Pesa, bank and cash repayments in seconds, with a clean receipt your client can keep." },
+              { icon: Smartphone, title: "Payments your borrowers use", body: "Record M-Pesa, bank and cash repayments in seconds, with a clean receipt your client can keep." },
               { icon: Bell, title: "Reminders & follow-up", body: "Automatic SMS and email for due dates and arrears. Log promises-to-pay and grant waivers when needed." },
               { icon: BarChart3, title: "Capital pool & reports", body: "See available capital, interest earned and collections in real time. Export to Excel or PDF anytime." },
               { icon: UserRound, title: "Borrower portal", body: "Your clients apply, track loans and get reminders 24/7 — on your own branded subdomain." },
@@ -466,8 +463,8 @@ function LandingHome() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid lg:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Made for this market</h3>
-              <p className="text-gray-600">KES, M-Pesa, Metropol CRB, chamas, pawnshops, logbook and check-off loans — the way credit actually works here, not a template bent to fit.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Made for real lending</h3>
+              <p className="text-gray-600">M-Pesa and cash, CRB checks, chamas, pawnshops, logbook and check-off loans — modelled on how lending actually works, not a generic template bent to fit.</p>
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Your data, no lock-in</h3>
@@ -528,7 +525,7 @@ function LandingHome() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div>
               <Logo variant="reversed" markClassName="h-7 w-7" textClassName="text-xl" />
-              <p className="text-sm mt-3">Loan management for Kenyan lenders, pawnshops, chamas and the people who borrow from them.</p>
+              <p className="text-sm mt-3">Loan management for lenders, pawnshops, chamas and the people who borrow from them.</p>
             </div>
             <div>
               <h4 className="font-bold text-white mb-3">Sign up</h4>
@@ -556,9 +553,8 @@ function LandingHome() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-8 flex flex-col lg:flex-row justify-between items-center text-sm gap-2">
+          <div className="border-t border-gray-800 pt-8 text-sm">
             <p>© {new Date().getFullYear()} LenderFest</p>
-            <p>Made in Nairobi, Kenya</p>
           </div>
         </div>
       </footer>
