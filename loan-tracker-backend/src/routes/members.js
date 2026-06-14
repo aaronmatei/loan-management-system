@@ -327,4 +327,216 @@ router.post(
   },
 );
 
+// ---------------- MEMBER LOANS (funded by the pool) ----------------
+
+async function loadMemberLoan(memberId, loanId) {
+  const r = await query(
+    `SELECT * FROM member_loans WHERE id = $1 AND member_id = $2`,
+    [loanId, memberId],
+  );
+  return r.rows[0] || null;
+}
+
+// GET /api/members/:id/loans — a member's loans from the pool.
+router.get("/:id/loans", async (req, res) => {
+  try {
+    const member = await loadMember(req, req.params.id);
+    if (!member) return res.status(404).json({ error: "Member not found" });
+    const r = await query(
+      `SELECT *, GREATEST(total_amount_due - amount_paid, 0) AS balance
+         FROM member_loans WHERE member_id = $1 ORDER BY created_at DESC`,
+      [member.id],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("member loans list error:", e);
+    res.status(500).json({ error: "Failed to load member loans" });
+  }
+});
+
+// POST /api/members/:id/loans — issue a loan to the member out of the pool.
+router.post(
+  "/:id/loans",
+  authorize("admin", "manager", "loan_officer"),
+  async (req, res) => {
+    try {
+      const member = await loadMember(req, req.params.id);
+      if (!member) return res.status(404).json({ error: "Member not found" });
+      if (member.status !== "active") {
+        return res.status(400).json({ error: "Member is not active" });
+      }
+      const principal = parseFloat(req.body?.principal);
+      if (!(principal > 0)) return res.status(400).json({ error: "Principal must be positive" });
+      const months = parseInt(req.body?.duration_months, 10) || 1;
+      if (months < 1) return res.status(400).json({ error: "Duration must be at least 1 month" });
+      const rate = req.body?.interest_rate != null && req.body.interest_rate !== ""
+        ? parseFloat(req.body.interest_rate)
+        : 0;
+      if (rate < 0) return res.status(400).json({ error: "Interest rate can't be negative" });
+
+      // The pool must hold enough cash to lend.
+      const pool = await poolBalance(member.tenant_id);
+      if (principal > pool) {
+        return res.status(400).json({
+          error: `Pool only holds KES ${pool.toLocaleString()} — can't lend KES ${principal.toLocaleString()}`,
+        });
+      }
+
+      // Flat interest over the term (annual rate pro-rated by months).
+      const interest = round2(principal * (rate / 100) * (months / 12));
+      const totalDue = round2(principal + interest);
+      const countRes = await query(
+        `SELECT COUNT(*)::int AS n FROM member_loans WHERE tenant_id = $1`,
+        [member.tenant_id],
+      );
+      const loanCode = `MBL-${String(countRes.rows[0].n + 1).padStart(5, "0")}`;
+      const due = new Date();
+      due.setMonth(due.getMonth() + months);
+      const dueISO = due.toISOString().split("T")[0];
+
+      const loanRes = await query(
+        `INSERT INTO member_loans
+           (tenant_id, member_id, loan_code, principal, interest_rate, duration_months,
+            total_interest, total_amount_due, status, disbursed_at, due_date, notes, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',NOW(),$9::date,$10,$11)
+         RETURNING *`,
+        [
+          member.tenant_id, member.id, loanCode, principal, rate, months,
+          interest, totalDue, dueISO, req.body?.notes || null, req.user.id,
+        ],
+      );
+      const loan = loanRes.rows[0];
+
+      // Cash leaves the pool.
+      const poolTxn = await postPool({
+        tenantId: member.tenant_id,
+        memberId: member.id,
+        type: "loan_disbursed",
+        amount: principal,
+        direction: -1,
+        description: `Loan ${loanCode} to ${member.first_name} ${member.last_name}`,
+        userId: req.user.id,
+      });
+      await query(`UPDATE member_pool_transactions SET member_loan_id = $1 WHERE id = $2`, [
+        loan.id,
+        poolTxn.id,
+      ]);
+
+      await logAudit({
+        user: req.user,
+        action: "member_loan_disbursed",
+        entityType: "member_loan",
+        entityId: loan.id,
+        entityCode: loanCode,
+        description: `Member loan ${loanCode}: KES ${principal} to ${member.first_name} ${member.last_name} from the pool`,
+        req,
+      });
+      res.status(201).json({ success: true, data: loan, pool_balance: Number(poolTxn.balance_after) });
+    } catch (e) {
+      logger.error("member loan issue error:", e);
+      res.status(500).json({ error: "Failed to issue member loan" });
+    }
+  },
+);
+
+// POST /api/members/:id/loans/:loanId/payments — repay into the pool.
+router.post(
+  "/:id/loans/:loanId/payments",
+  authorize("admin", "manager", "loan_officer"),
+  async (req, res) => {
+    try {
+      const member = await loadMember(req, req.params.id);
+      if (!member) return res.status(404).json({ error: "Member not found" });
+      const loan = await loadMemberLoan(member.id, req.params.loanId);
+      if (!loan) return res.status(404).json({ error: "Member loan not found" });
+      if (loan.status === "completed") {
+        return res.status(400).json({ error: "Loan already fully paid" });
+      }
+
+      const outstanding = round2(parseFloat(loan.total_amount_due) - parseFloat(loan.amount_paid));
+      const amt = req.body?.amount != null && req.body.amount !== ""
+        ? parseFloat(req.body.amount)
+        : outstanding;
+      if (!(amt > 0)) return res.status(400).json({ error: "Amount must be positive" });
+      if (amt > outstanding) {
+        return res.status(400).json({ error: `Loan only owes KES ${outstanding.toLocaleString()}` });
+      }
+
+      const newPaid = round2(parseFloat(loan.amount_paid) + amt);
+      const completed = newPaid >= parseFloat(loan.total_amount_due);
+      await query(
+        `UPDATE member_loans
+            SET amount_paid = $2, status = $3, updated_at = NOW()
+          WHERE id = $1`,
+        [loan.id, newPaid, completed ? "completed" : loan.status === "defaulted" ? "active" : loan.status],
+      );
+
+      // Cash returns to the pool (principal + interest both grow it).
+      const poolTxn = await postPool({
+        tenantId: member.tenant_id,
+        memberId: member.id,
+        type: "loan_repayment",
+        amount: amt,
+        direction: 1,
+        description: `Repayment on ${loan.loan_code}`,
+        userId: req.user.id,
+      });
+      await query(`UPDATE member_pool_transactions SET member_loan_id = $1 WHERE id = $2`, [
+        loan.id,
+        poolTxn.id,
+      ]);
+
+      await logAudit({
+        user: req.user,
+        action: "member_loan_repayment",
+        entityType: "member_loan",
+        entityId: loan.id,
+        entityCode: loan.loan_code,
+        description: `Repayment KES ${amt} on ${loan.loan_code}${completed ? " (cleared)" : ""}`,
+        req,
+      });
+      res.json({
+        success: true,
+        completed,
+        pool_balance: Number(poolTxn.balance_after),
+        outstanding: round2(parseFloat(loan.total_amount_due) - newPaid),
+      });
+    } catch (e) {
+      logger.error("member loan payment error:", e);
+      res.status(500).json({ error: "Failed to record repayment" });
+    }
+  },
+);
+
+// POST /api/members/:id/loans/:loanId/default — mark a member loan defaulted.
+router.post(
+  "/:id/loans/:loanId/default",
+  authorize("admin", "manager"),
+  async (req, res) => {
+    try {
+      const member = await loadMember(req, req.params.id);
+      if (!member) return res.status(404).json({ error: "Member not found" });
+      const loan = await loadMemberLoan(member.id, req.params.loanId);
+      if (!loan) return res.status(404).json({ error: "Member loan not found" });
+      if (loan.status !== "active") {
+        return res.status(400).json({ error: `Can't default a ${loan.status} loan` });
+      }
+      await query(`UPDATE member_loans SET status='defaulted', updated_at=NOW() WHERE id=$1`, [loan.id]);
+      await logAudit({
+        user: req.user,
+        action: "member_loan_defaulted",
+        entityType: "member_loan",
+        entityId: loan.id,
+        entityCode: loan.loan_code,
+        description: `Member loan ${loan.loan_code} marked defaulted`,
+        req,
+      });
+      res.json({ success: true });
+    } catch (e) {
+      logger.error("member loan default error:", e);
+      res.status(500).json({ error: "Failed to default loan" });
+    }
+  },
+);
+
 export default router;

@@ -3291,3 +3291,29 @@ CREATE TABLE public.member_pool_transactions (
 CREATE INDEX idx_members_tenant ON public.members(tenant_id, status);
 CREATE INDEX idx_member_pool_tenant ON public.member_pool_transactions(tenant_id, id);
 CREATE INDEX idx_member_pool_member ON public.member_pool_transactions(member_id);
+
+--
+-- Member loans funded by the member pool (migration 056).
+--
+
+CREATE TABLE public.member_loans (
+  id               serial PRIMARY KEY,
+  tenant_id        integer NOT NULL,
+  member_id        integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  loan_code        varchar(30),
+  principal        numeric NOT NULL,
+  interest_rate    numeric NOT NULL DEFAULT 0,
+  duration_months  integer NOT NULL DEFAULT 1,
+  total_interest   numeric NOT NULL DEFAULT 0,
+  total_amount_due numeric NOT NULL,
+  amount_paid      numeric NOT NULL DEFAULT 0,
+  status           varchar(20) NOT NULL DEFAULT 'active',
+  disbursed_at     timestamp,
+  due_date         date,
+  notes            text,
+  created_by       integer,
+  created_at       timestamp NOT NULL DEFAULT NOW(),
+  updated_at       timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_member_loans_member ON public.member_loans(member_id);
+CREATE INDEX idx_member_loans_tenant ON public.member_loans(tenant_id, status);

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { PiggyBank, Plus, Minus, X, AlertTriangle } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
+import MemberLoansPanel from "../components/MemberLoansPanel";
 import Spinner from "../components/Spinner";
 
 const TYPE_LABEL = {
@@ -20,6 +21,7 @@ export default function MemberDetail() {
   const [member, setMember] = useState(null);
   const [savings, setSavings] = useState(0);
   const [txns, setTxns] = useState([]);
+  const [poolBalance, setPoolBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
@@ -27,10 +29,11 @@ export default function MemberDetail() {
   const load = async () => {
     try {
       setLoading(true);
-      const r = await api.get(`/members/${id}`);
+      const [r, p] = await Promise.all([api.get(`/members/${id}`), api.get("/members/pool")]);
       setMember(r.data.data.member);
       setSavings(r.data.data.savings_balance);
       setTxns(r.data.data.transactions || []);
+      setPoolBalance(p.data?.data?.balance ?? 0);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load member");
     } finally {
@@ -85,6 +88,8 @@ export default function MemberDetail() {
           </PermissionGate>
         </div>
       </PermissionGate>
+
+      <MemberLoansPanel memberId={id} poolBalance={poolBalance} onChange={load} />
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Activity</h2></div>
