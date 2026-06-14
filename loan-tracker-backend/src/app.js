@@ -33,6 +33,7 @@ import underwritingRoutes from "./routes/underwriting.js";
 import pawnRoutes from "./routes/pawn.js";
 import vehicleSecurityRoutes from "./routes/vehicleSecurity.js";
 import salaryAdvanceRoutes from "./routes/salaryAdvance.js";
+import groupRoutes from "./routes/groups.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
@@ -168,6 +169,7 @@ app.use("/api/underwriting", underwritingRoutes);
 app.use("/api/pawn", pawnRoutes);
 app.use("/api/loans", vehicleSecurityRoutes); // logbook vehicle security (dual-mount)
 app.use("/api/loans", salaryAdvanceRoutes); // salary check-off details (dual-mount)
+app.use("/api/groups", groupRoutes); // group / chama lending
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);

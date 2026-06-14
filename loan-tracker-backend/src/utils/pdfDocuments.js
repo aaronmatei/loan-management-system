@@ -2221,6 +2221,155 @@ export const buildCheckOffLetterPdf = async (loanId, tid) => {
   return { buffer, filename };
 };
 
+// ============================================================
+// GROUP GUARANTEE FORM (group / chama loans)
+//
+// A joint-and-several liability undertaking signed by every member of a group:
+// each member guarantees repayment of all loans advanced to any member. Portrait
+// A4 on the lender's letterhead, with a signature row per member.
+// ============================================================
+export const buildGroupGuaranteePdf = async (groupId, tid) => {
+  const gt = tClause(tid, 1, "tenant_id");
+  const gRes = await query(
+    `SELECT * FROM groups WHERE id = $1${gt.clause}`,
+    [groupId, ...gt.params],
+  );
+  if (gRes.rows.length === 0) throw new NotFoundError("Group not found");
+  const group = gRes.rows[0];
+
+  const membersRes = await query(
+    `SELECT gm.role, c.first_name, c.last_name, c.id_number, c.phone_number
+       FROM group_members gm
+       JOIN clients c ON c.id = gm.client_id
+      WHERE gm.group_id = $1 AND gm.status = 'active'
+      ORDER BY
+        CASE gm.role WHEN 'chairperson' THEN 0 WHEN 'treasurer' THEN 1
+                     WHEN 'secretary' THEN 2 ELSE 3 END,
+        gm.joined_at ASC`,
+    [group.id],
+  );
+  const members = membersRes.rows;
+
+  const companyResult = await query(
+    "SELECT * FROM company_settings WHERE tenant_id = $1",
+    [group.tenant_id],
+  );
+  const tenantRes = await query(
+    "SELECT business_name, city, country FROM tenants WHERE id = $1",
+    [group.tenant_id],
+  );
+  const tenant = tenantRes.rows[0] || {};
+  const company = companyResult.rows[0] || {
+    company_name: tenant.business_name || "Your Company",
+  };
+
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
+  registerPdfFonts(doc);
+  const filename = `group_guarantee_${group.group_code || group.id}.pdf`;
+  const done = streamToBuffer(doc);
+  const roleLabel = (r) =>
+    r && r !== "member" ? r.charAt(0).toUpperCase() + r.slice(1) : "Member";
+
+  // Letterhead
+  doc
+    .fontSize(20)
+    .fillColor("#0e8a6e")
+    .text((company.company_name || "").toUpperCase(), { align: "center" });
+  doc.fontSize(10).fillColor("#666");
+  if (company.company_address) doc.text(company.company_address, { align: "center" });
+  doc.moveDown(0.4);
+  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#0e8a6e");
+  doc.moveDown();
+
+  doc
+    .fontSize(15)
+    .fillColor("#000")
+    .text("GROUP LOAN GUARANTEE & JOINT LIABILITY UNDERTAKING", {
+      align: "center",
+    });
+  doc.moveDown(0.5);
+  doc.fontSize(11);
+  doc.font(FONT.bold).text(`Group: `, { continued: true }).font(FONT.reg).text(group.name);
+  if (group.group_code)
+    doc.font(FONT.bold).text(`Group No.: `, { continued: true }).font(FONT.reg).text(group.group_code);
+  if (group.registration_no)
+    doc
+      .font(FONT.bold)
+      .text(`Registration No.: `, { continued: true })
+      .font(FONT.reg)
+      .text(group.registration_no);
+  doc.font(FONT.bold).text(`Date: `, { continued: true }).font(FONT.reg).text(formatDate(new Date()));
+  doc.moveDown();
+
+  doc.fontSize(11).fillColor("#000").text(
+    `We, the undersigned members of ${group.name}, in consideration of ` +
+      `${company.company_name || "the Lender"} advancing loans to members of our group, ` +
+      `jointly and severally guarantee the full and punctual repayment of every loan advanced ` +
+      `to any member of the group. We understand that if any member fails to repay, the remaining ` +
+      `members shall be liable to repay the outstanding balance, and that the Lender may recover ` +
+      `the same from any or all of us.`,
+    { align: "justify", paragraphGap: 10 },
+  );
+
+  // Members + signature table
+  doc.moveDown(0.5);
+  doc.font(FONT.bold).fontSize(11).fillColor("#0e6b56").text("GROUP MEMBERS");
+  doc.moveDown(0.3);
+
+  const cols = { no: 50, name: 80, id: 250, role: 360, sign: 440 };
+  const drawHeader = () => {
+    const y = doc.y;
+    doc.font(FONT.bold).fontSize(9).fillColor("#374151");
+    doc.text("#", cols.no, y);
+    doc.text("Name", cols.name, y);
+    doc.text("ID No.", cols.id, y);
+    doc.text("Role", cols.role, y);
+    doc.text("Signature", cols.sign, y);
+    doc.moveTo(50, y + 14).lineTo(545, y + 14).lineWidth(0.6).strokeColor("#cbd5e1").stroke();
+    doc.y = y + 22;
+  };
+  drawHeader();
+
+  doc.font(FONT.reg).fontSize(10).fillColor("#111827");
+  members.forEach((m, i) => {
+    if (doc.y > 720) {
+      doc.addPage();
+      drawHeader();
+    }
+    const y = doc.y;
+    doc.fillColor("#111827");
+    doc.text(String(i + 1), cols.no, y);
+    doc.text(`${m.first_name || ""} ${m.last_name || ""}`.trim(), cols.name, y, {
+      width: cols.id - cols.name - 6,
+    });
+    doc.text(m.id_number || "—", cols.id, y, { width: cols.role - cols.id - 6 });
+    doc.text(roleLabel(m.role), cols.role, y, { width: cols.sign - cols.role - 6 });
+    doc.moveTo(cols.sign, y + 11).lineTo(545, y + 11).lineWidth(0.5).strokeColor("#9ca3af").stroke();
+    doc.y = y + 28;
+  });
+
+  if (members.length === 0) {
+    doc.font(FONT.italic).fillColor("#6b7280").text("No active members enrolled yet.", 50, doc.y);
+  }
+
+  doc.moveDown(2);
+  drawPdfStamp(doc, {
+    x: 430,
+    y: Math.min(doc.y, 690),
+    size: 96,
+    tenant: {
+      business_name: company.company_name || tenant.business_name,
+      city: tenant.city,
+      country: tenant.country,
+    },
+    date: new Date(),
+  });
+
+  doc.end();
+  const buffer = await done;
+  return { buffer, filename };
+};
+
 export default {
   buildClientStatementPdf,
   buildLoanStatementPdf,
@@ -2230,5 +2379,6 @@ export default {
   buildPawnTicketPdf,
   buildVehicleSecurityPdf,
   buildCheckOffLetterPdf,
+  buildGroupGuaranteePdf,
   NotFoundError,
 };

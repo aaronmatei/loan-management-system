@@ -756,7 +756,8 @@ CREATE TABLE public.loans (
     package_id integer,
     interest_method character varying(20) NOT NULL DEFAULT 'flat'
         CHECK (interest_method IN ('flat', 'reducing')),
-    loan_type character varying(20) NOT NULL DEFAULT 'personal'  -- migration 047
+    loan_type character varying(20) NOT NULL DEFAULT 'personal',  -- migration 047
+    group_id integer  -- migration 051 (group / chama member loans)
 );
 
 
@@ -3137,3 +3138,39 @@ CREATE TABLE public.loan_salary_details (
 );
 CREATE INDEX idx_loan_salary_loan   ON public.loan_salary_details(loan_id);
 CREATE INDEX idx_loan_salary_tenant ON public.loan_salary_details(tenant_id, check_off_status);
+
+--
+-- Group / chama lending (migration 051).
+--
+
+CREATE TABLE public.groups (
+  id                serial PRIMARY KEY,
+  tenant_id         integer NOT NULL,
+  group_code        varchar(30),
+  name              varchar(120) NOT NULL,
+  branch_id         integer,
+  registration_no   varchar(60),
+  meeting_frequency varchar(20),
+  status            varchar(20) NOT NULL DEFAULT 'active',
+  notes             text,
+  created_by        integer,
+  created_at        timestamp NOT NULL DEFAULT NOW(),
+  updated_at        timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.group_members (
+  id          serial PRIMARY KEY,
+  tenant_id   integer NOT NULL,
+  group_id    integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  client_id   integer NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  role        varchar(20) NOT NULL DEFAULT 'member',
+  status      varchar(20) NOT NULL DEFAULT 'active',
+  joined_at   date NOT NULL DEFAULT CURRENT_DATE,
+  created_at  timestamp NOT NULL DEFAULT NOW(),
+  updated_at  timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (group_id, client_id)
+);
+CREATE INDEX idx_groups_tenant        ON public.groups(tenant_id, status);
+CREATE INDEX idx_group_members_group  ON public.group_members(group_id, status);
+CREATE INDEX idx_group_members_client ON public.group_members(client_id);
+CREATE INDEX idx_loans_group          ON public.loans(group_id);

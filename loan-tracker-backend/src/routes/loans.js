@@ -260,6 +260,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       review_notes,
       package_id: bodyPackageId,
       interest_method: bodyInterestMethod,
+      group_id: bodyGroupId,
     } = req.body;
 
     // Package-or-free-form. If a package is supplied, its mechanics
@@ -281,6 +282,31 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
           .json({ error: "Selected package is invalid or archived" });
       }
       pkg = pr.rows[0];
+    }
+
+    // Group loans: link the member loan to its group. Only meaningful for a
+    // group-type loan; when provided, the group must be in scope and the
+    // borrower must be an active member of it (you enrol members, then lend).
+    let groupIdToStore = null;
+    if (bodyGroupId && resolveLoanType(pkg?.loan_type) === "group") {
+      const gT = tenantClause(req, 1);
+      const g = await query(
+        `SELECT id FROM groups WHERE id = $1${gT.clause}`,
+        [bodyGroupId, ...gT.params],
+      );
+      if (g.rows.length === 0) {
+        return res.status(400).json({ error: "Group not found" });
+      }
+      const membership = await query(
+        `SELECT id FROM group_members WHERE group_id = $1 AND client_id = $2 AND status = 'active'`,
+        [bodyGroupId, client_id],
+      );
+      if (membership.rows.length === 0) {
+        return res.status(400).json({
+          error: "Borrower is not an active member of this group",
+        });
+      }
+      groupIdToStore = bodyGroupId;
     }
 
     // Effective inputs: package overrides body for the locked fields;
@@ -511,9 +537,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         collateral_description, late_payment_fee, penalty_rate,
         processing_fee_rate, processing_fee, net_disbursed_amount,
         application_date, application_source, review_notes,
-        package_id, interest_method, loan_type
+        package_id, interest_method, loan_type, group_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, $15, $16,
-                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21, $23, $24, $25)
+                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21, $23, $24, $25, $26)
       RETURNING *`,
       [
         wTid,
@@ -546,6 +572,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         pkg ? pkg.id : null,
         interestMethod,
         resolveLoanType(pkg?.loan_type),
+        groupIdToStore,
       ],
     );
 

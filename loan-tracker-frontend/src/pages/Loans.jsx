@@ -17,6 +17,7 @@ import {
   Gem,
   Car,
   Banknote,
+  Users,
 } from "lucide-react";
 import api from "../services/api";
 import PawnLoanModal from "../components/PawnLoanModal";
@@ -128,13 +129,28 @@ function Loans() {
   const setSal = (k) => (e) =>
     setSalaryForm((s) => ({ ...s, [k]: e.target.value }));
 
+  // Group loans: pick which group the member loan belongs to. The borrower
+  // (selected client) must be an active member — the backend enforces this.
+  const [groups, setGroups] = useState([]);
+  const [groupId, setGroupId] = useState("");
+
   useEffect(() => {
     fetchLoans();
     fetchClients();
     fetchPoolStatus();
     fetchLoanPolicy();
     fetchPackages();
+    fetchGroups();
   }, []);
+
+  const fetchGroups = async () => {
+    try {
+      const r = await api.get("/groups");
+      setGroups((r.data.data || []).filter((g) => g.status === "active"));
+    } catch {
+      // non-fatal — group section just won't list groups
+    }
+  };
 
   // Active packages only — archived ones still resolve on historical
   // loans via the FK, but can't be picked for new applications.
@@ -357,6 +373,9 @@ function Loans() {
         penalty_rate: formData.penalty_rate_enabled
           ? parseFloat(formData.penalty_rate) || 0
           : 0,
+        ...(selectedPackage?.loan_type === "group" && groupId
+          ? { group_id: groupId }
+          : {}),
       };
       const response = await api.post("/loans", submitData);
 
@@ -401,6 +420,7 @@ function Loans() {
         }
       }
       setSalaryForm(blankSalary);
+      setGroupId("");
 
       setSuccess(
         `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.${vehicleNote}`,
@@ -1381,6 +1401,35 @@ function Loans() {
                       className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                   </div>
+                </div>
+              )}
+
+              {selectedPackage?.loan_type === "group" && (
+                <div className="bg-ocean-50 border border-ocean-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-ocean-900 mb-1 flex items-center gap-2">
+                    <Users size={16} className="text-ocean-600" /> Group / Chama
+                  </h4>
+                  <p className="text-xs text-ocean-700 mb-3">
+                    This is a group loan — choose the group, then select one of its
+                    members above as the borrower. The group co-guarantees the loan.
+                  </p>
+                  <select
+                    value={groupId}
+                    onChange={(e) => setGroupId(e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  >
+                    <option value="">Select group…</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.group_code}) — {g.member_count} members
+                      </option>
+                    ))}
+                  </select>
+                  {groups.length === 0 && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      No active groups yet. Create one under Groups / Chama first.
+                    </p>
+                  )}
                 </div>
               )}
 
