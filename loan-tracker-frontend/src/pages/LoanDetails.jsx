@@ -31,6 +31,7 @@ import {
 import api from "../services/api";
 import PaymentReceipt from "../components/PaymentReceipt";
 import PermissionGate from "../components/PermissionGate";
+import PawnPanel from "../components/PawnPanel";
 import Spinner from "../components/Spinner";
 
 function LoanDetails() {
@@ -541,6 +542,15 @@ function LoanDetails() {
       >
         ← Back to Loans
       </button>
+
+      {loan.loan_type === "pawn" && (
+        <PawnPanel
+          loanId={loan.id}
+          loanCode={loan.loan_code}
+          loanStatus={loan.status}
+          onChange={fetchLoanDetails}
+        />
+      )}
 
       {/* Loan Actions — two groups:
           1. Reports & Agreements (always visible)

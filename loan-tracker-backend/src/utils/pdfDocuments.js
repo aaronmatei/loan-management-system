@@ -1541,11 +1541,260 @@ export const buildInvoicePdf = async (invoiceId, tid) => {
   return { buffer, filename };
 };
 
+// ============================================================
+// PAWN TICKET
+//
+// The claim ticket the borrower keeps to redeem a pledged item. A
+// single-page A4 ticket mirroring the receipt's parchment look:
+// header band in the lender's type colour, the pledged item + its
+// valuation on the left, the loan terms + redemption total on the
+// right, and the redemption deadline + terms below.
+// ============================================================
+export const buildPawnTicketPdf = async (loanId, tid) => {
+  const lt = tClause(tid, 1, "l.tenant_id");
+  const result = await query(
+    `SELECT l.*,
+        c.first_name, c.last_name, c.phone_number, c.id_number, c.client_code,
+        tn.brand_color, tn.business_name, tn.business_type, tn.hide_platform_branding,
+        tn.city AS tenant_city, tn.country AS tenant_country
+      FROM loans l
+      JOIN clients c ON l.client_id = c.id
+      JOIN tenants tn ON l.tenant_id = tn.id
+      WHERE l.id = $1 AND l.loan_type = 'pawn'${lt.clause}`,
+    [loanId, ...lt.params],
+  );
+  if (result.rows.length === 0) throw new NotFoundError("Pawn loan not found");
+  const loan = result.rows[0];
+
+  const colRes = await query(
+    `SELECT * FROM loan_collateral WHERE loan_id = $1 ORDER BY id DESC LIMIT 1`,
+    [loanId],
+  );
+  const col = colRes.rows[0] || {};
+
+  const TYPE_COLORS = {
+    microfinance: "#0086cc",
+    sacco: "#ea580c",
+    chama: "#7c3aed",
+    individual: "#16a34a",
+    other: "#64748b",
+  };
+  const typeColor =
+    TYPE_COLORS[String(loan.business_type || "").trim().toLowerCase()] ||
+    (/^#[0-9a-fA-F]{6}$/.test(loan.brand_color || "") ? loan.brand_color : "#0E8A6E");
+  const darkenHex = (hex, f) => {
+    const n = parseInt(hex.replace("#", ""), 16);
+    const c = (v) => Math.max(0, Math.min(255, Math.round(v)));
+    return (
+      "#" +
+      [c(((n >> 16) & 255) * f), c(((n >> 8) & 255) * f), c((n & 255) * f)]
+        .map((x) => x.toString(16).padStart(2, "0"))
+        .join("")
+    );
+  };
+  const money = (v) =>
+    "KES " +
+    Number(v || 0).toLocaleString("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const fee = parseFloat(loan.total_interest || 0);
+  const principal = parseFloat(loan.principal_amount || 0);
+  const totalDue = parseFloat(loan.total_amount_due || 0);
+
+  const doc = new PDFDocument({ size: "A4", margin: 0 });
+  registerPdfFonts(doc);
+  const filename = `pawn_ticket_${loan.loan_code}.pdf`;
+  const done = streamToBuffer(doc);
+
+  const PW = doc.page.width;
+  const PH = doc.page.height;
+  const M = 40;
+
+  doc.rect(0, 0, PW, PH).fill("#F3ECDB");
+
+  // Header band
+  const headH = 96;
+  const hg = doc.linearGradient(0, 0, PW, 0);
+  hg.stop(0, darkenHex(typeColor, 0.72)).stop(1, typeColor);
+  doc.rect(0, 0, PW, headH).fill(hg);
+  drawBrandMark(doc, { x: M, y: 28, size: 40, variant: "light" });
+  doc.fillColor("#ffffff").font(FONT.display).fontSize(24).text("LenderFest", M + 50, 30);
+  doc
+    .font(FONT.reg)
+    .fontSize(9)
+    .fillOpacity(0.9)
+    .text((loan.business_name || "").toUpperCase(), M + 50, 60, { characterSpacing: 1 });
+  doc.fillOpacity(1);
+  doc
+    .font(FONT.bold)
+    .fontSize(11)
+    .fillColor("#ffffff")
+    .text("PAWN TICKET", PW - 240, 30, { width: 200, align: "right", characterSpacing: 1.5 });
+  doc
+    .font("Courier")
+    .fontSize(11)
+    .fillOpacity(0.9)
+    .text(loan.loan_code, PW - 240, 48, { width: 200, align: "right" });
+  doc.fillOpacity(1);
+  // Status pill
+  const st = String(loan.status || "").toUpperCase();
+  const stLabel = st === "ACTIVE" ? "ACTIVE" : st === "COMPLETED" ? "REDEEMED" : st === "DEFAULTED" ? "FORFEITED" : st;
+  doc.font(FONT.bold).fontSize(9);
+  const pillW = doc.widthOfString(stLabel) + 24;
+  const pillX = PW - M - pillW;
+  doc.fillOpacity(0.16).roundedRect(pillX, 66, pillW, 22, 11).fill("#ffffff");
+  doc.fillOpacity(1).fillColor("#ffffff").text(stLabel, pillX, 72.5, { width: pillW, align: "center" });
+
+  // Two-column body
+  const top = headH + 36;
+  const gap = 24;
+  const colW = (PW - M * 2 - gap) / 2;
+  const leftX = M;
+  const rightX = M + colW + gap;
+
+  const panel = (x, y, w, h, title) => {
+    doc.roundedRect(x, y, w, h, 12).fill("#FAF6EC");
+    doc.roundedRect(x, y, w, h, 12).lineWidth(0.8).strokeColor("#E2D9C3").stroke();
+    doc
+      .font(FONT.bold)
+      .fontSize(8)
+      .fillColor(typeColor)
+      .text(title, x + 18, y + 16, { characterSpacing: 1.4 });
+  };
+  const fieldRow = (x, y, w, label, value, mono) => {
+    doc.font(FONT.bold).fontSize(7.5).fillColor("#9C9384").text(label, x, y, { characterSpacing: 1 });
+    doc
+      .font(mono ? "Courier" : FONT.bold)
+      .fontSize(mono ? 10.5 : 11.5)
+      .fillColor("#2B2A26")
+      .text(value || "—", x, y + 11, { width: w });
+    return y + 38;
+  };
+
+  const panelH = 286;
+  // LEFT — pledged item
+  panel(leftX, top, colW, panelH, "PLEDGED ITEM");
+  let ly = top + 42;
+  const lpad = leftX + 18;
+  const lw = colW - 36;
+  ly = fieldRow(lpad, ly, lw, "DESCRIPTION", col.description);
+  ly = fieldRow(lpad, ly, lw, "CATEGORY", col.category);
+  ly = fieldRow(lpad, ly, lw, "SERIAL / IDENTIFIER", col.serial_number, true);
+  ly = fieldRow(lpad, ly, lw, "CONDITION", col.condition);
+  ly = fieldRow(lpad, ly, lw, "STORAGE LOCATION", col.storage_location);
+  // Appraised value highlight
+  const valY = top + panelH - 56;
+  doc.roundedRect(lpad, valY, lw, 42, 8).fill("#E9DFC7");
+  doc.font(FONT.reg).fontSize(9).fillColor("#6f6a5e").text("APPRAISED VALUE", lpad + 12, valY + 9);
+  doc
+    .font(FONT.display)
+    .fontSize(15)
+    .fillColor("#2B2A26")
+    .text(`${money(col.appraised_value)}  ·  LTV ${parseFloat(col.ltv_percent || 0)}%`, lpad, valY + 8, {
+      width: lw - 12,
+      align: "right",
+    });
+
+  // RIGHT — loan terms
+  panel(rightX, top, colW, panelH, "LOAN TERMS");
+  let ry2 = top + 42;
+  const rpad = rightX + 18;
+  const rw = colW - 36;
+  const trow = (k, v, color) => {
+    doc.font(FONT.reg).fontSize(10.5).fillColor("#6f6a5e").text(k, rpad, ry2);
+    doc
+      .font(FONT.bold)
+      .fontSize(11)
+      .fillColor(color || "#2B2A26")
+      .text(v, rpad, ry2, { width: rw, align: "right" });
+    ry2 += 28;
+  };
+  trow("Borrower", `${loan.first_name || ""} ${loan.last_name || ""}`.trim());
+  trow("Phone", loan.phone_number || "—");
+  trow("Loan amount (advanced)", money(principal));
+  trow("Pawn fee", money(fee));
+  trow("Issued", formatDate(loan.start_date));
+  trow("Redeem by", formatDate(loan.end_date), "#C62A5A");
+  // Redemption total highlight
+  const totY = top + panelH - 56;
+  doc.roundedRect(rpad, totY, rw, 42, 8).fill(typeColor);
+  doc.font(FONT.reg).fontSize(9).fillColor("#ffffff").fillOpacity(0.9).text("REDEMPTION TOTAL", rpad + 12, totY + 9);
+  doc.fillOpacity(1).font(FONT.display).fontSize(16).fillColor("#ffffff").text(money(totalDue), rpad, totY + 8, {
+    width: rw - 12,
+    align: "right",
+  });
+
+  // Terms
+  const termsY = top + panelH + 26;
+  doc.font(FONT.bold).fontSize(8).fillColor("#9C9384").text("REDEMPTION TERMS", M, termsY, { characterSpacing: 1.2 });
+  doc
+    .font(FONT.reg)
+    .fontSize(9)
+    .fillColor("#6f6a5e")
+    .text(
+      `Present this ticket and pay the redemption total of ${money(totalDue)} on or before ` +
+        `${formatDate(loan.end_date)} to reclaim the pledged item. The fee is fixed for the term; ` +
+        `partial early redemption does not reduce it. If not redeemed by the redemption date, the ` +
+        `lender may forfeit and dispose of the item to recover the loan. Keep this ticket safe — it is ` +
+        `your proof of pledge.`,
+      M,
+      termsY + 14,
+      { width: PW - M * 2, lineGap: 2 },
+    );
+
+  // Footer — stamp + powered by
+  const footY = PH - 150;
+  doc
+    .moveTo(M, footY)
+    .lineTo(PW - M, footY)
+    .dash(2, { space: 3 })
+    .lineWidth(0.8)
+    .strokeColor("#d2c8af")
+    .stroke()
+    .undash();
+  // Signature lines
+  doc.font(FONT.reg).fontSize(9).fillColor("#6f6a5e");
+  doc.moveTo(M, footY + 70).lineTo(M + 180, footY + 70).lineWidth(0.7).strokeColor("#b8ad92").stroke();
+  doc.text("Borrower signature", M, footY + 76);
+  doc.moveTo(PW - M - 180, footY + 70).lineTo(PW - M, footY + 70).stroke();
+  doc.text("Authorised by (lender)", PW - M - 180, footY + 76, { width: 180, align: "left" });
+
+  drawPdfStamp(doc, {
+    x: (PW - 90) / 2,
+    y: footY + 18,
+    size: 90,
+    tenant: {
+      business_name: loan.business_name,
+      city: loan.tenant_city,
+      country: loan.tenant_country,
+    },
+    date: loan.start_date || new Date(),
+  });
+
+  if (!loan.hide_platform_branding) {
+    doc
+      .font(FONT.reg)
+      .fontSize(7.5)
+      .fillColor("#9C9384")
+      .text("Powered by LenderFest · lenderfest.loans", M, PH - 30, {
+        width: PW - M * 2,
+        align: "center",
+      });
+  }
+
+  doc.end();
+  const buffer = await done;
+  return { buffer, filename };
+};
+
 export default {
   buildClientStatementPdf,
   buildLoanStatementPdf,
   buildReceiptPdf,
   buildLoanAgreementPdf,
   buildInvoicePdf,
+  buildPawnTicketPdf,
   NotFoundError,
 };

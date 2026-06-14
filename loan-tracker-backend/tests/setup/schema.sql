@@ -273,7 +273,8 @@ CREATE TABLE public.loan_packages (
         CHECK (min_credit_score IS NULL OR min_credit_score >= 0),
     allowed_client_types text[] NOT NULL DEFAULT '{}',
     allowed_branch_ids integer[] NOT NULL DEFAULT '{}',
-    allowed_purposes text[] NOT NULL DEFAULT '{}'
+    allowed_purposes text[] NOT NULL DEFAULT '{}',
+    loan_type character varying(20) NOT NULL DEFAULT 'personal'  -- migration 047
 );
 CREATE UNIQUE INDEX loan_packages_tenant_name_active_unique
     ON public.loan_packages (tenant_id, lower((name)::text)) WHERE active;
@@ -754,7 +755,8 @@ CREATE TABLE public.loans (
     counter_offer_note text,
     package_id integer,
     interest_method character varying(20) NOT NULL DEFAULT 'flat'
-        CHECK (interest_method IN ('flat', 'reducing'))
+        CHECK (interest_method IN ('flat', 'reducing')),
+    loan_type character varying(20) NOT NULL DEFAULT 'personal'  -- migration 047
 );
 
 
@@ -3050,3 +3052,31 @@ CREATE TABLE public.promises_to_pay (
 );
 CREATE INDEX idx_promises_loan   ON public.promises_to_pay(loan_id);
 CREATE INDEX idx_promises_tenant ON public.promises_to_pay(tenant_id, status, promised_date);
+
+--
+-- Loan collateral (migration 048) — pledged item backing a pawn loan.
+--
+
+CREATE TABLE public.loan_collateral (
+  id               serial PRIMARY KEY,
+  tenant_id        integer NOT NULL,
+  loan_id          integer NOT NULL REFERENCES public.loans(id) ON DELETE CASCADE,
+  category         varchar(60),
+  description      text NOT NULL,
+  serial_number    varchar(120),
+  condition        varchar(40),
+  appraised_value  numeric NOT NULL,
+  ltv_percent      numeric NOT NULL DEFAULT 50,
+  storage_location varchar(120),
+  photos           jsonb,
+  status           varchar(20) NOT NULL DEFAULT 'held',
+  sale_amount      numeric,
+  sale_date        date,
+  returned_at      timestamp,
+  forfeited_at     timestamp,
+  created_by       integer,
+  created_at       timestamp NOT NULL DEFAULT NOW(),
+  updated_at       timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_loan_collateral_loan   ON public.loan_collateral(loan_id);
+CREATE INDEX idx_loan_collateral_tenant ON public.loan_collateral(tenant_id, status);
