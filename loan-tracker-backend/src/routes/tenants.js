@@ -268,6 +268,167 @@ router.post("/signup", async (req, res) => {
   }
 });
 
+// Public WELFARE signup. Creates a welfare account (a tenant of kind='welfare')
+// + its admin user + one welfare group, in one transaction. Reuses the tenant
+// engine but the account is welfare-only: kind='welfare' drives a welfare
+// experience (members, contributions pool, pool lending) with lender features
+// hidden. Not related to lender tenants.
+router.post("/welfare-signup", async (req, res) => {
+  const {
+    welfare_name,
+    subdomain,
+    contact_name,
+    contact_email,
+    contact_phone,
+    admin_password,
+    registration_number,
+    city,
+    county,
+  } = req.body;
+
+  if (!welfare_name || !subdomain || !contact_name || !contact_email || !admin_password) {
+    return res.status(400).json({ error: "All required fields must be provided" });
+  }
+  if (!validateEmail(contact_email)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+  if (!validatePassword(admin_password)) {
+    return res.status(400).json({
+      error:
+        "Password must be at least 12 characters with an uppercase letter, a number, and a special character",
+    });
+  }
+
+  const sub = subdomain.toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(sub)) {
+    return res.status(400).json({
+      error: "Invalid subdomain. Lowercase letters, numbers, and hyphens only (3-50 chars)",
+    });
+  }
+  if (RESERVED.includes(sub)) {
+    return res.status(400).json({ error: "This subdomain is reserved" });
+  }
+
+  const client = await pool.connect();
+  try {
+    const dup = await client.query(
+      `SELECT
+         (SELECT id FROM tenants WHERE subdomain = $1) AS sub_taken,
+         (SELECT id FROM tenants WHERE contact_email = $2) AS email_taken,
+         (SELECT id FROM users WHERE LOWER(email) = $2) AS user_taken`,
+      [sub, contact_email.toLowerCase()],
+    );
+    if (dup.rows[0].sub_taken) {
+      return res.status(409).json({ error: "This subdomain is already taken" });
+    }
+    if (dup.rows[0].email_taken || dup.rows[0].user_taken) {
+      return res.status(409).json({ error: "This email is already registered" });
+    }
+
+    const codeRes = await client.query(
+      `SELECT COALESCE(
+         MAX(CAST(SUBSTRING(tenant_code FROM '^TNT(\\d+)$') AS INTEGER)), 0
+       ) + 1 AS next FROM tenants`,
+    );
+    const tenantCode = `TNT${String(codeRes.rows[0].next).padStart(5, "0")}`;
+
+    await client.query("BEGIN");
+
+    const tRes = await client.query(
+      `INSERT INTO tenants (
+        tenant_code, business_name, business_type, kind, subdomain,
+        registration_number, contact_name, contact_email, contact_phone,
+        city, county, plan, status
+      ) VALUES ($1,$2,'welfare','welfare',$3,$4,$5,$6,$7,$8,$9,'trial','active')
+      RETURNING *`,
+      [
+        tenantCode,
+        welfare_name,
+        sub,
+        registration_number || null,
+        contact_name,
+        contact_email.toLowerCase(),
+        contact_phone || null,
+        city || null,
+        county || null,
+      ],
+    );
+    const tenant = tRes.rows[0];
+
+    const [firstName, ...rest] = contact_name.trim().split(/\s+/);
+    const lastName = rest.join(" ") || "User";
+    let username = contact_email.toLowerCase().split("@")[0];
+    const uTaken = await client.query("SELECT 1 FROM users WHERE username = $1", [username]);
+    if (uTaken.rows.length > 0) {
+      username = `${username}-${Math.random().toString(16).slice(2, 6)}`;
+    }
+    const passwordHash = await bcryptjs.hash(admin_password, 10);
+    const uRes = await client.query(
+      `INSERT INTO users (
+        tenant_id, username, email, password_hash,
+        first_name, last_name, phone_number, role, is_active, is_platform_admin
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,'admin',true,false)
+      RETURNING id, email, first_name, last_name, role`,
+      [tenant.id, username, contact_email.toLowerCase(), passwordHash, firstName, lastName, contact_phone || null],
+    );
+    const user = uRes.rows[0];
+
+    // Company settings (used by PDFs) + the welfare's own group, so members /
+    // pool / loans have somewhere to live from day one.
+    await client.query(
+      `INSERT INTO company_settings (tenant_id, company_name, company_phone, company_email)
+       VALUES ($1, $2, $3, $4)`,
+      [tenant.id, welfare_name, contact_phone || "", contact_email.toLowerCase()],
+    );
+    const gRes = await client.query(
+      `INSERT INTO groups (tenant_id, group_code, name, registration_no, status, created_by)
+       VALUES ($1, 'GRP-00001', $2, $3, 'active', $4) RETURNING id`,
+      [tenant.id, welfare_name, registration_number || null, user.id],
+    );
+    const welfareGroupId = gRes.rows[0].id;
+
+    await client.query("COMMIT");
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: "admin", tenant_id: tenant.id, is_platform_admin: false },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || "7d" },
+    );
+
+    logger.info(`🤝 New welfare signed up: ${welfare_name} (${sub})`);
+
+    res.status(201).json({
+      success: true,
+      message: "Welcome! Your welfare account is ready.",
+      token,
+      welfare_group_id: welfareGroupId,
+      user: {
+        ...user,
+        full_name: `${user.first_name} ${user.last_name}`,
+        tenant_id: tenant.id,
+        is_platform_admin: false,
+        tenant: {
+          id: tenant.id,
+          subdomain: tenant.subdomain,
+          business_name: tenant.business_name,
+          business_type: tenant.business_type,
+          kind: "welfare",
+          plan: tenant.plan,
+          brand_color: tenant.brand_color,
+          city: tenant.city,
+          country: tenant.country,
+        },
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    logger.error("Welfare signup error:", error);
+    res.status(500).json({ error: "Failed to create welfare account" });
+  } finally {
+    client.release();
+  }
+});
+
 // Subdomain availability (signup form)
 router.get("/check-subdomain/:subdomain", async (req, res) => {
   try {

@@ -27,9 +27,20 @@ const ROLE_LABEL = {
   secretary: "Secretary",
 };
 
+function readKind() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null")?.tenant?.kind || "lender";
+  } catch {
+    return "lender";
+  }
+}
+
 export default function GroupDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  // Welfare accounts see only the members/pool + meetings; the lender-group
+  // panels (capital-funded group loans, savings/coverage, cycles) are hidden.
+  const isWelfare = readKind() === "welfare";
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -164,7 +175,7 @@ export default function GroupDetail() {
       </div>
 
       {/* Rollup */}
-      {summary && (
+      {!isWelfare && summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <RollupCard icon={UsersRound} color="ocean" label="Members" value={summary.member_count} />
           <RollupCard
@@ -191,16 +202,19 @@ export default function GroupDetail() {
       {/* Welfare members + their contributions pool + pool lending */}
       <WelfareMembersPanel welfareId={id} />
 
-      {/* Savings + joint-liability coverage */}
-      <GroupSavingsPanel groupId={id} members={members} loans={loans} onChange={load} />
-
-      {/* Lending cycles / rounds */}
-      <GroupCyclesPanel groupId={id} onChange={load} />
-
       {/* Meetings + attendance */}
       <GroupMeetingsPanel groupId={id} />
 
-      {/* Members */}
+      {/* Savings + joint-liability coverage (lender group loans) */}
+      {!isWelfare && (
+        <GroupSavingsPanel groupId={id} members={members} loans={loans} onChange={load} />
+      )}
+
+      {/* Lending cycles / rounds (lender group loans) */}
+      {!isWelfare && <GroupCyclesPanel groupId={id} onChange={load} />}
+
+      {/* Loan-group members (capital-funded group loans) — lenders only */}
+      {!isWelfare && (
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-bold text-slate-900">Loan Group Members ({members.length})</h2>
@@ -271,8 +285,10 @@ export default function GroupDetail() {
           </div>
         )}
       </div>
+      )}
 
-      {/* Member loans */}
+      {/* Member loans (capital-funded group loans) — lenders only */}
+      {!isWelfare && (
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100">
           <h2 className="font-bold text-slate-900">Member Loans ({loans.length})</h2>
@@ -322,6 +338,7 @@ export default function GroupDetail() {
           </div>
         )}
       </div>
+      )}
 
       {showAdd && (
         <AddMemberModal

@@ -128,6 +128,23 @@ const navGroups = [
   },
 ];
 
+// A welfare account (tenant.kind === 'welfare') gets a focused, welfare-only
+// sidebar — none of the lender workflow (clients, loans, capital, billing).
+const WELFARE_STANDALONE = [
+  { path: "/groups", label: "Welfare", icon: UsersRound, variant: "ocean", permission: "loans:view" },
+];
+const WELFARE_GROUPS = [
+  {
+    id: "account",
+    label: "Account",
+    variant: "ocean",
+    items: [
+      { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
+      { path: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
+    ],
+  },
+];
+
 const STORAGE_KEY = "sidebar_expanded_groups";
 
 const itemVisible = (item, role) => {
@@ -203,12 +220,17 @@ function Layout({ children }) {
     return null;
   })();
 
+  // Welfare accounts get a welfare-only menu; everyone else the full lender nav.
+  const isWelfare = user?.tenant?.kind === "welfare";
+  const baseStandalone = isWelfare ? WELFARE_STANDALONE : standaloneItems;
+  const baseGroups = isWelfare ? WELFARE_GROUPS : navGroups;
+
   // Role-filtered: drop items the user can't see, and drop empty
   // groups so their headers don't render at all.
-  const visibleStandalone = standaloneItems.filter((it) =>
+  const visibleStandalone = baseStandalone.filter((it) =>
     itemVisible(it, user?.role),
   );
-  const visibleGroups = navGroups
+  const visibleGroups = baseGroups
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => itemVisible(it, user?.role)),

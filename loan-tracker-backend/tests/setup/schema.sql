@@ -1150,6 +1150,7 @@ CREATE TABLE public.tenants (
     tenant_code character varying(20) NOT NULL,
     business_name character varying(255) NOT NULL,
     business_type character varying(100),
+    kind character varying(20) NOT NULL DEFAULT 'lender',  -- migration 058 (lender | welfare)
     subdomain character varying(50) NOT NULL,
     registration_number character varying(100),
     tax_pin character varying(20),

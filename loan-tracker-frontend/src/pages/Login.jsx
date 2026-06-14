@@ -128,6 +128,12 @@ function Login() {
             Sign up free
           </Link>
         </p>
+        <p className="text-center mt-1 text-sm text-gray-600">
+          Running a chama / welfare?{' '}
+          <Link to="/welfare/register" className="text-emerald-700 font-semibold">
+            Register a welfare
+          </Link>
+        </p>
       </div>
     </div>
   );

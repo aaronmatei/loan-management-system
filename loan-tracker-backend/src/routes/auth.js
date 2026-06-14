@@ -100,7 +100,7 @@ router.post(
     try {
       const tr = await query(
         `SELECT u.tenant_id, u.is_platform_admin,
-                tn.subdomain, tn.business_name, tn.business_type,
+                tn.subdomain, tn.business_name, tn.business_type, tn.kind AS tenant_kind,
                 tn.plan AS tenant_plan, tn.status AS tenant_status,
                 tn.brand_color, tn.city, tn.country
          FROM users u
@@ -178,6 +178,7 @@ router.post(
               subdomain: t.subdomain,
               business_name: t.business_name,
               business_type: t.business_type,
+              kind: t.tenant_kind || "lender",
               plan: t.tenant_plan,
               brand_color: t.brand_color,
               // city + country drive the bottom arc on the

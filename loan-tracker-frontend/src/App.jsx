@@ -19,6 +19,7 @@ function LoanfixLegacyRedirect() {
 import { AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import WelfareRegister from "./pages/WelfareRegister";
 import CustomerLogin from "./portal/pages/Login";
 import CustomerRegister from "./portal/pages/Register";
 import TenantPicker from "./portal/pages/TenantPicker";
@@ -357,7 +358,16 @@ function App() {
                 ) : (
                 <Layout>
                   <Routes>
-                    <Route path="/" element={<Dashboard />} />
+                    <Route
+                      path="/"
+                      element={
+                        user?.tenant?.kind === "welfare" ? (
+                          <Navigate to="/groups" replace />
+                        ) : (
+                          <Dashboard />
+                        )
+                      }
+                    />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/applications" element={<Applications />} />
               <Route path="/notifications" element={<Notifications />} />
@@ -409,6 +419,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/welfare/register" element={<WelfareRegister />} />
+            <Route path="/welfare/login" element={<Login />} />
             <Route path="/portal/login" element={<CustomerLogin />} />
             <Route path="/portal/register" element={<CustomerRegister />} />
             <Route
