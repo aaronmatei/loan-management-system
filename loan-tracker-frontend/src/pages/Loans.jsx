@@ -14,13 +14,11 @@ import {
   CheckCircle,
   Plus,
   RotateCcw,
-  Gem,
   Car,
   Banknote,
   Users,
 } from "lucide-react";
 import api from "../services/api";
-import PawnLoanModal from "../components/PawnLoanModal";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
@@ -39,7 +37,6 @@ function Loans() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [showPawn, setShowPawn] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -722,39 +719,18 @@ function Loans() {
             Total: <span className="font-semibold">{loans.length}</span> loans
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => setShowPawn(true)}
-            disabled={clients.length === 0}
-            className="w-full sm:w-auto px-4 py-2 lg:px-5 lg:py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="inline-flex items-center gap-1"><Gem size={16}/> New Pawn</span>
-          </button>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            disabled={clients.length === 0}
-            className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {showForm ? (
-              <span className="inline-flex items-center gap-1"><X size={16}/> Cancel</span>
-            ) : (
-              <span className="inline-flex items-center gap-1"><Plus size={16}/> New Loan</span>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          disabled={clients.length === 0}
+          className="w-full sm:w-auto px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {showForm ? (
+            <span className="inline-flex items-center gap-1"><X size={16}/> Cancel</span>
+          ) : (
+            <span className="inline-flex items-center gap-1"><Plus size={16}/> New Loan</span>
+          )}
+        </button>
       </div>
-
-      {showPawn && (
-        <PawnLoanModal
-          clients={clients}
-          onClose={() => setShowPawn(false)}
-          onCreated={(loan) => {
-            setShowPawn(false);
-            if (loan?.id) navigate(`/loans/${loan.id}`);
-            else fetchLoans();
-          }}
-        />
-      )}
 
       {clients.length === 0 && !loading && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">

@@ -41,6 +41,10 @@ const TYPE_FIELDS = {
 };
 const fieldsFor = (t) => TYPE_FIELDS[t] || TYPE_FIELDS.personal;
 
+// Pawn lending has its own pawnbroker portal, so normal lenders don't pick it
+// here — keep it out of the package type selector and filter.
+const PACKAGE_TYPES = LOAN_TYPES.filter((t) => t.key !== "pawn");
+
 function LoanPackagesSection() {
   const [rows, setRows] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -263,7 +267,7 @@ function LoanPackagesSection() {
               onChange={(e) => onLoanTypeChange(e.target.value)}
               className={fld}
             >
-              {LOAN_TYPES.map((t) => (
+              {PACKAGE_TYPES.map((t) => (
                 <option key={t.key} value={t.key}>
                   {t.label}
                 </option>
@@ -607,7 +611,7 @@ function LoanPackagesSection() {
             className="px-3 py-1.5 border-2 border-gray-200 rounded-lg text-sm bg-white focus:border-ocean-500 focus:outline-none"
           >
             <option value="all">All types</option>
-            {LOAN_TYPES.map((t) => (
+            {PACKAGE_TYPES.map((t) => (
               <option key={t.key} value={t.key}>
                 {t.label}
               </option>
