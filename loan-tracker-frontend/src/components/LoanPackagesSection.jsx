@@ -27,6 +27,20 @@ const CLIENT_TYPE_CHOICES = [
   { value: "business", label: "Business" },
 ];
 
+// Which optional fields each loan type needs. Core fields (name, amount range,
+// duration, rate) show for every type; these flags drive the rest so the form
+// only asks for what the chosen type uses. Pawn is a flat-fee bullet secured by
+// the item, so it drops interest method, processing fee, credit score, client
+// types and purposes; secured types skip the credit-score gate.
+const TYPE_FIELDS = {
+  personal: { interestMethod: true, processingFee: true, creditScore: true, clientTypes: true, purposes: true },
+  pawn: { interestMethod: false, processingFee: false, creditScore: false, clientTypes: false, purposes: false },
+  logbook: { interestMethod: true, processingFee: true, creditScore: false, clientTypes: true, purposes: true },
+  salary: { interestMethod: true, processingFee: true, creditScore: true, clientTypes: true, purposes: true },
+  group: { interestMethod: true, processingFee: true, creditScore: true, clientTypes: true, purposes: false },
+};
+const fieldsFor = (t) => TYPE_FIELDS[t] || TYPE_FIELDS.personal;
+
 function LoanPackagesSection() {
   const [rows, setRows] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -54,6 +68,8 @@ function LoanPackagesSection() {
   };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
+  // Filter the listing by loan type ("all" = no filter).
+  const [typeFilter, setTypeFilter] = useState("all");
   // Which rows are expanded — stored as a Set so toggling is O(1)
   // and unrelated rows don't re-render. The whole row is the
   // affordance (click anywhere except the action buttons toggles).
@@ -97,6 +113,21 @@ function LoanPackagesSection() {
       monthly_interest_rate: v,
       annual_interest_rate: v === "" ? "" : String(roundRate(parseFloat(v) * 12)),
     }));
+
+  // Switching loan type neutralises the fields that type doesn't use, so a
+  // hidden field can't silently carry a stale value into the saved package.
+  const onLoanTypeChange = (v) => {
+    const cfg = fieldsFor(v);
+    setForm((p) => ({
+      ...p,
+      loan_type: v,
+      interest_method: cfg.interestMethod ? p.interest_method : "flat",
+      processing_fee_rate: cfg.processingFee ? p.processing_fee_rate : "",
+      min_credit_score: cfg.creditScore ? p.min_credit_score : "",
+      allowed_client_types: cfg.clientTypes ? p.allowed_client_types : [],
+      allowed_purposes: cfg.purposes ? p.allowed_purposes : [],
+    }));
+  };
 
   // Toggle a value in/out of an array field on the form.
   const toggleInArray = (field, value) => {
@@ -193,6 +224,11 @@ function LoanPackagesSection() {
   const fld =
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
   const editingOrAdding = adding || editingId !== null;
+  const cfg = fieldsFor(form.loan_type);
+  const visibleRows =
+    typeFilter === "all"
+      ? rows
+      : rows.filter((p) => (p.loan_type || "personal") === typeFilter);
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
@@ -224,7 +260,7 @@ function LoanPackagesSection() {
             <label className="block text-sm font-semibold mb-1">Loan Type *</label>
             <select
               value={form.loan_type}
-              onChange={(e) => setForm({ ...form, loan_type: e.target.value })}
+              onChange={(e) => onLoanTypeChange(e.target.value)}
               className={fld}
             >
               {LOAN_TYPES.map((t) => (
@@ -248,23 +284,25 @@ function LoanPackagesSection() {
                 className={fld}
               />
             </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                Interest Method *
-              </label>
-              <select
-                value={form.interest_method}
-                onChange={(e) =>
-                  setForm({ ...form, interest_method: e.target.value })
-                }
-                className={`${fld} bg-white`}
-              >
-                <option value="flat">Flat — interest spread evenly</option>
-                <option value="reducing">
-                  Reducing balance — EMI / amortized
-                </option>
-              </select>
-            </div>
+            {cfg.interestMethod && (
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Interest Method *
+                </label>
+                <select
+                  value={form.interest_method}
+                  onChange={(e) =>
+                    setForm({ ...form, interest_method: e.target.value })
+                  }
+                  className={`${fld} bg-white`}
+                >
+                  <option value="flat">Flat — interest spread evenly</option>
+                  <option value="reducing">
+                    Reducing balance — EMI / amortized
+                  </option>
+                </select>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-semibold mb-1">
@@ -380,26 +418,30 @@ function LoanPackagesSection() {
                 className={fld}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Synced with annual (annual ÷ 12). Edit either one.
+                {form.loan_type === "pawn"
+                  ? "For pawn, the monthly rate is the fee charged per month on the amount advanced."
+                  : "Synced with annual (annual ÷ 12). Edit either one."}
               </p>
             </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                Processing Fee (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={form.processing_fee_rate}
-                onChange={(e) =>
-                  setForm({ ...form, processing_fee_rate: e.target.value })
-                }
-                placeholder="3"
-                className={fld}
-              />
-            </div>
+            {cfg.processingFee && (
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Processing Fee (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={form.processing_fee_rate}
+                  onChange={(e) =>
+                    setForm({ ...form, processing_fee_rate: e.target.value })
+                  }
+                  placeholder="3"
+                  className={fld}
+                />
+              </div>
+            )}
           </div>
           {/* Eligibility — three optional gates that block apply for
               clients who don't qualify. All default to "no restriction"
@@ -409,6 +451,7 @@ function LoanPackagesSection() {
               Eligibility (optional)
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {cfg.creditScore && (
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   Min Credit Score (0–100)
@@ -429,6 +472,8 @@ function LoanPackagesSection() {
                   Unrated clients fail any minimum.
                 </p>
               </div>
+              )}
+              {cfg.clientTypes && (
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   Allowed Client Types
@@ -458,6 +503,7 @@ function LoanPackagesSection() {
                   None selected = all types allowed.
                 </p>
               </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   Allowed Branches
@@ -498,6 +544,7 @@ function LoanPackagesSection() {
             {/* Purposes pin which loan purposes the customer can pick
                 on the apply form. None selected = the full canonical
                 list (default behavior). */}
+            {cfg.purposes && (
             <div className="mt-3">
               <label className="block text-sm font-semibold mb-1">
                 Allowed Purposes
@@ -525,6 +572,7 @@ function LoanPackagesSection() {
                 None selected = the customer can pick any purpose.
               </p>
             </div>
+            )}
           </div>
 
           {error && (
@@ -550,10 +598,35 @@ function LoanPackagesSection() {
         </form>
       )}
 
+      {!loading && rows.length > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <label className="text-sm font-semibold text-gray-600">Loan type</label>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-1.5 border-2 border-gray-200 rounded-lg text-sm bg-white focus:border-ocean-500 focus:outline-none"
+          >
+            <option value="all">All types</option>
+            {LOAN_TYPES.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-gray-500">
+            {visibleRows.length} of {rows.length}
+          </span>
+        </div>
+      )}
+
       {loading ? (
         <Spinner centered className="py-6" size={28} label="Loading packages…" />
       ) : rows.length === 0 ? (
         <div className="text-gray-500 text-sm">No packages yet.</div>
+      ) : visibleRows.length === 0 ? (
+        <div className="text-gray-500 text-sm">
+          No {loanTypeLabel(typeFilter)} packages.
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -561,6 +634,7 @@ function LoanPackagesSection() {
               <tr className="text-left text-gray-600 border-b border-gray-200">
                 <th className="w-8" aria-hidden="true"></th>
                 <th className="px-3 py-2 font-semibold">Name</th>
+                <th className="px-3 py-2 font-semibold">Type</th>
                 <th className="px-3 py-2 font-semibold">Method</th>
                 <th className="px-3 py-2 font-semibold text-right">Rate p.a.</th>
                 <th className="px-3 py-2 font-semibold text-right">Rate p.m.</th>
@@ -572,7 +646,7 @@ function LoanPackagesSection() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((p) => {
+              {visibleRows.map((p) => {
                 const expanded = expandedIds.has(p.id);
                 return (
                   <React.Fragment key={p.id}>
@@ -598,11 +672,17 @@ function LoanPackagesSection() {
                             </span>
                           )}
                         </div>
-                        {p.loan_type && p.loan_type !== "personal" && (
-                          <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-bold uppercase tracking-wide">
-                            {loanTypeLabel(p.loan_type)}
-                          </span>
-                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${
+                            (p.loan_type || "personal") === "personal"
+                              ? "bg-slate-100 text-slate-600"
+                              : "bg-violet-100 text-violet-700"
+                          }`}
+                        >
+                          {loanTypeLabel(p.loan_type)}
+                        </span>
                       </td>
                       <td className="px-3 py-2">
                         <span
@@ -669,7 +749,7 @@ function LoanPackagesSection() {
                     {expanded && (
                       <tr className="border-b border-gray-100 bg-gray-50">
                         <td></td>
-                        <td colSpan={9} className="px-3 py-3">
+                        <td colSpan={10} className="px-3 py-3">
                           <div className="space-y-2">
                             {p.description ? (
                               <p className="text-sm text-gray-700">
