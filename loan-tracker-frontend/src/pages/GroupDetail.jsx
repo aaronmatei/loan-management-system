@@ -127,7 +127,7 @@ export default function GroupDetail() {
           onClick={() => navigate("/groups")}
           className="px-6 py-2 bg-ocean-600 text-white font-semibold rounded-lg hover:bg-ocean-700"
         >
-          ← Back to Welfare
+          ← Back to {isWelfare ? "Welfare" : "Groups"}
         </button>
       </div>
     );
@@ -149,7 +149,7 @@ export default function GroupDetail() {
         onClick={() => navigate("/groups")}
         className="mb-4 text-ocean-600 hover:text-ocean-800 font-semibold flex items-center gap-2"
       >
-        ← Back to Welfare
+        ← Back to {isWelfare ? "Welfare" : "Groups"}
       </button>
 
       {/* Header */}
@@ -199,8 +199,9 @@ export default function GroupDetail() {
         </div>
       )}
 
-      {/* Welfare members + their contributions pool + pool lending */}
-      <WelfareMembersPanel welfareId={id} />
+      {/* Welfare members + their contributions pool + pool lending —
+          welfare accounts only; lenders use group loans, not the pool. */}
+      {isWelfare && <WelfareMembersPanel welfareId={id} />}
 
       {/* Meetings + attendance */}
       <GroupMeetingsPanel groupId={id} />

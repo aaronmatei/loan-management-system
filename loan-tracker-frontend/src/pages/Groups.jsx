@@ -5,10 +5,20 @@ import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 import Spinner from "../components/Spinner";
 
-// Groups / chama list. Each group wraps its members' individual loans and
-// co-guarantees them; click through for members, loans and the rollup.
+// Group list. For a lender these are group-guaranteed loan groups; a welfare
+// account sees the same page as its "Welfare". The label adapts to the account.
+function readKind() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null")?.tenant?.kind || "lender";
+  } catch {
+    return "lender";
+  }
+}
+
 export default function Groups() {
   const navigate = useNavigate();
+  const isWelfare = readKind() === "welfare";
+  const noun = isWelfare ? "Welfare" : "Group";
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -49,10 +59,11 @@ export default function Groups() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <UsersRound className="text-ocean-600" /> Welfare
+            <UsersRound className="text-ocean-600" /> {isWelfare ? "Welfare" : "Groups"}
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            {groups.length} welfare group{groups.length === 1 ? "" : "s"} · members, savings & lending
+            {groups.length} {isWelfare ? "welfare group" : "group"}{groups.length === 1 ? "" : "s"}
+            {isWelfare ? " · members, savings & lending" : " · group-guaranteed lending"}
           </p>
         </div>
         <PermissionGate role={["admin", "manager"]}>
@@ -61,7 +72,7 @@ export default function Groups() {
             className="px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
           >
             <span className="inline-flex items-center gap-1">
-              <Plus size={16} /> New Welfare
+              <Plus size={16} /> New {noun}
             </span>
           </button>
         </PermissionGate>
@@ -72,20 +83,20 @@ export default function Groups() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search welfare groups…"
+          placeholder={`Search ${isWelfare ? "welfare groups" : "groups"}…`}
           className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
         />
       </div>
 
       {loading ? (
         <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading groups…" />
+          <Spinner centered label="Loading…" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-10 text-center text-gray-500">
           {groups.length === 0
-            ? "No welfare groups yet. Create one, enrol members, then run their savings & loans."
-            : "No welfare groups match your search."}
+            ? `No ${isWelfare ? "welfare groups" : "groups"} yet. Create one, enrol members, then run their loans.`
+            : "No matches for your search."}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -122,6 +133,7 @@ export default function Groups() {
 
       {showForm && (
         <NewGroupModal
+          noun={noun}
           onClose={() => setShowForm(false)}
           onCreated={(g) => {
             setShowForm(false);
@@ -133,7 +145,7 @@ export default function Groups() {
   );
 }
 
-function NewGroupModal({ onClose, onCreated }) {
+function NewGroupModal({ noun = "Group", onClose, onCreated }) {
   const [form, setForm] = useState({
     name: "",
     registration_no: "",
@@ -174,7 +186,7 @@ function NewGroupModal({ onClose, onCreated }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <UsersRound size={18} className="text-ocean-600" />
-            <h3 className="text-lg font-bold text-slate-900">New Welfare</h3>
+            <h3 className="text-lg font-bold text-slate-900">New {noun}</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
             <X size={20} />
