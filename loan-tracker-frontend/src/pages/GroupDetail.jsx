@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
+import GroupSavingsPanel from "../components/GroupSavingsPanel";
 import Spinner from "../components/Spinner";
 
 const ROLE_LABEL = {
@@ -183,6 +184,9 @@ export default function GroupDetail() {
           />
         </div>
       )}
+
+      {/* Savings + joint-liability coverage */}
+      <GroupSavingsPanel groupId={id} members={members} loans={loans} onChange={load} />
 
       {/* Members */}
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">

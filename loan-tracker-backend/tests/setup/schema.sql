@@ -3174,3 +3174,25 @@ CREATE INDEX idx_groups_tenant        ON public.groups(tenant_id, status);
 CREATE INDEX idx_group_members_group  ON public.group_members(group_id, status);
 CREATE INDEX idx_group_members_client ON public.group_members(client_id);
 CREATE INDEX idx_loans_group          ON public.loans(group_id);
+
+--
+-- Group savings + joint-liability coverage (migration 052).
+--
+
+CREATE TABLE public.group_savings_transactions (
+  id             serial PRIMARY KEY,
+  tenant_id      integer NOT NULL,
+  group_id       integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  client_id      integer REFERENCES public.clients(id) ON DELETE SET NULL,
+  type           varchar(24) NOT NULL,
+  amount         numeric NOT NULL CHECK (amount > 0),
+  direction      smallint NOT NULL,
+  balance_after  numeric NOT NULL,
+  loan_id        integer REFERENCES public.loans(id) ON DELETE SET NULL,
+  txn_date       date NOT NULL DEFAULT CURRENT_DATE,
+  description    text,
+  created_by     integer,
+  created_at     timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_group_savings_group  ON public.group_savings_transactions(group_id, id);
+CREATE INDEX idx_group_savings_client ON public.group_savings_transactions(client_id);
