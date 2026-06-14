@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Users,
   UsersRound,
+  PiggyBank,
   ClipboardList,
   Wallet,
   CreditCard,
@@ -53,6 +54,7 @@ const standaloneItems = [
   // workflow refers back to, so it deserves a single-click slot rather
   // than living inside a group with the loan items it intersects.
   { path: "/clients", label: "Clients", icon: Users, variant: "ocean", permission: "clients:view" },
+  { path: "/members", label: "Members", icon: PiggyBank, variant: "ocean", permission: "clients:view" },
 ];
 
 const navGroups = [

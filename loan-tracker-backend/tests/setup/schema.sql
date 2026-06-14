@@ -3251,3 +3251,43 @@ CREATE TABLE public.group_cycles (
 );
 CREATE INDEX idx_group_cycles_group ON public.group_cycles(group_id, status);
 CREATE INDEX idx_loans_cycle ON public.loans(cycle_id);
+
+--
+-- Member contributions pool (migration 055) — separate from capital_pool.
+--
+
+CREATE TABLE public.members (
+  id                   serial PRIMARY KEY,
+  tenant_id            integer NOT NULL,
+  member_no            varchar(30),
+  first_name           varchar(60) NOT NULL,
+  last_name            varchar(60) NOT NULL,
+  phone_number         varchar(20),
+  id_number            varchar(30),
+  email                varchar(120),
+  status               varchar(20) NOT NULL DEFAULT 'active',
+  monthly_contribution numeric,
+  joined_at            date NOT NULL DEFAULT CURRENT_DATE,
+  notes                text,
+  created_by           integer,
+  created_at           timestamp NOT NULL DEFAULT NOW(),
+  updated_at           timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.member_pool_transactions (
+  id             serial PRIMARY KEY,
+  tenant_id      integer NOT NULL,
+  member_id      integer REFERENCES public.members(id) ON DELETE SET NULL,
+  type           varchar(24) NOT NULL,
+  amount         numeric NOT NULL CHECK (amount > 0),
+  direction      smallint NOT NULL,
+  balance_after  numeric NOT NULL,
+  member_loan_id integer,
+  txn_date       date NOT NULL DEFAULT CURRENT_DATE,
+  description    text,
+  created_by     integer,
+  created_at     timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_members_tenant ON public.members(tenant_id, status);
+CREATE INDEX idx_member_pool_tenant ON public.member_pool_transactions(tenant_id, id);
+CREATE INDEX idx_member_pool_member ON public.member_pool_transactions(member_id);

@@ -36,6 +36,7 @@ import salaryAdvanceRoutes from "./routes/salaryAdvance.js";
 import groupRoutes from "./routes/groups.js";
 import groupSavingsRoutes from "./routes/groupSavings.js";
 import groupActivityRoutes from "./routes/groupActivity.js";
+import memberRoutes from "./routes/members.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
@@ -174,6 +175,7 @@ app.use("/api/loans", salaryAdvanceRoutes); // salary check-off details (dual-mo
 app.use("/api/groups", groupRoutes); // group / chama lending
 app.use("/api/groups", groupSavingsRoutes); // group savings + joint-liability coverage
 app.use("/api/groups", groupActivityRoutes); // group meetings + attendance + lending cycles
+app.use("/api/members", memberRoutes); // member contributions pool (separate from capital)
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);

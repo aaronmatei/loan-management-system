@@ -58,6 +58,8 @@ import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
+import Members from "./pages/Members";
+import MemberDetail from "./pages/MemberDetail";
 import LoanDetails from "./pages/LoanDetails";
 import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
@@ -369,6 +371,8 @@ function App() {
               <Route path="/loans/:id" element={<LoanDetails />} />
               <Route path="/groups" element={<Groups />} />
               <Route path="/groups/:id" element={<GroupDetail />} />
+              <Route path="/members" element={<Members />} />
+              <Route path="/members/:id" element={<MemberDetail />} />
               <Route path="/payments" element={<Payments />} />
               <Route path="/overdue" element={<Overdue />} />
               <Route path="/reports" element={<Reports />} />
