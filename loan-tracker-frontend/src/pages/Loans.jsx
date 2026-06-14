@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Gem,
+  Car,
 } from "lucide-react";
 import api from "../services/api";
 import PawnLoanModal from "../components/PawnLoanModal";
@@ -92,6 +93,25 @@ function Loans() {
   });
 
   const [packages, setPackages] = useState([]);
+
+  // Logbook loans capture a vehicle (kept separate from formData so the big
+  // form's reset/package-lock logic stays untouched). POSTed after the loan is
+  // created, when the selected package's type is 'logbook'.
+  const blankVehicle = {
+    make: "",
+    model: "",
+    year: "",
+    registration_number: "",
+    logbook_number: "",
+    chassis_number: "",
+    engine_number: "",
+    color: "",
+    valuation: "",
+    storage_location: "",
+  };
+  const [vehicleForm, setVehicleForm] = useState(blankVehicle);
+  const setVeh = (k) => (e) =>
+    setVehicleForm((v) => ({ ...v, [k]: e.target.value }));
 
   useEffect(() => {
     fetchLoans();
@@ -324,8 +344,30 @@ function Loans() {
           : 0,
       };
       const response = await api.post("/loans", submitData);
+
+      // Logbook loans: attach the pledged vehicle to the new loan. Best-effort
+      // — if it fails, the loan still exists and the vehicle can be added later
+      // from the loan detail page, so we surface a note rather than hard-fail.
+      let vehicleNote = "";
+      if (
+        selectedPackage?.loan_type === "logbook" &&
+        vehicleForm.registration_number.trim() &&
+        parseFloat(vehicleForm.valuation) > 0
+      ) {
+        try {
+          await api.post(`/loans/${response.data.data.id}/vehicle-security`, {
+            ...vehicleForm,
+            year: vehicleForm.year ? parseInt(vehicleForm.year, 10) : null,
+            valuation: parseFloat(vehicleForm.valuation),
+          });
+        } catch {
+          vehicleNote = " (couldn't save the vehicle — add it from the loan page)";
+        }
+      }
+      setVehicleForm(blankVehicle);
+
       setSuccess(
-        `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.`,
+        `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.${vehicleNote}`,
       );
 
       // Reset form — defaults come from the tenant's configured loan policy.
@@ -1177,6 +1219,76 @@ function Loans() {
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
+
+              {selectedPackage?.loan_type === "logbook" && (
+                <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-sky-900 mb-1 flex items-center gap-2">
+                    <Car size={16} className="text-sky-600" /> Vehicle Security
+                  </h4>
+                  <p className="text-xs text-sky-700 mb-3">
+                    This is a logbook loan — record the vehicle whose logbook secures
+                    it. You can also add or edit this later from the loan page.
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <input
+                      value={vehicleForm.make}
+                      onChange={setVeh("make")}
+                      placeholder="Make (Toyota)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      value={vehicleForm.model}
+                      onChange={setVeh("model")}
+                      placeholder="Model (Premio)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={vehicleForm.year}
+                      onChange={setVeh("year")}
+                      placeholder="Year (2015)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      value={vehicleForm.registration_number}
+                      onChange={setVeh("registration_number")}
+                      placeholder="Registration * (KCA 123A)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      value={vehicleForm.color}
+                      onChange={setVeh("color")}
+                      placeholder="Colour"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={vehicleForm.valuation}
+                      onChange={setVeh("valuation")}
+                      placeholder="Valuation * (KES)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      value={vehicleForm.logbook_number}
+                      onChange={setVeh("logbook_number")}
+                      placeholder="Logbook no."
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      value={vehicleForm.chassis_number}
+                      onChange={setVeh("chassis_number")}
+                      placeholder="Chassis no."
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      value={vehicleForm.engine_number}
+                      onChange={setVeh("engine_number")}
+                      placeholder="Engine no."
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>

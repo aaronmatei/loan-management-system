@@ -1789,6 +1789,255 @@ export const buildPawnTicketPdf = async (loanId, tid) => {
   return { buffer, filename };
 };
 
+// ============================================================
+// VEHICLE SECURITY CERTIFICATE (logbook loans)
+//
+// Proof that the lender holds a lien over the borrower's vehicle for the
+// duration of a logbook loan. Single-page A4, same parchment look as the
+// pawn ticket: vehicle + logbook identifiers on the left, loan terms on the
+// right, lien status + terms below.
+// ============================================================
+export const buildVehicleSecurityPdf = async (loanId, tid) => {
+  const lt = tClause(tid, 1, "l.tenant_id");
+  const result = await query(
+    `SELECT l.*,
+        c.first_name, c.last_name, c.phone_number, c.id_number, c.client_code,
+        tn.brand_color, tn.business_name, tn.business_type, tn.hide_platform_branding,
+        tn.city AS tenant_city, tn.country AS tenant_country
+      FROM loans l
+      JOIN clients c ON l.client_id = c.id
+      JOIN tenants tn ON l.tenant_id = tn.id
+      WHERE l.id = $1 AND l.loan_type = 'logbook'${lt.clause}`,
+    [loanId, ...lt.params],
+  );
+  if (result.rows.length === 0) throw new NotFoundError("Logbook loan not found");
+  const loan = result.rows[0];
+
+  const vRes = await query(
+    `SELECT * FROM loan_vehicle_security WHERE loan_id = $1`,
+    [loanId],
+  );
+  if (vRes.rows.length === 0) {
+    throw new NotFoundError("No vehicle security on file for this loan");
+  }
+  const v = vRes.rows[0];
+
+  const TYPE_COLORS = {
+    microfinance: "#0086cc",
+    sacco: "#ea580c",
+    chama: "#7c3aed",
+    individual: "#16a34a",
+    other: "#64748b",
+  };
+  const typeColor =
+    TYPE_COLORS[String(loan.business_type || "").trim().toLowerCase()] ||
+    (/^#[0-9a-fA-F]{6}$/.test(loan.brand_color || "") ? loan.brand_color : "#0E8A6E");
+  const darkenHex = (hex, f) => {
+    const n = parseInt(hex.replace("#", ""), 16);
+    const c = (x) => Math.max(0, Math.min(255, Math.round(x)));
+    return (
+      "#" +
+      [c(((n >> 16) & 255) * f), c(((n >> 8) & 255) * f), c((n & 255) * f)]
+        .map((x) => x.toString(16).padStart(2, "0"))
+        .join("")
+    );
+  };
+  const money = (val) =>
+    "KES " +
+    Number(val || 0).toLocaleString("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const principal = parseFloat(loan.principal_amount || 0);
+  const totalDue = parseFloat(loan.total_amount_due || 0);
+  const months = parseInt(loan.loan_duration_months, 10) || 1;
+  const monthly = totalDue / months;
+  const vehicleName = [v.year, v.make, v.model].filter(Boolean).join(" ") || "Vehicle";
+
+  const doc = new PDFDocument({ size: "A4", margin: 0 });
+  registerPdfFonts(doc);
+  const filename = `vehicle_security_${loan.loan_code}.pdf`;
+  const done = streamToBuffer(doc);
+
+  const PW = doc.page.width;
+  const PH = doc.page.height;
+  const M = 40;
+
+  doc.rect(0, 0, PW, PH).fill("#F3ECDB");
+
+  const headH = 96;
+  const hg = doc.linearGradient(0, 0, PW, 0);
+  hg.stop(0, darkenHex(typeColor, 0.72)).stop(1, typeColor);
+  doc.rect(0, 0, PW, headH).fill(hg);
+  drawBrandMark(doc, { x: M, y: 28, size: 40, variant: "light" });
+  doc.fillColor("#ffffff").font(FONT.display).fontSize(24).text("LenderFest", M + 50, 30);
+  doc
+    .font(FONT.reg)
+    .fontSize(9)
+    .fillOpacity(0.9)
+    .text((loan.business_name || "").toUpperCase(), M + 50, 60, { characterSpacing: 1 });
+  doc.fillOpacity(1);
+  doc
+    .font(FONT.bold)
+    .fontSize(11)
+    .fillColor("#ffffff")
+    .text("VEHICLE SECURITY", PW - 250, 30, { width: 210, align: "right", characterSpacing: 1.2 });
+  doc
+    .font("Courier")
+    .fontSize(11)
+    .fillOpacity(0.9)
+    .text(loan.loan_code, PW - 250, 48, { width: 210, align: "right" });
+  doc.fillOpacity(1);
+  const LIEN_LABEL = {
+    active: "LIEN ACTIVE",
+    released: "LIEN RELEASED",
+    repossessed: "REPOSSESSED",
+  };
+  const stLabel = LIEN_LABEL[v.lien_status] || String(v.lien_status || "").toUpperCase();
+  doc.font(FONT.bold).fontSize(9);
+  const pillW = doc.widthOfString(stLabel) + 24;
+  const pillX = PW - M - pillW;
+  doc.fillOpacity(0.16).roundedRect(pillX, 66, pillW, 22, 11).fill("#ffffff");
+  doc.fillOpacity(1).fillColor("#ffffff").text(stLabel, pillX, 72.5, { width: pillW, align: "center" });
+
+  const top = headH + 36;
+  const gap = 24;
+  const colW = (PW - M * 2 - gap) / 2;
+  const leftX = M;
+  const rightX = M + colW + gap;
+
+  const panel = (x, y, w, h, title) => {
+    doc.roundedRect(x, y, w, h, 12).fill("#FAF6EC");
+    doc.roundedRect(x, y, w, h, 12).lineWidth(0.8).strokeColor("#E2D9C3").stroke();
+    doc
+      .font(FONT.bold)
+      .fontSize(8)
+      .fillColor(typeColor)
+      .text(title, x + 18, y + 16, { characterSpacing: 1.4 });
+  };
+  const fieldRow = (x, y, w, label, value, mono) => {
+    doc.font(FONT.bold).fontSize(7.5).fillColor("#9C9384").text(label, x, y, { characterSpacing: 1 });
+    doc
+      .font(mono ? "Courier" : FONT.bold)
+      .fontSize(mono ? 10.5 : 11.5)
+      .fillColor("#2B2A26")
+      .text(value || "—", x, y + 11, { width: w });
+    return y + 36;
+  };
+
+  const panelH = 290;
+  // LEFT — vehicle
+  panel(leftX, top, colW, panelH, "VEHICLE");
+  let ly = top + 42;
+  const lpad = leftX + 18;
+  const lw = colW - 36;
+  ly = fieldRow(lpad, ly, lw, "MAKE / MODEL / YEAR", vehicleName);
+  ly = fieldRow(lpad, ly, lw, "REGISTRATION NO.", v.registration_number, true);
+  ly = fieldRow(lpad, ly, lw, "LOGBOOK NO.", v.logbook_number, true);
+  ly = fieldRow(lpad, ly, lw, "CHASSIS / ENGINE NO.", [v.chassis_number, v.engine_number].filter(Boolean).join("  /  "), true);
+  ly = fieldRow(lpad, ly, lw, "COLOUR", v.color);
+  const valY = top + panelH - 56;
+  doc.roundedRect(lpad, valY, lw, 42, 8).fill("#E9DFC7");
+  doc.font(FONT.reg).fontSize(9).fillColor("#6f6a5e").text("VEHICLE VALUATION", lpad + 12, valY + 9);
+  doc
+    .font(FONT.display)
+    .fontSize(15)
+    .fillColor("#2B2A26")
+    .text(money(v.valuation), lpad, valY + 8, { width: lw - 12, align: "right" });
+
+  // RIGHT — loan terms
+  panel(rightX, top, colW, panelH, "LOAN SECURED");
+  let ry = top + 42;
+  const rpad = rightX + 18;
+  const rw = colW - 36;
+  const trow = (k, val, color) => {
+    doc.font(FONT.reg).fontSize(10.5).fillColor("#6f6a5e").text(k, rpad, ry);
+    doc
+      .font(FONT.bold)
+      .fontSize(11)
+      .fillColor(color || "#2B2A26")
+      .text(val, rpad, ry, { width: rw, align: "right" });
+    ry += 28;
+  };
+  trow("Borrower", `${loan.first_name || ""} ${loan.last_name || ""}`.trim());
+  trow("Phone", loan.phone_number || "—");
+  trow("Loan amount", money(principal));
+  trow("Total repayable", money(totalDue));
+  trow("Instalment", `${money(monthly)} × ${months}`);
+  trow("Maturity", formatDate(loan.end_date), "#C62A5A");
+  const lienY = top + panelH - 56;
+  doc.roundedRect(rpad, lienY, rw, 42, 8).fill(typeColor);
+  doc.font(FONT.reg).fontSize(9).fillColor("#ffffff").fillOpacity(0.9).text("LOGBOOK", rpad + 12, lienY + 9);
+  doc.fillOpacity(1).font(FONT.display).fontSize(14).fillColor("#ffffff").text(
+    v.logbook_held ? "Held by lender" : "With borrower",
+    rpad,
+    lienY + 9,
+    { width: rw - 12, align: "right" },
+  );
+
+  // Terms
+  const termsY = top + panelH + 26;
+  doc.font(FONT.bold).fontSize(8).fillColor("#9C9384").text("SECURITY TERMS", M, termsY, { characterSpacing: 1.2 });
+  doc
+    .font(FONT.reg)
+    .fontSize(9)
+    .fillColor("#6f6a5e")
+    .text(
+      `The borrower pledges the vehicle described above as security for loan ${loan.loan_code}. ` +
+        `The lender holds a lien over the vehicle's logbook until the loan is repaid in full, ` +
+        `whereupon the lien is released and the logbook returned. The vehicle remains in the ` +
+        `borrower's possession and use. On default the lender may exercise the lien and repossess ` +
+        `the vehicle to recover the outstanding balance.`,
+      M,
+      termsY + 14,
+      { width: PW - M * 2, lineGap: 2 },
+    );
+
+  // Footer — signatures + stamp
+  const footY = PH - 150;
+  doc
+    .moveTo(M, footY)
+    .lineTo(PW - M, footY)
+    .dash(2, { space: 3 })
+    .lineWidth(0.8)
+    .strokeColor("#d2c8af")
+    .stroke()
+    .undash();
+  doc.font(FONT.reg).fontSize(9).fillColor("#6f6a5e");
+  doc.moveTo(M, footY + 70).lineTo(M + 180, footY + 70).lineWidth(0.7).strokeColor("#b8ad92").stroke();
+  doc.text("Borrower signature", M, footY + 76);
+  doc.moveTo(PW - M - 180, footY + 70).lineTo(PW - M, footY + 70).stroke();
+  doc.text("Authorised by (lender)", PW - M - 180, footY + 76, { width: 180, align: "left" });
+
+  drawPdfStamp(doc, {
+    x: (PW - 90) / 2,
+    y: footY + 18,
+    size: 90,
+    tenant: {
+      business_name: loan.business_name,
+      city: loan.tenant_city,
+      country: loan.tenant_country,
+    },
+    date: loan.start_date || new Date(),
+  });
+
+  if (!loan.hide_platform_branding) {
+    doc
+      .font(FONT.reg)
+      .fontSize(7.5)
+      .fillColor("#9C9384")
+      .text("Powered by LenderFest · lenderfest.loans", M, PH - 30, {
+        width: PW - M * 2,
+        align: "center",
+      });
+  }
+
+  doc.end();
+  const buffer = await done;
+  return { buffer, filename };
+};
+
 export default {
   buildClientStatementPdf,
   buildLoanStatementPdf,
@@ -1796,5 +2045,6 @@ export default {
   buildLoanAgreementPdf,
   buildInvoicePdf,
   buildPawnTicketPdf,
+  buildVehicleSecurityPdf,
   NotFoundError,
 };

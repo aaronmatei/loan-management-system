@@ -31,6 +31,7 @@ import overdueRoutes from "./routes/overdue.js";
 import capitalRoutes from "./routes/capital.js";
 import underwritingRoutes from "./routes/underwriting.js";
 import pawnRoutes from "./routes/pawn.js";
+import vehicleSecurityRoutes from "./routes/vehicleSecurity.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
@@ -164,6 +165,7 @@ app.use("/api/overdue", overdueRoutes);
 app.use("/api/capital", capitalRoutes);
 app.use("/api/underwriting", underwritingRoutes);
 app.use("/api/pawn", pawnRoutes);
+app.use("/api/loans", vehicleSecurityRoutes); // logbook vehicle security (dual-mount)
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);

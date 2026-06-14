@@ -32,6 +32,7 @@ import api from "../services/api";
 import PaymentReceipt from "../components/PaymentReceipt";
 import PermissionGate from "../components/PermissionGate";
 import PawnPanel from "../components/PawnPanel";
+import VehicleSecurityPanel from "../components/VehicleSecurityPanel";
 import Spinner from "../components/Spinner";
 
 function LoanDetails() {
@@ -545,6 +546,15 @@ function LoanDetails() {
 
       {loan.loan_type === "pawn" && (
         <PawnPanel
+          loanId={loan.id}
+          loanCode={loan.loan_code}
+          loanStatus={loan.status}
+          onChange={fetchLoanDetails}
+        />
+      )}
+
+      {loan.loan_type === "logbook" && (
+        <VehicleSecurityPanel
           loanId={loan.id}
           loanCode={loan.loan_code}
           loanStatus={loan.status}
