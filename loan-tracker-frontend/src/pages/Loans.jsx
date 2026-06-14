@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Gem,
   Car,
+  Banknote,
 } from "lucide-react";
 import api from "../services/api";
 import PawnLoanModal from "../components/PawnLoanModal";
@@ -112,6 +113,20 @@ function Loans() {
   const [vehicleForm, setVehicleForm] = useState(blankVehicle);
   const setVeh = (k) => (e) =>
     setVehicleForm((v) => ({ ...v, [k]: e.target.value }));
+
+  // Salary advances capture employer + check-off details (same two-step,
+  // separate-state approach as the vehicle block above).
+  const blankSalary = {
+    employer_name: "",
+    employer_contact: "",
+    staff_number: "",
+    net_monthly_pay: "",
+    payday_day: "",
+    max_deduction_percent: 50,
+  };
+  const [salaryForm, setSalaryForm] = useState(blankSalary);
+  const setSal = (k) => (e) =>
+    setSalaryForm((s) => ({ ...s, [k]: e.target.value }));
 
   useEffect(() => {
     fetchLoans();
@@ -365,6 +380,27 @@ function Loans() {
         }
       }
       setVehicleForm(blankVehicle);
+
+      // Salary advances: attach employer / check-off details (same best-effort).
+      if (
+        selectedPackage?.loan_type === "salary" &&
+        salaryForm.employer_name.trim() &&
+        parseFloat(salaryForm.net_monthly_pay) > 0
+      ) {
+        try {
+          await api.post(`/loans/${response.data.data.id}/salary-details`, {
+            ...salaryForm,
+            net_monthly_pay: parseFloat(salaryForm.net_monthly_pay),
+            payday_day: salaryForm.payday_day
+              ? parseInt(salaryForm.payday_day, 10)
+              : null,
+            max_deduction_percent: parseFloat(salaryForm.max_deduction_percent) || 50,
+          });
+        } catch {
+          vehicleNote += " (couldn't save salary details — add them from the loan page)";
+        }
+      }
+      setSalaryForm(blankSalary);
 
       setSuccess(
         `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.${vehicleNote}`,
@@ -1285,6 +1321,64 @@ function Loans() {
                       onChange={setVeh("engine_number")}
                       placeholder="Engine no."
                       className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {selectedPackage?.loan_type === "salary" && (
+                <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-violet-900 mb-1 flex items-center gap-2">
+                    <Banknote size={16} className="text-violet-600" /> Salary Check-off
+                  </h4>
+                  <p className="text-xs text-violet-700 mb-3">
+                    This is a salary advance — record the employer and payslip so the
+                    deduction can be checked for affordability. Editable later from the
+                    loan page.
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <input
+                      value={salaryForm.employer_name}
+                      onChange={setSal("employer_name")}
+                      placeholder="Employer name * (Acme Ltd)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                    />
+                    <input
+                      value={salaryForm.employer_contact}
+                      onChange={setSal("employer_contact")}
+                      placeholder="Employer contact (HR)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                    />
+                    <input
+                      value={salaryForm.staff_number}
+                      onChange={setSal("staff_number")}
+                      placeholder="Staff / payroll no."
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={salaryForm.net_monthly_pay}
+                      onChange={setSal("net_monthly_pay")}
+                      placeholder="Net monthly pay * (KES)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={salaryForm.payday_day}
+                      onChange={setSal("payday_day")}
+                      placeholder="Payday (day of month)"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={salaryForm.max_deduction_percent}
+                      onChange={setSal("max_deduction_percent")}
+                      placeholder="Max deduction %"
+                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>

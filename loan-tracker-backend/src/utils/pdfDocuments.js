@@ -42,6 +42,15 @@ const formatDate = (date) => {
   });
 };
 
+// Ordinal suffix for a day-of-month (1 → "st", 2 → "nd", 11 → "th", 21 → "st").
+const ordinal = (n) => {
+  const v = parseInt(n, 10);
+  if (!v) return "";
+  const s = ["th", "st", "nd", "rd"];
+  const m = v % 100;
+  return s[(m - 20) % 10] || s[m] || s[0];
+};
+
 // Tenant scoping for the primary-record lookups. `tid` is the
 // caller's tenant id (number) or null/undefined for a platform
 // admin, in which case no scope is applied. Mirrors
@@ -2038,6 +2047,180 @@ export const buildVehicleSecurityPdf = async (loanId, tid) => {
   return { buffer, filename };
 };
 
+// ============================================================
+// CHECK-OFF AUTHORIZATION LETTER (salary advances)
+//
+// A formal letter to the borrower's employer authorising a monthly salary
+// deduction (check-off) toward a salary advance. Portrait A4 on the lender's
+// letterhead, with a borrower-consent signature block.
+// ============================================================
+export const buildCheckOffLetterPdf = async (loanId, tid) => {
+  const lt = tClause(tid, 1, "l.tenant_id");
+  const result = await query(
+    `SELECT l.*,
+        c.first_name, c.last_name, c.phone_number, c.id_number, c.client_code,
+        tn.business_name
+      FROM loans l
+      JOIN clients c ON l.client_id = c.id
+      JOIN tenants tn ON l.tenant_id = tn.id
+      WHERE l.id = $1 AND l.loan_type = 'salary'${lt.clause}`,
+    [loanId, ...lt.params],
+  );
+  if (result.rows.length === 0) throw new NotFoundError("Salary advance not found");
+  const loan = result.rows[0];
+
+  const dRes = await query(`SELECT * FROM loan_salary_details WHERE loan_id = $1`, [loanId]);
+  if (dRes.rows.length === 0) {
+    throw new NotFoundError("No salary details on file for this loan");
+  }
+  const d = dRes.rows[0];
+
+  const companyResult = await query(
+    "SELECT * FROM company_settings WHERE tenant_id = $1",
+    [loan.tenant_id],
+  );
+  const company = companyResult.rows[0] || {
+    company_name: loan.business_name || "Your Company",
+    company_address: "",
+    company_phone: "",
+    company_email: "",
+  };
+
+  const months = parseInt(loan.loan_duration_months, 10) || 1;
+  const installment = Math.round((parseFloat(loan.total_amount_due || 0) / months) * 100) / 100;
+  const money = (v) =>
+    "KES " +
+    Number(v || 0).toLocaleString("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  const borrower = `${loan.first_name || ""} ${loan.last_name || ""}`.trim();
+
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
+  registerPdfFonts(doc);
+  const filename = `check_off_letter_${loan.loan_code}.pdf`;
+  const done = streamToBuffer(doc);
+
+  // Letterhead
+  doc
+    .fontSize(20)
+    .fillColor("#0e8a6e")
+    .text((company.company_name || loan.business_name || "").toUpperCase(), { align: "center" });
+  doc.fontSize(10).fillColor("#666");
+  if (company.company_address) doc.text(company.company_address, { align: "center" });
+  const contact = [
+    company.company_phone && `Phone: ${company.company_phone}`,
+    company.company_email && `Email: ${company.company_email}`,
+  ]
+    .filter(Boolean)
+    .join("  |  ");
+  if (contact) doc.text(contact, { align: "center" });
+  doc.moveDown(0.5);
+  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke("#0e8a6e");
+  doc.moveDown();
+
+  doc.fontSize(10).fillColor("#000").text(formatDate(new Date()), { align: "right" });
+  doc.moveDown(0.5);
+
+  // Recipient
+  doc.font(FONT.bold).fontSize(11).text("To: The HR / Payroll Manager");
+  doc.font(FONT.reg).fontSize(10).fillColor("#000");
+  doc.text(d.employer_name);
+  if (d.employer_contact) doc.text(d.employer_contact);
+  doc.moveDown();
+
+  doc
+    .font(FONT.bold)
+    .fontSize(12)
+    .text("RE: SALARY CHECK-OFF AUTHORIZATION", { underline: true });
+  doc.moveDown(0.3);
+  doc.font(FONT.reg).fontSize(11);
+  doc.text(`Employee: ${borrower}`, { continued: false });
+  if (d.staff_number) doc.text(`Staff / Payroll No.: ${d.staff_number}`);
+  if (loan.id_number) doc.text(`ID No.: ${loan.id_number}`);
+  doc.text(`Loan Reference: ${loan.loan_code}`);
+  doc.moveDown();
+
+  doc.fontSize(11).fillColor("#000");
+  doc.text("Dear Sir/Madam,", { paragraphGap: 6 });
+  doc.text(
+    `This is to confirm that the above-named employee has been granted a salary advance of ` +
+      `${money(loan.principal_amount)}, repayable over ${months} month(s). With the employee's ` +
+      `written authorization (below), we kindly request your office to deduct ` +
+      `${money(installment)} per month from their salary and remit it to us until the facility is ` +
+      `fully settled.`,
+    { paragraphGap: 6, align: "justify" },
+  );
+
+  // Repayment summary box
+  doc.moveDown(0.3);
+  const boxY = doc.y;
+  doc.roundedRect(50, boxY, 495, 92, 8).fillAndStroke("#f6fbf9", "#cce8df");
+  doc.fillColor("#0e6b56").font(FONT.bold).fontSize(10).text("REPAYMENT SUMMARY", 66, boxY + 12);
+  doc.font(FONT.reg).fillColor("#1f2937").fontSize(10);
+  const sx1 = 66, sx2 = 320;
+  doc.text(`Total repayable: ${money(loan.total_amount_due)}`, sx1, boxY + 32);
+  doc.text(`Monthly deduction: ${money(installment)}`, sx2, boxY + 32);
+  doc.text(`Number of months: ${months}`, sx1, boxY + 50);
+  doc.text(
+    `First payday on record: ${d.payday_day ? `${d.payday_day}${ordinal(d.payday_day)} of the month` : "—"}`,
+    sx2,
+    boxY + 50,
+  );
+  doc.text(`Remit to: ${company.company_name || loan.business_name || ""}`, sx1, boxY + 68, {
+    width: 463,
+  });
+  doc.y = boxY + 92;
+  doc.moveDown();
+
+  doc.fontSize(11).fillColor("#000");
+  doc.text(
+    "Please treat this deduction as a priority instruction. Kindly notify us immediately if the " +
+      "employee leaves your employment or if their salary is insufficient to cover the deduction in " +
+      "any given month.",
+    { paragraphGap: 6, align: "justify" },
+  );
+  doc.text("Thank you for your cooperation.");
+  doc.moveDown(1.5);
+
+  // Lender signature
+  doc.text("Yours faithfully,");
+  doc.moveDown(1.5);
+  doc.moveTo(50, doc.y).lineTo(240, doc.y).stroke("#666");
+  doc.fontSize(10).fillColor("#374151").text("Authorised Officer", 50, doc.y + 4);
+  doc.text(company.company_name || loan.business_name || "", 50, doc.y + 2);
+  doc.moveDown(2);
+
+  // Borrower consent
+  doc.fillColor("#000").font(FONT.bold).fontSize(11).text("EMPLOYEE AUTHORIZATION");
+  doc.font(FONT.reg).fontSize(10).fillColor("#000");
+  doc.text(
+    `I, ${borrower}, authorise my employer named above to deduct ${money(installment)} from my ` +
+      `monthly salary and remit it to ${company.company_name || loan.business_name || "the lender"} ` +
+      `in repayment of loan ${loan.loan_code}, until it is fully paid.`,
+    { paragraphGap: 6, align: "justify" },
+  );
+  doc.moveDown(2);
+  const sy = doc.y;
+  doc.moveTo(50, sy).lineTo(240, sy).stroke("#666");
+  doc.moveTo(320, sy).lineTo(510, sy).stroke("#666");
+  doc.fontSize(10).fillColor("#374151");
+  doc.text("Employee signature", 50, sy + 4);
+  doc.text("Date", 320, sy + 4);
+
+  drawPdfStamp(doc, {
+    x: 430,
+    y: sy - 110,
+    size: 96,
+    tenant: { business_name: company.company_name || loan.business_name },
+    date: loan.start_date || new Date(),
+  });
+
+  doc.end();
+  const buffer = await done;
+  return { buffer, filename };
+};
+
 export default {
   buildClientStatementPdf,
   buildLoanStatementPdf,
@@ -2046,5 +2229,6 @@ export default {
   buildInvoicePdf,
   buildPawnTicketPdf,
   buildVehicleSecurityPdf,
+  buildCheckOffLetterPdf,
   NotFoundError,
 };

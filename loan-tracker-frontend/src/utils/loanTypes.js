@@ -18,6 +18,12 @@ export const LOAN_TYPES = [
     description: "Secured by a vehicle logbook; the vehicle stays with the borrower.",
   },
   {
+    key: "salary",
+    label: "Salary / Check-off Advance",
+    description:
+      "Advance against salary, repaid by employer check-off (deduction from the payslip).",
+  },
+  {
     key: "group",
     label: "Group / Chama",
     description: "Group-guaranteed loan (joint liability).",

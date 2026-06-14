@@ -3111,3 +3111,29 @@ CREATE TABLE public.loan_vehicle_security (
 );
 CREATE INDEX idx_loan_vehicle_loan   ON public.loan_vehicle_security(loan_id);
 CREATE INDEX idx_loan_vehicle_tenant ON public.loan_vehicle_security(tenant_id, lien_status);
+
+--
+-- Salary check-off details (migration 050) — salary advances.
+--
+
+CREATE TABLE public.loan_salary_details (
+  id                    serial PRIMARY KEY,
+  tenant_id             integer NOT NULL,
+  loan_id               integer NOT NULL REFERENCES public.loans(id) ON DELETE CASCADE,
+  employer_name         varchar(120) NOT NULL,
+  employer_contact      varchar(120),
+  staff_number          varchar(60),
+  net_monthly_pay       numeric NOT NULL,
+  payday_day            integer,
+  max_deduction_percent numeric NOT NULL DEFAULT 50,
+  check_off_status      varchar(20) NOT NULL DEFAULT 'pending',
+  notes                 text,
+  activated_at          timestamp,
+  stopped_at            timestamp,
+  created_by            integer,
+  created_at            timestamp NOT NULL DEFAULT NOW(),
+  updated_at            timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (loan_id)
+);
+CREATE INDEX idx_loan_salary_loan   ON public.loan_salary_details(loan_id);
+CREATE INDEX idx_loan_salary_tenant ON public.loan_salary_details(tenant_id, check_off_status);

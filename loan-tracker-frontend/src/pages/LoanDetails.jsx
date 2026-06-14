@@ -33,6 +33,7 @@ import PaymentReceipt from "../components/PaymentReceipt";
 import PermissionGate from "../components/PermissionGate";
 import PawnPanel from "../components/PawnPanel";
 import VehicleSecurityPanel from "../components/VehicleSecurityPanel";
+import SalaryDetailsPanel from "../components/SalaryDetailsPanel";
 import Spinner from "../components/Spinner";
 
 function LoanDetails() {
@@ -558,6 +559,14 @@ function LoanDetails() {
           loanId={loan.id}
           loanCode={loan.loan_code}
           loanStatus={loan.status}
+          onChange={fetchLoanDetails}
+        />
+      )}
+
+      {loan.loan_type === "salary" && (
+        <SalaryDetailsPanel
+          loanId={loan.id}
+          loanCode={loan.loan_code}
           onChange={fetchLoanDetails}
         />
       )}
