@@ -43,6 +43,7 @@ import PlatformBilling from "./admin/pages/Billing";
 import PlatformInvoiceDetail from "./admin/pages/InvoiceDetail";
 import PlatformCommunicationCosts from "./admin/pages/CommunicationCosts";
 import LandingHome from "./landing/pages/Home";
+import GetStarted from "./landing/pages/GetStarted";
 import DemoStart from "./landing/pages/DemoStart";
 import OnboardingWizard from "./onboarding/OnboardingWizard";
 import WhiteLabelSettings from "./pages/WhiteLabelSettings";
@@ -60,6 +61,8 @@ import Loans from "./pages/Loans";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
 import MemberDetail from "./pages/MemberDetail";
+import Pawns from "./pages/Pawns";
+import PawnbrokerRegister from "./pages/PawnbrokerRegister";
 import LoanDetails from "./pages/LoanDetails";
 import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
@@ -363,6 +366,8 @@ function App() {
                       element={
                         user?.tenant?.kind === "welfare" ? (
                           <Navigate to="/groups" replace />
+                        ) : user?.tenant?.kind === "pawnbroker" ? (
+                          <Navigate to="/pawns" replace />
                         ) : (
                           <Dashboard />
                         )
@@ -378,6 +383,7 @@ function App() {
               />
               <Route path="/loans" element={<Loans />} />
               <Route path="/loans/:id" element={<LoanDetails />} />
+              <Route path="/pawns" element={<Pawns />} />
               <Route path="/groups" element={<Groups />} />
               <Route path="/groups/:id" element={<GroupDetail />} />
               <Route path="/groups/:welfareId/members/:memberId" element={<MemberDetail />} />
@@ -421,6 +427,9 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/welfare/register" element={<WelfareRegister />} />
             <Route path="/welfare/login" element={<Login />} />
+            <Route path="/pawn/register" element={<PawnbrokerRegister />} />
+            <Route path="/pawn/login" element={<Login />} />
+            <Route path="/get-started" element={<GetStarted />} />
             <Route path="/portal/login" element={<CustomerLogin />} />
             <Route path="/portal/register" element={<CustomerRegister />} />
             <Route

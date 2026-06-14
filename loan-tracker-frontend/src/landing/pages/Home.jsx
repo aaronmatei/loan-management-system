@@ -46,13 +46,12 @@ function LandingHome() {
               <a href="#pricing" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Pricing</a>
               <a href="#faq" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">FAQ</a>
               <span className="h-5 w-px bg-slate-200" />
-              <Link to="/portal/login" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Borrower Login</Link>
-              <Link to="/login" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Lender Login</Link>
+              <Link to="/get-started" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Sign in</Link>
               <Link
-                to="/signup"
+                to="/get-started"
                 className="px-4 py-2 bg-ocean-gradient text-white rounded-lg font-bold text-sm shadow-md hover:shadow-lg transition"
               >
-                Start Free Trial
+                Get Started
               </Link>
             </div>
 
@@ -75,13 +74,13 @@ function LandingHome() {
               <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Pricing</a>
               <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">FAQ</a>
               <div className="border-t my-2" />
-              <Link to="/portal/login" className="block px-3 py-2 hover:bg-slate-100 rounded">Borrower Login</Link>
-              <Link to="/login" className="block px-3 py-2 hover:bg-slate-100 rounded">Lender Login</Link>
+              <Link to="/get-started" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Sign in</Link>
               <Link
-                to="/signup"
+                to="/get-started"
+                onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 bg-ocean-gradient text-white rounded-lg font-bold text-center"
               >
-                Start Free Trial →
+                Get Started →
               </Link>
             </div>
           )}
@@ -111,10 +110,10 @@ function LandingHome() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
-                  to="/signup"
+                  to="/get-started"
                   className="px-8 py-4 bg-ocean-gradient text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 text-center"
                 >
-                  Start Free Trial →
+                  Get Started →
                 </Link>
                 <button
                   onClick={() => setShowRequest(true)}

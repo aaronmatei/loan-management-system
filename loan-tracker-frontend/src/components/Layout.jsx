@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Users,
   UsersRound,
+  Gem,
   ClipboardList,
   Wallet,
   CreditCard,
@@ -145,6 +146,32 @@ const WELFARE_GROUPS = [
   },
 ];
 
+// A pawnbroker account (tenant.kind === 'pawnbroker') runs a pawn-only desk:
+// their own clients + pawns, plus reports/account — no general loan workflow.
+const PAWNBROKER_STANDALONE = [
+  { path: "/pawns", label: "Pawns", icon: Gem, variant: "ocean", permission: "loans:view" },
+  { path: "/clients", label: "Clients", icon: Users, variant: "ocean", permission: "clients:view" },
+];
+const PAWNBROKER_GROUPS = [
+  {
+    id: "insights",
+    label: "Insights",
+    variant: "ocean",
+    items: [
+      { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
+    ],
+  },
+  {
+    id: "account",
+    label: "Account",
+    variant: "ocean",
+    items: [
+      { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
+      { path: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
+    ],
+  },
+];
+
 const STORAGE_KEY = "sidebar_expanded_groups";
 
 const itemVisible = (item, role) => {
@@ -220,10 +247,20 @@ function Layout({ children }) {
     return null;
   })();
 
-  // Welfare accounts get a welfare-only menu; everyone else the full lender nav.
-  const isWelfare = user?.tenant?.kind === "welfare";
-  const baseStandalone = isWelfare ? WELFARE_STANDALONE : standaloneItems;
-  const baseGroups = isWelfare ? WELFARE_GROUPS : navGroups;
+  // Welfare / pawnbroker accounts get a focused menu; lenders the full nav.
+  const kind = user?.tenant?.kind;
+  const baseStandalone =
+    kind === "welfare"
+      ? WELFARE_STANDALONE
+      : kind === "pawnbroker"
+        ? PAWNBROKER_STANDALONE
+        : standaloneItems;
+  const baseGroups =
+    kind === "welfare"
+      ? WELFARE_GROUPS
+      : kind === "pawnbroker"
+        ? PAWNBROKER_GROUPS
+        : navGroups;
 
   // Role-filtered: drop items the user can't see, and drop empty
   // groups so their headers don't render at all.
