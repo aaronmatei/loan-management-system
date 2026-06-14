@@ -74,6 +74,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       ltv_percent,
       duration_months,
       principal_amount,
+      monthly_fee_percent, // custom (no package): the pawn fee % per month
       item_category,
       item_description,
       serial_number,
@@ -82,20 +83,26 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       photos,
     } = req.body || {};
 
-    if (!client_id || !package_id || !appraised_value || !item_description) {
+    if (!client_id || !appraised_value || !item_description) {
       return res.status(400).json({
-        error: "Client, pawn package, appraised value and item description are required",
+        error: "Client, appraised value and item description are required",
       });
     }
 
-    const pkgRes = await query(
-      `SELECT * FROM loan_packages WHERE id = $1 AND tenant_id = $2 AND active = true`,
-      [package_id, tid],
-    );
-    const pkg = pkgRes.rows[0];
-    if (!pkg) return res.status(404).json({ error: "Package not found" });
-    if (pkg.loan_type !== "pawn") {
-      return res.status(400).json({ error: "Selected package is not a pawn package" });
+    // A package is optional — a pawn can be created custom (free-form), just
+    // like a normal loan. With a package, its rate + bounds apply; without one,
+    // the caller supplies the monthly fee directly.
+    let pkg = null;
+    if (package_id) {
+      const pkgRes = await query(
+        `SELECT * FROM loan_packages WHERE id = $1 AND tenant_id = $2 AND active = true`,
+        [package_id, tid],
+      );
+      pkg = pkgRes.rows[0];
+      if (!pkg) return res.status(404).json({ error: "Package not found" });
+      if (pkg.loan_type !== "pawn") {
+        return res.status(400).json({ error: "Selected package is not a pawn package" });
+      }
     }
 
     const client = await query(
@@ -119,19 +126,28 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         error: `Loan can't exceed ${ltv}% of appraised value (max KES ${maxLoan.toLocaleString()})`,
       });
     }
-    if (pkg.min_amount && principal < parseFloat(pkg.min_amount)) {
+    if (pkg && pkg.min_amount && principal < parseFloat(pkg.min_amount)) {
       return res.status(400).json({ error: `Below package minimum (KES ${pkg.min_amount})` });
     }
-    if (pkg.max_amount && principal > parseFloat(pkg.max_amount)) {
+    if (pkg && pkg.max_amount && principal > parseFloat(pkg.max_amount)) {
       return res.status(400).json({ error: `Above package maximum (KES ${pkg.max_amount})` });
     }
 
     const months = duration_months
       ? parseInt(duration_months, 10)
-      : pkg.min_duration_months || pkg.max_duration_months || 1;
-    // Pawn fee is flat on principal. annual_interest_rate is stored annual;
-    // the monthly fee rate is annual / 12.
-    const monthlyFeePct = parseFloat(pkg.annual_interest_rate) / 12;
+      : pkg
+        ? pkg.min_duration_months || pkg.max_duration_months || 1
+        : 1;
+    // Pawn fee is flat on principal, charged per month. With a package the rate
+    // comes from its annual_interest_rate (÷12); custom takes monthly_fee_percent.
+    const monthlyFeePct = pkg
+      ? parseFloat(pkg.annual_interest_rate) / 12
+      : monthly_fee_percent != null && monthly_fee_percent !== ""
+        ? parseFloat(monthly_fee_percent)
+        : NaN;
+    if (!(monthlyFeePct >= 0)) {
+      return res.status(400).json({ error: "A monthly fee % is required for a custom pawn" });
+    }
     const fee = round2(principal * (monthlyFeePct / 100) * months);
     const totalDue = round2(principal + fee);
 
@@ -155,7 +171,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
          $11::date,$12::date,$9,NOW(),
          $11::date,'pawn',$4
        ) RETURNING *`,
-      [tid, loanCode, client_id, principal, monthlyFeePct, months, totalDue, fee, req.user.id, package_id, startISO, matISO],
+      [tid, loanCode, client_id, principal, monthlyFeePct, months, totalDue, fee, req.user.id, pkg ? pkg.id : null, startISO, matISO],
     );
     const loan = loanRes.rows[0];
 

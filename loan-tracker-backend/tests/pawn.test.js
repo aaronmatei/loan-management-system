@@ -269,4 +269,49 @@ describe("pawn loans", () => {
       .send({});
     expect(forfeit.status).toBe(403);
   });
+
+  it("creates a custom pawn with NO package (fee set directly)", async () => {
+    const t = await createTenant();
+    await seedPool(t.id);
+    const admin = await createUser(t.id, { role: "admin" });
+    const client = await createClient(t.id);
+
+    const res = await request(app)
+      .post("/api/pawn")
+      .set("Authorization", auth(admin))
+      .send({
+        client_id: client.id, // no package_id
+        appraised_value: 20000,
+        ltv_percent: 60,
+        duration_months: 1,
+        monthly_fee_percent: 10,
+        item_description: "Gold ring",
+      });
+    expect(res.status).toBe(201);
+    const { loan } = res.body.data;
+    expect(loan.package_id).toBeNull();
+    expect(loan.loan_type).toBe("pawn");
+    expect(Number(loan.principal_amount)).toBe(12000); // 60% of 20,000
+    expect(Number(loan.total_interest)).toBe(1200); // 10% × 12,000 × 1mo
+    expect(Number(loan.total_amount_due)).toBe(13200);
+  });
+
+  it("rejects a custom pawn with neither a package nor a fee", async () => {
+    const t = await createTenant();
+    await seedPool(t.id);
+    const admin = await createUser(t.id, { role: "admin" });
+    const client = await createClient(t.id);
+
+    const res = await request(app)
+      .post("/api/pawn")
+      .set("Authorization", auth(admin))
+      .send({
+        client_id: client.id,
+        appraised_value: 20000,
+        ltv_percent: 60,
+        duration_months: 1,
+        item_description: "Gold ring",
+      });
+    expect(res.status).toBe(400);
+  });
 });

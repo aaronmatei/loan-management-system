@@ -738,7 +738,7 @@ function Loans() {
             {showForm ? (
               <span className="inline-flex items-center gap-1"><X size={16}/> Cancel</span>
             ) : (
-              <span className="inline-flex items-center gap-1"><Plus size={16}/> New Application</span>
+              <span className="inline-flex items-center gap-1"><Plus size={16}/> New Loan</span>
             )}
           </button>
         </div>

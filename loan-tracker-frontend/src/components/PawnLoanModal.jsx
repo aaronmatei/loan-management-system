@@ -28,6 +28,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
     ltv_percent: "50",
     principal_amount: "",
     duration_months: "",
+    monthly_fee_percent: "", // used when no package (custom pawn)
   });
 
   useEffect(() => {
@@ -71,7 +72,9 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
     const principal =
       form.principal_amount !== "" ? parseFloat(form.principal_amount) || 0 : maxLoan;
     const months = parseInt(form.duration_months, 10) || 0;
-    const monthlyFeePct = pkg ? parseFloat(pkg.annual_interest_rate) / 12 : 0;
+    const monthlyFeePct = pkg
+      ? parseFloat(pkg.annual_interest_rate) / 12
+      : parseFloat(form.monthly_fee_percent) || 0;
     const fee = Math.round(principal * (monthlyFeePct / 100) * months * 100) / 100;
     const total = Math.round((principal + fee) * 100) / 100;
     return { value, ltv, maxLoan, principal, months, monthlyFeePct, fee, total };
@@ -99,10 +102,12 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
     e.preventDefault();
     setError("");
     if (!form.client_id) return setError("Select a client.");
-    if (!form.package_id) return setError("Select a pawn package.");
     if (!form.item_description.trim())
       return setError("Describe the pledged item.");
     if (!(calc.value > 0)) return setError("Enter the appraised value.");
+    if (!form.package_id && !(parseFloat(form.monthly_fee_percent) >= 0))
+      return setError("Enter a monthly fee % (or pick a package).");
+    if (!(calc.months > 0)) return setError("Enter the term in months.");
     if (!(calc.principal > 0)) return setError("Loan amount must be positive.");
     if (calc.principal > calc.maxLoan)
       return setError(
@@ -112,7 +117,9 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
     try {
       const r = await api.post("/pawn", {
         client_id: form.client_id,
-        package_id: form.package_id,
+        ...(form.package_id
+          ? { package_id: form.package_id }
+          : { monthly_fee_percent: parseFloat(form.monthly_fee_percent) }),
         appraised_value: calc.value,
         ltv_percent: calc.ltv,
         duration_months: calc.months,
@@ -164,9 +171,8 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
           {!loadingPkgs && packages.length === 0 && (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
               <Package size={16} className="flex-shrink-0" />
-              No pawn packages yet. Create a package with loan type{" "}
-              <strong>Pawn / Collateral</strong> under Settings → Loan Packages
-              first.
+              No pawn packages yet — you can still create a custom pawn below by
+              setting the monthly fee directly.
             </div>
           )}
 
@@ -243,27 +249,45 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
             )}
           </div>
 
-          {/* Package */}
-          <div>
-            <label className={lbl}>Pawn Package *</label>
-            <select
-              value={form.package_id}
-              onChange={set("package_id")}
-              className={fld}
-              disabled={packages.length === 0}
-            >
-              <option value="">Select pawn package…</option>
-              {packages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — {parseFloat(p.annual_interest_rate)}% p.a.
-                </option>
-              ))}
-            </select>
-            {pkg && (
-              <p className="text-xs text-gray-500 mt-1">
-                Flat fee ≈ {(parseFloat(pkg.annual_interest_rate) / 12).toFixed(2)}
-                % of principal per month.
-              </p>
+          {/* Package (optional — leave as Custom to set the fee directly) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Pawn Package</label>
+              <select
+                value={form.package_id}
+                onChange={set("package_id")}
+                className={fld}
+              >
+                <option value="">Custom — no package</option>
+                {packages.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {parseFloat(p.annual_interest_rate)}% p.a.
+                  </option>
+                ))}
+              </select>
+              {pkg && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Flat fee ≈ {(parseFloat(pkg.annual_interest_rate) / 12).toFixed(2)}
+                  % of principal per month.
+                </p>
+              )}
+            </div>
+            {!form.package_id && (
+              <div>
+                <label className={lbl}>Monthly fee % *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.monthly_fee_percent}
+                  onChange={set("monthly_fee_percent")}
+                  placeholder="e.g. 10"
+                  className={fld}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Fee charged per month on the amount advanced.
+                </p>
+              </div>
             )}
           </div>
 
@@ -374,7 +398,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
           </div>
 
           {/* Summary */}
-          {pkg && calc.principal > 0 && (
+          {calc.monthlyFeePct > 0 && calc.principal > 0 && calc.months > 0 && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Loan amount (advanced)</span>
@@ -407,7 +431,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
             </button>
             <button
               type="submit"
-              disabled={submitting || packages.length === 0}
+              disabled={submitting}
               className="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50"
             >
               {submitting ? "Creating…" : "Create Pawn Loan"}
