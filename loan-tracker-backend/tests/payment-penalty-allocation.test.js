@@ -13,8 +13,9 @@ const auth = (u) => `Bearer ${tokenFor(u)}`;
 afterAll(closePool);
 
 // Set up an active loan with one overdue installment that has accrued
-// penalty (40 days late, balance 1,000 → 500 flat fee + 5%×1,000×2mo = 100
-// → penalty_total 600). Returns ids.
+// penalty (40 days late, balance 1,000, prorated over a 30-day month:
+// fee 500×40/30 = 666.67 + 5%×1,000×40/30 = 66.67 → penalty_total 733.33).
+// Returns ids.
 async function seedLoanWithOverdue() {
   const t = await createTenant();
   const admin = await createUser(t.id, { role: "admin" });
@@ -54,7 +55,7 @@ describe("payment penalty allocation", () => {
   it("applies a payment to outstanding penalty first, then to amount_due", async () => {
     const { tenant, admin, loan } = await seedLoanWithOverdue();
 
-    // Pay 800: should cover all 600 of penalty, leave 200 for amount_due.
+    // Pay 800: covers all 733.33 of penalty, leaves 66.67 for amount_due.
     const res = await request(app)
       .post("/api/payments")
       .set("Authorization", auth(admin))
@@ -73,7 +74,7 @@ describe("payment penalty allocation", () => {
       )
     ).rows[0];
     expect(Number(tx.amount_paid)).toBe(800);
-    expect(Number(tx.penalty_portion)).toBe(600);
+    expect(Number(tx.penalty_portion)).toBeCloseTo(733.33, 2);
 
     const sched = (
       await query(
@@ -81,8 +82,8 @@ describe("payment penalty allocation", () => {
         [loan.id],
       )
     ).rows[0];
-    expect(Number(sched.penalty_paid)).toBe(600);
-    expect(Number(sched.amount_paid)).toBe(200); // remainder hit amount_due
+    expect(Number(sched.penalty_paid)).toBeCloseTo(733.33, 2);
+    expect(Number(sched.amount_paid)).toBeCloseTo(66.67, 2); // remainder hit amount_due
 
     // Capital pool: penalty + zero-interest principal portion.
     const pool = (
@@ -92,9 +93,9 @@ describe("payment penalty allocation", () => {
         [tenant.id],
       )
     ).rows[0];
-    expect(Number(pool.total_collected)).toBeCloseTo(200, 2); // principal recovery only
-    // Interest portion is 0 (loan has no interest); penalty 600 is income.
-    expect(Number(pool.total_interest_earned)).toBeCloseTo(600, 2);
+    expect(Number(pool.total_collected)).toBeCloseTo(66.67, 2); // principal recovery only
+    // Interest portion is 0 (loan has no interest); penalty 733.33 is income.
+    expect(Number(pool.total_interest_earned)).toBeCloseTo(733.33, 2);
   });
 
   it("doesn't fake-complete the loan when only penalty is paid", async () => {

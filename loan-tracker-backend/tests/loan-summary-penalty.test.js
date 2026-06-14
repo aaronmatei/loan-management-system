@@ -18,7 +18,7 @@ describe("GET /api/payments/loan/:loanId/summary — schedule penalties", () => 
     const client = await createClient(t.id);
     const loan = await createLoan(t.id, client.id, { status: "active" }); // 500 + 5%
 
-    // #1 overdue 40 days, balance 1000 → penalty 600
+    // #1 overdue 40 days, balance 1000 → penalty 733.33 (40/30 month prorated)
     await query(
       `INSERT INTO payment_schedules (tenant_id, loan_id, payment_number, due_date, amount_due, amount_paid, status)
        VALUES ($1,$2,1, CURRENT_DATE - 40, 1000, 0, 'overdue')`,
@@ -45,10 +45,10 @@ describe("GET /api/payments/loan/:loanId/summary — schedule penalties", () => 
     const sched = res.body.data.schedule;
     const byNum = Object.fromEntries(sched.map((s) => [s.payment_number, s]));
 
-    expect(Number(byNum[1].late_fee)).toBe(500);
-    expect(byNum[1].months_late).toBe(2);
-    expect(Number(byNum[1].penalty_interest)).toBe(100);
-    expect(Number(byNum[1].penalty_total)).toBe(600);
+    expect(Number(byNum[1].late_fee)).toBe(666.67);
+    expect(byNum[1].months_late).toBe(1.33);
+    expect(Number(byNum[1].penalty_interest)).toBe(66.67);
+    expect(Number(byNum[1].penalty_total)).toBe(733.33);
 
     expect(Number(byNum[2].penalty_total)).toBe(0); // paid
     expect(Number(byNum[3].penalty_total)).toBe(0); // future
