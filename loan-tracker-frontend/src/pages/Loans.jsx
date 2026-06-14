@@ -133,6 +133,25 @@ function Loans() {
   // (selected client) must be an active member — the backend enforces this.
   const [groups, setGroups] = useState([]);
   const [groupId, setGroupId] = useState("");
+  // Open lending cycles for the chosen group (optional on a group loan).
+  const [groupCycles, setGroupCycles] = useState([]);
+  const [cycleId, setCycleId] = useState("");
+
+  useEffect(() => {
+    if (!groupId) {
+      setGroupCycles([]);
+      setCycleId("");
+      return;
+    }
+    (async () => {
+      try {
+        const r = await api.get(`/groups/${groupId}/cycles`);
+        setGroupCycles((r.data.data || []).filter((c) => c.status === "open"));
+      } catch {
+        setGroupCycles([]);
+      }
+    })();
+  }, [groupId]);
 
   useEffect(() => {
     fetchLoans();
@@ -374,7 +393,7 @@ function Loans() {
           ? parseFloat(formData.penalty_rate) || 0
           : 0,
         ...(selectedPackage?.loan_type === "group" && groupId
-          ? { group_id: groupId }
+          ? { group_id: groupId, ...(cycleId ? { cycle_id: cycleId } : {}) }
           : {}),
       };
       const response = await api.post("/loans", submitData);
@@ -421,6 +440,7 @@ function Loans() {
       }
       setSalaryForm(blankSalary);
       setGroupId("");
+      setCycleId("");
 
       setSuccess(
         `Application ${response.data.data.loan_code} submitted! A manager will review it shortly.${vehicleNote}`,
@@ -1429,6 +1449,20 @@ function Loans() {
                     <p className="text-xs text-amber-700 mt-2">
                       No active groups yet. Create one under Groups / Chama first.
                     </p>
+                  )}
+                  {groupId && groupCycles.length > 0 && (
+                    <select
+                      value={cycleId}
+                      onChange={(e) => setCycleId(e.target.value)}
+                      className="w-full mt-2 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    >
+                      <option value="">No lending cycle</option>
+                      {groupCycles.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name || `Cycle ${c.cycle_number}`}
+                        </option>
+                      ))}
+                    </select>
                   )}
                 </div>
               )}

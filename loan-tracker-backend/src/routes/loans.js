@@ -261,6 +261,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       package_id: bodyPackageId,
       interest_method: bodyInterestMethod,
       group_id: bodyGroupId,
+      cycle_id: bodyCycleId,
     } = req.body;
 
     // Package-or-free-form. If a package is supplied, its mechanics
@@ -307,6 +308,19 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         });
       }
       groupIdToStore = bodyGroupId;
+    }
+
+    // Optional lending cycle/round — must be a cycle of the same group.
+    let cycleIdToStore = null;
+    if (bodyCycleId && groupIdToStore) {
+      const cy = await query(
+        `SELECT id FROM group_cycles WHERE id = $1 AND group_id = $2`,
+        [bodyCycleId, groupIdToStore],
+      );
+      if (cy.rows.length === 0) {
+        return res.status(400).json({ error: "Cycle not found for this group" });
+      }
+      cycleIdToStore = bodyCycleId;
     }
 
     // Effective inputs: package overrides body for the locked fields;
@@ -537,9 +551,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         collateral_description, late_payment_fee, penalty_rate,
         processing_fee_rate, processing_fee, net_disbursed_amount,
         application_date, application_source, review_notes,
-        package_id, interest_method, loan_type, group_id
+        package_id, interest_method, loan_type, group_id, cycle_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, $15, $16,
-                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21, $23, $24, $25, $26)
+                $17, $18, $19, COALESCE($22::date, CURRENT_DATE), $20, $21, $23, $24, $25, $26, $27)
       RETURNING *`,
       [
         wTid,
@@ -573,6 +587,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         interestMethod,
         resolveLoanType(pkg?.loan_type),
         groupIdToStore,
+        cycleIdToStore,
       ],
     );
 

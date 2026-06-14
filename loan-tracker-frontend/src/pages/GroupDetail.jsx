@@ -15,6 +15,8 @@ import {
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 import GroupSavingsPanel from "../components/GroupSavingsPanel";
+import GroupMeetingsPanel from "../components/GroupMeetingsPanel";
+import GroupCyclesPanel from "../components/GroupCyclesPanel";
 import Spinner from "../components/Spinner";
 
 const ROLE_LABEL = {
@@ -187,6 +189,12 @@ export default function GroupDetail() {
 
       {/* Savings + joint-liability coverage */}
       <GroupSavingsPanel groupId={id} members={members} loans={loans} onChange={load} />
+
+      {/* Lending cycles / rounds */}
+      <GroupCyclesPanel groupId={id} onChange={load} />
+
+      {/* Meetings + attendance */}
+      <GroupMeetingsPanel groupId={id} />
 
       {/* Members */}
       <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">

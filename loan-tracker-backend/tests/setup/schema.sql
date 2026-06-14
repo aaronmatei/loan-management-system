@@ -757,7 +757,8 @@ CREATE TABLE public.loans (
     interest_method character varying(20) NOT NULL DEFAULT 'flat'
         CHECK (interest_method IN ('flat', 'reducing')),
     loan_type character varying(20) NOT NULL DEFAULT 'personal',  -- migration 047
-    group_id integer  -- migration 051 (group / chama member loans)
+    group_id integer,  -- migration 051 (group / chama member loans)
+    cycle_id integer  -- migration 054 (group lending cycle/round)
 );
 
 
@@ -3196,3 +3197,57 @@ CREATE TABLE public.group_savings_transactions (
 );
 CREATE INDEX idx_group_savings_group  ON public.group_savings_transactions(group_id, id);
 CREATE INDEX idx_group_savings_client ON public.group_savings_transactions(client_id);
+
+--
+-- Group meetings + attendance (migration 053).
+--
+
+CREATE TABLE public.group_meetings (
+  id           serial PRIMARY KEY,
+  tenant_id    integer NOT NULL,
+  group_id     integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  meeting_date date NOT NULL,
+  location     varchar(120),
+  agenda       text,
+  notes        text,
+  status       varchar(20) NOT NULL DEFAULT 'scheduled',
+  created_by   integer,
+  created_at   timestamp NOT NULL DEFAULT NOW(),
+  updated_at   timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.group_meeting_attendance (
+  id          serial PRIMARY KEY,
+  tenant_id   integer NOT NULL,
+  meeting_id  integer NOT NULL REFERENCES public.group_meetings(id) ON DELETE CASCADE,
+  client_id   integer NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  status      varchar(20) NOT NULL DEFAULT 'present',
+  created_at  timestamp NOT NULL DEFAULT NOW(),
+  updated_at  timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (meeting_id, client_id)
+);
+CREATE INDEX idx_group_meetings_group ON public.group_meetings(group_id, meeting_date);
+CREATE INDEX idx_meeting_attendance_meeting ON public.group_meeting_attendance(meeting_id);
+CREATE INDEX idx_meeting_attendance_client ON public.group_meeting_attendance(client_id);
+
+--
+-- Group lending cycles / rounds (migration 054).
+--
+
+CREATE TABLE public.group_cycles (
+  id           serial PRIMARY KEY,
+  tenant_id    integer NOT NULL,
+  group_id     integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  cycle_number integer NOT NULL,
+  name         varchar(80),
+  start_date   date,
+  end_date     date,
+  status       varchar(20) NOT NULL DEFAULT 'open',
+  notes        text,
+  created_by   integer,
+  created_at   timestamp NOT NULL DEFAULT NOW(),
+  updated_at   timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (group_id, cycle_number)
+);
+CREATE INDEX idx_group_cycles_group ON public.group_cycles(group_id, status);
+CREATE INDEX idx_loans_cycle ON public.loans(cycle_id);
