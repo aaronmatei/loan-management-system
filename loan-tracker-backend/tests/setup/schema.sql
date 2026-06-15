@@ -248,7 +248,10 @@ CREATE TABLE public.clients (
     branch_id integer,
     client_type character varying(20) NOT NULL DEFAULT 'individual'
         CHECK (client_type IN ('individual', 'group', 'business')),
-    credit_score integer
+    credit_score integer,
+    registration_no character varying(50),
+    meeting_frequency character varying(20),
+    member_count integer
 );
 
 CREATE TABLE public.loan_packages (

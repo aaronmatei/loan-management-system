@@ -715,7 +715,7 @@ function ClientProfile() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    First Name *
+                    {(editFormData.client_type || "individual") === "individual" ? "First Name *" : "Contact First Name *"}
                   </label>
                   <input
                     type="text"
@@ -732,7 +732,7 @@ function ClientProfile() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Last Name *
+                    {(editFormData.client_type || "individual") === "individual" ? "Last Name *" : "Contact Last Name *"}
                   </label>
                   <input
                     type="text"
@@ -826,7 +826,7 @@ function ClientProfile() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Business Name
+                    {editFormData.client_type === "group" ? "Group Name" : "Business Name"}
                   </label>
                   <input
                     type="text"
@@ -842,7 +842,7 @@ function ClientProfile() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Business Type
+                    {editFormData.client_type === "group" ? "Group Activity" : "Business Type"}
                   </label>
                   <select
                     value={editFormData.business_type || ""}
@@ -864,49 +864,95 @@ function ClientProfile() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Date of Birth
-                  </label>
-                  <input
-                    type="date"
-                    value={
-                      editFormData.date_of_birth
-                        ? String(editFormData.date_of_birth).split("T")[0]
-                        : ""
-                    }
-                    max={new Date().toISOString().split("T")[0]}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        date_of_birth: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                  />
+              {/* Group/business extras — mirrors the create form. */}
+              {(editFormData.client_type === "group" || editFormData.client_type === "business") && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Registration No.</label>
+                    <input
+                      type="text"
+                      value={editFormData.registration_no || ""}
+                      onChange={(e) => setEditFormData({ ...editFormData, registration_no: e.target.value })}
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    />
+                  </div>
+                  {editFormData.client_type === "group" && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Meeting Frequency</label>
+                      <select
+                        value={editFormData.meeting_frequency || ""}
+                        onChange={(e) => setEditFormData({ ...editFormData, meeting_frequency: e.target.value })}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                      >
+                        <option value="">-- Select --</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                      </select>
+                    </div>
+                  )}
+                  {editFormData.client_type === "group" && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Number of Members</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editFormData.member_count ?? ""}
+                        onChange={(e) => setEditFormData({ ...editFormData, member_count: e.target.value })}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Gender
-                  </label>
-                  <select
-                    value={editFormData.gender || ""}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        gender: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
-                  >
-                    <option value="">-- Select --</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
+              )}
+
+              {/* DOB + Gender are person attributes — individuals only. */}
+              {(editFormData.client_type || "individual") === "individual" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      value={
+                        editFormData.date_of_birth
+                          ? String(editFormData.date_of_birth).split("T")[0]
+                          : ""
+                      }
+                      max={new Date().toISOString().split("T")[0]}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          date_of_birth: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Gender
+                    </label>
+                    <select
+                      value={editFormData.gender || ""}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          gender: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

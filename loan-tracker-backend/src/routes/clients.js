@@ -523,6 +523,20 @@ router.post(
       .optional({ checkFalsy: true })
       .isIn(["individual", "group", "business"])
       .withMessage("must be one of individual, group, business"),
+    body("registration_no")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("meeting_frequency")
+      .optional({ checkFalsy: true })
+      .isIn(["weekly", "biweekly", "monthly", "quarterly"])
+      .withMessage("must be weekly, biweekly, monthly, or quarterly"),
+    body("member_count")
+      .optional({ checkFalsy: true })
+      .isInt({ min: 0 })
+      .withMessage("must be a whole number")
+      .toInt(),
   ),
   async (req, res) => {
   try {
@@ -541,6 +555,9 @@ router.post(
       gender,
       branch_id,
       client_type: rawClientType,
+      registration_no,
+      meeting_frequency,
+      member_count,
     } = req.body;
 
     // client_type is an enum; default to 'individual' if absent, reject
@@ -627,8 +644,9 @@ router.post(
       `INSERT INTO clients (
         tenant_id, client_code, first_name, last_name, phone_number, email,
         id_number, business_name, business_type, address, city, county,
-        date_of_birth, gender, branch_id, client_type, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'active')
+        date_of_birth, gender, branch_id, client_type,
+        registration_no, meeting_frequency, member_count, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'active')
       RETURNING *`,
       [
         tid,
@@ -647,6 +665,9 @@ router.post(
         gender || null,
         branchId,
         client_type,
+        registration_no || null,
+        meeting_frequency || null,
+        member_count != null && member_count !== "" ? member_count : null,
       ],
     );
 
@@ -822,6 +843,20 @@ router.put(
       .optional({ checkFalsy: true })
       .isIn(["individual", "group", "business"])
       .withMessage("must be one of individual, group, business"),
+    body("registration_no")
+      .optional({ checkFalsy: true })
+      .isString()
+      .trim()
+      .isLength({ max: 50 }),
+    body("meeting_frequency")
+      .optional({ checkFalsy: true })
+      .isIn(["weekly", "biweekly", "monthly", "quarterly"])
+      .withMessage("must be weekly, biweekly, monthly, or quarterly"),
+    body("member_count")
+      .optional({ checkFalsy: true })
+      .isInt({ min: 0 })
+      .withMessage("must be a whole number")
+      .toInt(),
   ),
   async (req, res) => {
   try {
@@ -842,6 +877,9 @@ router.put(
       status,
       branch_id,
       client_type: rawClientType,
+      registration_no,
+      meeting_frequency,
+      member_count,
     } = req.body;
 
     // Same allow-list as POST. Undefined means "leave alone" (we use
@@ -962,8 +1000,11 @@ router.put(
         status = COALESCE($13, status),
         branch_id = COALESCE($14, branch_id),
         client_type = COALESCE($15, client_type),
+        registration_no = $16,
+        meeting_frequency = $17,
+        member_count = $18,
         updated_at = NOW()
-      WHERE id = $16 AND tenant_id = $17
+      WHERE id = $19 AND tenant_id = $20
       RETURNING *`,
       [
         first_name,
@@ -981,6 +1022,9 @@ router.put(
         status || null,
         resolvedBranchId,
         client_type,
+        registration_no || null,
+        meeting_frequency || null,
+        member_count != null && member_count !== "" ? member_count : null,
         id,
         ctid,
       ],

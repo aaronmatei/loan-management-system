@@ -69,7 +69,6 @@ const navGroups = [
     items: [
       { path: "/applications", label: "Applications", icon: ClipboardList, permission: "loans:view" },
       { path: "/loans", label: "Loans", icon: Wallet, permission: "loans:view" },
-      { path: "/groups", label: "Groups", icon: UsersRound, permission: "loans:view" },
       { path: "/payments", label: "Payments", icon: CreditCard, permission: "payments:view" },
       // badgeKey lets renderItem read the live count (overdueCount) without
       // baking a number into the static config.

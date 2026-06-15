@@ -54,8 +54,15 @@ function Clients() {
     date_of_birth: "",
     gender: "",
     branch_id: "",
+    registration_no: "",
+    meeting_frequency: "",
+    member_count: "",
   });
   const [branches, setBranches] = useState([]);
+  // A group/business isn't a person, so the form adapts: name fields become a
+  // contact person and individual-only fields (gender, DOB) are hidden.
+  const isIndividual = formData.client_type === "individual";
+  const isGroup = formData.client_type === "group";
 
   useEffect(() => {
     fetchClients();
@@ -120,6 +127,9 @@ function Clients() {
         date_of_birth: "",
         gender: "",
         branch_id: "",
+        registration_no: "",
+        meeting_frequency: "",
+        member_count: "",
       });
       setShowForm(false);
       fetchClients();
@@ -305,7 +315,18 @@ function Clients() {
                       key={t.value}
                       type="button"
                       onClick={() =>
-                        setFormData({ ...formData, client_type: t.value })
+                        setFormData({
+                          ...formData,
+                          client_type: t.value,
+                          // Drop fields that don't apply to the new type so
+                          // stale values aren't submitted.
+                          ...(t.value === "individual"
+                            ? { business_name: "", business_type: "", registration_no: "", meeting_frequency: "", member_count: "" }
+                            : { gender: "", date_of_birth: "" }),
+                          ...(t.value === "business"
+                            ? { meeting_frequency: "", member_count: "" }
+                            : {}),
+                        })
                       }
                       className={`text-left p-3 rounded-lg border-2 transition ${
                         selected
@@ -329,7 +350,7 @@ function Clients() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  First Name *
+                  {isIndividual ? "First Name *" : "Contact First Name *"}
                 </label>
                 <input
                   name="first_name"
@@ -342,7 +363,7 @@ function Clients() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Last Name *
+                  {isIndividual ? "Last Name *" : "Contact Last Name *"}
                 </label>
                 <input
                   name="last_name"
@@ -387,7 +408,7 @@ function Clients() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  ID Number
+                  {isIndividual ? "ID Number" : "Contact ID Number"}
                 </label>
                 <input
                   name="id_number"
@@ -397,22 +418,25 @@ function Clients() {
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Gender
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
-                >
-                  <option value="">-- Select --</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
+              {/* Gender is a person attribute — only for individual clients. */}
+              {isIndividual && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Business / Group block — hidden for individual clients. */}
@@ -454,26 +478,80 @@ function Clients() {
                     ))}
                   </select>
                 </div>
+
+                {/* Registration number — relevant to both groups and businesses. */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Registration No.
+                  </label>
+                  <input
+                    name="registration_no"
+                    value={formData.registration_no}
+                    onChange={handleInputChange}
+                    placeholder={isGroup ? "e.g. SG/12345" : "e.g. PVT-2024-001"}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Group-only: how often they meet and how many members. */}
+                {isGroup && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Meeting Frequency
+                      </label>
+                      <select
+                        name="meeting_frequency"
+                        value={formData.meeting_frequency}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                      >
+                        <option value="">-- Select --</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Number of Members
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="member_count"
+                        value={formData.member_count}
+                        onChange={handleInputChange}
+                        placeholder="12"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Date of Birth
-                </label>
-                <input
-                  type="date"
-                  name="date_of_birth"
-                  value={formData.date_of_birth}
-                  onChange={handleInputChange}
-                  max={new Date().toISOString().split("T")[0]}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Optional — powers borrower-age analytics
-                </p>
-              </div>
+              {/* Date of birth is a person attribute — only for individuals. */}
+              {isIndividual && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    name="date_of_birth"
+                    value={formData.date_of_birth}
+                    onChange={handleInputChange}
+                    max={new Date().toISOString().split("T")[0]}
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Optional — powers borrower-age analytics
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Branch
