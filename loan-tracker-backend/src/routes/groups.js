@@ -38,7 +38,7 @@ const PAID_SUBQUERY = `
 // GET /api/groups — list with member + loan rollup.
 router.get("/", async (req, res) => {
   try {
-    const tc = tenantClause(req, 1, "g.tenant_id");
+    const tc = tenantClause(req, 0, "g.tenant_id"); // tenant param is $1 (no preceding params)
     const search = (req.query.search || "").trim();
     const params = [...tc.params];
     let searchClause = "";

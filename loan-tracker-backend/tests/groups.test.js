@@ -63,6 +63,23 @@ describe("group / chama lending", () => {
     expect(g.status).toBe("active");
   });
 
+  // Regression: the list query is tenant-scoped with the tenant value as $1
+  // (no preceding params). A wrong paramOffset made it $2 and 500'd the list.
+  it("lists the tenant's groups for a regular (non-platform) admin", async () => {
+    const t = await createTenant();
+    const admin = await createUser(t.id, { role: "admin" });
+    const g = await makeGroup(admin);
+
+    const list = await request(app).get("/api/groups").set("Authorization", auth(admin));
+    expect(list.status).toBe(200);
+    expect(list.body.data.some((row) => row.id === g.id)).toBe(true);
+
+    // Search path uses the next param slot — must also work.
+    const search = await request(app).get("/api/groups?search=Umoja").set("Authorization", auth(admin));
+    expect(search.status).toBe(200);
+    expect(search.body.data.some((row) => row.id === g.id)).toBe(true);
+  });
+
   it("enrols members and rejects duplicates", async () => {
     const t = await createTenant();
     const admin = await createUser(t.id, { role: "admin" });
