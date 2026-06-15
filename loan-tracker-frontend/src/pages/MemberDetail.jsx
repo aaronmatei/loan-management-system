@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { PiggyBank, Plus, Minus, X, AlertTriangle } from "lucide-react";
+import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 import MemberLoansPanel from "../components/MemberLoansPanel";
@@ -25,8 +25,23 @@ export default function MemberDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
+  const [exiting, setExiting] = useState(false);
 
   const base = `/welfares/${welfareId}/members`;
+
+  const exitMember = async () => {
+    if (!confirm("Close this membership? Their full savings will be paid out and they'll be deactivated. Outstanding loans/penalties must be cleared first.")) return;
+    setExiting(true);
+    try {
+      const r = await api.post(`${base}/${memberId}/exit`, {});
+      alert(`Member exited. Paid out KES ${Number(r.data.payout || 0).toLocaleString()}.`);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to process exit");
+    } finally {
+      setExiting(false);
+    }
+  };
 
   const load = async () => {
     try {
@@ -82,14 +97,21 @@ export default function MemberDetail() {
         </div>
       </div>
 
-      <PermissionGate role={["admin", "manager", "loan_officer"]}>
-        <div className="flex flex-wrap gap-2 mb-6">
-          <button onClick={() => setModal("contribution")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus size={16} /> Contribution</button>
-          <PermissionGate role={["admin", "manager"]}>
-            <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
-          </PermissionGate>
+      {member.status === "inactive" ? (
+        <div className="bg-slate-100 border border-slate-200 text-slate-600 px-4 py-3 rounded-lg mb-6 text-sm flex items-center gap-2">
+          <LogOut size={15} /> This member has exited the welfare. Their account is read-only.
         </div>
-      </PermissionGate>
+      ) : (
+        <PermissionGate role={["admin", "manager", "loan_officer"]}>
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button onClick={() => setModal("contribution")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus size={16} /> Contribution</button>
+            <PermissionGate role={["admin", "manager"]}>
+              <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
+              <button onClick={exitMember} disabled={exiting} className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 ml-auto"><LogOut size={16} /> {exiting ? "Processing…" : "Exit member"}</button>
+            </PermissionGate>
+          </div>
+        </PermissionGate>
+      )}
 
       <MemberLoansPanel welfareId={welfareId} memberId={memberId} poolBalance={poolBalance} onChange={load} />
 

@@ -12,6 +12,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
+import { notifyWithdrawal } from "../services/welfareSmsService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -277,10 +278,65 @@ router.post("/:id/withdrawals", authorize("admin", "manager"), async (req, res) 
       entityId: member.id, entityCode: member.member_no,
       description: `Withdrawal KES ${amt} to ${member.first_name} ${member.last_name}`, req,
     });
-    res.status(201).json({ success: true, data: row, pool_balance: Number(row.balance_after), savings_balance: await memberSavings(member.id) });
+    const savingsAfter = await memberSavings(member.id);
+    notifyWithdrawal({ welfare: req.welfare, member, amount: amt, savings: savingsAfter, sentBy: req.user.id });
+    res.status(201).json({ success: true, data: row, pool_balance: Number(row.balance_after), savings_balance: savingsAfter });
   } catch (e) {
     logger.error("member withdrawal error:", e);
     res.status(500).json({ error: "Failed to record withdrawal" });
+  }
+});
+
+// POST /:id/exit — close a membership: settle-check, pay out net savings, deactivate.
+// Outstanding loans and unpaid penalties must be cleared first (via their own
+// endpoints) so the books stay clean.
+router.post("/:id/exit", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const member = await loadMember(req.welfare.id, req.params.id);
+    if (!member) return res.status(404).json({ error: "Member not found" });
+    if (member.status === "inactive") return res.status(400).json({ error: "Member has already exited" });
+
+    // Blockers: an outstanding loan or unpaid penalties.
+    const loanOut = await query(
+      `SELECT COALESCE(SUM(total_amount_due - amount_paid),0) AS bal
+         FROM member_loans WHERE member_id = $1 AND status IN ('active','defaulted')`,
+      [member.id],
+    );
+    if (parseFloat(loanOut.rows[0].bal) > 0) {
+      return res.status(400).json({ error: `Member still owes KES ${parseFloat(loanOut.rows[0].bal).toLocaleString()} on a loan. Clear it before exit.` });
+    }
+    const penOut = await query(
+      `SELECT COALESCE(SUM(amount - paid_amount),0) AS bal
+         FROM penalty_assessments WHERE member_id = $1 AND status = 'outstanding'`,
+      [member.id],
+    );
+    if (parseFloat(penOut.rows[0].bal) > 0) {
+      return res.status(400).json({ error: `Member has KES ${parseFloat(penOut.rows[0].bal).toLocaleString()} in unpaid penalties. Settle or waive them before exit.` });
+    }
+
+    const savings = await memberSavings(member.id);
+    let row = null;
+    if (savings > 0) {
+      const pool = await poolBalance(req.welfare.id);
+      if (savings > pool) {
+        return res.status(400).json({ error: `Pool only holds KES ${pool.toLocaleString()} — can't pay out KES ${savings.toLocaleString()}.` });
+      }
+      row = await postPool({
+        welfare: req.welfare, memberId: member.id, type: "withdrawal",
+        amount: savings, direction: -1, description: "Exit payout (full savings)", userId: req.user.id,
+      });
+    }
+    const upd = await query(`UPDATE members SET status='inactive', updated_at=NOW() WHERE id=$1 RETURNING *`, [member.id]);
+    await logAudit({
+      user: req.user, action: "member_exit", entityType: "member",
+      entityId: member.id, entityCode: member.member_no,
+      description: `Member ${member.first_name} ${member.last_name} exited welfare "${req.welfare.name}"; paid out KES ${savings}`, req,
+    });
+    notifyWithdrawal({ welfare: req.welfare, member, amount: savings, exited: true, sentBy: req.user.id });
+    res.json({ success: true, data: upd.rows[0], payout: round2(savings), pool_balance: row ? Number(row.balance_after) : await poolBalance(req.welfare.id) });
+  } catch (e) {
+    logger.error("member exit error:", e);
+    res.status(500).json({ error: "Failed to process exit" });
   }
 });
 

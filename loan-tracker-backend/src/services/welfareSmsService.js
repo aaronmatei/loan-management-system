@@ -25,6 +25,12 @@ export const welfareTemplates = {
   penaltyReceipt: (name, welfare, amount) =>
     `Hi ${name}, ${welfare} has received your penalty payment of ${money(amount)}. Thank you.`,
 
+  withdrawalReceipt: (name, welfare, amount, savings) =>
+    `Hi ${name}, ${welfare} has paid out ${money(amount)} from your savings. Remaining savings: ${money(savings)}.`,
+
+  memberExit: (name, welfare, payout) =>
+    `Hi ${name}, your ${welfare} membership has been closed and your net savings of ${money(payout)} paid out. Thank you for being a member.`,
+
   meetingReminder: (name, welfare, title, date, location) =>
     `Hi ${name}, reminder: ${welfare} ${title || "meeting"} on ${fmtDate(date)}${location ? ` at ${location}` : ""}. Your attendance is expected.`,
 
@@ -85,4 +91,17 @@ export async function notifyPenalty({ welfare, member, amount, reason, sentBy = 
   }
 }
 
-export default { welfareTemplates, sendWelfareSms, notifyContributionReceipt, notifyPenalty };
+// Fire-and-forget withdrawal/exit receipt.
+export async function notifyWithdrawal({ welfare, member, amount, savings, exited = false, sentBy = null }) {
+  try {
+    if (!member?.phone_number) return;
+    const msg = exited
+      ? welfareTemplates.memberExit(member.first_name, welfare.name, amount)
+      : welfareTemplates.withdrawalReceipt(member.first_name, welfare.name, amount, savings);
+    await sendWelfareSms({ tenantId: welfare.tenant_id, phone: member.phone_number, message: msg, type: exited ? "welfare_member_exit" : "welfare_withdrawal_receipt", sentBy });
+  } catch (e) {
+    logger.error("withdrawal receipt SMS error:", e.message);
+  }
+}
+
+export default { welfareTemplates, sendWelfareSms, notifyContributionReceipt, notifyPenalty, notifyWithdrawal };
