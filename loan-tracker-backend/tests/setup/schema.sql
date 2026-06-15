@@ -3322,3 +3322,51 @@ CREATE TABLE public.member_loans (
 );
 CREATE INDEX idx_member_loans_member ON public.member_loans(member_id);
 CREATE INDEX idx_member_loans_tenant ON public.member_loans(tenant_id, status);
+
+--
+-- Welfare settings + penalty engine (migration 059).
+--
+
+CREATE TABLE public.welfare_settings (
+  tenant_id                integer PRIMARY KEY,
+  contribution_frequency   varchar(20) NOT NULL DEFAULT 'monthly',
+  contribution_amount      numeric,
+  contribution_grace_days  integer NOT NULL DEFAULT 0,
+  attendance_grace_minutes integer NOT NULL DEFAULT 0,
+  created_at               timestamp NOT NULL DEFAULT NOW(),
+  updated_at               timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.penalty_rules (
+  id         serial PRIMARY KEY,
+  tenant_id  integer NOT NULL,
+  trigger    varchar(30) NOT NULL,
+  calc_type  varchar(20) NOT NULL,
+  amount     numeric,
+  rate       numeric,
+  cap        numeric,
+  active     boolean NOT NULL DEFAULT true,
+  notes      text,
+  created_by integer,
+  created_at timestamp NOT NULL DEFAULT NOW(),
+  updated_at timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.penalty_assessments (
+  id          serial PRIMARY KEY,
+  tenant_id   integer NOT NULL,
+  member_id   integer REFERENCES public.members(id) ON DELETE CASCADE,
+  rule_id     integer,
+  trigger     varchar(30) NOT NULL,
+  source_type varchar(30),
+  source_id   integer,
+  amount      numeric NOT NULL CHECK (amount > 0),
+  paid_amount numeric NOT NULL DEFAULT 0,
+  status      varchar(20) NOT NULL DEFAULT 'outstanding',
+  description text,
+  assessed_at timestamp NOT NULL DEFAULT NOW(),
+  created_by  integer
+);
+CREATE INDEX idx_penalty_rules_tenant ON public.penalty_rules(tenant_id, active);
+CREATE INDEX idx_penalty_assessments_tenant ON public.penalty_assessments(tenant_id, status);
+CREATE INDEX idx_penalty_assessments_member ON public.penalty_assessments(member_id);
