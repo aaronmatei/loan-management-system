@@ -21,6 +21,7 @@ import WelfareContributionsPanel from "../components/WelfareContributionsPanel";
 import WelfareMeetingsPanel from "../components/WelfareMeetingsPanel";
 import WelfareMpesaPanel from "../components/WelfareMpesaPanel";
 import WelfareSmsPanel from "../components/WelfareSmsPanel";
+import WelfareDividendsPanel from "../components/WelfareDividendsPanel";
 import GroupMeetingsPanel from "../components/GroupMeetingsPanel";
 import GroupCyclesPanel from "../components/GroupCyclesPanel";
 import Spinner from "../components/Spinner";
@@ -209,6 +210,7 @@ export default function GroupDetail() {
       {isWelfare && <WelfareMembersPanel welfareId={id} />}
       {isWelfare && <WelfareContributionsPanel welfareId={id} />}
       {isWelfare && <WelfarePenaltiesPanel welfareId={id} />}
+      {isWelfare && <WelfareDividendsPanel welfareId={id} />}
       {isWelfare && <WelfareMpesaPanel welfareId={id} />}
       {isWelfare && <WelfareSmsPanel welfareId={id} />}
 

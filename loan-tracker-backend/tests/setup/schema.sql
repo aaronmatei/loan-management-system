@@ -3294,7 +3294,20 @@ CREATE TABLE public.member_pool_transactions (
   txn_date       date NOT NULL DEFAULT CURRENT_DATE,
   description    text,
   created_by     integer,
+  dividend_distribution_id integer,  -- migration 063
   created_at     timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.dividend_distributions (
+  id            serial PRIMARY KEY,
+  tenant_id     integer NOT NULL,
+  welfare_id    integer NOT NULL,
+  total_amount  numeric(15,2) NOT NULL,
+  basis         varchar(20) NOT NULL DEFAULT 'savings',
+  member_count  integer NOT NULL DEFAULT 0,
+  notes         text,
+  created_by    integer,
+  created_at    timestamp NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_members_tenant ON public.members(tenant_id, status);
 CREATE INDEX idx_members_welfare ON public.members(welfare_id);

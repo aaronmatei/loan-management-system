@@ -19,7 +19,9 @@ const router = express.Router({ mergeParams: true });
 router.use(verifyToken);
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-const SAVINGS_TYPES = "('contribution','withdrawal','dividend','adjustment')";
+// Savings principal = what the member put in, net of cash taken out. Dividends
+// are profit paid OUT of the pool (see migration 063), not savings, so excluded.
+const SAVINGS_TYPES = "('contribution','withdrawal','adjustment')";
 
 // Resolve + tenant-check the welfare for every request; stash on req.welfare.
 router.use(async (req, res, next) => {

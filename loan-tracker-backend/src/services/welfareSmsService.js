@@ -31,6 +31,9 @@ export const welfareTemplates = {
   memberExit: (name, welfare, payout) =>
     `Hi ${name}, your ${welfare} membership has been closed and your net savings of ${money(payout)} paid out. Thank you for being a member.`,
 
+  dividend: (name, welfare, amount) =>
+    `Hi ${name}, ${welfare} has paid you a dividend of ${money(amount)} from this share-out. Thank you for being a member!`,
+
   meetingReminder: (name, welfare, title, date, location) =>
     `Hi ${name}, reminder: ${welfare} ${title || "meeting"} on ${fmtDate(date)}${location ? ` at ${location}` : ""}. Your attendance is expected.`,
 
@@ -59,8 +62,9 @@ export async function sendWelfareSms({ tenantId, phone, message, type = "welfare
   return result;
 }
 
-// Net savings = contribution/withdrawal/dividend/adjustment (matches members route).
-const SAVINGS_TYPES = "('contribution','withdrawal','dividend','adjustment')";
+// Net savings = contribution/withdrawal/adjustment (dividends are paid out, not
+// savings — matches members route).
+const SAVINGS_TYPES = "('contribution','withdrawal','adjustment')";
 
 async function loadMember(welfareId, memberId) {
   const r = await query(`SELECT id, first_name, last_name, phone_number FROM members WHERE id = $1 AND welfare_id = $2`, [memberId, welfareId]);
@@ -104,4 +108,14 @@ export async function notifyWithdrawal({ welfare, member, amount, savings, exite
   }
 }
 
-export default { welfareTemplates, sendWelfareSms, notifyContributionReceipt, notifyPenalty, notifyWithdrawal };
+// Fire-and-forget dividend notice (one per member after a share-out).
+export async function notifyDividend({ welfare, member, amount, sentBy = null }) {
+  try {
+    if (!member?.phone_number || !(amount > 0)) return;
+    await sendWelfareSms({ tenantId: welfare.tenant_id, phone: member.phone_number, message: welfareTemplates.dividend(member.first_name, welfare.name, amount), type: "welfare_dividend", sentBy });
+  } catch (e) {
+    logger.error("dividend SMS error:", e.message);
+  }
+}
+
+export default { welfareTemplates, sendWelfareSms, notifyContributionReceipt, notifyPenalty, notifyWithdrawal, notifyDividend };
