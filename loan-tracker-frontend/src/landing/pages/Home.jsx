@@ -28,23 +28,34 @@ function LandingHome() {
   const [showRequest, setShowRequest] = useState(false);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="relative min-h-screen text-gray-900">
+      {/* Soft background wash + art, fixed behind everything so the page reads
+          warm rather than blinding white. Transparent sections reveal it. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-ocean-50 via-white to-amber-50/60"
+      >
+        <div className="absolute -top-40 -left-32 w-[40rem] h-[40rem] rounded-full bg-ocean-200/40 blur-3xl" />
+        <div className="absolute top-1/3 -right-44 w-[38rem] h-[38rem] rounded-full bg-emerald-100/50 blur-3xl" />
+        <div className="absolute bottom-10 left-1/3 w-[36rem] h-[36rem] rounded-full bg-amber-100/40 blur-3xl" />
+      </div>
+
       {/* ============= NAVBAR ============= */}
-      <nav className="bg-white/85 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
+      <nav className="bg-navy-900/95 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 shadow-lg shadow-navy-950/20">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center">
-              <Logo markClassName="h-9 w-9" textClassName="text-xl" />
+              <Logo variant="reversed" markClassName="h-9 w-9" textClassName="text-xl" />
             </Link>
 
             <div className="hidden lg:flex items-center gap-7">
-              <a href="#who" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Who it's for</a>
-              <a href="#features" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Features</a>
-              <a href="#how-it-works" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">How it works</a>
-              <a href="#pricing" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Pricing</a>
-              <a href="#faq" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">FAQ</a>
-              <span className="h-5 w-px bg-slate-200" />
-              <Link to="/get-started" className="text-slate-600 hover:text-ocean-600 font-semibold text-sm">Sign in</Link>
+              <a href="#who" className="text-white/75 hover:text-white font-semibold text-sm">Who it's for</a>
+              <a href="#features" className="text-white/75 hover:text-white font-semibold text-sm">Features</a>
+              <a href="#how-it-works" className="text-white/75 hover:text-white font-semibold text-sm">How it works</a>
+              <a href="#pricing" className="text-white/75 hover:text-white font-semibold text-sm">Pricing</a>
+              <a href="#faq" className="text-white/75 hover:text-white font-semibold text-sm">FAQ</a>
+              <span className="h-5 w-px bg-white/20" />
+              <Link to="/get-started" className="text-white/75 hover:text-white font-semibold text-sm">Sign in</Link>
               <Link
                 to="/get-started"
                 className="px-4 py-2 bg-ocean-gradient text-white rounded-lg font-bold text-sm shadow-md hover:shadow-lg transition"
@@ -55,7 +66,7 @@ function LandingHome() {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2"
+              className="lg:hidden p-2 text-white"
               aria-label="Open menu"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,14 +76,14 @@ function LandingHome() {
           </div>
 
           {mobileMenuOpen && (
-            <div className="lg:hidden mt-3 pb-3 border-t pt-3 space-y-1">
-              <a href="#who" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Who it's for</a>
-              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Features</a>
-              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">How it works</a>
-              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Pricing</a>
-              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">FAQ</a>
-              <div className="border-t my-2" />
-              <Link to="/get-started" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 hover:bg-slate-100 rounded">Sign in</Link>
+            <div className="lg:hidden mt-3 pb-3 border-t border-white/10 pt-3 space-y-1">
+              <a href="#who" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-white/85 hover:bg-white/10 rounded">Who it's for</a>
+              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-white/85 hover:bg-white/10 rounded">Features</a>
+              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-white/85 hover:bg-white/10 rounded">How it works</a>
+              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-white/85 hover:bg-white/10 rounded">Pricing</a>
+              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-white/85 hover:bg-white/10 rounded">FAQ</a>
+              <div className="border-t border-white/10 my-2" />
+              <Link to="/get-started" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-white/85 hover:bg-white/10 rounded">Sign in</Link>
               <Link
                 to="/get-started"
                 onClick={() => setMobileMenuOpen(false)}
@@ -86,8 +97,8 @@ function LandingHome() {
       </nav>
 
       {/* ============= HERO ============= */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-ocean-50/70 to-white py-16 lg:py-24">
-        <div className="pointer-events-none absolute -top-28 -left-24 w-[26rem] h-[26rem] rounded-full bg-ocean-200/40 blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-b from-ocean-100/50 via-ocean-50/30 to-transparent py-16 lg:py-24">
+        <div className="pointer-events-none absolute -top-28 -left-24 w-[26rem] h-[26rem] rounded-full bg-ocean-200/30 blur-3xl" />
         <div className="max-w-6xl mx-auto px-4 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
