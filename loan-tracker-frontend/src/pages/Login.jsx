@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import Logo from '../components/Logo';
 import PasswordInput from '../components/PasswordInput';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,15 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { setUser } = useAuth();
+  // The same login screen serves lenders (/login), welfare (/welfare/login)
+  // and pawnshops (/pawn/login) — so the "sign up" link must point to the
+  // matching register, not always the lender one.
+  const { pathname } = useLocation();
+  const variant = pathname.startsWith("/welfare")
+    ? "welfare"
+    : pathname.startsWith("/pawn")
+      ? "pawnbroker"
+      : "lender";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -123,18 +132,36 @@ function Login() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p className="text-center mt-4 text-sm text-gray-600">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-ocean-600 font-semibold">
-            Sign up free
-          </Link>
-        </p>
-        <p className="text-center mt-1 text-sm text-gray-600">
-          Running a chama / welfare?{' '}
-          <Link to="/welfare/register" className="text-emerald-700 font-semibold">
-            Register a welfare
-          </Link>
-        </p>
+        {variant === "welfare" ? (
+          <p className="text-center mt-4 text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/welfare/register" className="text-emerald-700 font-semibold">
+              Register a welfare
+            </Link>
+          </p>
+        ) : variant === "pawnbroker" ? (
+          <p className="text-center mt-4 text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/pawn/register" className="text-amber-700 font-semibold">
+              Register a pawnshop
+            </Link>
+          </p>
+        ) : (
+          <>
+            <p className="text-center mt-4 text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/signup" className="text-ocean-600 font-semibold">
+                Sign up free
+              </Link>
+            </p>
+            <p className="text-center mt-1 text-sm text-gray-600">
+              Other account types?{' '}
+              <Link to="/get-started" className="text-ocean-600 font-semibold">
+                Get started
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
