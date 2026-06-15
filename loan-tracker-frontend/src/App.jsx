@@ -139,14 +139,23 @@ function App() {
     // subdomain 'demo') but NOT the is_demo_session flag, so on
     // demo.lenderfest.loans the flag is absent.
     let wasDemo = localStorage.getItem("is_demo_session") === "true";
-    if (!wasDemo) {
-      try {
-        const u = JSON.parse(localStorage.getItem("user") || "null");
-        wasDemo = !!(u && (u.is_demo || u.tenant?.subdomain === "demo"));
-      } catch {
-        /* ignore */
-      }
+    // Capture the account kind BEFORE we wipe storage, so we can send the user
+    // back to the matching login (pawnbrokers → /pawn/login, welfare →
+    // /welfare/login, everyone else → /login).
+    let kind = "lender";
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "null");
+      if (!wasDemo) wasDemo = !!(u && (u.is_demo || u.tenant?.subdomain === "demo"));
+      kind = u?.tenant?.kind || "lender";
+    } catch {
+      /* ignore */
     }
+    const loginPath =
+      kind === "pawnbroker"
+        ? "/pawn/login"
+        : kind === "welfare"
+          ? "/welfare/login"
+          : "/login";
     setUser(null);
     // Clear EVERY auth/session key (incl. the demo flags + the persisted
     // period picker) so nothing on this origin can silently re-auth.
@@ -169,7 +178,7 @@ function App() {
     const base = onLF ? "https://lenderfest.loans" : window.location.origin;
     window.location.href = wasDemo
       ? `${base}/?loggedout=1`
-      : `${base}/login?loggedout=1`;
+      : `${base}${loginPath}?loggedout=1`;
   };
 
   // Subdomain self-correction. If the URL says "kuwazo.lenderfest.loans"
