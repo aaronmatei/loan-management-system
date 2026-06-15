@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut } from "lucide-react";
+import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown } from "lucide-react";
 import api from "../services/api";
+import { downloadFile } from "../utils/bulkExport";
 import PermissionGate from "../components/PermissionGate";
 import MemberLoansPanel from "../components/MemberLoansPanel";
 import Spinner from "../components/Spinner";
@@ -94,6 +95,9 @@ export default function MemberDetail() {
         <div className="text-right">
           <p className="text-xs text-slate-500">Savings balance</p>
           <p className="text-2xl font-bold text-emerald-700">{money(savings)}</p>
+          <button onClick={() => downloadFile(`/welfares/${welfareId}/reports/members/${memberId}/statement.pdf`, `${member.member_no}-statement.pdf`).catch(() => alert("Export failed."))} className="mt-1 text-xs text-slate-500 hover:text-slate-800 font-semibold inline-flex items-center gap-1">
+            <FileDown size={13} /> Statement PDF
+          </button>
         </div>
       </div>
 

@@ -83,4 +83,42 @@ describe("welfare reports", () => {
     const all = await request(app).get(`/api/welfares/${w.id}/reports/members?include=all`).set("Authorization", auth(admin));
     expect(all.body.data).toHaveLength(2);
   });
+
+  it("exports the member table as CSV", async () => {
+    const { admin, w } = await setup();
+    const a = await addMember(admin, w, "A");
+    await contribute(admin, w, a, 1200);
+
+    const r = await request(app).get(`/api/welfares/${w.id}/reports/members.csv`).set("Authorization", auth(admin));
+    expect(r.status).toBe(200);
+    expect(r.headers["content-type"]).toMatch(/text\/csv/);
+    expect(r.headers["content-disposition"]).toMatch(/attachment/);
+    const lines = r.text.trim().split("\n");
+    expect(lines[0]).toContain("Member No");
+    expect(lines[1]).toContain("A M");
+    expect(lines[1]).toContain("1200");
+  });
+
+  it("streams a group statement PDF", async () => {
+    const { admin, w } = await setup();
+    const a = await addMember(admin, w, "A");
+    await contribute(admin, w, a, 1000);
+    const r = await request(app).get(`/api/welfares/${w.id}/reports/statement.pdf`).set("Authorization", auth(admin)).buffer(true).parse((res, cb) => {
+      const chunks = []; res.on("data", (c) => chunks.push(c)); res.on("end", () => cb(null, Buffer.concat(chunks)));
+    });
+    expect(r.status).toBe(200);
+    expect(r.headers["content-type"]).toMatch(/application\/pdf/);
+    expect(r.body.slice(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("streams a per-member statement PDF", async () => {
+    const { admin, w } = await setup();
+    const a = await addMember(admin, w, "A");
+    await contribute(admin, w, a, 800);
+    const r = await request(app).get(`/api/welfares/${w.id}/reports/members/${a.id}/statement.pdf`).set("Authorization", auth(admin)).buffer(true).parse((res, cb) => {
+      const chunks = []; res.on("data", (c) => chunks.push(c)); res.on("end", () => cb(null, Buffer.concat(chunks)));
+    });
+    expect(r.status).toBe(200);
+    expect(r.body.slice(0, 5).toString()).toBe("%PDF-");
+  });
 });

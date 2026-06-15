@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { LayoutDashboard, Wallet, Users, AlertTriangle, Banknote, Gift, CalendarCheck } from "lucide-react";
+import { LayoutDashboard, Wallet, Users, AlertTriangle, Banknote, Gift, CalendarCheck, FileDown, FileSpreadsheet } from "lucide-react";
 import api from "../services/api";
+import { downloadFile } from "../utils/bulkExport";
 
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -12,6 +13,19 @@ export default function WelfareDashboardPanel({ welfareId }) {
   useEffect(() => {
     api.get(`/welfares/${welfareId}/reports/summary`).then((r) => setD(r.data.data)).catch(() => {}).finally(() => setLoading(false));
   }, [welfareId]);
+
+  const [exporting, setExporting] = useState("");
+  const doExport = async (kind) => {
+    setExporting(kind);
+    try {
+      if (kind === "pdf") await downloadFile(`/welfares/${welfareId}/reports/statement.pdf?include=all`, "group-statement.pdf");
+      else await downloadFile(`/welfares/${welfareId}/reports/members.csv?include=all`, "members.csv");
+    } catch {
+      alert("Export failed.");
+    } finally {
+      setExporting("");
+    }
+  };
 
   if (loading) return <div className="bg-white rounded-xl shadow-md border border-slate-100 p-5 mb-6 text-sm text-slate-500">Loading dashboard…</div>;
   if (!d) return null;
@@ -38,8 +52,16 @@ export default function WelfareDashboardPanel({ welfareId }) {
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-slate-100 mb-6 overflow-hidden">
-      <div className="bg-slate-50 px-5 py-3 border-b border-slate-100">
+      <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 flex items-center gap-2"><LayoutDashboard size={18} className="text-slate-600" /> Dashboard</h2>
+        <div className="flex gap-2">
+          <button onClick={() => doExport("pdf")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+            <FileDown size={14} /> {exporting === "pdf" ? "…" : "Statement PDF"}
+          </button>
+          <button onClick={() => doExport("csv")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+            <FileSpreadsheet size={14} /> {exporting === "csv" ? "…" : "Members CSV"}
+          </button>
+        </div>
       </div>
       <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <Stat icon={Wallet} label="Pool balance" value={money(d.pool.balance)} sub={`Surplus ${money(d.pool.surplus)}`} tone="emerald" />
