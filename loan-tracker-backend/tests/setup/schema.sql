@@ -3407,3 +3407,21 @@ CREATE TABLE public.contribution_schedules (
 CREATE INDEX idx_contrib_cycles_welfare ON public.contribution_cycles(welfare_id, status);
 CREATE INDEX idx_contrib_schedules_cycle ON public.contribution_schedules(cycle_id);
 CREATE INDEX idx_contrib_schedules_member ON public.contribution_schedules(member_id);
+
+--
+-- Welfare meeting attendance over members (migration 061).
+--
+
+CREATE TABLE public.member_attendance (
+  id          serial PRIMARY KEY,
+  tenant_id   integer NOT NULL,
+  welfare_id  integer NOT NULL,
+  meeting_id  integer NOT NULL REFERENCES public.group_meetings(id) ON DELETE CASCADE,
+  member_id   integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  status      varchar(20) NOT NULL DEFAULT 'present',
+  created_at  timestamp NOT NULL DEFAULT NOW(),
+  updated_at  timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (meeting_id, member_id)
+);
+CREATE INDEX idx_member_attendance_meeting ON public.member_attendance(meeting_id);
+CREATE INDEX idx_member_attendance_member ON public.member_attendance(member_id);

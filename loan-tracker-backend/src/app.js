@@ -39,6 +39,7 @@ import groupActivityRoutes from "./routes/groupActivity.js";
 import memberRoutes from "./routes/members.js";
 import welfarePenaltyRoutes from "./routes/welfarePenalties.js";
 import welfareContributionRoutes from "./routes/welfareContributions.js";
+import welfareMeetingRoutes from "./routes/welfareMeetings.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
@@ -180,6 +181,7 @@ app.use("/api/groups", groupActivityRoutes); // group meetings + attendance + le
 app.use("/api/welfares/:welfareId/members", memberRoutes); // welfare members + pool + lending
 app.use("/api/welfares/:welfareId", welfarePenaltyRoutes); // welfare settings + penalty engine
 app.use("/api/welfares/:welfareId", welfareContributionRoutes); // contribution cycles + schedules
+app.use("/api/welfares/:welfareId", welfareMeetingRoutes); // meetings + member attendance + penalties
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);
