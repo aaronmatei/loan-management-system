@@ -808,6 +808,11 @@ CREATE TABLE public.mpesa_transactions (
     paid_phone_number character varying(20),
     request_payload jsonb,
     callback_payload jsonb,
+    welfare_id integer,
+    member_id integer,
+    target_type character varying(30),
+    target_id integer,
+    allocated boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now()
 );

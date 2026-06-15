@@ -22,6 +22,7 @@ import { verifyToken } from "../middleware/auth.js";
 import * as mpesa from "../services/mpesaService.js";
 import { recordLoanPayment } from "../services/paymentService.js";
 import { markInvoicePaid } from "../services/billingService.js";
+import { allocateWelfarePayment } from "../services/welfareMpesaService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
@@ -338,6 +339,8 @@ router.post("/callback", async (req, res) => {
           await applyLoanRepayment(mpesaTx, parsed);
         } else if (mpesaTx.purpose === "tenant_invoice") {
           await applyInvoicePayment(mpesaTx, parsed);
+        } else if (String(mpesaTx.purpose || "").startsWith("welfare_")) {
+          await allocateWelfarePayment(mpesaTx, parsed);
         }
       } catch (applyErr) {
         // Money came in but applying failed — log loudly and keep the

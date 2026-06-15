@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarClock, Plus, X, Coins, Lock, AlertTriangle, ChevronRight } from "lucide-react";
+import { CalendarClock, Plus, X, Coins, Lock, AlertTriangle, ChevronRight, Smartphone } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 
@@ -223,8 +223,10 @@ function SchedulesModal({ welfareId, cycle, onClose, onChange }) {
 function PayModal({ welfareId, cycle, schedule, onClose, onDone }) {
   const outstanding = Number(schedule.amount_due) - Number(schedule.amount_paid);
   const [amount, setAmount] = useState("");
+  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const submit = async (e) => {
     e.preventDefault();
@@ -236,6 +238,17 @@ function PayModal({ welfareId, cycle, schedule, onClose, onDone }) {
     try { await api.post(`/welfares/${welfareId}/cycles/${cycle.id}/schedules/${schedule.id}/pay`, { amount: amt }); onDone(); }
     catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
   };
+
+  // M-Pesa pays the full outstanding (Daraja confirms the actual amount).
+  const requestMpesa = async () => {
+    setError(""); setNotice(""); setBusy(true);
+    try {
+      const r = await api.post(`/welfares/${welfareId}/mpesa/contribution`, { schedule_id: schedule.id, phone: phone || undefined });
+      setNotice(r.data?.message || "STK push sent — the member should enter their M-Pesa PIN.");
+    } catch (err) {
+      setError(err.response?.data?.error || "Couldn't start the M-Pesa request.");
+    } finally { setBusy(false); }
+  };
   const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
 
   return (
@@ -243,12 +256,22 @@ function PayModal({ welfareId, cycle, schedule, onClose, onDone }) {
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-slate-600">Outstanding: <strong>{money(outstanding)}</strong></p>
         {error && <Err msg={error} />}
+        {notice && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><Smartphone size={15} /> {notice}</div>}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">Amount <span className="text-gray-500 font-normal">(blank = full)</span></label>
           <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(outstanding)} className={fld} autoFocus />
         </div>
         <Actions busy={busy} onClose={onClose} label="Record payment" tone="bg-emerald-600 hover:bg-emerald-700" />
       </form>
+
+      <div className="mt-5 pt-4 border-t border-slate-100">
+        <p className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5"><Smartphone size={15} className="text-green-600" /> Or request via M-Pesa</p>
+        <p className="text-xs text-slate-500 mb-2">Sends an STK prompt for the full outstanding to the member's phone.</p>
+        <div className="flex gap-2">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (blank = member's number)" className={`${fld} flex-1`} />
+          <button type="button" onClick={requestMpesa} disabled={busy} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50 whitespace-nowrap">STK push</button>
+        </div>
+      </div>
     </Shell>
   );
 }
