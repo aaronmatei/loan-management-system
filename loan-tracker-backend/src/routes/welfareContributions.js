@@ -8,6 +8,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
+import { notifyContributionReceipt } from "../services/welfareSmsService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -170,6 +171,9 @@ router.post(
          VALUES ($1,$2,$3,'contribution',$4,1,$5,$6,$7)`,
         [req.welfare.tenant_id, req.welfare.id, s.member_id, amt, round2(prev + amt), `Contribution (cycle #${s.cycle_id})`, req.user.id],
       );
+      // Best-effort receipt SMS (no-op when SMS is disabled).
+      notifyContributionReceipt({ welfare: req.welfare, memberId: s.member_id, amount: amt, sentBy: req.user.id });
+
       res.json({ success: true, status, pool_balance: round2(prev + amt), outstanding: round2(parseFloat(s.amount_due) - newPaid) });
     } catch (e) {
       logger.error("schedule pay error:", e);

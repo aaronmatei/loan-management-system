@@ -20,6 +20,7 @@ import WelfarePenaltiesPanel from "../components/WelfarePenaltiesPanel";
 import WelfareContributionsPanel from "../components/WelfareContributionsPanel";
 import WelfareMeetingsPanel from "../components/WelfareMeetingsPanel";
 import WelfareMpesaPanel from "../components/WelfareMpesaPanel";
+import WelfareSmsPanel from "../components/WelfareSmsPanel";
 import GroupMeetingsPanel from "../components/GroupMeetingsPanel";
 import GroupCyclesPanel from "../components/GroupCyclesPanel";
 import Spinner from "../components/Spinner";
@@ -209,6 +210,7 @@ export default function GroupDetail() {
       {isWelfare && <WelfareContributionsPanel welfareId={id} />}
       {isWelfare && <WelfarePenaltiesPanel welfareId={id} />}
       {isWelfare && <WelfareMpesaPanel welfareId={id} />}
+      {isWelfare && <WelfareSmsPanel welfareId={id} />}
 
       {/* Meetings + attendance — member-based for welfare, client-based for lenders */}
       {isWelfare ? <WelfareMeetingsPanel welfareId={id} /> : <GroupMeetingsPanel groupId={id} />}

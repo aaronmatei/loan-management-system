@@ -11,6 +11,7 @@ import {
   PENALTY_TRIGGERS,
   PENALTY_CALC_TYPES,
 } from "../utils/penaltyEngine.js";
+import { notifyPenalty } from "../services/welfareSmsService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -250,6 +251,9 @@ router.post("/penalties", authorize("admin", "manager", "loan_officer"), async (
       user: req.user, action: "penalty_assessed", entityType: "member", entityId: member.id,
       entityCode: member.member_no, description: `Penalty KES ${round2(amt)} on ${member.first_name} ${member.last_name}`, req,
     });
+    // Best-effort penalty notice SMS (no-op when SMS is disabled).
+    notifyPenalty({ welfare: req.welfare, member, amount: round2(amt), reason: description || null, sentBy: req.user.id });
+
     res.status(201).json({ success: true, data: r.rows[0] });
   } catch (e) {
     logger.error("penalty assess error:", e);

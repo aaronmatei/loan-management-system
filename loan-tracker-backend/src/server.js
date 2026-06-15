@@ -11,6 +11,7 @@ import { setupPaymentNotifications } from "./services/paymentReminderJob.js";
 import { setupBillingCron, setupInvoiceGenerationCron } from "./services/billingCronJob.js";
 import { setupDemoReset } from "./services/demoResetJob.js";
 import { setupWelfarePenaltyCron } from "./services/welfarePenaltyJob.js";
+import { setupWelfareSmsCron } from "./services/welfareSmsJob.js";
 import { runOverdueCheck } from "./utils/overdueChecker.js";
 
 // Database
@@ -40,4 +41,5 @@ app.listen(PORT, () => {
   setupInvoiceGenerationCron();
   setupDemoReset();
   setupWelfarePenaltyCron();
+  setupWelfareSmsCron();
 });
