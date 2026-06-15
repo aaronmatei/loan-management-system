@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../../components/Logo";
+import PasswordInput from "../../components/PasswordInput";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { ShieldCheck } from "lucide-react";
@@ -87,12 +88,12 @@ function AdminLogin() {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Password
             </label>
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
+              autoComplete="current-password"
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-slate-700 focus:outline-none disabled:bg-gray-100 transition"
             />
           </div>

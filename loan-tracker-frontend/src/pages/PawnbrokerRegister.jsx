@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Gem, AlertTriangle } from "lucide-react";
 import api from "../services/api";
+import PasswordInput from "../components/PasswordInput";
 import { useAuth } from "../context/AuthContext";
 
 // Public self-registration for a pawnbroker (lends cash against pledged items).
@@ -19,6 +20,7 @@ export default function PawnbrokerRegister() {
     registration_number: "",
     city: "",
     admin_password: "",
+    confirm_password: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +45,7 @@ export default function PawnbrokerRegister() {
     if (!form.subdomain.trim()) return setError("Choose a portal address (subdomain).");
     if (!form.contact_name.trim() || !form.contact_email.trim()) return setError("Your name and email are required.");
     if (form.admin_password.length < 12) return setError("Password must be at least 12 characters with an uppercase letter, a number, and a special character.");
+    if (form.admin_password !== form.confirm_password) return setError("Passwords don't match.");
     setBusy(true);
     try {
       const r = await api.post("/tenants/pawnbroker-signup", form);
@@ -102,8 +105,12 @@ export default function PawnbrokerRegister() {
           </div>
           <div>
             <label className={lbl}>Password *</label>
-            <input type="password" value={form.admin_password} onChange={set("admin_password")} placeholder="At least 12 characters" className={fld} />
+            <PasswordInput value={form.admin_password} onChange={set("admin_password")} placeholder="At least 12 characters" autoComplete="new-password" className={fld} />
             <p className="text-xs text-gray-500 mt-1">12+ chars with an uppercase letter, a number and a special character.</p>
+          </div>
+          <div>
+            <label className={lbl}>Confirm password *</label>
+            <PasswordInput value={form.confirm_password} onChange={set("confirm_password")} placeholder="Re-enter your password" autoComplete="new-password" className={fld} />
           </div>
           <button type="submit" disabled={busy} className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg transition disabled:opacity-50">
             {busy ? "Creating your pawnshop…" : "Create Pawnshop Account"}

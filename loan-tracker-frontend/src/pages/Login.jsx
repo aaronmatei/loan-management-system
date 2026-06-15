@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Logo from '../components/Logo';
+import PasswordInput from '../components/PasswordInput';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { buildAuthHandoff } from '../utils/authHandoff';
@@ -103,13 +104,13 @@ function Login() {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Password
             </label>
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               required
               disabled={loading}
+              autoComplete="current-password"
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none disabled:bg-gray-100 transition"
             />
           </div>

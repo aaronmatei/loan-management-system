@@ -10,10 +10,16 @@ export function validatePhone(phone) {
 }
 
 export function validatePassword(password) {
-  // Minimum 12 chars, at least one uppercase, one number, one special char
-  const passwordRegex =
-    /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
-  return passwordRegex.test(password);
+  // Minimum 12 chars, at least one uppercase, one number, and one special
+  // character. "Special" = any non-alphanumeric, so #, -, _, ., etc. all count.
+  // The old whitelist regex wrongly rejected anything outside @$!%*?& — e.g. a
+  // perfectly valid password containing '#'.
+  if (typeof password !== "string" || password.length < 12) return false;
+  return (
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  );
 }
 
 export function validateAmount(amount) {

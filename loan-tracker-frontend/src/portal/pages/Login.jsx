@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Lock, ShieldCheck } from "lucide-react";
 import portalApi from "../services/portalApi";
 import SocialAuth from "../components/SocialAuth";
+import PasswordInput from "../components/PasswordInput";
 
 function CustomerLogin() {
   const navigate = useNavigate();
@@ -77,13 +78,13 @@ function CustomerLogin() {
             <label className="block text-sm font-semibold mb-1">
               Password
             </label>
-            <input
-              type="password"
+            <PasswordInput
               value={credentials.password}
               onChange={(e) =>
                 setCredentials({ ...credentials, password: e.target.value })
               }
               required
+              autoComplete="current-password"
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
