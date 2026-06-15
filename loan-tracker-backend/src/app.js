@@ -43,6 +43,7 @@ import welfareMeetingRoutes from "./routes/welfareMeetings.js";
 import welfareMpesaRoutes from "./routes/welfareMpesa.js";
 import welfareSmsRoutes from "./routes/welfareSms.js";
 import welfareDividendRoutes from "./routes/welfareDividends.js";
+import welfareReportRoutes from "./routes/welfareReports.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
@@ -188,6 +189,7 @@ app.use("/api/welfares/:welfareId", welfareMeetingRoutes); // meetings + member 
 app.use("/api/welfares/:welfareId", welfareMpesaRoutes); // welfare M-Pesa STK + allocation + reconciliation
 app.use("/api/welfares/:welfareId", welfareSmsRoutes); // welfare SMS broadcast + reminders + logs
 app.use("/api/welfares/:welfareId", welfareDividendRoutes); // welfare dividends / share-out
+app.use("/api/welfares/:welfareId", welfareReportRoutes); // welfare dashboard + per-member reports
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);
