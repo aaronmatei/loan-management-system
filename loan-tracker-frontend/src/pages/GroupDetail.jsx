@@ -17,6 +17,7 @@ import PermissionGate from "../components/PermissionGate";
 import GroupSavingsPanel from "../components/GroupSavingsPanel";
 import WelfareMembersPanel from "../components/WelfareMembersPanel";
 import WelfarePenaltiesPanel from "../components/WelfarePenaltiesPanel";
+import WelfareContributionsPanel from "../components/WelfareContributionsPanel";
 import GroupMeetingsPanel from "../components/GroupMeetingsPanel";
 import GroupCyclesPanel from "../components/GroupCyclesPanel";
 import Spinner from "../components/Spinner";
@@ -203,6 +204,7 @@ export default function GroupDetail() {
       {/* Welfare members + their contributions pool + pool lending —
           welfare accounts only; lenders use group loans, not the pool. */}
       {isWelfare && <WelfareMembersPanel welfareId={id} />}
+      {isWelfare && <WelfareContributionsPanel welfareId={id} />}
       {isWelfare && <WelfarePenaltiesPanel welfareId={id} />}
 
       {/* Meetings + attendance */}

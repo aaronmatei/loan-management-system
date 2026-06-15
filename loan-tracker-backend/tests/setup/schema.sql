@@ -3370,3 +3370,40 @@ CREATE TABLE public.penalty_assessments (
 CREATE INDEX idx_penalty_rules_tenant ON public.penalty_rules(tenant_id, active);
 CREATE INDEX idx_penalty_assessments_tenant ON public.penalty_assessments(tenant_id, status);
 CREATE INDEX idx_penalty_assessments_member ON public.penalty_assessments(member_id);
+
+--
+-- Welfare contribution cycles + schedules (migration 060).
+--
+
+CREATE TABLE public.contribution_cycles (
+  id           serial PRIMARY KEY,
+  tenant_id    integer NOT NULL,
+  welfare_id   integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  name         varchar(80) NOT NULL,
+  frequency    varchar(20) NOT NULL DEFAULT 'monthly',
+  amount       numeric NOT NULL,
+  period_start date,
+  due_date     date NOT NULL,
+  status       varchar(20) NOT NULL DEFAULT 'open',
+  notes        text,
+  created_by   integer,
+  created_at   timestamp NOT NULL DEFAULT NOW(),
+  updated_at   timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE public.contribution_schedules (
+  id          serial PRIMARY KEY,
+  tenant_id   integer NOT NULL,
+  cycle_id    integer NOT NULL REFERENCES public.contribution_cycles(id) ON DELETE CASCADE,
+  member_id   integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  amount_due  numeric NOT NULL,
+  amount_paid numeric NOT NULL DEFAULT 0,
+  due_date    date NOT NULL,
+  status      varchar(20) NOT NULL DEFAULT 'pending',
+  created_at  timestamp NOT NULL DEFAULT NOW(),
+  updated_at  timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (cycle_id, member_id)
+);
+CREATE INDEX idx_contrib_cycles_welfare ON public.contribution_cycles(welfare_id, status);
+CREATE INDEX idx_contrib_schedules_cycle ON public.contribution_schedules(cycle_id);
+CREATE INDEX idx_contrib_schedules_member ON public.contribution_schedules(member_id);
