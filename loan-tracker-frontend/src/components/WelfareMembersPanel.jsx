@@ -93,7 +93,7 @@ export default function WelfareMembersPanel({ welfareId }) {
                 {members.map((m) => (
                   <tr
                     key={m.id}
-                    onClick={() => navigate(`/groups/${welfareId}/members/${m.id}`)}
+                    onClick={() => navigate(`/welfare/members/${m.id}`)}
                     className="border-t border-slate-100 hover:bg-emerald-50 cursor-pointer"
                   >
                     <td className="px-4 py-2 font-semibold text-slate-800">{m.first_name} {m.last_name}</td>
@@ -113,7 +113,7 @@ export default function WelfareMembersPanel({ welfareId }) {
         <AddMemberModal
           welfareId={welfareId}
           onClose={() => setShowForm(false)}
-          onCreated={(m) => navigate(`/groups/${welfareId}/members/${m.id}`)}
+          onCreated={(m) => navigate(`/welfare/members/${m.id}`)}
         />
       )}
     </div>

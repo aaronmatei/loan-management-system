@@ -6,6 +6,9 @@ import {
   TrendingUp,
   Users,
   UsersRound,
+  Coins,
+  CalendarCheck,
+  Smartphone,
   Gem,
   ClipboardList,
   Wallet,
@@ -131,7 +134,15 @@ const navGroups = [
 // A welfare account (tenant.kind === 'welfare') gets a focused, welfare-only
 // sidebar — none of the lender workflow (clients, loans, capital, billing).
 const WELFARE_STANDALONE = [
-  { path: "/groups", label: "Welfare", icon: UsersRound, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", permission: "loans:view", exact: true },
+  { path: "/welfare/members", label: "Members", icon: Users, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/contributions", label: "Contributions", icon: Coins, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/penalties", label: "Penalties", icon: AlertTriangle, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/dividends", label: "Dividends", icon: Gift, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/mpesa", label: "M-Pesa", icon: Smartphone, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/sms", label: "SMS", icon: MessageSquare, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "loans:view" },
 ];
 const WELFARE_GROUPS = [
   {
@@ -139,8 +150,9 @@ const WELFARE_GROUPS = [
     label: "Account",
     variant: "ocean",
     items: [
+      { path: "/welfare/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
-      { path: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
+      { path: "/billing", label: "Platform Invoices", icon: FileText, roles: ["admin", "manager"] },
     ],
   },
 ];

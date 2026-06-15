@@ -61,6 +61,19 @@ import Loans from "./pages/Loans";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
 import MemberDetail from "./pages/MemberDetail";
+import WelfareShell from "./context/WelfareContext";
+import {
+  WelfareDashboardPage,
+  WelfareMembersPage,
+  WelfareContributionsPage,
+  WelfarePenaltiesPage,
+  WelfareMeetingsPage,
+  WelfareDividendsPage,
+  WelfareMpesaPage,
+  WelfareSmsPage,
+  WelfareReportsPage,
+  WelfareSettingsPage,
+} from "./pages/welfare/WelfareModules";
 import Pawns from "./pages/Pawns";
 import PawnbrokerRegister from "./pages/PawnbrokerRegister";
 import LoanDetails from "./pages/LoanDetails";
@@ -374,7 +387,7 @@ function App() {
                       path="/"
                       element={
                         user?.tenant?.kind === "welfare" ? (
-                          <Navigate to="/groups" replace />
+                          <Navigate to="/welfare" replace />
                         ) : user?.tenant?.kind === "pawnbroker" ? (
                           <Navigate to="/pawns" replace />
                         ) : (
@@ -395,7 +408,20 @@ function App() {
               <Route path="/pawns" element={<Pawns />} />
               <Route path="/groups" element={<Groups />} />
               <Route path="/groups/:id" element={<GroupDetail />} />
-              <Route path="/groups/:welfareId/members/:memberId" element={<MemberDetail />} />
+              {/* Standalone welfare app — its own resolved welfare (no group concept). */}
+              <Route path="/welfare" element={<WelfareShell />}>
+                <Route index element={<WelfareDashboardPage />} />
+                <Route path="members" element={<WelfareMembersPage />} />
+                <Route path="members/:memberId" element={<MemberDetail />} />
+                <Route path="contributions" element={<WelfareContributionsPage />} />
+                <Route path="penalties" element={<WelfarePenaltiesPage />} />
+                <Route path="meetings" element={<WelfareMeetingsPage />} />
+                <Route path="dividends" element={<WelfareDividendsPage />} />
+                <Route path="mpesa" element={<WelfareMpesaPage />} />
+                <Route path="sms" element={<WelfareSmsPage />} />
+                <Route path="reports" element={<WelfareReportsPage />} />
+                <Route path="settings" element={<WelfareSettingsPage />} />
+              </Route>
               <Route path="/payments" element={<Payments />} />
               <Route path="/overdue" element={<Overdue />} />
               <Route path="/reports" element={<Reports />} />

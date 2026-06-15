@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown } from "lucide-react";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
+import { useWelfare } from "../context/WelfareContext";
 import PermissionGate from "../components/PermissionGate";
 import MemberLoansPanel from "../components/MemberLoansPanel";
 import Spinner from "../components/Spinner";
@@ -17,7 +18,8 @@ const TYPE_LABEL = {
 };
 
 export default function MemberDetail() {
-  const { welfareId, memberId } = useParams();
+  const { memberId } = useParams();
+  const { welfareId } = useWelfare();
   const navigate = useNavigate();
   const [member, setMember] = useState(null);
   const [savings, setSavings] = useState(0);
@@ -73,14 +75,14 @@ export default function MemberDetail() {
     return (
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">{error || "Member not found"}</div>
-        <button onClick={() => navigate(`/groups/${welfareId}`)} className="px-6 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700">← Back to Welfare</button>
+        <button onClick={() => navigate("/welfare/members")} className="px-6 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700">← Back to Welfare</button>
       </div>
     );
   }
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto pb-24">
-      <button onClick={() => navigate(`/groups/${welfareId}`)} className="mb-4 text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-2">← Back to Welfare</button>
+      <button onClick={() => navigate("/welfare/members")} className="mb-4 text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-2">← Back to Welfare</button>
 
       <div className="bg-white rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

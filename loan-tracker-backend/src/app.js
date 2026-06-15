@@ -44,6 +44,7 @@ import welfareMpesaRoutes from "./routes/welfareMpesa.js";
 import welfareSmsRoutes from "./routes/welfareSms.js";
 import welfareDividendRoutes from "./routes/welfareDividends.js";
 import welfareReportRoutes from "./routes/welfareReports.js";
+import welfareCurrentRoutes from "./routes/welfareCurrent.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
@@ -182,6 +183,7 @@ app.use("/api/loans", salaryAdvanceRoutes); // salary check-off details (dual-mo
 app.use("/api/groups", groupRoutes); // group / chama lending
 app.use("/api/groups", groupSavingsRoutes); // group savings + joint-liability coverage
 app.use("/api/groups", groupActivityRoutes); // group meetings + attendance + lending cycles
+app.use("/api/welfare", welfareCurrentRoutes); // resolve "my welfare" from the tenant (standalone welfare app)
 app.use("/api/welfares/:welfareId/members", memberRoutes); // welfare members + pool + lending
 app.use("/api/welfares/:welfareId", welfarePenaltyRoutes); // welfare settings + penalty engine
 app.use("/api/welfares/:welfareId", welfareContributionRoutes); // contribution cycles + schedules

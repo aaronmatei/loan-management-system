@@ -1,0 +1,193 @@
+import React, { useState, useEffect } from "react";
+import { FileDown, FileSpreadsheet, Save } from "lucide-react";
+import { useWelfare } from "../../context/WelfareContext";
+import { downloadFile } from "../../utils/bulkExport";
+import api from "../../services/api";
+import WelfareDashboardPanel from "../../components/WelfareDashboardPanel";
+import WelfareMembersPanel from "../../components/WelfareMembersPanel";
+import WelfareContributionsPanel from "../../components/WelfareContributionsPanel";
+import WelfarePenaltiesPanel from "../../components/WelfarePenaltiesPanel";
+import WelfareMeetingsPanel from "../../components/WelfareMeetingsPanel";
+import WelfareDividendsPanel from "../../components/WelfareDividendsPanel";
+import WelfareMpesaPanel from "../../components/WelfareMpesaPanel";
+import WelfareSmsPanel from "../../components/WelfareSmsPanel";
+import PermissionGate from "../../components/PermissionGate";
+
+const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Standard page wrapper: the welfare name as a small kicker + the module title.
+function Page({ title, children }) {
+  const { welfare } = useWelfare();
+  return (
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
+      <div className="mb-6">
+        <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wide">{welfare.name}</p>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">{title}</h1>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export function WelfareDashboardPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareMembersPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Members & Pool"><WelfareMembersPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareContributionsPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Contributions"><WelfareContributionsPanel welfareId={welfareId} /></Page>;
+}
+export function WelfarePenaltiesPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Penalties"><WelfarePenaltiesPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareMeetingsPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Meetings & Attendance"><WelfareMeetingsPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareDividendsPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Dividends & Share-out"><WelfareDividendsPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareMpesaPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="M-Pesa"><WelfareMpesaPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareSmsPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="SMS"><WelfareSmsPanel welfareId={welfareId} /></Page>;
+}
+
+// Reports — per-member statement table + group/CSV/PDF exports.
+export function WelfareReportsPage() {
+  const { welfareId } = useWelfare();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState("");
+
+  useEffect(() => {
+    api.get(`/welfares/${welfareId}/reports/members?include=all`).then((r) => setRows(r.data.data || [])).catch(() => {}).finally(() => setLoading(false));
+  }, [welfareId]);
+
+  const doExport = async (kind) => {
+    setBusy(kind);
+    try {
+      if (kind === "pdf") await downloadFile(`/welfares/${welfareId}/reports/statement.pdf?include=all`, "group-statement.pdf");
+      else await downloadFile(`/welfares/${welfareId}/reports/members.csv?include=all`, "members.csv");
+    } catch { alert("Export failed."); } finally { setBusy(""); }
+  };
+
+  return (
+    <Page title="Reports & Statements">
+      <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="font-bold text-slate-900">Member statements</h2>
+          <div className="flex gap-2">
+            <button onClick={() => doExport("pdf")} disabled={!!busy} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={14} /> {busy === "pdf" ? "…" : "Statement PDF"}</button>
+            <button onClick={() => doExport("csv")} disabled={!!busy} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileSpreadsheet size={14} /> {busy === "csv" ? "…" : "Members CSV"}</button>
+          </div>
+        </div>
+        <div className="p-5">
+          {loading ? <p className="text-sm text-slate-500">Loading…</p> : rows.length === 0 ? <p className="text-sm text-slate-500">No members yet.</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                  <tr>
+                    <th className="text-left px-3 py-2">Member</th>
+                    <th className="text-right px-3 py-2">Savings</th>
+                    <th className="text-right px-3 py-2">Contributions</th>
+                    <th className="text-right px-3 py-2">Dividends</th>
+                    <th className="text-right px-3 py-2">Loan bal</th>
+                    <th className="text-right px-3 py-2">Penalty bal</th>
+                    <th className="text-right px-3 py-2">Attendance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((m) => (
+                    <tr key={m.member_id} className="border-t border-slate-100">
+                      <td className="px-3 py-2 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span>{m.status === "inactive" && <span className="ml-1 text-xs text-slate-400">(exited)</span>}</td>
+                      <td className="px-3 py-2 text-right">{money(m.savings)}</td>
+                      <td className="px-3 py-2 text-right">{money(m.contributions)}</td>
+                      <td className="px-3 py-2 text-right">{money(m.dividends)}</td>
+                      <td className="px-3 py-2 text-right">{money(m.loan_outstanding)}</td>
+                      <td className="px-3 py-2 text-right">{money(m.penalty_outstanding)}</td>
+                      <td className="px-3 py-2 text-right">{m.attendance_pct == null ? "—" : `${m.attendance_pct}%`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </Page>
+  );
+}
+
+// Settings — the welfare's contribution defaults + grace periods.
+export function WelfareSettingsPage() {
+  const { welfareId } = useWelfare();
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    api.get(`/welfares/${welfareId}/settings`).then((r) => {
+      const s = r.data?.data || {};
+      setForm({
+        contribution_frequency: s.contribution_frequency || "monthly",
+        contribution_amount: s.contribution_amount ?? "",
+        contribution_grace_days: s.contribution_grace_days ?? 0,
+        attendance_grace_minutes: s.attendance_grace_minutes ?? 0,
+      });
+    }).catch(() => setForm({ contribution_frequency: "monthly", contribution_amount: "", contribution_grace_days: 0, attendance_grace_minutes: 0 }));
+  }, [welfareId]);
+
+  const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setSaved(false); };
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try { await api.put(`/welfares/${welfareId}/settings`, form); setSaved(true); }
+    catch (err) { alert(err.response?.data?.error || "Failed to save"); }
+    finally { setBusy(false); }
+  };
+
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+
+  return (
+    <Page title="Settings">
+      <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl">
+        <h2 className="font-bold text-slate-900 mb-1">Contribution & grace defaults</h2>
+        <p className="text-sm text-slate-500 mb-5">These pre-fill new contribution cycles and set the grace before late penalties accrue.</p>
+        {!form ? <p className="text-sm text-slate-500">Loading…</p> : (
+          <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit settings.</p>}>
+            <form onSubmit={save} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>Default frequency</label>
+                  <select value={form.contribution_frequency} onChange={set("contribution_frequency")} className={fld}>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Bi-weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div><label className={lbl}>Default amount (KES)</label><input type="number" value={form.contribution_amount} onChange={set("contribution_amount")} className={fld} /></div>
+                <div><label className={lbl}>Contribution grace (days)</label><input type="number" min="0" value={form.contribution_grace_days} onChange={set("contribution_grace_days")} className={fld} /></div>
+                <div><label className={lbl}>Attendance grace (minutes)</label><input type="number" min="0" value={form.attendance_grace_minutes} onChange={set("attendance_grace_minutes")} className={fld} /></div>
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50 inline-flex items-center gap-2"><Save size={16} /> {busy ? "Saving…" : "Save settings"}</button>
+                {saved && <span className="text-sm text-emerald-600 font-semibold">Saved.</span>}
+              </div>
+            </form>
+          </PermissionGate>
+        )}
+      </div>
+    </Page>
+  );
+}
