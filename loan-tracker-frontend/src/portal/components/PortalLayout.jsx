@@ -21,7 +21,11 @@ import PortalNotificationBell from "./PortalNotificationBell";
 // LenderFest's own ocean/navy product theme (matching the staff dashboard) —
 // NOT a tenant brand. Per-lender brand colors live inside the page content
 // (lender cards, loan rows, receipts), never in this shell.
-const LENDER_MENU = [
+// The portal is ONE global customer account, so the sidebar stays constant —
+// it never wholesale-swaps per the lender you're currently viewing (that left
+// pawn customers stuck with no way back to loans/applications). Pawn items are
+// ADDED when the customer is linked to any pawnbroker.
+const BASE_MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
   { path: "/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
   { path: "/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
@@ -30,26 +34,25 @@ const LENDER_MENU = [
   { path: "/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
   { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
-
-// When the customer is acting under a pawnbroker tenant, the portal speaks
-// pawn: pledges instead of loans/applications.
-const PAWN_MENU = [
-  { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
-  { path: "/lenders", label: "Browse", icon: Layers, variant: "indigo" },
-  { path: "/portal/pawn-requests", label: "Requests", icon: ClipboardList, variant: "amber" },
+const PAWN_ITEMS = [
+  { path: "/portal/pawn-requests", label: "Pawn Requests", icon: ClipboardList, variant: "amber" },
   { path: "/portal/pledges", label: "My Pledges", icon: Gem, variant: "teal" },
-  { path: "/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
-  { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
 
-function menuForKind() {
+function buildMenu() {
+  let hasPawn = false;
   try {
-    const t = JSON.parse(localStorage.getItem("portal_current_tenant") || "null");
-    if (t?.kind === "pawnbroker") return PAWN_MENU;
+    const cur = JSON.parse(localStorage.getItem("portal_current_tenant") || "null");
+    const tenants = JSON.parse(localStorage.getItem("portal_tenants") || "[]");
+    hasPawn = cur?.kind === "pawnbroker" || (Array.isArray(tenants) && tenants.some((t) => t?.kind === "pawnbroker"));
   } catch {
     /* ignore */
   }
-  return LENDER_MENU;
+  if (!hasPawn) return BASE_MENU;
+  const m = [...BASE_MENU];
+  const after = m.findIndex((x) => x.path === "/portal/loans");
+  m.splice(after + 1, 0, ...PAWN_ITEMS);
+  return m;
 }
 
 function PortalLayout({ children }) {
@@ -127,7 +130,7 @@ function PortalLayout({ children }) {
 
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-1">
-            {menuForKind().map((item) => {
+            {buildMenu().map((item) => {
               const active = isActive(item);
               const Icon = item.icon;
               return (
