@@ -7,6 +7,8 @@ const TYPES = {
   sacco: { label: "SACCO", color: "#ea580c" }, // orange (swapped with individual)
   chama: { label: "Chama", color: "#7c3aed" }, // purple
   individual: { label: "Individual", color: "#16a34a" }, // green (swapped with sacco)
+  welfare: { label: "Welfare", color: "#0d9488" }, // teal
+  pawnbroker: { label: "Pawnbroker", color: "#d97706" }, // amber / gold
   other: { label: "Other", color: "#64748b" }, // slate
 };
 

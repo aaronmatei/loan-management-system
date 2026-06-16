@@ -94,7 +94,7 @@ router.get("/", async (req, res) => {
               col.status AS collateral_status, col.sale_amount, col.photos,
               ${PAID_SUBQ} AS paid,
               (l.status='active' AND l.end_date + ${grace} < CURRENT_DATE) AS overdue,
-              (l.status='active' AND l.end_date + ${notice} < CURRENT_DATE) AS auction_eligible
+              (l.status='active' AND l.end_date + ${notice} < CURRENT_DATE AND col.id IS NOT NULL) AS auction_eligible
          FROM loans l
          JOIN clients c ON c.id = l.client_id
          LEFT JOIN branches b ON b.id = l.branch_id
@@ -129,7 +129,7 @@ router.get("/summary", async (req, res) => {
       `SELECT
          COUNT(*) FILTER (WHERE status='active')::int AS active,
          COUNT(*) FILTER (WHERE status='active' AND end_date + ${grace} < CURRENT_DATE)::int AS overdue,
-         COUNT(*) FILTER (WHERE status='active' AND end_date + ${notice} < CURRENT_DATE)::int AS auction_due,
+         COUNT(*) FILTER (WHERE status='active' AND end_date + ${notice} < CURRENT_DATE AND EXISTS (SELECT 1 FROM loan_collateral lc WHERE lc.loan_id = loans.id))::int AS auction_due,
          COUNT(*) FILTER (WHERE status='active' AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 7)::int AS due_soon,
          COUNT(*) FILTER (WHERE status='completed' AND updated_at::date = CURRENT_DATE)::int AS redeemed_today,
          COALESCE(SUM(principal_amount) FILTER (WHERE status='active'),0) AS cash_out,
@@ -606,13 +606,20 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       storage_location,
       photos,
       branch_id,
+      secured: securedRaw,
       application_id, // optional: converting a customer pawn request
     } = req.body || {};
 
-    if (!client_id || !appraised_value || !item_description) {
-      return res.status(400).json({
-        error: "Client, appraised value and item description are required",
-      });
+    // Secured = a pledged item backs the loan. Explicit flag wins; otherwise
+    // infer from whether an appraised value was supplied.
+    const secured = securedRaw != null ? !!securedRaw : appraised_value != null && appraised_value !== "";
+
+    if (!client_id) return res.status(400).json({ error: "Client is required" });
+    if (secured && (!appraised_value || !item_description)) {
+      return res.status(400).json({ error: "A secured pledge needs an appraised value and item description" });
+    }
+    if (!secured && (principal_amount == null || principal_amount === "")) {
+      return res.status(400).json({ error: "A cash loan needs a loan amount" });
     }
 
     // A package is optional — a pawn can be created custom (free-form), just
@@ -638,20 +645,24 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     if (!client.rows.length) return res.status(404).json({ error: "Client not found" });
     const branchId = await resolveBranchId(tid, branch_id, client.rows[0].branch_id);
 
-    const value = parseFloat(appraised_value);
-    if (!(value > 0)) return res.status(400).json({ error: "Appraised value must be positive" });
-    const ltv =
-      ltv_percent != null && ltv_percent !== "" ? parseFloat(ltv_percent) : 50;
-    const maxLoan = round2(value * (ltv / 100));
-    let principal =
-      principal_amount != null && principal_amount !== ""
-        ? parseFloat(principal_amount)
-        : maxLoan;
-    if (!(principal > 0)) return res.status(400).json({ error: "Loan amount must be positive" });
-    if (principal > maxLoan) {
-      return res.status(400).json({
-        error: `Loan can't exceed ${ltv}% of appraised value (max KES ${maxLoan.toLocaleString()})`,
-      });
+    // Secured: cash advanced is capped at LTV% of the appraised value.
+    // Unsecured: the amount is taken directly (no collateral, no LTV cap).
+    let value = null;
+    let ltv = null;
+    let principal;
+    if (secured) {
+      value = parseFloat(appraised_value);
+      if (!(value > 0)) return res.status(400).json({ error: "Appraised value must be positive" });
+      ltv = ltv_percent != null && ltv_percent !== "" ? parseFloat(ltv_percent) : 50;
+      const maxLoan = round2(value * (ltv / 100));
+      principal = principal_amount != null && principal_amount !== "" ? parseFloat(principal_amount) : maxLoan;
+      if (!(principal > 0)) return res.status(400).json({ error: "Loan amount must be positive" });
+      if (principal > maxLoan) {
+        return res.status(400).json({ error: `Loan can't exceed ${ltv}% of appraised value (max KES ${maxLoan.toLocaleString()})` });
+      }
+    } else {
+      principal = parseFloat(principal_amount);
+      if (!(principal > 0)) return res.status(400).json({ error: "Loan amount must be positive" });
     }
     if (pkg && pkg.min_amount && principal < parseFloat(pkg.min_amount)) {
       return res.status(400).json({ error: `Below package minimum (KES ${pkg.min_amount})` });
@@ -722,18 +733,23 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       [tid, principal, loan.id, `Pawn ${loanCode} disbursed`],
     );
 
-    const col = await query(
-      `INSERT INTO loan_collateral
-         (tenant_id, loan_id, category, description, serial_number, condition,
-          appraised_value, ltv_percent, storage_location, photos, status, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'held',$11)
-       RETURNING *`,
-      [
-        tid, loan.id, item_category || null, item_description, serial_number || null,
-        item_condition || null, value, ltv, storage_location || null,
-        photos ? JSON.stringify(photos) : null, req.user.id,
-      ],
-    );
+    // Collateral record only for a secured pledge.
+    let collateral = null;
+    if (secured) {
+      const col = await query(
+        `INSERT INTO loan_collateral
+           (tenant_id, loan_id, category, description, serial_number, condition,
+            appraised_value, ltv_percent, storage_location, photos, status, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'held',$11)
+         RETURNING *`,
+        [
+          tid, loan.id, item_category || null, item_description, serial_number || null,
+          item_condition || null, value, ltv, storage_location || null,
+          photos ? JSON.stringify(photos) : null, req.user.id,
+        ],
+      );
+      collateral = col.rows[0];
+    }
 
     await logAudit({
       user: req.user,
@@ -741,7 +757,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       entityType: "loan",
       entityId: loan.id,
       entityCode: loanCode,
-      description: `Pawn ${loanCode}: KES ${principal} on "${item_description}" (value KES ${value}, LTV ${ltv}%)`,
+      description: secured
+        ? `Pawn ${loanCode}: KES ${principal} on "${item_description}" (value KES ${value}, LTV ${ltv}%)`
+        : `Pawn cash loan ${loanCode}: KES ${principal} (unsecured)`,
       req,
     });
 
@@ -754,7 +772,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       );
     }
 
-    res.status(201).json({ success: true, data: { loan, collateral: col.rows[0] } });
+    res.status(201).json({ success: true, data: { loan, collateral } });
   } catch (e) {
     logger.error("pawn create error:", e);
     res.status(500).json({ error: "Failed to create pawn loan" });

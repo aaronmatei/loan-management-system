@@ -150,46 +150,41 @@ function Lenders() {
           </p>
         </div>
 
-        {/* Filter by lender type. Each chip's colour matches the row colour,
-            so this doubles as the colour legend. */}
+        {/* Filter by lender type — colour-coded cards that double as the legend. */}
         {legendTypes.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2 mb-5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 mr-1">
-              Type
-            </span>
-            <button
-              onClick={() => setTypeFilter("all")}
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                typeFilter === "all"
-                  ? "bg-ocean-gradient text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              All
-            </button>
-            {legendTypes.map((t) => {
-              const active = typeFilter === t.label;
-              return (
-                <button
-                  key={t.label}
-                  onClick={() => setTypeFilter(active ? "all" : t.label)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                    active
-                      ? "text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                  style={active ? { backgroundColor: t.color } : undefined}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{
-                      backgroundColor: active ? "rgba(255,255,255,0.9)" : t.color,
-                    }}
-                  />
-                  {t.label}
-                </button>
-              );
-            })}
+          <div className="mb-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+              Browse by type
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              <button
+                onClick={() => setTypeFilter("all")}
+                className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition ${
+                  typeFilter === "all"
+                    ? "border-ocean-500 bg-ocean-50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <span className="w-3.5 h-3.5 rounded-full bg-ocean-gradient shrink-0" />
+                <span className="text-sm font-semibold text-slate-800">All lenders</span>
+              </button>
+              {legendTypes.map((t) => {
+                const active = typeFilter === t.label;
+                return (
+                  <button
+                    key={t.label}
+                    onClick={() => setTypeFilter(active ? "all" : t.label)}
+                    className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition ${
+                      active ? "" : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                    style={active ? { borderColor: t.color, backgroundColor: `${t.color}14` } : undefined}
+                  >
+                    <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                    <span className="text-sm font-semibold" style={{ color: active ? t.color : "#1e293b" }}>{t.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

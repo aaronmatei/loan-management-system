@@ -45,9 +45,23 @@ describe("pawn applications", () => {
     expect(list.body.data[0].item_description).toBe("Gold chain 24k");
   });
 
-  it("rejects a request with no item description", async () => {
+  it("rejects a secured request with no item description", async () => {
     const { auth } = await customer();
-    const res = await api().post("/api/portal/customer/pawn-applications").set(auth).send({ requested_amount: 1000 });
+    const res = await api().post("/api/portal/customer/pawn-applications").set(auth).send({ secured: true, requested_amount: 1000 });
+    expect(res.status).toBe(400);
+  });
+
+  it("lets a customer submit an unsecured cash-loan request (no item)", async () => {
+    const { auth } = await customer();
+    const res = await api().post("/api/portal/customer/pawn-applications").set(auth).send({ secured: false, requested_amount: 15000 });
+    expect(res.status).toBe(201);
+    expect(res.body.data.secured).toBe(false);
+    expect(res.body.data.item_description).toBe(null);
+  });
+
+  it("rejects an unsecured request with no amount", async () => {
+    const { auth } = await customer();
+    const res = await api().post("/api/portal/customer/pawn-applications").set(auth).send({ secured: false });
     expect(res.status).toBe(400);
   });
 

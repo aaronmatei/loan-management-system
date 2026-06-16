@@ -1165,15 +1165,20 @@ router.post("/pawn-applications", async (req, res) => {
   try {
     if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
     const { item_description, item_category, condition, serial_number, estimated_value, requested_amount } = req.body || {};
-    if (!item_description || !String(item_description).trim()) {
+    const secured = req.body?.secured != null ? !!req.body.secured : !!(item_description && String(item_description).trim());
+    if (secured && (!item_description || !String(item_description).trim())) {
       return res.status(400).json({ error: "Describe the item you want to pawn" });
+    }
+    if (!secured && !(parseFloat(requested_amount) > 0)) {
+      return res.status(400).json({ error: "Enter the amount you'd like to borrow" });
     }
     const r = await query(
       `INSERT INTO pawn_applications
-         (tenant_id, client_id, item_description, item_category, condition, serial_number, estimated_value, requested_amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+         (tenant_id, client_id, secured, item_description, item_category, condition, serial_number, estimated_value, requested_amount)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [
-        req.currentTenantId, req.currentClientId, String(item_description).trim(),
+        req.currentTenantId, req.currentClientId, secured,
+        item_description ? String(item_description).trim() : null,
         item_category || null, condition || null, serial_number || null,
         estimated_value != null && estimated_value !== "" ? parseFloat(estimated_value) : null,
         requested_amount != null && requested_amount !== "" ? parseFloat(requested_amount) : null,

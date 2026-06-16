@@ -463,7 +463,7 @@ export function PawnRequests() {
                 {rows.map((a) => (
                   <tr key={a.id} className="border-t border-slate-100">
                     <td className="px-4 py-2 font-semibold text-slate-800">{a.first_name} {a.last_name}<div className="text-xs text-slate-400 font-normal">{a.phone_number}</div></td>
-                    <td className="px-4 py-2 text-slate-600">{a.item_description}{a.item_category ? <span className="text-slate-400"> · {a.item_category}</span> : ""}</td>
+                    <td className="px-4 py-2 text-slate-600">{a.secured === false ? <span className="italic text-slate-500">Cash loan (no item)</span> : <>{a.item_description}{a.item_category ? <span className="text-slate-400"> · {a.item_category}</span> : ""}</>}</td>
                     <td className="px-4 py-2 text-right">{a.requested_amount != null ? money(a.requested_amount) : "—"}</td>
                     <td className="px-4 py-2 text-right text-slate-500">{a.estimated_value != null ? money(a.estimated_value) : "—"}</td>
                     <td className="px-4 py-2">
@@ -515,7 +515,7 @@ function ReviewModal({ application, onClose, onDone }) {
         <div className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
           <div className="text-sm text-slate-600">
-            <p className="font-semibold text-slate-800">{application.item_description}</p>
+            <p className="font-semibold text-slate-800">{application.secured === false ? "Cash loan (no collateral)" : application.item_description}</p>
             <p>{[application.item_category, application.condition].filter(Boolean).join(" · ")}</p>
             <p className="mt-1">Requested: <strong>{application.requested_amount != null ? money(application.requested_amount) : "—"}</strong>{application.estimated_value != null ? ` · est. ${money(application.estimated_value)}` : ""}</p>
           </div>

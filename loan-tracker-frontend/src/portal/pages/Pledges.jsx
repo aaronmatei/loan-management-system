@@ -251,6 +251,7 @@ export function PortalPawnRequests() {
 }
 
 function NewRequestModal({ onClose, onDone }) {
+  const [secured, setSecured] = useState(true);
   const [form, setForm] = useState({ item_description: "", item_category: "", condition: "", estimated_value: "", requested_amount: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -259,9 +260,10 @@ function NewRequestModal({ onClose, onDone }) {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!form.item_description.trim()) return setError("Describe the item.");
+    if (secured && !form.item_description.trim()) return setError("Describe the item.");
+    if (!secured && !(parseFloat(form.requested_amount) > 0)) return setError("Enter the amount you'd like to borrow.");
     setBusy(true);
-    try { await portalApi.post("/portal/customer/pawn-applications", form); onDone(); }
+    try { await portalApi.post("/portal/customer/pawn-applications", { ...form, secured }); onDone(); }
     catch (err) { setError(err.response?.data?.error || "Failed to submit."); setBusy(false); }
   };
   const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
@@ -276,14 +278,22 @@ function NewRequestModal({ onClose, onDone }) {
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
-          <div><label className={lbl}>What item? *</label><input value={form.item_description} onChange={set("item_description")} placeholder="e.g. Gold chain, 24k" className={fld} autoFocus /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={lbl}>Category</label><input value={form.item_category} onChange={set("item_category")} placeholder="Jewelry" className={fld} /></div>
-            <div><label className={lbl}>Condition</label><input value={form.condition} onChange={set("condition")} placeholder="Good" className={fld} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setSecured(true)} className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold ${secured ? "border-ocean-500 bg-ocean-50 text-ocean-700" : "border-slate-200 text-slate-700"}`}>Against an item<span className="block text-xs font-normal text-slate-500">Pledge a valuable</span></button>
+            <button type="button" onClick={() => setSecured(false)} className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold ${!secured ? "border-ocean-500 bg-ocean-50 text-ocean-700" : "border-slate-200 text-slate-700"}`}>Cash loan<span className="block text-xs font-normal text-slate-500">No item needed</span></button>
           </div>
+          {secured && (
+            <>
+              <div><label className={lbl}>What item? *</label><input value={form.item_description} onChange={set("item_description")} placeholder="e.g. Gold chain, 24k" className={fld} autoFocus /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className={lbl}>Category</label><input value={form.item_category} onChange={set("item_category")} placeholder="Jewelry" className={fld} /></div>
+                <div><label className={lbl}>Condition</label><input value={form.condition} onChange={set("condition")} placeholder="Good" className={fld} /></div>
+              </div>
+            </>
+          )}
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={lbl}>Item worth (KES)</label><input type="number" value={form.estimated_value} onChange={set("estimated_value")} placeholder="50000" className={fld} /></div>
-            <div><label className={lbl}>Amount wanted (KES)</label><input type="number" value={form.requested_amount} onChange={set("requested_amount")} placeholder="30000" className={fld} /></div>
+            {secured && <div><label className={lbl}>Item worth (KES)</label><input type="number" value={form.estimated_value} onChange={set("estimated_value")} placeholder="50000" className={fld} /></div>}
+            <div className={secured ? "" : "col-span-2"}><label className={lbl}>Amount wanted (KES){!secured && " *"}</label><input type="number" value={form.requested_amount} onChange={set("requested_amount")} placeholder="30000" className={fld} /></div>
           </div>
           <div className="flex justify-end gap-3 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>

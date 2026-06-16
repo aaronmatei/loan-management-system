@@ -145,6 +145,42 @@ describe("pawn dashboard + pledge list", () => {
     expect(sumB.body.data.collateral_value).toBe(20000); // one item held at Uptown
   });
 
+  it("creates an unsecured cash loan (no collateral)", async () => {
+    const { t, admin } = await setup();
+    const c = await createClient(t.id);
+    const res = await request(app).post("/api/pawn").set("Authorization", auth(admin))
+      .send({ client_id: c.id, secured: false, principal_amount: 8000, monthly_fee_percent: 10, duration_months: 1 });
+    expect(res.status).toBe(201);
+    expect(res.body.data.collateral).toBe(null);
+    expect(Number(res.body.data.loan.principal_amount)).toBe(8000);
+    expect(Number(res.body.data.loan.total_amount_due)).toBe(8800); // 8,000 + 10% × 1mo
+    const col = await query("SELECT COUNT(*)::int AS n FROM loan_collateral WHERE loan_id=$1", [res.body.data.loan.id]);
+    expect(col.rows[0].n).toBe(0);
+  });
+
+  it("rejects an unsecured loan with no amount", async () => {
+    const { t, admin } = await setup();
+    const c = await createClient(t.id);
+    const res = await request(app).post("/api/pawn").set("Authorization", auth(admin)).send({ client_id: c.id, secured: false, monthly_fee_percent: 10 });
+    expect(res.status).toBe(400);
+  });
+
+  it("keeps an overdue unsecured loan out of the auction queue", async () => {
+    const { t, admin } = await setup();
+    const c = await createClient(t.id);
+    const made = (await request(app).post("/api/pawn").set("Authorization", auth(admin))
+      .send({ client_id: c.id, secured: false, principal_amount: 5000, monthly_fee_percent: 10, duration_months: 1 })).body.data;
+    await query("UPDATE loans SET end_date = CURRENT_DATE - 60 WHERE id=$1", [made.loan.id]);
+    await request(app).put("/api/pawn/settings").set("Authorization", auth(admin)).send({ auction_notice_days: 14 });
+
+    const list = await request(app).get("/api/pawn").set("Authorization", auth(admin));
+    const row = list.body.data.find((r) => r.id === made.loan.id);
+    expect(row.overdue).toBe(true);
+    expect(row.auction_eligible).toBe(false); // no collateral → can't auction
+    const sum = await request(app).get("/api/pawn/summary").set("Authorization", auth(admin));
+    expect(sum.body.data.auction_due).toBe(0);
+  });
+
   it("404s a photo upload for a nonexistent pledge", async () => {
     const { admin } = await setup();
     const res = await request(app).post("/api/pawn/999999/photos").set("Authorization", auth(admin));
