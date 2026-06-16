@@ -610,7 +610,7 @@ router.post(
 
     const links = await query(
       `SELECT ctl.tenant_id, ctl.client_id, ctl.status, ctl.linked_at,
-              t.business_name, t.subdomain, t.brand_color,
+              t.business_name, t.subdomain, t.brand_color, t.kind,
               c.client_code,
               (SELECT COUNT(*) FROM loans
                 WHERE client_id = ctl.client_id AND status = 'active') AS active_loans
@@ -701,7 +701,7 @@ router.post("/select-tenant", async (req, res) => {
 
     const l = await query(
       `SELECT ctl.tenant_id, ctl.client_id, t.business_name, t.subdomain,
-              t.city, t.country, t.brand_color
+              t.city, t.country, t.brand_color, t.kind
        FROM customer_tenant_links ctl
        JOIN tenants t ON ctl.tenant_id = t.id
        WHERE ctl.platform_customer_id = $1 AND ctl.tenant_id = $2
@@ -746,6 +746,7 @@ router.post("/select-tenant", async (req, res) => {
         city: link.city,
         country: link.country,
         brand_color: link.brand_color,
+        kind: link.kind || "lender",
       },
     });
   } catch (error) {

@@ -16,6 +16,7 @@ import { computeInstallmentPenalty } from "../../utils/penalty.js";
 import {
   buildLoanStatementPdf,
   buildClientStatementPdf,
+  buildPawnTicketPdf,
   NotFoundError,
 } from "../../utils/pdfDocuments.js";
 import logger from "../../config/logger.js";
@@ -1064,6 +1065,98 @@ router.get("/dashboard", async (req, res) => {
   } catch (error) {
     logger.error("Dashboard error:", error);
     res.status(500).json({ error: "Failed" });
+  }
+});
+
+// ── PAWN PLEDGES (customer self-service for pawnbroker tenants) ──────
+// A pledge is a pawn loan (loan_type='pawn') + its collateral, scoped to
+// the customer's client at the current tenant. The customer can view the
+// item(s) they've pawned, the redemption balance, and pay via M-Pesa
+// (POST /api/mpesa/stk/loan-repayment, which already accepts customers).
+const PLEDGE_PAID = `COALESCE((SELECT SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0))
+       FROM transactions t WHERE t.loan_id = l.id AND t.payment_status='completed'),0)`;
+
+router.get("/pledges", async (req, res) => {
+  try {
+    if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
+    const rows = (await query(
+      `SELECT l.id, l.loan_code, l.principal_amount, l.total_amount_due, l.total_interest,
+              l.status, l.start_date, l.end_date, l.created_at,
+              col.description AS item, col.category, col.condition, col.appraised_value,
+              col.status AS collateral_status, col.photos,
+              ${PLEDGE_PAID} AS paid,
+              (l.status='active' AND l.end_date < CURRENT_DATE) AS overdue
+         FROM loans l
+         LEFT JOIN LATERAL (
+           SELECT * FROM loan_collateral lc WHERE lc.loan_id = l.id ORDER BY id DESC LIMIT 1
+         ) col ON true
+        WHERE l.loan_type='pawn' AND l.client_id = $1 AND l.tenant_id = $2
+        ORDER BY l.created_at DESC`,
+      [req.currentClientId, req.currentTenantId],
+    )).rows.map((r) => ({
+      ...r,
+      paid: Number(r.paid),
+      balance: Math.round((parseFloat(r.total_amount_due) - parseFloat(r.paid) + Number.EPSILON) * 100) / 100,
+    }));
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    logger.error("Customer pledges error:", error);
+    res.status(500).json({ error: "Failed to load pledges" });
+  }
+});
+
+router.get("/pledges/:id", async (req, res) => {
+  try {
+    if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
+    const loan = (await query(
+      `SELECT l.*, tn.business_name AS tenant_name, tn.brand_color AS tenant_brand_color
+         FROM loans l JOIN tenants tn ON tn.id = l.tenant_id
+        WHERE l.id = $1 AND l.client_id = $2 AND l.tenant_id = $3 AND l.loan_type='pawn'`,
+      [req.params.id, req.currentClientId, req.currentTenantId],
+    )).rows[0];
+    if (!loan) return res.status(404).json({ error: "Pledge not found" });
+
+    const collateral = (await query(
+      `SELECT * FROM loan_collateral WHERE loan_id = $1 ORDER BY id DESC LIMIT 1`,
+      [loan.id],
+    )).rows[0] || null;
+    const paidRow = (await query(
+      `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0)),0) AS paid
+         FROM transactions WHERE loan_id = $1 AND payment_status='completed'`,
+      [loan.id],
+    )).rows[0];
+    const transactions = (await query(
+      `SELECT id, amount_paid, payment_method, payment_date, transaction_code
+         FROM transactions WHERE loan_id = $1 AND payment_status='completed' ORDER BY payment_date DESC, id DESC`,
+      [loan.id],
+    )).rows;
+    const paid = Number(paidRow.paid);
+    const balance = Math.round((parseFloat(loan.total_amount_due) - paid + Number.EPSILON) * 100) / 100;
+    res.json({ success: true, data: { loan, collateral, transactions, paid, balance } });
+  } catch (error) {
+    logger.error("Customer pledge detail error:", error);
+    res.status(500).json({ error: "Failed to load pledge" });
+  }
+});
+
+// GET /pledges/:id/ticket — the customer's own pawn claim ticket (PDF).
+router.get("/pledges/:id/ticket", async (req, res) => {
+  try {
+    if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
+    // Ownership check before building (buildPawnTicketPdf only scopes by tenant).
+    const own = await query(
+      `SELECT id FROM loans WHERE id=$1 AND client_id=$2 AND tenant_id=$3 AND loan_type='pawn'`,
+      [req.params.id, req.currentClientId, req.currentTenantId],
+    );
+    if (own.rows.length === 0) return res.status(404).json({ error: "Pledge not found" });
+    const { buffer, filename } = await buildPawnTicketPdf(req.params.id, req.currentTenantId);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    if (error instanceof NotFoundError) return res.status(404).json({ error: error.message });
+    logger.error("Customer pledge ticket error:", error);
+    res.status(500).json({ error: "Failed to generate ticket" });
   }
 });
 

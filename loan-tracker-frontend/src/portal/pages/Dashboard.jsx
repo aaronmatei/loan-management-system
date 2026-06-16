@@ -90,7 +90,12 @@ function CustomerDashboard() {
         "portal_current_tenant",
         JSON.stringify({ ...r.data.current_tenant, brand_color: l.brand_color }),
       );
-      navigate(`/portal/loans/${l.loan_id}`);
+      // Pawnbroker loans are pledges — open the pledge view.
+      navigate(
+        r.data.current_tenant?.kind === "pawnbroker"
+          ? `/portal/pledges/${l.loan_id}`
+          : `/portal/loans/${l.loan_id}`,
+      );
     } catch {
       alert("Failed to open loan");
     }

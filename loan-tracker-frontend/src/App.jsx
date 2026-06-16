@@ -27,6 +27,7 @@ import CustomerDashboard from "./portal/pages/Dashboard";
 import CustomerMyLoans from "./portal/pages/MyLoans";
 import CustomerPayments from "./portal/pages/Payments";
 import CustomerLoanDetails from "./portal/pages/LoanDetails";
+import { PortalPledges, PortalPledgeDetail } from "./portal/pages/Pledges";
 import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
@@ -531,6 +532,22 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerApplyLoan />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/pledges"
+              element={
+                <PortalProtectedRoute>
+                  <PortalPledges />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/pledges/:id"
+              element={
+                <PortalProtectedRoute>
+                  <PortalPledgeDetail />
                 </PortalProtectedRoute>
               }
             />

@@ -11,6 +11,7 @@ import {
   User,
   LogOut,
   X,
+  Gem,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 import PortalNotificationBell from "./PortalNotificationBell";
@@ -20,7 +21,7 @@ import PortalNotificationBell from "./PortalNotificationBell";
 // LenderFest's own ocean/navy product theme (matching the staff dashboard) —
 // NOT a tenant brand. Per-lender brand colors live inside the page content
 // (lender cards, loan rows, receipts), never in this shell.
-const MENU = [
+const LENDER_MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
   { path: "/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
   { path: "/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
@@ -29,6 +30,26 @@ const MENU = [
   { path: "/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
   { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
+
+// When the customer is acting under a pawnbroker tenant, the portal speaks
+// pawn: pledges instead of loans/applications.
+const PAWN_MENU = [
+  { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
+  { path: "/lenders", label: "Browse", icon: Layers, variant: "indigo" },
+  { path: "/portal/pledges", label: "My Pledges", icon: Gem, variant: "teal" },
+  { path: "/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
+  { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
+];
+
+function menuForKind() {
+  try {
+    const t = JSON.parse(localStorage.getItem("portal_current_tenant") || "null");
+    if (t?.kind === "pawnbroker") return PAWN_MENU;
+  } catch {
+    /* ignore */
+  }
+  return LENDER_MENU;
+}
 
 function PortalLayout({ children }) {
   const navigate = useNavigate();
@@ -105,7 +126,7 @@ function PortalLayout({ children }) {
 
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-1">
-            {MENU.map((item) => {
+            {menuForKind().map((item) => {
               const active = isActive(item);
               const Icon = item.icon;
               return (
