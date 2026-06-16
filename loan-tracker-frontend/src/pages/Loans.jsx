@@ -1322,19 +1322,24 @@ function Loans() {
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Collateral / Security (Optional)
-                </label>
-                <textarea
-                  name="collateral_description"
-                  value={formData.collateral_description || ""}
-                  onChange={handleInputChange}
-                  rows="2"
-                  placeholder="Describe any collateral or security (e.g., Vehicle KCA 123A, Title Deed, etc.)"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
-                />
-              </div>
+              {/* Free-text security note — for informal security (a title
+                  deed, a co-signer). Hidden once "Loan against collateral" is
+                  on, since the structured item below replaces it. */}
+              {!againstCollateral && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Collateral / Security (Optional)
+                  </label>
+                  <textarea
+                    name="collateral_description"
+                    value={formData.collateral_description || ""}
+                    onChange={handleInputChange}
+                    rows="2"
+                    placeholder="Describe any collateral or security (e.g., Vehicle KCA 123A, Title Deed, etc.)"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  />
+                </div>
+              )}
 
               {/* Loan against collateral — opt-in structured pledge. When on,
                   the loan is created as a collateral loan (redeem / forfeit /
@@ -1344,7 +1349,14 @@ function Loans() {
                   <input
                     type="checkbox"
                     checked={againstCollateral}
-                    onChange={(e) => setAgainstCollateral(e.target.checked)}
+                    onChange={(e) => {
+                      setAgainstCollateral(e.target.checked);
+                      // Structured pledge is the single source of truth — drop
+                      // any free-text note so we don't store both.
+                      if (e.target.checked) {
+                        setFormData((f) => ({ ...f, collateral_description: "" }));
+                      }
+                    }}
                     className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
                   />
                   <span className="flex items-center gap-2 font-semibold text-amber-900">
