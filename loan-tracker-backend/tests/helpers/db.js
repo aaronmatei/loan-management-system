@@ -23,12 +23,20 @@ export function tokenFor(user) {
   );
 }
 
-// Wipe the tables tests write to. RESTART IDENTITY resets serial PKs so
-// IDs are predictable run-to-run; CASCADE clears FK-referencing rows.
+// Wipe the tables tests write to. CASCADE clears FK-referencing rows.
+//
+// NOTE: we deliberately do NOT use RESTART IDENTITY. Some welfare tables
+// (penalty_assessments, member_pool_transactions, …) reference tenants
+// without an ON DELETE CASCADE FK, so a TRUNCATE of `tenants` leaves their
+// rows orphaned (tenant_id retained). If the id sequence were reset, a later
+// test that creates a fresh tenant could be handed a RECYCLED id and inherit
+// those orphans — making tenant-scoped COUNT/SUM assertions flaky (e.g. a
+// contribution-late penalty count reading 3 instead of 2). Letting serial
+// ids keep climbing means a new tenant never collides with old orphans.
 export async function truncate(...tables) {
   const list = tables.length ? tables : ["tenants", "users", "audit_logs"];
   await query(
-    `TRUNCATE ${list.map((t) => `"${t}"`).join(", ")} RESTART IDENTITY CASCADE`,
+    `TRUNCATE ${list.map((t) => `"${t}"`).join(", ")} CASCADE`,
   );
 }
 
