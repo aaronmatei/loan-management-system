@@ -53,24 +53,28 @@ function LenderDetail() {
 
   useEffect(load, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stash the lender as the current tenant so ApplyLoan reads it from
-  // localStorage and scopes the session correctly. `packageId` is
-  // optional — when present, ApplyLoan pre-selects the package and
-  // locks its mechanics.
-  const apply = (packageId = null) => {
-    localStorage.setItem(
-      "portal_current_tenant",
-      JSON.stringify({
-        tenant_id: lender.tenant_id,
-        business_name: lender.business_name,
-        brand_color: lender.brand_color,
-      }),
-    );
-    navigate(
-      packageId
-        ? `/portal/apply?package=${packageId}`
-        : "/portal/apply",
-    );
+  // Select this lender as the current tenant (mints a tenant-scoped token and
+  // learns its kind), then route to the right apply flow: pawnbrokers go to the
+  // pawn request form (item / cash-loan toggle), everyone else to ApplyLoan.
+  // `packageId` (lenders only) pre-selects + locks a package.
+  const apply = async (packageId = null) => {
+    const fallback = () =>
+      navigate(packageId ? `/portal/apply?package=${packageId}` : "/portal/apply");
+    try {
+      const r = await portalApi.post("/portal/auth/select-tenant", { tenant_id: lender.tenant_id });
+      localStorage.setItem("portal_token", r.data.token);
+      localStorage.setItem(
+        "portal_current_tenant",
+        JSON.stringify({ ...r.data.current_tenant, brand_color: lender.brand_color }),
+      );
+      if (r.data.current_tenant?.kind === "pawnbroker") {
+        navigate("/portal/pawn-requests?new=1");
+        return;
+      }
+      fallback();
+    } catch {
+      fallback();
+    }
   };
 
   const unlink = async () => {
@@ -112,6 +116,21 @@ function LenderDetail() {
   if (!lender) return <PortalLayout><div /></PortalLayout>;
 
   const bc = lender.brand_color || "#0e8a6e";
+  const isPawn = String(lender.business_type || "").toLowerCase() === "pawnbroker";
+
+  // "View my loans/pledges" — pawnbrokers view pledges (needs a tenant-scoped
+  // token), everyone else the cross-tenant loans list filtered by this lender.
+  const viewMine = async () => {
+    if (!isPawn) return navigate(`/portal/loans?tenant_id=${lender.tenant_id}`);
+    try {
+      const r = await portalApi.post("/portal/auth/select-tenant", { tenant_id: lender.tenant_id });
+      localStorage.setItem("portal_token", r.data.token);
+      localStorage.setItem("portal_current_tenant", JSON.stringify({ ...r.data.current_tenant, brand_color: lender.brand_color }));
+      navigate("/portal/pledges");
+    } catch {
+      navigate(`/portal/loans?tenant_id=${lender.tenant_id}`);
+    }
+  };
 
   // Unlinking is blocked while any obligation is still in flight — active
   // loans OR a pending/under-review/approved application.
@@ -394,14 +413,10 @@ function LenderDetail() {
                   </button>
                 )}
                 <button
-                  onClick={() =>
-                    navigate(
-                      `/portal/loans?tenant_id=${lender.tenant_id}`,
-                    )
-                  }
+                  onClick={viewMine}
                   className="flex-1 py-3 rounded-xl font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50"
                 >
-                  View my loans
+                  {isPawn ? "View my pledges" : "View my loans"}
                 </button>
               </div>
               {canUnlink ? (

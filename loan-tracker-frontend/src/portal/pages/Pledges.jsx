@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Gem, ChevronRight, FileDown, Package, CalendarClock, ClipboardList, Plus, X, AlertTriangle, Trash2 } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
 import portalApi from "../services/portalApi";
@@ -186,9 +186,10 @@ const REQ_STATUS = {
 };
 
 export function PortalPawnRequests() {
+  const [searchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(searchParams.get("new") === "1");
 
   const load = () => {
     setLoading(true);
