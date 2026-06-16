@@ -72,7 +72,7 @@ export function PawnDashboard() {
           <Stat icon={Wallet} label="Collateral value" value={money(d.collateral_value)} sub="items held" tone="slate" />
           <Stat icon={Wallet} label="Capital available" value={money(d.capital_available)} tone="emerald" />
           <Stat icon={AlertTriangle} label="Overdue" value={d.overdue} sub={`${d.due_soon} due ≤7 days`} tone="rose" />
-          <Stat icon={Gavel} label="Auction queue" value={d.overdue} sub={`${d.forfeited} forfeited`} tone="amber" />
+          <Stat icon={Gavel} label="Auction queue" value={d.auction_due ?? d.overdue} sub={`${d.forfeited} forfeited`} tone="amber" />
           <Stat icon={CheckCircle2} label="Redeemed today" value={d.redeemed_today} tone="emerald" />
           <Stat icon={TrendingUp} label="Interest earned" value={money(d.interest_earned)} tone="slate" />
         </div>
@@ -183,7 +183,7 @@ export function PawnAuctions() {
     api.get("/pawn").then((r) => setRows(r.data.data || [])).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const queue = rows.filter((l) => l.overdue); // active + past maturity → eligible for auction
+  const queue = rows.filter((l) => l.auction_eligible); // overdue beyond the notice period
   const disposed = rows.filter((l) => ["forfeited", "sold"].includes(l.collateral_status));
 
   return (
@@ -354,6 +354,63 @@ function ReviewModal({ application, onClose, onDone }) {
             <button onClick={() => decide("approved")} disabled={busy} className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50">{busy ? "…" : "Approve"}</button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Settings (valuation / interest / auction rules) ──────────────────
+export function PawnSettings() {
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.get("/pawn/settings").then((r) => setForm({
+      default_ltv_percent: r.data.data.default_ltv_percent ?? 50,
+      default_monthly_fee_percent: r.data.data.default_monthly_fee_percent ?? 10,
+      default_duration_months: r.data.data.default_duration_months ?? 1,
+      grace_days: r.data.data.grace_days ?? 0,
+      auction_notice_days: r.data.data.auction_notice_days ?? 14,
+    })).catch(() => setError("Couldn't load settings"));
+  }, []);
+
+  const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setSaved(false); };
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError("");
+    try { await api.put("/pawn/settings", form); setSaved(true); }
+    catch (err) { setError(err.response?.data?.error || "Failed to save"); }
+    finally { setBusy(false); }
+  };
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+
+  return (
+    <div className="p-4 lg:p-8 max-w-2xl mx-auto pb-24">
+      <PageHeader title="Settings" />
+      <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6">
+        <h2 className="font-bold text-slate-900 mb-1">Valuation &amp; rules</h2>
+        <p className="text-sm text-slate-500 mb-5">Defaults applied to new pledges, plus how long after maturity an item becomes auction-eligible.</p>
+        {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
+        {!form ? <p className="text-sm text-slate-500">Loading…</p> : (
+          <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit settings.</p>}>
+            <form onSubmit={save} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className={lbl}>Default LTV %</label><input type="number" value={form.default_ltv_percent} onChange={set("default_ltv_percent")} className={fld} /><p className="text-xs text-slate-400 mt-1">Loan = item value × LTV%.</p></div>
+                <div><label className={lbl}>Default monthly fee %</label><input type="number" step="0.1" value={form.default_monthly_fee_percent} onChange={set("default_monthly_fee_percent")} className={fld} /><p className="text-xs text-slate-400 mt-1">Flat fee per month on the principal.</p></div>
+                <div><label className={lbl}>Default term (months)</label><input type="number" min="1" value={form.default_duration_months} onChange={set("default_duration_months")} className={fld} /></div>
+                <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /><p className="text-xs text-slate-400 mt-1">Days after maturity before a pledge counts as overdue.</p></div>
+                <div><label className={lbl}>Auction notice (days)</label><input type="number" min="0" value={form.auction_notice_days} onChange={set("auction_notice_days")} className={fld} /><p className="text-xs text-slate-400 mt-1">Days overdue before an item is auction-eligible.</p></div>
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-ocean-600 hover:bg-ocean-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save settings"}</button>
+                {saved && <span className="text-sm text-emerald-600 font-semibold">Saved.</span>}
+              </div>
+            </form>
+          </PermissionGate>
+        )}
       </div>
     </div>
   );

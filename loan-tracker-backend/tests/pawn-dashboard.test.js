@@ -86,4 +86,44 @@ describe("pawn dashboard + pledge list", () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(0); // tenant B sees none of A's pledges
   });
+
+  it("returns default settings and saves overrides", async () => {
+    const { admin } = await setup();
+    const def = await request(app).get("/api/pawn/settings").set("Authorization", auth(admin));
+    expect(def.status).toBe(200);
+    expect(def.body.data.default_ltv_percent).toBe(50);
+    expect(def.body.data.auction_notice_days).toBe(14);
+
+    const put = await request(app).put("/api/pawn/settings").set("Authorization", auth(admin))
+      .send({ default_ltv_percent: 65, default_monthly_fee_percent: 8, default_duration_months: 2, grace_days: 3, auction_notice_days: 7 });
+    expect(put.status).toBe(200);
+    const after = await request(app).get("/api/pawn/settings").set("Authorization", auth(admin));
+    expect(Number(after.body.data.default_ltv_percent)).toBe(65);
+    expect(after.body.data.auction_notice_days).toBe(7);
+  });
+
+  it("rejects an out-of-range LTV", async () => {
+    const { admin } = await setup();
+    const res = await request(app).put("/api/pawn/settings").set("Authorization", auth(admin)).send({ default_ltv_percent: 150 });
+    expect(res.status).toBe(400);
+  });
+
+  it("counts auction-due pledges using the notice period", async () => {
+    const { t, admin, pkg } = await setup();
+    const c = await createClient(t.id);
+    const created = (await newPawn(admin, pkg, c.id)).body.data;
+    // Push maturity 30 days into the past so it's well overdue.
+    await query("UPDATE loans SET end_date = CURRENT_DATE - 30 WHERE id=$1", [created.loan.id]);
+    await request(app).put("/api/pawn/settings").set("Authorization", auth(admin)).send({ auction_notice_days: 14, grace_days: 0 });
+
+    const sum = await request(app).get("/api/pawn/summary").set("Authorization", auth(admin));
+    expect(sum.body.data.overdue).toBe(1);
+    expect(sum.body.data.auction_due).toBe(1); // overdue beyond the 14-day notice
+
+    // Widen the notice past the overdue age → no longer auction-due.
+    await request(app).put("/api/pawn/settings").set("Authorization", auth(admin)).send({ auction_notice_days: 60 });
+    const sum2 = await request(app).get("/api/pawn/summary").set("Authorization", auth(admin));
+    expect(sum2.body.data.overdue).toBe(1);
+    expect(sum2.body.data.auction_due).toBe(0);
+  });
 });

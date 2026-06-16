@@ -46,6 +46,17 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
         setLoadingPkgs(false);
       }
     })();
+    // Prefill defaults from the pawnshop's settings (LTV / monthly fee / term).
+    api.get("/pawn/settings").then((r) => {
+      const s = r.data?.data;
+      if (!s) return;
+      setForm((f) => ({
+        ...f,
+        ltv_percent: f.ltv_percent && f.ltv_percent !== "50" ? f.ltv_percent : String(s.default_ltv_percent ?? 50),
+        monthly_fee_percent: f.monthly_fee_percent || String(s.default_monthly_fee_percent ?? ""),
+        duration_months: f.duration_months || String(s.default_duration_months ?? ""),
+      }));
+    }).catch(() => {});
   }, []);
 
   const selectedClient = clients.find(

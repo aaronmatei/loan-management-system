@@ -62,7 +62,7 @@ import Loans from "./pages/Loans";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
 import MemberDetail from "./pages/MemberDetail";
-import { PawnDashboard, PawnPledges, PawnAuctions, PawnRequests } from "./pages/pawn/PawnPages";
+import { PawnDashboard, PawnPledges, PawnAuctions, PawnRequests, PawnSettings } from "./pages/pawn/PawnPages";
 import WelfareShell from "./context/WelfareContext";
 import {
   WelfareDashboardPage,
@@ -420,7 +420,7 @@ function App() {
               <Route path="/pawn/payments" element={<Payments />} />
               <Route path="/pawn/auctions" element={<PawnAuctions />} />
               <Route path="/pawn/reports" element={<Reports />} />
-              <Route path="/pawn/settings" element={<Settings />} />
+              <Route path="/pawn/settings" element={<PawnSettings />} />
               {/* Standalone welfare app — its own resolved welfare (no group concept). */}
               <Route path="/welfare" element={<WelfareShell />}>
                 <Route index element={<WelfareDashboardPage />} />

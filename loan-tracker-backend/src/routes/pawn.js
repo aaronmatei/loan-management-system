@@ -38,6 +38,8 @@ const PAID_SUBQ = `COALESCE((SELECT SUM(amount_paid - COALESCE(penalty_portion,0
 // ?status=active|completed|defaulted|overdue|forfeited narrows it.
 router.get("/", async (req, res) => {
   try {
+    const st = await getPawnSettings(tenantId(req));
+    const grace = st.grace_days, notice = st.auction_notice_days;
     const tc = tenantClause(req, 0, "l.tenant_id");
     const rows = (await query(
       `SELECT l.id, l.loan_code, l.principal_amount, l.total_amount_due, l.total_interest,
@@ -47,7 +49,8 @@ router.get("/", async (req, res) => {
               col.appraised_value, col.ltv_percent, col.storage_location,
               col.status AS collateral_status, col.sale_amount, col.photos,
               ${PAID_SUBQ} AS paid,
-              (l.status='active' AND l.end_date < CURRENT_DATE) AS overdue
+              (l.status='active' AND l.end_date + ${grace} < CURRENT_DATE) AS overdue,
+              (l.status='active' AND l.end_date + ${notice} < CURRENT_DATE) AS auction_eligible
          FROM loans l
          JOIN clients c ON c.id = l.client_id
          LEFT JOIN LATERAL (
@@ -71,11 +74,14 @@ router.get("/", async (req, res) => {
 // GET /api/pawn/summary — dashboard cards for the pawnshop.
 router.get("/summary", async (req, res) => {
   try {
+    const st = await getPawnSettings(tenantId(req));
+    const grace = st.grace_days, notice = st.auction_notice_days;
     const lt = tenantClause(req, 0, "tenant_id");
     const loans = (await query(
       `SELECT
          COUNT(*) FILTER (WHERE status='active')::int AS active,
-         COUNT(*) FILTER (WHERE status='active' AND end_date < CURRENT_DATE)::int AS overdue,
+         COUNT(*) FILTER (WHERE status='active' AND end_date + ${grace} < CURRENT_DATE)::int AS overdue,
+         COUNT(*) FILTER (WHERE status='active' AND end_date + ${notice} < CURRENT_DATE)::int AS auction_due,
          COUNT(*) FILTER (WHERE status='active' AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 7)::int AS due_soon,
          COUNT(*) FILTER (WHERE status='completed' AND updated_at::date = CURRENT_DATE)::int AS redeemed_today,
          COALESCE(SUM(principal_amount) FILTER (WHERE status='active'),0) AS cash_out,
@@ -105,6 +111,7 @@ router.get("/summary", async (req, res) => {
       data: {
         active_pledges: loans.active,
         overdue: loans.overdue,
+        auction_due: loans.auction_due,
         due_soon: loans.due_soon,
         redeemed_today: loans.redeemed_today,
         cash_out: Number(loans.cash_out),
@@ -118,6 +125,75 @@ router.get("/summary", async (req, res) => {
   } catch (e) {
     logger.error("pawn summary error:", e);
     res.status(500).json({ error: "Failed to load summary" });
+  }
+});
+
+// Per-pawnshop settings, with sensible defaults when no row exists yet.
+const PAWN_DEFAULTS = {
+  default_ltv_percent: 50,
+  default_monthly_fee_percent: 10,
+  default_duration_months: 1,
+  grace_days: 0,
+  auction_notice_days: 14,
+};
+async function getPawnSettings(tid) {
+  const r = await query(`SELECT * FROM pawn_settings WHERE tenant_id = $1`, [tid]);
+  if (!r.rows.length) return { ...PAWN_DEFAULTS };
+  const s = r.rows[0];
+  return {
+    default_ltv_percent: Number(s.default_ltv_percent),
+    default_monthly_fee_percent: Number(s.default_monthly_fee_percent),
+    default_duration_months: s.default_duration_months,
+    grace_days: s.grace_days,
+    auction_notice_days: s.auction_notice_days,
+  };
+}
+
+// GET /api/pawn/settings — this pawnshop's rules (defaults if unset).
+router.get("/settings", async (req, res) => {
+  try {
+    const tid = tenantId(req);
+    if (!tid) return res.status(400).json({ error: "No tenant context" });
+    res.json({ success: true, data: await getPawnSettings(tid) });
+  } catch (e) {
+    logger.error("pawn settings get error:", e);
+    res.status(500).json({ error: "Failed to load settings" });
+  }
+});
+
+// PUT /api/pawn/settings — upsert the rules (admin/manager).
+router.put("/settings", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const tid = req.user?.tenant_id;
+    if (!tid) return res.status(400).json({ error: "No tenant context" });
+    const b = req.body || {};
+    const ltv = b.default_ltv_percent != null && b.default_ltv_percent !== "" ? parseFloat(b.default_ltv_percent) : 50;
+    if (!(ltv > 0 && ltv <= 100)) return res.status(400).json({ error: "LTV must be between 1 and 100" });
+    const fee = b.default_monthly_fee_percent != null && b.default_monthly_fee_percent !== "" ? parseFloat(b.default_monthly_fee_percent) : 10;
+    if (!(fee >= 0)) return res.status(400).json({ error: "Monthly fee can't be negative" });
+    const dur = parseInt(b.default_duration_months, 10) || 1;
+    const grace = parseInt(b.grace_days, 10) || 0;
+    const notice = parseInt(b.auction_notice_days, 10) || 0;
+
+    const r = await query(
+      `INSERT INTO pawn_settings
+         (tenant_id, default_ltv_percent, default_monthly_fee_percent, default_duration_months, grace_days, auction_notice_days)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (tenant_id) DO UPDATE SET
+         default_ltv_percent = EXCLUDED.default_ltv_percent,
+         default_monthly_fee_percent = EXCLUDED.default_monthly_fee_percent,
+         default_duration_months = EXCLUDED.default_duration_months,
+         grace_days = EXCLUDED.grace_days,
+         auction_notice_days = EXCLUDED.auction_notice_days,
+         updated_at = NOW()
+       RETURNING *`,
+      [tid, ltv, fee, Math.max(1, dur), Math.max(0, grace), Math.max(0, notice)],
+    );
+    await logAudit({ user: req.user, action: "pawn_settings_updated", entityType: "pawn_settings", entityId: tid, description: "Updated pawn settings", req });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("pawn settings update error:", e);
+    res.status(500).json({ error: "Failed to save settings" });
   }
 });
 

@@ -3116,6 +3116,18 @@ CREATE TABLE public.pawn_applications (
 CREATE INDEX idx_pawn_apps_tenant ON public.pawn_applications(tenant_id, status);
 CREATE INDEX idx_pawn_apps_client ON public.pawn_applications(client_id);
 
+-- migration 066: per-pawnshop settings
+CREATE TABLE public.pawn_settings (
+  tenant_id                 integer PRIMARY KEY,
+  default_ltv_percent       numeric(5,2)  NOT NULL DEFAULT 50,
+  default_monthly_fee_percent numeric(6,3) NOT NULL DEFAULT 10,
+  default_duration_months   integer       NOT NULL DEFAULT 1,
+  grace_days                integer       NOT NULL DEFAULT 0,
+  auction_notice_days       integer       NOT NULL DEFAULT 14,
+  created_at                timestamp NOT NULL DEFAULT NOW(),
+  updated_at                timestamp NOT NULL DEFAULT NOW()
+);
+
 --
 -- Vehicle security (migration 049) — logbook loans.
 --
