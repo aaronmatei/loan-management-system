@@ -15,7 +15,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
 
   const [clientSearch, setClientSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [photos, setPhotos] = useState([]); // uploaded image URLs
+  const [photos, setPhotos] = useState(Array.isArray(application?.photos) ? application.photos : []); // uploaded image URLs
   const [uploading, setUploading] = useState(false);
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState("");

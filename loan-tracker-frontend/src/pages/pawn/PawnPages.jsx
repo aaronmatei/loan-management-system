@@ -519,6 +519,16 @@ function ReviewModal({ application, onClose, onDone }) {
             <p>{[application.item_category, application.condition].filter(Boolean).join(" · ")}</p>
             <p className="mt-1">Requested: <strong>{application.requested_amount != null ? money(application.requested_amount) : "—"}</strong>{application.estimated_value != null ? ` · est. ${money(application.estimated_value)}` : ""}</p>
           </div>
+          {Array.isArray(application.photos) && application.photos.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">Customer photos</p>
+              <div className="flex flex-wrap gap-2">
+                {application.photos.map((src, i) => (
+                  <a key={i} href={src} target="_blank" rel="noreferrer"><img src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200 hover:opacity-90" /></a>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Your offer (KES)</label>
             <input type="number" value={offer} onChange={(e) => setOffer(e.target.value)} className={fld} placeholder="Offer if approving" />

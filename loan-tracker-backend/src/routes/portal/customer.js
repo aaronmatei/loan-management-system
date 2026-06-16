@@ -1169,6 +1169,36 @@ router.get("/pledges/:id/ticket", async (req, res) => {
 });
 
 // POST /pawn-applications — request a loan against an item (before bringing it in).
+// Upload item-condition photos for a pawn request → returns Cloudinary URLs the
+// submit then stores on the application. Reuses the KYC image pipeline.
+const reqPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => (/^image\//.test(file.mimetype) ? cb(null, true) : cb(new Error("Only image files are allowed"))),
+});
+const runReqPhotoUpload = (req, res, next) =>
+  reqPhotoUpload.array("photos", 6)(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.code === "LIMIT_FILE_SIZE" ? "Each image must be 5 MB or smaller" : err.message });
+    next();
+  });
+router.post("/pawn-application-photos", runReqPhotoUpload, async (req, res) => {
+  try {
+    if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
+    if (!isCloudinaryConfigured()) return res.status(503).json({ error: "Photo upload isn't available right now." });
+    const files = req.files || [];
+    if (!files.length) return res.status(400).json({ error: "No images uploaded" });
+    const urls = [];
+    for (const f of files) {
+      const r = await uploadBuffer(f.buffer, { folder: `loanfix/pawn/${req.currentTenantId}/requests/${req.currentClientId}` });
+      urls.push(r.secure_url);
+    }
+    res.json({ success: true, urls });
+  } catch (error) {
+    logger.error("Customer pawn request photo error:", error);
+    res.status(500).json({ error: "Failed to upload photos" });
+  }
+});
+
 router.post("/pawn-applications", async (req, res) => {
   try {
     if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
@@ -1180,16 +1210,18 @@ router.post("/pawn-applications", async (req, res) => {
     if (!secured && !(parseFloat(requested_amount) > 0)) {
       return res.status(400).json({ error: "Enter the amount you'd like to borrow" });
     }
+    const photos = Array.isArray(req.body?.photos) ? req.body.photos.slice(0, 6) : null;
     const r = await query(
       `INSERT INTO pawn_applications
-         (tenant_id, client_id, secured, item_description, item_category, condition, serial_number, estimated_value, requested_amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+         (tenant_id, client_id, secured, item_description, item_category, condition, serial_number, estimated_value, requested_amount, photos)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [
         req.currentTenantId, req.currentClientId, secured,
         item_description ? String(item_description).trim() : null,
         item_category || null, condition || null, serial_number || null,
         estimated_value != null && estimated_value !== "" ? parseFloat(estimated_value) : null,
         requested_amount != null && requested_amount !== "" ? parseFloat(requested_amount) : null,
+        photos && photos.length ? JSON.stringify(photos) : null,
       ],
     );
     res.status(201).json({ success: true, data: r.rows[0] });

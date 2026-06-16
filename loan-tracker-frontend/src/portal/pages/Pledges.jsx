@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Gem, ChevronRight, FileDown, Package, CalendarClock, ClipboardList, Plus, X, AlertTriangle, Trash2 } from "lucide-react";
+import { Gem, ChevronRight, FileDown, Package, CalendarClock, ClipboardList, Plus, X, AlertTriangle, Trash2, ImagePlus } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
 import portalApi from "../services/portalApi";
 import MpesaPayButton from "../../components/MpesaPayButton";
@@ -254,9 +254,24 @@ export function PortalPawnRequests() {
 function NewRequestModal({ onClose, onDone }) {
   const [secured, setSecured] = useState(true);
   const [form, setForm] = useState({ item_description: "", item_category: "", condition: "", estimated_value: "", requested_amount: "" });
+  const [photos, setPhotos] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const uploadPhotos = async (files) => {
+    if (!files?.length) return;
+    setUploading(true); setError("");
+    try {
+      const fd = new FormData();
+      Array.from(files).slice(0, 6).forEach((f) => fd.append("photos", f));
+      const r = await portalApi.post("/portal/customer/pawn-application-photos", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setPhotos((p) => [...p, ...(r.data.urls || [])]);
+    } catch (err) {
+      setError(err.response?.data?.error || "Couldn't upload photos.");
+    } finally { setUploading(false); }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -264,7 +279,7 @@ function NewRequestModal({ onClose, onDone }) {
     if (secured && !form.item_description.trim()) return setError("Describe the item.");
     if (!secured && !(parseFloat(form.requested_amount) > 0)) return setError("Enter the amount you'd like to borrow.");
     setBusy(true);
-    try { await portalApi.post("/portal/customer/pawn-applications", { ...form, secured }); onDone(); }
+    try { await portalApi.post("/portal/customer/pawn-applications", { ...form, secured, photos: secured ? photos : [] }); onDone(); }
     catch (err) { setError(err.response?.data?.error || "Failed to submit."); setBusy(false); }
   };
   const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
@@ -289,6 +304,22 @@ function NewRequestModal({ onClose, onDone }) {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={lbl}>Category</label><input value={form.item_category} onChange={set("item_category")} placeholder="Jewelry" className={fld} /></div>
                 <div><label className={lbl}>Condition</label><input value={form.condition} onChange={set("condition")} placeholder="Good" className={fld} /></div>
+              </div>
+              <div>
+                <label className={lbl}>Photos of the item</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {photos.map((src, i) => (
+                    <div key={i} className="relative">
+                      <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                      <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white rounded-full border border-gray-200 text-slate-500 hover:text-red-600"><X size={13} /></button>
+                    </div>
+                  ))}
+                  <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
+                    {uploading ? <span className="text-xs">…</span> : <ImagePlus size={20} />}
+                    <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { uploadPhotos(e.target.files); e.target.value = ""; }} />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Clear photos help the shop value your item and confirm its condition.</p>
               </div>
             </>
           )}

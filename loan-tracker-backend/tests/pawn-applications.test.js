@@ -59,6 +59,14 @@ describe("pawn applications", () => {
     expect(res.body.data.item_description).toBe(null);
   });
 
+  it("stores item-condition photos on a request", async () => {
+    const { auth } = await customer();
+    const photos = ["https://img/a.jpg", "https://img/b.jpg"];
+    const res = await api().post("/api/portal/customer/pawn-applications").set(auth).send({ item_description: "Watch", photos });
+    expect(res.status).toBe(201);
+    expect(res.body.data.photos).toEqual(photos);
+  });
+
   it("rejects an unsecured request with no amount", async () => {
     const { auth } = await customer();
     const res = await api().post("/api/portal/customer/pawn-applications").set(auth).send({ secured: false });
