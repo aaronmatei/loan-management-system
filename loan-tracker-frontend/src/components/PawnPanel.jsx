@@ -20,9 +20,11 @@ import PermissionGate from "./PermissionGate";
 // after a successful redeem/forfeit so the parent loan view refreshes.
 export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
   const [collateral, setCollateral] = useState(null);
+  const [terms, setTerms] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showRedeem, setShowRedeem] = useState(false);
   const [showForfeit, setShowForfeit] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const addPhotos = async (files) => {
@@ -44,6 +46,7 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
     try {
       const r = await api.get(`/pawn/${loanId}`);
       setCollateral(r.data?.data?.collateral || null);
+      setTerms(r.data?.data?.terms || null);
     } catch {
       /* non-fatal */
     } finally {
@@ -221,7 +224,41 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
             )}
           </>
         )}
+
+        {/* Redemption window — grace + auction notice, editable per pledge. */}
+        {terms && (
+          <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="flex gap-8 text-sm">
+              <div>
+                <p className="text-xs text-slate-500">Grace period</p>
+                <p className="font-semibold text-slate-800">
+                  {terms.grace_days} day{terms.grace_days === 1 ? "" : "s"}
+                  {terms.grace_days_override == null && <span className="text-xs text-slate-400 font-normal"> · default</span>}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Auction notice</p>
+                <p className="font-semibold text-slate-800">
+                  {terms.auction_notice_days} day{terms.auction_notice_days === 1 ? "" : "s"}
+                  {terms.auction_notice_days_override == null && <span className="text-xs text-slate-400 font-normal"> · default</span>}
+                </p>
+              </div>
+            </div>
+            <PermissionGate role={["admin", "manager"]}>
+              <button onClick={() => setShowTerms(true)} className="text-ocean-600 hover:text-ocean-800 text-sm font-semibold">Edit</button>
+            </PermissionGate>
+          </div>
+        )}
       </div>
+
+      {showTerms && terms && (
+        <TermsModal
+          loanId={loanId}
+          terms={terms}
+          onClose={() => setShowTerms(false)}
+          onDone={() => { setShowTerms(false); load(); }}
+        />
+      )}
 
       {showRedeem && (
         <RedeemModal
@@ -270,6 +307,52 @@ function ModalShell({ title, icon: Icon, accent, onClose, children }) {
           </button>
         </div>
         <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function TermsModal({ loanId, terms, onClose, onDone }) {
+  const [grace, setGrace] = useState(terms.grace_days_override ?? "");
+  const [notice, setNotice] = useState(terms.auction_notice_days_override ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setBusy(true);
+    try {
+      await api.put(`/pawn/${loanId}/terms`, { grace_days: grace, auction_notice_days: notice });
+      onDone();
+    } catch (err) { setError(err.response?.data?.error || "Failed to save."); setBusy(false); }
+  };
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900">Pledge terms</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+        </div>
+        <form onSubmit={submit} className="p-5 space-y-4">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
+          <p className="text-sm text-slate-500">Leave blank to use the shop default. These control when this pledge becomes overdue and auction-eligible.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Grace period (days)</label>
+              <input type="number" min="0" value={grace} onChange={(e) => setGrace(e.target.value)} placeholder={`default ${terms.grace_days_default}`} className={fld} />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Auction notice (days)</label>
+              <input type="number" min="0" value={notice} onChange={(e) => setNotice(e.target.value)} placeholder={`default ${terms.auction_notice_days_default}`} className={fld} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-ocean-600 hover:bg-ocean-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save terms"}</button>
+          </div>
+        </form>
       </div>
     </div>
   );

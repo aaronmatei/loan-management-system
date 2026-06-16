@@ -181,6 +181,39 @@ describe("pawn dashboard + pledge list", () => {
     expect(sum.body.data.auction_due).toBe(0);
   });
 
+  it("returns effective terms and overrides grace/auction per loan", async () => {
+    const { t, admin, pkg } = await setup();
+    const c = await createClient(t.id);
+    const made = (await newPawn(admin, pkg, c.id)).body.data;
+
+    const before = await request(app).get(`/api/pawn/${made.loan.id}`).set("Authorization", auth(admin));
+    expect(before.body.data.terms.grace_days).toBe(0); // shop defaults
+    expect(before.body.data.terms.auction_notice_days).toBe(14);
+    expect(before.body.data.terms.grace_days_override).toBe(null);
+
+    const put = await request(app).put(`/api/pawn/${made.loan.id}/terms`).set("Authorization", auth(admin)).send({ grace_days: 7, auction_notice_days: 30 });
+    expect(put.status).toBe(200);
+    const after = await request(app).get(`/api/pawn/${made.loan.id}`).set("Authorization", auth(admin));
+    expect(after.body.data.terms.grace_days).toBe(7);
+    expect(after.body.data.terms.auction_notice_days).toBe(30);
+    expect(after.body.data.terms.grace_days_override).toBe(7);
+  });
+
+  it("per-loan auction-notice override changes auction eligibility", async () => {
+    const { t, admin, pkg } = await setup();
+    const c = await createClient(t.id);
+    const made = (await newPawn(admin, pkg, c.id)).body.data;
+    await query("UPDATE loans SET end_date = CURRENT_DATE - 20 WHERE id=$1", [made.loan.id]);
+
+    const find = (list) => list.body.data.find((r) => r.id === made.loan.id);
+    let list = await request(app).get("/api/pawn").set("Authorization", auth(admin));
+    expect(find(list).auction_eligible).toBe(true); // 20d overdue > 14d shop notice
+
+    await request(app).put(`/api/pawn/${made.loan.id}/terms`).set("Authorization", auth(admin)).send({ auction_notice_days: 60 });
+    list = await request(app).get("/api/pawn").set("Authorization", auth(admin));
+    expect(find(list).auction_eligible).toBe(false); // 20d < 60d per-loan notice
+  });
+
   it("404s a photo upload for a nonexistent pledge", async () => {
     const { admin } = await setup();
     const res = await request(app).post("/api/pawn/999999/photos").set("Authorization", auth(admin));

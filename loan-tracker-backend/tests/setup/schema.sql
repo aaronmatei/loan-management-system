@@ -762,7 +762,9 @@ CREATE TABLE public.loans (
     loan_type character varying(20) NOT NULL DEFAULT 'personal',  -- migration 047
     group_id integer,  -- migration 051 (group / chama member loans)
     cycle_id integer,  -- migration 054 (group lending cycle/round)
-    branch_id integer  -- migration 068 (multi-branch)
+    branch_id integer,  -- migration 068 (multi-branch)
+    grace_days integer,  -- migration 070 (per-pledge override)
+    auction_notice_days integer  -- migration 070 (per-pledge override)
 );
 CREATE INDEX idx_loans_branch ON public.loans(branch_id);
 

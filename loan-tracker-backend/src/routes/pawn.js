@@ -93,8 +93,8 @@ router.get("/", async (req, res) => {
               col.appraised_value, col.ltv_percent, col.storage_location,
               col.status AS collateral_status, col.sale_amount, col.photos,
               ${PAID_SUBQ} AS paid,
-              (l.status='active' AND l.end_date + ${grace} < CURRENT_DATE) AS overdue,
-              (l.status='active' AND l.end_date + ${notice} < CURRENT_DATE AND col.id IS NOT NULL) AS auction_eligible
+              (l.status='active' AND l.end_date + COALESCE(l.grace_days, ${grace}) < CURRENT_DATE) AS overdue,
+              (l.status='active' AND l.end_date + COALESCE(l.auction_notice_days, ${notice}) < CURRENT_DATE AND col.id IS NOT NULL) AS auction_eligible
          FROM loans l
          JOIN clients c ON c.id = l.client_id
          LEFT JOIN branches b ON b.id = l.branch_id
@@ -128,8 +128,8 @@ router.get("/summary", async (req, res) => {
     const loans = (await query(
       `SELECT
          COUNT(*) FILTER (WHERE status='active')::int AS active,
-         COUNT(*) FILTER (WHERE status='active' AND end_date + ${grace} < CURRENT_DATE)::int AS overdue,
-         COUNT(*) FILTER (WHERE status='active' AND end_date + ${notice} < CURRENT_DATE AND EXISTS (SELECT 1 FROM loan_collateral lc WHERE lc.loan_id = loans.id))::int AS auction_due,
+         COUNT(*) FILTER (WHERE status='active' AND end_date + COALESCE(grace_days, ${grace}) < CURRENT_DATE)::int AS overdue,
+         COUNT(*) FILTER (WHERE status='active' AND end_date + COALESCE(auction_notice_days, ${notice}) < CURRENT_DATE AND EXISTS (SELECT 1 FROM loan_collateral lc WHERE lc.loan_id = loans.id))::int AS auction_due,
          COUNT(*) FILTER (WHERE status='active' AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 7)::int AS due_soon,
          COUNT(*) FILTER (WHERE status='completed' AND updated_at::date = CURRENT_DATE)::int AS redeemed_today,
          COALESCE(SUM(principal_amount) FILTER (WHERE status='active'),0) AS cash_out,
@@ -541,7 +541,7 @@ router.post("/:loanId/photos", authorize("admin", "manager", "loan_officer"), ru
   }
 });
 
-// GET /api/pawn/:loanId — pawn loan + its collateral.
+// GET /api/pawn/:loanId — pawn loan + its collateral + effective terms.
 router.get("/:loanId", async (req, res) => {
   try {
     const loan = await loadPawnLoan(req, req.params.loanId);
@@ -550,10 +550,38 @@ router.get("/:loanId", async (req, res) => {
       `SELECT * FROM loan_collateral WHERE loan_id = $1 ORDER BY id DESC LIMIT 1`,
       [loan.id],
     );
-    res.json({ success: true, data: { loan, collateral: col.rows[0] || null } });
+    const st = await getPawnSettings(loan.tenant_id);
+    // Effective grace/notice = the loan's own override, else the shop default.
+    const terms = {
+      grace_days: loan.grace_days ?? st.grace_days,
+      auction_notice_days: loan.auction_notice_days ?? st.auction_notice_days,
+      grace_days_override: loan.grace_days,                 // null when using default
+      auction_notice_days_override: loan.auction_notice_days,
+      grace_days_default: st.grace_days,
+      auction_notice_days_default: st.auction_notice_days,
+    };
+    res.json({ success: true, data: { loan, collateral: col.rows[0] || null, terms } });
   } catch (e) {
     logger.error("pawn get error:", e);
     res.status(500).json({ error: "Failed to load pawn loan" });
+  }
+});
+
+// PUT /api/pawn/:loanId/terms — override grace / auction-notice for one pledge.
+// Blank/null clears the override (falls back to the shop default).
+router.put("/:loanId/terms", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const loan = await loadPawnLoan(req, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Pawn loan not found" });
+    const num = (v) => (v != null && v !== "" ? Math.max(0, parseInt(v, 10) || 0) : null);
+    const grace = num(req.body?.grace_days);
+    const notice = num(req.body?.auction_notice_days);
+    await query(`UPDATE loans SET grace_days=$2, auction_notice_days=$3, updated_at=NOW() WHERE id=$1`, [loan.id, grace, notice]);
+    await logAudit({ user: req.user, action: "pawn_terms_updated", entityType: "loan", entityId: loan.id, entityCode: loan.loan_code, description: `Pawn ${loan.loan_code} terms: grace=${grace ?? "default"}, auction notice=${notice ?? "default"}`, req });
+    res.json({ success: true, data: { grace_days: grace, auction_notice_days: notice } });
+  } catch (e) {
+    logger.error("pawn terms update error:", e);
+    res.status(500).json({ error: "Failed to update terms" });
   }
 });
 
