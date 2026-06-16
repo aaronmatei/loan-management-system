@@ -164,6 +164,7 @@ const PAWNBROKER_STANDALONE = [
   { path: "/pawn", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", permission: "loans:view", exact: true },
   { path: "/pawn/customers", label: "Customers", icon: Users, variant: "ocean", permission: "clients:view" },
   { path: "/pawn/pledges", label: "Pledges", icon: Gem, variant: "ocean", permission: "loans:view" },
+  { path: "/pawn/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view" },
   { path: "/pawn/payments", label: "Payments", icon: CreditCard, variant: "ocean", permission: "payments:view" },
   { path: "/pawn/auctions", label: "Auctions", icon: Gavel, variant: "ocean", permission: "loans:view" },
   { path: "/pawn/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "reports:view" },

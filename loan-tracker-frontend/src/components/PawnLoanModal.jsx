@@ -7,7 +7,7 @@ import api from "../services/api";
 // books a single bullet repayment (principal + a flat fee) due at maturity.
 // This is intentionally a separate flow from the standard loan application —
 // there is no approval/disbursement workflow. POSTs to /pawn.
-export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
+export default function PawnLoanModal({ clients = [], onClose, onCreated, application = null }) {
   const [packages, setPackages] = useState([]);
   const [loadingPkgs, setLoadingPkgs] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -16,15 +16,16 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
   const [clientSearch, setClientSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // When converting a customer pawn request, prefill from the application.
   const [form, setForm] = useState({
-    client_id: "",
+    client_id: application ? String(application.client_id) : "",
     package_id: "",
-    item_category: "",
-    item_description: "",
-    serial_number: "",
-    item_condition: "",
+    item_category: application?.item_category || "",
+    item_description: application?.item_description || "",
+    serial_number: application?.serial_number || "",
+    item_condition: application?.condition || "",
     storage_location: "",
-    appraised_value: "",
+    appraised_value: application?.offered_amount || application?.estimated_value || "",
     ltv_percent: "50",
     principal_amount: "",
     duration_months: "",
@@ -129,6 +130,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated }) {
         serial_number: form.serial_number || null,
         item_condition: form.item_condition || null,
         storage_location: form.storage_location || null,
+        ...(application ? { application_id: application.id } : {}),
       });
       onCreated?.(r.data?.data?.loan);
     } catch (err) {

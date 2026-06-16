@@ -1160,6 +1160,63 @@ router.get("/pledges/:id/ticket", async (req, res) => {
   }
 });
 
+// POST /pawn-applications — request a loan against an item (before bringing it in).
+router.post("/pawn-applications", async (req, res) => {
+  try {
+    if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
+    const { item_description, item_category, condition, serial_number, estimated_value, requested_amount } = req.body || {};
+    if (!item_description || !String(item_description).trim()) {
+      return res.status(400).json({ error: "Describe the item you want to pawn" });
+    }
+    const r = await query(
+      `INSERT INTO pawn_applications
+         (tenant_id, client_id, item_description, item_category, condition, serial_number, estimated_value, requested_amount)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [
+        req.currentTenantId, req.currentClientId, String(item_description).trim(),
+        item_category || null, condition || null, serial_number || null,
+        estimated_value != null && estimated_value !== "" ? parseFloat(estimated_value) : null,
+        requested_amount != null && requested_amount !== "" ? parseFloat(requested_amount) : null,
+      ],
+    );
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (error) {
+    logger.error("Customer pawn application submit error:", error);
+    res.status(500).json({ error: "Failed to submit request" });
+  }
+});
+
+// GET /pawn-applications — the customer's pawn requests at the current tenant.
+router.get("/pawn-applications", async (req, res) => {
+  try {
+    if (!req.currentTenantId) return res.status(400).json({ error: "Select a tenant first" });
+    const r = await query(
+      `SELECT * FROM pawn_applications WHERE tenant_id = $1 AND client_id = $2 ORDER BY created_at DESC`,
+      [req.currentTenantId, req.currentClientId],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("Customer pawn applications list error:", error);
+    res.status(500).json({ error: "Failed to load requests" });
+  }
+});
+
+// DELETE /pawn-applications/:id — withdraw a still-pending request.
+router.delete("/pawn-applications/:id", async (req, res) => {
+  try {
+    const r = await query(
+      `UPDATE pawn_applications SET status='withdrawn', updated_at=NOW()
+        WHERE id=$1 AND tenant_id=$2 AND client_id=$3 AND status='pending' RETURNING id`,
+      [req.params.id, req.currentTenantId, req.currentClientId],
+    );
+    if (r.rows.length === 0) return res.status(400).json({ error: "Only a pending request can be withdrawn" });
+    res.json({ success: true });
+  } catch (error) {
+    logger.error("Customer pawn application withdraw error:", error);
+    res.status(500).json({ error: "Failed to withdraw" });
+  }
+});
+
 router.get("/loans", async (req, res) => {
   try {
     const params = [req.currentClientId, req.currentTenantId];

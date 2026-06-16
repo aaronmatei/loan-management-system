@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Gem, Wallet, AlertTriangle, Banknote, CheckCircle2, Gavel,
-  Plus, Search, ChevronRight, TrendingUp,
+  Plus, Search, ChevronRight, TrendingUp, X,
 } from "lucide-react";
 import api from "../../services/api";
 import PermissionGate from "../../components/PermissionGate";
@@ -233,6 +233,128 @@ export function PawnAuctions() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Requests (customer pawn applications) ────────────────────────────
+const APP_STATUS = {
+  pending: "bg-amber-100 text-amber-800",
+  approved: "bg-emerald-100 text-emerald-800",
+  rejected: "bg-red-100 text-red-700",
+  withdrawn: "bg-slate-200 text-slate-600",
+  converted: "bg-ocean-100 text-ocean-700",
+};
+
+export function PawnRequests() {
+  const [rows, setRows] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [review, setReview] = useState(null); // application being reviewed
+  const [convert, setConvert] = useState(null); // application being converted
+
+  const load = async () => {
+    try {
+      const [a, c] = await Promise.all([api.get("/pawn/applications"), api.get("/clients").catch(() => ({ data: { data: [] } }))]);
+      setRows(a.data.data || []);
+      setClients(c.data.data || []);
+    } catch { /* */ } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  return (
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
+      <PageHeader title="Requests" />
+      <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
+        {loading ? <p className="p-5 text-sm text-slate-500">Loading…</p> : rows.length === 0 ? (
+          <p className="p-5 text-sm text-slate-500">No customer requests yet. Customers can request a loan against an item from their portal.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                <tr>
+                  <th className="text-left px-4 py-2">Customer</th>
+                  <th className="text-left px-4 py-2">Item</th>
+                  <th className="text-right px-4 py-2">Requested</th>
+                  <th className="text-right px-4 py-2">Est. value</th>
+                  <th className="text-left px-4 py-2">Status</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((a) => (
+                  <tr key={a.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-semibold text-slate-800">{a.first_name} {a.last_name}<div className="text-xs text-slate-400 font-normal">{a.phone_number}</div></td>
+                    <td className="px-4 py-2 text-slate-600">{a.item_description}{a.item_category ? <span className="text-slate-400"> · {a.item_category}</span> : ""}</td>
+                    <td className="px-4 py-2 text-right">{a.requested_amount != null ? money(a.requested_amount) : "—"}</td>
+                    <td className="px-4 py-2 text-right text-slate-500">{a.estimated_value != null ? money(a.estimated_value) : "—"}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${APP_STATUS[a.status] || "bg-slate-100"}`}>{a.status}</span>
+                      {a.status === "approved" && a.offered_amount != null && <span className="ml-2 text-xs text-emerald-700">offer {money(a.offered_amount)}</span>}
+                    </td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">
+                      <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                        {a.status === "pending" && <button onClick={() => setReview(a)} className="text-ocean-600 hover:text-ocean-800 font-semibold text-sm">Review</button>}
+                        {a.status === "approved" && <button onClick={() => setConvert(a)} className="text-emerald-600 hover:text-emerald-800 font-semibold text-sm">Convert to pledge</button>}
+                      </PermissionGate>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {review && <ReviewModal application={review} onClose={() => setReview(null)} onDone={() => { setReview(null); load(); }} />}
+      {convert && <PawnLoanModal clients={clients} application={convert} onClose={() => setConvert(null)} onCreated={() => { setConvert(null); load(); }} />}
+    </div>
+  );
+}
+
+function ReviewModal({ application, onClose, onDone }) {
+  const [offer, setOffer] = useState(application.requested_amount || "");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const decide = async (decision) => {
+    setError(""); setBusy(true);
+    try {
+      await api.post(`/pawn/applications/${application.id}/review`, { decision, offered_amount: decision === "approved" ? offer : undefined, notes });
+      onDone();
+    } catch (e) { setError(e.response?.data?.error || "Failed"); setBusy(false); }
+  };
+
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900">Review request</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
+          <div className="text-sm text-slate-600">
+            <p className="font-semibold text-slate-800">{application.item_description}</p>
+            <p>{[application.item_category, application.condition].filter(Boolean).join(" · ")}</p>
+            <p className="mt-1">Requested: <strong>{application.requested_amount != null ? money(application.requested_amount) : "—"}</strong>{application.estimated_value != null ? ` · est. ${money(application.estimated_value)}` : ""}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Your offer (KES)</label>
+            <input type="number" value={offer} onChange={(e) => setOffer(e.target.value)} className={fld} placeholder="Offer if approving" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Notes</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={fld} placeholder="Optional note to the customer" />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={() => decide("rejected")} disabled={busy} className="px-4 py-2 rounded-lg border-2 border-rose-200 text-rose-700 font-semibold hover:bg-rose-50 disabled:opacity-50">Reject</button>
+            <button onClick={() => decide("approved")} disabled={busy} className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50">{busy ? "…" : "Approve"}</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -3092,6 +3092,30 @@ CREATE TABLE public.loan_collateral (
 CREATE INDEX idx_loan_collateral_loan   ON public.loan_collateral(loan_id);
 CREATE INDEX idx_loan_collateral_tenant ON public.loan_collateral(tenant_id, status);
 
+-- migration 065: pawn applications (customer-initiated)
+CREATE TABLE public.pawn_applications (
+  id               serial PRIMARY KEY,
+  tenant_id        integer NOT NULL,
+  client_id        integer NOT NULL,
+  item_description text NOT NULL,
+  item_category    varchar(60),
+  condition        varchar(40),
+  serial_number    varchar(120),
+  estimated_value  numeric(12,2),
+  requested_amount numeric(12,2),
+  photos           jsonb,
+  status           varchar(20) NOT NULL DEFAULT 'pending',
+  offered_amount   numeric(12,2),
+  review_notes     text,
+  reviewed_by      integer,
+  reviewed_at      timestamp,
+  loan_id          integer,
+  created_at       timestamp NOT NULL DEFAULT NOW(),
+  updated_at       timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_pawn_apps_tenant ON public.pawn_applications(tenant_id, status);
+CREATE INDEX idx_pawn_apps_client ON public.pawn_applications(client_id);
+
 --
 -- Vehicle security (migration 049) — logbook loans.
 --

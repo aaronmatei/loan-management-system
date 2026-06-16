@@ -27,7 +27,7 @@ import CustomerDashboard from "./portal/pages/Dashboard";
 import CustomerMyLoans from "./portal/pages/MyLoans";
 import CustomerPayments from "./portal/pages/Payments";
 import CustomerLoanDetails from "./portal/pages/LoanDetails";
-import { PortalPledges, PortalPledgeDetail } from "./portal/pages/Pledges";
+import { PortalPledges, PortalPledgeDetail, PortalPawnRequests } from "./portal/pages/Pledges";
 import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
@@ -62,7 +62,7 @@ import Loans from "./pages/Loans";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
 import MemberDetail from "./pages/MemberDetail";
-import { PawnDashboard, PawnPledges, PawnAuctions } from "./pages/pawn/PawnPages";
+import { PawnDashboard, PawnPledges, PawnAuctions, PawnRequests } from "./pages/pawn/PawnPages";
 import WelfareShell from "./context/WelfareContext";
 import {
   WelfareDashboardPage,
@@ -416,6 +416,7 @@ function App() {
               <Route path="/pawn/customers" element={<Clients />} />
               <Route path="/pawn/pledges" element={<PawnPledges />} />
               <Route path="/pawn/pledges/:id" element={<LoanDetails />} />
+              <Route path="/pawn/requests" element={<PawnRequests />} />
               <Route path="/pawn/payments" element={<Payments />} />
               <Route path="/pawn/auctions" element={<PawnAuctions />} />
               <Route path="/pawn/reports" element={<Reports />} />
@@ -548,6 +549,14 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <PortalPledgeDetail />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/pawn-requests"
+              element={
+                <PortalProtectedRoute>
+                  <PortalPawnRequests />
                 </PortalProtectedRoute>
               }
             />

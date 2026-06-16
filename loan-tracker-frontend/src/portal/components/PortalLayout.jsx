@@ -36,6 +36,7 @@ const LENDER_MENU = [
 const PAWN_MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
   { path: "/lenders", label: "Browse", icon: Layers, variant: "indigo" },
+  { path: "/portal/pawn-requests", label: "Requests", icon: ClipboardList, variant: "amber" },
   { path: "/portal/pledges", label: "My Pledges", icon: Gem, variant: "teal" },
   { path: "/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
   { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },

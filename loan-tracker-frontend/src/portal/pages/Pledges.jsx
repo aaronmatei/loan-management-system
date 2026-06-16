@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Gem, ChevronRight, FileDown, Package, CalendarClock } from "lucide-react";
+import { Gem, ChevronRight, FileDown, Package, CalendarClock, ClipboardList, Plus, X, AlertTriangle, Trash2 } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
 import portalApi from "../services/portalApi";
 import MpesaPayButton from "../../components/MpesaPayButton";
@@ -173,5 +173,124 @@ export function PortalPledgeDetail() {
         </div>
       </div>
     </PortalLayout>
+  );
+}
+
+// ── Pawn requests (customer-initiated applications) ──────────────────
+const REQ_STATUS = {
+  pending: "bg-amber-100 text-amber-800",
+  approved: "bg-emerald-100 text-emerald-800",
+  rejected: "bg-red-100 text-red-700",
+  withdrawn: "bg-slate-200 text-slate-600",
+  converted: "bg-ocean-100 text-ocean-700",
+};
+
+export function PortalPawnRequests() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showNew, setShowNew] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    portalApi.get("/portal/customer/pawn-applications")
+      .then((r) => setRows(r.data.data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+
+  const withdraw = async (id) => {
+    if (!confirm("Withdraw this request?")) return;
+    try { await portalApi.delete(`/portal/customer/pawn-applications/${id}`); load(); }
+    catch (e) { alert(e.response?.data?.error || "Couldn't withdraw"); }
+  };
+
+  return (
+    <PortalLayout>
+      <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+        <div className="flex justify-between items-center mb-1">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList className="text-ocean-600" /> Loan Requests</h1>
+          <button onClick={() => setShowNew(true)} className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> New request</button>
+        </div>
+        <p className="text-sm text-gray-500 mb-6">Ask for a loan against an item before bringing it in. The shop reviews and makes you an offer.</p>
+
+        {loading ? (
+          <div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Loading…" /></div>
+        ) : rows.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-md p-8 text-center text-slate-500">No requests yet.</div>
+        ) : (
+          <div className="space-y-3">
+            {rows.map((a) => (
+              <div key={a.id} className="bg-white rounded-xl shadow-md border border-slate-100 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-800">{a.item_description}</p>
+                    <p className="text-xs text-slate-500">{[a.item_category, a.condition].filter(Boolean).join(" · ")}</p>
+                    <p className="text-sm text-slate-600 mt-1">
+                      {a.requested_amount != null ? <>Requested {KES(a.requested_amount)}</> : "No amount specified"}
+                      {a.status === "approved" && a.offered_amount != null && <span className="text-emerald-700 font-semibold"> · offer {KES(a.offered_amount)}</span>}
+                    </p>
+                    {a.review_notes && <p className="text-xs text-slate-500 mt-1 italic">"{a.review_notes}"</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${REQ_STATUS[a.status] || "bg-slate-100"}`}>{a.status}</span>
+                    {a.status === "pending" && (
+                      <button onClick={() => withdraw(a.id)} className="block mt-2 ml-auto text-xs text-slate-400 hover:text-red-600 inline-flex items-center gap-1"><Trash2 size={12} /> withdraw</button>
+                    )}
+                  </div>
+                </div>
+                {a.status === "approved" && <p className="text-xs text-emerald-700 mt-2 bg-emerald-50 rounded-lg px-3 py-2">Approved! Bring the item to the shop to collect your cash.</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {showNew && <NewRequestModal onClose={() => setShowNew(false)} onDone={() => { setShowNew(false); load(); }} />}
+    </PortalLayout>
+  );
+}
+
+function NewRequestModal({ onClose, onDone }) {
+  const [form, setForm] = useState({ item_description: "", item_category: "", condition: "", estimated_value: "", requested_amount: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!form.item_description.trim()) return setError("Describe the item.");
+    setBusy(true);
+    try { await portalApi.post("/portal/customer/pawn-applications", form); onDone(); }
+    catch (err) { setError(err.response?.data?.error || "Failed to submit."); setBusy(false); }
+  };
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900">Request a loan</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+        </div>
+        <form onSubmit={submit} className="p-5 space-y-4">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
+          <div><label className={lbl}>What item? *</label><input value={form.item_description} onChange={set("item_description")} placeholder="e.g. Gold chain, 24k" className={fld} autoFocus /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={lbl}>Category</label><input value={form.item_category} onChange={set("item_category")} placeholder="Jewelry" className={fld} /></div>
+            <div><label className={lbl}>Condition</label><input value={form.condition} onChange={set("condition")} placeholder="Good" className={fld} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={lbl}>Item worth (KES)</label><input type="number" value={form.estimated_value} onChange={set("estimated_value")} placeholder="50000" className={fld} /></div>
+            <div><label className={lbl}>Amount wanted (KES)</label><input type="number" value={form.requested_amount} onChange={set("requested_amount")} placeholder="30000" className={fld} /></div>
+          </div>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-ocean-600 hover:bg-ocean-700 text-white font-semibold disabled:opacity-50">{busy ? "Sending…" : "Send request"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

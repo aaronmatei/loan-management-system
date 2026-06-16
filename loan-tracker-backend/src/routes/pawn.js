@@ -121,6 +121,62 @@ router.get("/summary", async (req, res) => {
   }
 });
 
+// GET /api/pawn/applications — customer-submitted pawn requests for this shop.
+// ?status=pending (default all) narrows the queue.
+router.get("/applications", async (req, res) => {
+  try {
+    const tc = tenantClause(req, 0, "a.tenant_id");
+    const params = [...tc.params];
+    let statusClause = "";
+    if (req.query.status) {
+      params.push(req.query.status);
+      statusClause = ` AND a.status = $${params.length}`;
+    }
+    const r = await query(
+      `SELECT a.*, c.first_name, c.last_name, c.phone_number, c.client_code
+         FROM pawn_applications a
+         JOIN clients c ON c.id = a.client_id
+        WHERE 1=1${tc.clause}${statusClause}
+        ORDER BY (a.status='pending') DESC, a.created_at DESC`,
+      params,
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("pawn applications list error:", e);
+    res.status(500).json({ error: "Failed to load requests" });
+  }
+});
+
+// POST /api/pawn/applications/:id/review — approve (with an offer) or reject.
+router.post("/applications/:id/review", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const tc = tenantClause(req, 1, "tenant_id");
+    const a = (await query(`SELECT * FROM pawn_applications WHERE id = $1${tc.clause}`, [req.params.id, ...tc.params])).rows[0];
+    if (!a) return res.status(404).json({ error: "Request not found" });
+    if (a.status !== "pending") return res.status(400).json({ error: `Request is already ${a.status}` });
+
+    const decision = req.body?.decision;
+    if (!["approved", "rejected"].includes(decision)) {
+      return res.status(400).json({ error: "decision must be 'approved' or 'rejected'" });
+    }
+    const offered = req.body?.offered_amount != null && req.body.offered_amount !== "" ? parseFloat(req.body.offered_amount) : null;
+    const r = await query(
+      `UPDATE pawn_applications
+          SET status=$2, offered_amount=$3, review_notes=$4, reviewed_by=$5, reviewed_at=NOW(), updated_at=NOW()
+        WHERE id=$1 RETURNING *`,
+      [a.id, decision, decision === "approved" ? offered : null, req.body?.notes || null, req.user.id],
+    );
+    await logAudit({
+      user: req.user, action: `pawn_application_${decision}`, entityType: "pawn_application",
+      entityId: a.id, description: `Pawn request #${a.id} ${decision}${offered ? ` (offer ${offered})` : ""}`, req,
+    });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("pawn application review error:", e);
+    res.status(500).json({ error: "Failed to review request" });
+  }
+});
+
 // GET /api/pawn/:loanId — pawn loan + its collateral.
 router.get("/:loanId", async (req, res) => {
   try {
@@ -173,6 +229,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       item_condition,
       storage_location,
       photos,
+      application_id, // optional: converting a customer pawn request
     } = req.body || {};
 
     if (!client_id || !appraised_value || !item_description) {
@@ -309,6 +366,15 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       description: `Pawn ${loanCode}: KES ${principal} on "${item_description}" (value KES ${value}, LTV ${ltv}%)`,
       req,
     });
+
+    // If this pawn was created from a customer request, mark it converted.
+    if (application_id) {
+      await query(
+        `UPDATE pawn_applications SET status='converted', loan_id=$2, updated_at=NOW()
+          WHERE id=$1 AND tenant_id=$3 AND status IN ('pending','approved')`,
+        [application_id, loan.id, tid],
+      );
+    }
 
     res.status(201).json({ success: true, data: { loan, collateral: col.rows[0] } });
   } catch (e) {
