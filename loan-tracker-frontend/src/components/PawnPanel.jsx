@@ -9,6 +9,7 @@ import {
   MapPin,
   Tag,
   Hash,
+  ImagePlus,
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
@@ -22,6 +23,22 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
   const [loading, setLoading] = useState(true);
   const [showRedeem, setShowRedeem] = useState(false);
   const [showForfeit, setShowForfeit] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const addPhotos = async (files) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      Array.from(files).slice(0, 6).forEach((f) => fd.append("photos", f));
+      await api.post(`/pawn/${loanId}/photos`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      await load();
+    } catch (err) {
+      alert(err.response?.data?.error || "Couldn't add photos.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const load = async () => {
     try {
@@ -162,6 +179,24 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Item photos */}
+            <div className="mt-4">
+              <p className="text-xs text-slate-500 mb-2">Photos</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {(Array.isArray(collateral.photos) ? collateral.photos : []).map((src, i) => (
+                  <a key={i} href={src} target="_blank" rel="noreferrer">
+                    <img src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200 hover:opacity-90" />
+                  </a>
+                ))}
+                <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                  <label className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
+                    {uploading ? <span className="text-xs">…</span> : <ImagePlus size={22} />}
+                    <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { addPhotos(e.target.files); e.target.value = ""; }} />
+                  </label>
+                </PermissionGate>
+              </div>
             </div>
 
             {isActive && (

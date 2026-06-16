@@ -102,6 +102,12 @@ describe("pawn dashboard + pledge list", () => {
     expect(after.body.data.auction_notice_days).toBe(7);
   });
 
+  it("404s a photo upload for a nonexistent pledge", async () => {
+    const { admin } = await setup();
+    const res = await request(app).post("/api/pawn/999999/photos").set("Authorization", auth(admin));
+    expect(res.status).toBe(404);
+  });
+
   it("rejects an out-of-range LTV", async () => {
     const { admin } = await setup();
     const res = await request(app).put("/api/pawn/settings").set("Authorization", auth(admin)).send({ default_ltv_percent: 150 });

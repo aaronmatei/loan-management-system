@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { X, Package, Search, Gem, AlertTriangle } from "lucide-react";
+import { X, Package, Search, Gem, AlertTriangle, ImagePlus } from "lucide-react";
 import api from "../services/api";
 
 // New Pawn Loan. A pawn is created immediately as an ACTIVE loan: the lender
@@ -15,6 +15,23 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
 
   const [clientSearch, setClientSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [photos, setPhotos] = useState([]); // uploaded image URLs
+  const [uploading, setUploading] = useState(false);
+
+  const uploadPhotos = async (files) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      Array.from(files).slice(0, 6).forEach((f) => fd.append("photos", f));
+      const r = await api.post("/pawn/photos", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setPhotos((p) => [...p, ...(r.data.urls || [])]);
+    } catch (err) {
+      setError(err.response?.data?.error || "Couldn't upload photos.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // When converting a customer pawn request, prefill from the application.
   const [form, setForm] = useState({
@@ -141,6 +158,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
         serial_number: form.serial_number || null,
         item_condition: form.item_condition || null,
         storage_location: form.storage_location || null,
+        ...(photos.length ? { photos } : {}),
         ...(application ? { application_id: application.id } : {}),
       });
       onCreated?.(r.data?.data?.loan);
@@ -358,6 +376,24 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                 className={fld}
               />
             </div>
+          </div>
+
+          {/* Item photos */}
+          <div>
+            <label className={lbl}>Photos</label>
+            <div className="flex flex-wrap items-center gap-2">
+              {photos.map((src, i) => (
+                <div key={i} className="relative">
+                  <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                  <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white rounded-full border border-gray-200 text-slate-500 hover:text-red-600"><X size={13} /></button>
+                </div>
+              ))}
+              <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
+                {uploading ? <span className="text-xs">…</span> : <ImagePlus size={20} />}
+                <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { uploadPhotos(e.target.files); e.target.value = ""; }} />
+              </label>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Up to 6 images, 5 MB each. The customer sees these in their portal.</p>
           </div>
 
           {/* Valuation */}

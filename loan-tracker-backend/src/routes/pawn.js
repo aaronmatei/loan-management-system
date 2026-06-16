@@ -6,6 +6,7 @@
 // off and returns the item; forfeiting closes it (item kept, optionally sold
 // to recover capital).
 import express from "express";
+import multer from "multer";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
@@ -13,10 +14,46 @@ import { logAudit } from "../services/auditService.js";
 import { nextLoanCode } from "../utils/clientCode.js";
 import { recordLoanPayment } from "../services/paymentService.js";
 import { buildPawnTicketPdf, NotFoundError } from "../utils/pdfDocuments.js";
+import { isCloudinaryConfigured, uploadBuffer } from "../config/cloudinary.js";
 import logger from "../config/logger.js";
 
 const router = express.Router();
 router.use(verifyToken);
+
+// Item-photo uploads (≤6 images, 5 MB each) → Cloudinary. Multer errors become
+// clean 400s instead of bubbling to the global handler.
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => (/^image\//.test(file.mimetype) ? cb(null, true) : cb(new Error("Only image files are allowed"))),
+});
+const runPhotoUpload = (req, res, next) =>
+  photoUpload.array("photos", 6)(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.code === "LIMIT_FILE_SIZE" ? "Each image must be 5 MB or smaller" : err.message });
+    next();
+  });
+async function uploadPawnPhotos(files, tid) {
+  const urls = [];
+  for (const f of files) {
+    const r = await uploadBuffer(f.buffer, { folder: `loanfix/pawn/${tid}` });
+    urls.push(r.secure_url);
+  }
+  return urls;
+}
+
+// POST /api/pawn/photos — upload item photos, return their URLs (for the create form).
+router.post("/photos", authorize("admin", "manager", "loan_officer"), runPhotoUpload, async (req, res) => {
+  try {
+    if (!isCloudinaryConfigured()) return res.status(503).json({ error: "Image storage isn't configured yet." });
+    const files = req.files || [];
+    if (!files.length) return res.status(400).json({ error: "No images uploaded" });
+    const urls = await uploadPawnPhotos(files, req.user.tenant_id);
+    res.json({ success: true, urls });
+  } catch (e) {
+    logger.error("pawn photo upload error:", e);
+    res.status(500).json({ error: "Failed to upload photos" });
+  }
+});
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -378,6 +415,28 @@ router.post("/auctions/:id/cancel", authorize("admin", "manager"), async (req, r
   } catch (e) {
     logger.error("pawn auction cancel error:", e);
     res.status(500).json({ error: "Failed to cancel auction" });
+  }
+});
+
+// POST /api/pawn/:loanId/photos — add photos to an existing pledge's collateral.
+router.post("/:loanId/photos", authorize("admin", "manager", "loan_officer"), runPhotoUpload, async (req, res) => {
+  try {
+    const loan = await loadPawnLoan(req, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Pawn loan not found" });
+    if (!isCloudinaryConfigured()) return res.status(503).json({ error: "Image storage isn't configured yet." });
+    const files = req.files || [];
+    if (!files.length) return res.status(400).json({ error: "No images uploaded" });
+    const col = (await query(`SELECT id, photos FROM loan_collateral WHERE loan_id=$1 ORDER BY id DESC LIMIT 1`, [loan.id])).rows[0];
+    if (!col) return res.status(404).json({ error: "No collateral for this pledge" });
+
+    const urls = await uploadPawnPhotos(files, loan.tenant_id);
+    const existing = Array.isArray(col.photos) ? col.photos : [];
+    const merged = [...existing, ...urls];
+    await query(`UPDATE loan_collateral SET photos=$2, updated_at=NOW() WHERE id=$1`, [col.id, JSON.stringify(merged)]);
+    res.json({ success: true, photos: merged });
+  } catch (e) {
+    logger.error("pawn add-photos error:", e);
+    res.status(500).json({ error: "Failed to add photos" });
   }
 });
 
