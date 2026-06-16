@@ -81,12 +81,13 @@ function Login() {
     >
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <Logo
-            variant="reversed"
-            className="justify-center mb-3"
-            markClassName="h-9 w-9"
-            textClassName="text-3xl"
-          />
+          <div className="inline-flex items-center justify-center rounded-2xl bg-navy-gradient px-5 py-2.5 shadow-lg mb-3">
+            <Logo
+              variant="reversed"
+              markClassName="h-9 w-9"
+              textClassName="text-3xl"
+            />
+          </div>
           <h2 className="text-white/90">Login to your account</h2>
         </div>
 

@@ -117,12 +117,13 @@ function Signup() {
     >
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <Logo
-            variant="reversed"
-            className="justify-center"
-            markClassName="h-11 w-11"
-            textClassName="text-4xl"
-          />
+          <div className="inline-flex items-center justify-center rounded-2xl bg-navy-gradient px-6 py-3 shadow-lg">
+            <Logo
+              variant="reversed"
+              markClassName="h-11 w-11"
+              textClassName="text-4xl"
+            />
+          </div>
           <p className="text-white/90 mt-2">
             Loan Management System for Kenyan Lenders
           </p>
