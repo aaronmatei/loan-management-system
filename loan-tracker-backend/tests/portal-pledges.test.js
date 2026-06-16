@@ -55,6 +55,25 @@ describe("pawn customer portal — pledges", () => {
     expect(selBody.current_tenant.kind).toBe("pawnbroker");
   });
 
+  it("shows pawn pricing (monthly fee + pawn term) as the lender's terms", async () => {
+    const { auth } = await loginLinkSelect();
+    await query(
+      `INSERT INTO pawn_settings (tenant_id, default_monthly_fee_percent, default_duration_months)
+       VALUES ($1, 8, 3) ON CONFLICT (tenant_id) DO UPDATE SET default_monthly_fee_percent=8, default_duration_months=3`,
+      [tenant.id],
+    );
+    const res = await api().get(`/api/portal/customer/lenders/${tenant.id}`).set(auth);
+    expect(res.status).toBe(200);
+    expect(Number(res.body.data.default_interest_rate)).toBe(96); // 8% p.m. shown as ×12 → UI divides back to 8
+    expect(Number(res.body.data.default_duration)).toBe(3);
+  });
+
+  it("defaults an unconfigured pawnbroker to the pawn monthly-fee default (not 50%/yr)", async () => {
+    const { auth } = await loginLinkSelect();
+    const res = await api().get(`/api/portal/customer/lenders/${tenant.id}`).set(auth);
+    expect(Number(res.body.data.default_interest_rate)).toBe(120); // 10% p.m. default × 12
+  });
+
   it("lists the customer's pledges with item + redemption balance", async () => {
     const { auth, clientId } = await loginLinkSelect();
     await seedPledge(clientId, "LN-PAWN-1", { paid: 2000 });

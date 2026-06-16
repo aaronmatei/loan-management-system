@@ -255,10 +255,14 @@ router.get("/lenders", async (req, res) => {
          t.id AS tenant_id,
          t.business_name, t.subdomain, t.brand_color, t.logo_url,
          t.business_type, t.city, t.county,
-         COALESCE(t.default_interest_rate, 50.00) AS default_interest_rate,
+         -- Pawnbrokers price by a monthly fee (pawn_settings), not a yearly
+         -- rate — surface that as the p.m. figure (×12 so the UI's ÷12 holds).
+         CASE WHEN t.kind = 'pawnbroker' THEN COALESCE(ps.default_monthly_fee_percent, 10) * 12
+              ELSE COALESCE(t.default_interest_rate, 50.00) END AS default_interest_rate,
          COALESCE(t.min_loan_amount,       1000)  AS min_amount,
          COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
-         COALESCE(t.default_loan_duration, 6)     AS default_duration,
+         CASE WHEN t.kind = 'pawnbroker' THEN COALESCE(ps.default_duration_months, 1)
+              ELSE COALESCE(t.default_loan_duration, 6) END AS default_duration,
          COALESCE(t.allow_self_signup, false)     AS can_self_signup,
          EXISTS(
            SELECT 1 FROM customer_tenant_links ctl
@@ -273,6 +277,7 @@ router.get("/lenders", async (req, res) => {
              AND ctl.status = 'active'
            LIMIT 1) AS linked_at
        FROM tenants t
+       LEFT JOIN pawn_settings ps ON ps.tenant_id = t.id
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true
          -- Exclude the LenderFest platform owner and the demo sandbox — they
@@ -302,12 +307,15 @@ router.get("/lenders/:id", async (req, res) => {
          t.business_name, t.subdomain, t.brand_color, t.logo_url,
          t.business_type, t.physical_address, t.city, t.county,
          t.contact_email, t.contact_phone,
-         COALESCE(t.default_interest_rate, 50.00) AS default_interest_rate,
+         CASE WHEN t.kind = 'pawnbroker' THEN COALESCE(ps.default_monthly_fee_percent, 10) * 12
+              ELSE COALESCE(t.default_interest_rate, 50.00) END AS default_interest_rate,
          COALESCE(t.min_loan_amount,       1000)  AS min_amount,
          COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
-         COALESCE(t.default_loan_duration, 6)     AS default_duration,
+         CASE WHEN t.kind = 'pawnbroker' THEN COALESCE(ps.default_duration_months, 1)
+              ELSE COALESCE(t.default_loan_duration, 6) END AS default_duration,
          COALESCE(t.allow_self_signup, false)     AS can_self_signup
        FROM tenants t
+       LEFT JOIN pawn_settings ps ON ps.tenant_id = t.id
        WHERE t.id = $1 AND t.status = 'active'
          AND t.customer_portal_enabled = true
          AND COALESCE(t.is_demo, false) = false
