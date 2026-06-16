@@ -126,6 +126,45 @@ function Loans() {
   const setSal = (k) => (e) =>
     setSalaryForm((s) => ({ ...s, [k]: e.target.value }));
 
+  // "Loan against collateral" — an opt-in pledge captured on the new-loan form.
+  // When on, the loan is created as loan_type='pawn' and the item is stored as
+  // structured collateral (so it shares the redeem / forfeit / auction
+  // lifecycle). Photos reuse the existing pawn upload endpoint.
+  const [againstCollateral, setAgainstCollateral] = useState(false);
+  const blankCollateral = {
+    category: "",
+    description: "",
+    serial_number: "",
+    condition: "",
+    appraised_value: "",
+    ltv_percent: "50",
+    storage_location: "",
+    photos: [],
+  };
+  const [collateralForm, setCollateralForm] = useState(blankCollateral);
+  const setCol = (k) => (e) =>
+    setCollateralForm((c) => ({ ...c, [k]: e.target.value }));
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const uploadCollateralPhotos = async (files) => {
+    if (!files?.length) return;
+    setUploadingPhotos(true);
+    try {
+      const fd = new FormData();
+      Array.from(files).slice(0, 6).forEach((f) => fd.append("photos", f));
+      const r = await api.post("/pawn/photos", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setCollateralForm((c) => ({
+        ...c,
+        photos: [...c.photos, ...(r.data.urls || [])].slice(0, 6),
+      }));
+    } catch (err) {
+      setError(err.response?.data?.error || "Couldn't upload photos.");
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
   // Group loans: pick which group the member loan belongs to. The borrower
   // (selected client) must be an active member — the backend enforces this.
   const [groups, setGroups] = useState([]);
@@ -381,6 +420,18 @@ function Loans() {
       // Late fee + penalty rate only count when their toggles are on.
       // If a toggle's off we send 0 so the backend doesn't pick up
       // a stale value the user never opted into.
+      if (againstCollateral) {
+        if (!collateralForm.description.trim()) {
+          setError("Describe the collateral item being pledged");
+          setSubmitting(false);
+          return;
+        }
+        if (!(parseFloat(collateralForm.appraised_value) > 0)) {
+          setError("The collateral's appraised value must be greater than 0");
+          setSubmitting(false);
+          return;
+        }
+      }
       const submitData = {
         ...formData,
         late_payment_fee: formData.late_fee_enabled
@@ -391,6 +442,17 @@ function Loans() {
           : 0,
         ...(selectedPackage?.loan_type === "group" && groupId
           ? { group_id: groupId, ...(cycleId ? { cycle_id: cycleId } : {}) }
+          : {}),
+        // Loan against collateral: tag the type and ship the pledged item.
+        ...(againstCollateral
+          ? {
+              loan_type: "pawn",
+              collateral: {
+                ...collateralForm,
+                appraised_value: parseFloat(collateralForm.appraised_value),
+                ltv_percent: parseFloat(collateralForm.ltv_percent) || 50,
+              },
+            }
           : {}),
       };
       const response = await api.post("/loans", submitData);
@@ -436,6 +498,8 @@ function Loans() {
         }
       }
       setSalaryForm(blankSalary);
+      setAgainstCollateral(false);
+      setCollateralForm(blankCollateral);
       setGroupId("");
       setCycleId("");
 
@@ -1270,6 +1334,122 @@ function Loans() {
                   placeholder="Describe any collateral or security (e.g., Vehicle KCA 123A, Title Deed, etc.)"
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
+              </div>
+
+              {/* Loan against collateral — opt-in structured pledge. When on,
+                  the loan is created as a collateral loan (redeem / forfeit /
+                  auction lifecycle) with the item recorded below. */}
+              <div className="mb-4 rounded-lg border-2 border-amber-200 bg-amber-50 p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={againstCollateral}
+                    onChange={(e) => setAgainstCollateral(e.target.checked)}
+                    className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="flex items-center gap-2 font-semibold text-amber-900">
+                    <Coins size={16} className="text-amber-600" /> Loan against collateral
+                  </span>
+                </label>
+                <p className="text-xs text-amber-700 mt-1 ml-7">
+                  Secure this loan with a pledged item the borrower hands over. You can
+                  redeem it on repayment, or forfeit / auction it on default.
+                </p>
+
+                {againstCollateral && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input
+                      value={collateralForm.description}
+                      onChange={setCol("description")}
+                      placeholder="Item description * (e.g. Gold ring, 18k)"
+                      className="md:col-span-2 px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    />
+                    <input
+                      value={collateralForm.category}
+                      onChange={setCol("category")}
+                      placeholder="Category (jewelry, electronics…)"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    />
+                    <select
+                      value={collateralForm.condition}
+                      onChange={setCol("condition")}
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    >
+                      <option value="">Condition…</option>
+                      <option value="excellent">Excellent</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="poor">Poor</option>
+                    </select>
+                    <input
+                      value={collateralForm.serial_number}
+                      onChange={setCol("serial_number")}
+                      placeholder="Serial / model no."
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    />
+                    <input
+                      value={collateralForm.storage_location}
+                      onChange={setCol("storage_location")}
+                      placeholder="Storage location"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    />
+                    <input
+                      type="number"
+                      value={collateralForm.appraised_value}
+                      onChange={setCol("appraised_value")}
+                      placeholder="Appraised value * (KES)"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    />
+                    <input
+                      type="number"
+                      value={collateralForm.ltv_percent}
+                      onChange={setCol("ltv_percent")}
+                      placeholder="LTV %"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    />
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-amber-800 mb-1">
+                        Condition photos (up to 6)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => uploadCollateralPhotos(e.target.files)}
+                        disabled={uploadingPhotos || collateralForm.photos.length >= 6}
+                        className="text-sm text-amber-800"
+                      />
+                      {uploadingPhotos && (
+                        <span className="ml-2 text-xs text-amber-600">Uploading…</span>
+                      )}
+                      {collateralForm.photos.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {collateralForm.photos.map((url, i) => (
+                            <div key={i} className="relative">
+                              <img
+                                src={url}
+                                alt={`collateral ${i + 1}`}
+                                className="h-16 w-16 object-cover rounded-lg border border-amber-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCollateralForm((c) => ({
+                                    ...c,
+                                    photos: c.photos.filter((_, j) => j !== i),
+                                  }))
+                                }
+                                className="absolute -top-2 -right-2 bg-white rounded-full border border-amber-300 p-0.5 text-amber-700 hover:text-red-600"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {selectedPackage?.loan_type === "logbook" && (

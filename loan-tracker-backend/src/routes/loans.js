@@ -217,9 +217,19 @@ router.get("/:id", async (req, res) => {
 
     // Get payment schedule
     const scheduleResult = await query(
-      `SELECT * FROM payment_schedules 
-       WHERE loan_id = $1 
+      `SELECT * FROM payment_schedules
+       WHERE loan_id = $1
        ORDER BY payment_number ASC`,
+      [id],
+    );
+
+    // Pledged item, if this is a loan against collateral. Latest row wins
+    // (a loan carries one active pledge).
+    const collateralResult = await query(
+      `SELECT * FROM loan_collateral
+        WHERE loan_id = $1
+        ORDER BY id DESC
+        LIMIT 1`,
       [id],
     );
 
@@ -228,6 +238,7 @@ router.get("/:id", async (req, res) => {
       data: {
         ...loanResult.rows[0],
         payment_schedule: scheduleResult.rows,
+        collateral: collateralResult.rows[0] || null,
       },
     });
   } catch (error) {
@@ -262,7 +273,20 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       interest_method: bodyInterestMethod,
       group_id: bodyGroupId,
       cycle_id: bodyCycleId,
+      loan_type: bodyLoanType,
+      collateral: bodyCollateral,
     } = req.body;
+
+    // "Loan against collateral": any lender can pledge an item to secure a
+    // loan. The structured pledge is captured here and stored in
+    // loan_collateral after the loan row exists; the loan itself keeps the
+    // normal application → approve → disburse → repay lifecycle. We tag it
+    // loan_type='pawn' so it shares the existing collateral lifecycle
+    // (redeem / forfeit / auction). A pledge is present when the form sends a
+    // collateral object with a described item, or loan_type asks for it.
+    const wantsCollateral =
+      resolveLoanType(bodyLoanType) === "pawn" ||
+      (bodyCollateral && String(bodyCollateral.description || "").trim() !== "");
 
     // Package-or-free-form. If a package is supplied, its mechanics
     // (rate, fee, method) take precedence over whatever the form
@@ -537,6 +561,45 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       Math.round(principal * processingFeeRate) / 100; // principal * rate/100
     const netDisbursed = Math.round((principal - processingFee) * 100) / 100;
 
+    // Validate the pledge (when this is a collateral loan) before we write
+    // anything, and decide the stored loan_type. A collateral loan needs a
+    // described item with a positive appraised value.
+    const loanTypeToStore = wantsCollateral
+      ? "pawn"
+      : resolveLoanType(pkg?.loan_type);
+    let collateralToStore = null;
+    if (wantsCollateral) {
+      const c = bodyCollateral || {};
+      const description = String(c.description || "").trim();
+      const appraised = parseFloat(c.appraised_value);
+      if (!description) {
+        return res
+          .status(400)
+          .json({ error: "Describe the collateral item being pledged" });
+      }
+      if (!(appraised > 0)) {
+        return res
+          .status(400)
+          .json({ error: "The collateral's appraised value must be greater than 0" });
+      }
+      const ltv =
+        c.ltv_percent != null && c.ltv_percent !== ""
+          ? parseFloat(c.ltv_percent)
+          : 50;
+      collateralToStore = {
+        category: c.category ? String(c.category).trim() : null,
+        description,
+        serial_number: c.serial_number ? String(c.serial_number).trim() : null,
+        condition: c.condition ? String(c.condition).trim() : null,
+        appraised_value: appraised,
+        ltv_percent: Number.isFinite(ltv) ? ltv : 50,
+        storage_location: c.storage_location
+          ? String(c.storage_location).trim()
+          : null,
+        photos: Array.isArray(c.photos) ? c.photos : [],
+      };
+    }
+
     // (appDate already computed above so it could flow into the
     // MMYYYY portion of the loan_code.)
 
@@ -585,13 +648,38 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         appDate,
         pkg ? pkg.id : null,
         interestMethod,
-        resolveLoanType(pkg?.loan_type),
+        loanTypeToStore,
         groupIdToStore,
         cycleIdToStore,
       ],
     );
 
     const loan = loanResult.rows[0];
+
+    // Persist the pledged item for a collateral loan. The pledge starts
+    // 'held'; it becomes 'returned' when the loan is repaid, or
+    // 'forfeited'/'sold' through the collateral lifecycle on default.
+    if (collateralToStore) {
+      await query(
+        `INSERT INTO loan_collateral
+           (tenant_id, loan_id, category, description, serial_number, condition,
+            appraised_value, ltv_percent, storage_location, photos, status, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'held', $11)`,
+        [
+          wTid,
+          loan.id,
+          collateralToStore.category,
+          collateralToStore.description,
+          collateralToStore.serial_number,
+          collateralToStore.condition,
+          collateralToStore.appraised_value,
+          collateralToStore.ltv_percent,
+          collateralToStore.storage_location,
+          JSON.stringify(collateralToStore.photos),
+          req.user.id,
+        ],
+      );
+    }
 
     await logAudit({
       user: req.user,

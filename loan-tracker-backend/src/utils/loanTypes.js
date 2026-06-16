@@ -12,7 +12,7 @@ export const LOAN_TYPES = {
   },
   pawn: {
     key: "pawn",
-    label: "Pawn / Collateral",
+    label: "Loan against collateral",
     description:
       "Secured by a pledged item the lender values and holds; redeem to reclaim, or forfeit on default.",
     security: "item",
