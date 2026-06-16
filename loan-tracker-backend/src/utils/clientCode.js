@@ -88,7 +88,7 @@ async function nextScopedCode(
 ) {
   const r = await query(
     `SELECT t.subdomain,
-            MAX(CAST(SUBSTRING(${codeColumn} FROM '${kind}-[A-Z]+-\\d+-(\\d+)$') AS INTEGER)) AS max_pref,
+            MAX(CAST(SUBSTRING(${codeColumn} FROM '${kind}-[A-Z0-9]+-\\d+-(\\d+)$') AS INTEGER)) AS max_pref,
             MAX(CAST(SUBSTRING(${codeColumn} FROM '${kind}-\\d+-(\\d+)$')        AS INTEGER)) AS max_legacy
        FROM tenants t
        LEFT JOIN ${table} x ON x.tenant_id = t.id
