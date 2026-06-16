@@ -33,7 +33,8 @@ function LandingHome() {
           warm rather than blinding white. Transparent sections reveal it. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-ocean-50 via-white to-amber-50/60"
+        className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-ocean-50 via-white to-amber-50/60 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/lenderfest_premium_hero_background.svg')" }}
       >
         <div className="absolute -top-40 -left-32 w-[40rem] h-[40rem] rounded-full bg-ocean-200/40 blur-3xl" />
         <div className="absolute top-1/3 -right-44 w-[38rem] h-[38rem] rounded-full bg-emerald-100/50 blur-3xl" />

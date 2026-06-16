@@ -111,7 +111,10 @@ function Signup() {
     });
 
   return (
-    <div className="min-h-screen bg-ocean-gradient py-8 px-4">
+    <div
+      className="min-h-screen bg-ocean-gradient bg-cover bg-center bg-no-repeat py-8 px-4"
+      style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
+    >
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <Logo

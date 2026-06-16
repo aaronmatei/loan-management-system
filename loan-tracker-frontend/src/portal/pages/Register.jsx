@@ -191,7 +191,10 @@ function CustomerRegister() {
     "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ocean-600 to-purple-700 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen bg-gradient-to-br from-ocean-600 to-purple-700 bg-cover bg-center bg-no-repeat flex items-center justify-center p-4"
+      style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
+    >
       <div
         className={`bg-white rounded-2xl shadow-2xl w-full p-6 lg:p-8 ${
           step === 3 ? "max-w-xl" : "max-w-md"

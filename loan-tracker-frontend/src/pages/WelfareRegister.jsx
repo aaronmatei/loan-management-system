@@ -64,7 +64,10 @@ export default function WelfareRegister() {
   const lbl = "block text-sm font-semibold text-gray-700 mb-1";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 bg-cover bg-center bg-no-repeat flex items-center justify-center p-4"
+      style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
+    >
       <div className="w-full max-w-lg">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white mb-3">
