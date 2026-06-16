@@ -1,29 +1,20 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Building2, UserRound, UsersRound, Gem, ArrowLeft } from "lucide-react";
+import { Building2, UserRound, UsersRound, ArrowLeft } from "lucide-react";
 
 // Account chooser — routes a visitor to the right signup / login for whichever
-// kind of account they are: lender, borrower, welfare, or pawnbroker.
+// kind of account they are: lender, borrower, or welfare. (Pawnshops are just
+// lenders now — collateral is a loan type, offered at lender signup.)
 const ACCOUNTS = [
   {
     key: "lender",
     icon: Building2,
     color: "ocean",
     title: "Lender",
-    blurb: "Run a microfinance, SACCO or lending business — clients, loans, payments, reports.",
+    blurb: "Run a microfinance, SACCO, bank or lending business — including loans against collateral.",
     register: "/signup",
     login: "/login",
     cta: "Start free trial",
-  },
-  {
-    key: "pawnbroker",
-    icon: Gem,
-    color: "amber",
-    title: "Pawnshop",
-    blurb: "Lend cash against pledged items — value, advance, redeem or forfeit.",
-    register: "/pawn/register",
-    login: "/pawn/login",
-    cta: "Register pawnshop",
   },
   {
     key: "welfare",

@@ -86,6 +86,21 @@ const navGroups = [
     ],
   },
   {
+    // COLLATERAL = the loan-against-collateral desk: pledged items, incoming
+    // requests, and the auction/recovery flow when a secured loan defaults.
+    // Available to every lender (collateral is a loan type, not a vertical).
+    id: "collateral",
+    label: "Collateral",
+    variant: "ocean",
+    items: [
+      { path: "/pawn/pledges", label: "Pledges", icon: Gem, permission: "loans:view" },
+      { path: "/pawn/requests", label: "Requests", icon: ClipboardList, permission: "loans:view" },
+      { path: "/pawn/auctions", label: "Auctions", icon: Gavel, permission: "loans:view" },
+      { path: "/pawn/accounting", label: "Accounting", icon: Receipt, roles: ["admin", "manager"] },
+      { path: "/pawn/settings", label: "Collateral Settings", icon: SlidersHorizontal, roles: ["admin"] },
+    ],
+  },
+  {
     id: "insights",
     label: "Insights",
     variant: "indigo",
@@ -152,31 +167,6 @@ const WELFARE_GROUPS = [
     variant: "ocean",
     items: [
       { path: "/welfare/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
-      { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
-      { path: "/billing", label: "Platform Invoices", icon: FileText, roles: ["admin", "manager"] },
-    ],
-  },
-];
-
-// A pawnbroker account (tenant.kind === 'pawnbroker') runs a pawn-only desk:
-// their own clients + pawns, plus reports/account — no general loan workflow.
-const PAWNBROKER_STANDALONE = [
-  { path: "/pawn", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", permission: "loans:view", exact: true },
-  { path: "/pawn/customers", label: "Customers", icon: Users, variant: "ocean", permission: "clients:view" },
-  { path: "/pawn/pledges", label: "Pledges", icon: Gem, variant: "ocean", permission: "loans:view" },
-  { path: "/pawn/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view" },
-  { path: "/pawn/payments", label: "Payments", icon: CreditCard, variant: "ocean", permission: "payments:view" },
-  { path: "/pawn/auctions", label: "Auctions", icon: Gavel, variant: "ocean", permission: "loans:view" },
-  { path: "/pawn/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "reports:view" },
-  { path: "/pawn/accounting", label: "Accounting", icon: Receipt, variant: "ocean", roles: ["admin", "manager"] },
-];
-const PAWNBROKER_GROUPS = [
-  {
-    id: "account",
-    label: "Account",
-    variant: "ocean",
-    items: [
-      { path: "/pawn/settings", label: "Settings", icon: Settings, roles: ["admin"] },
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
       { path: "/billing", label: "Platform Invoices", icon: FileText, roles: ["admin", "manager"] },
     ],
@@ -258,20 +248,11 @@ function Layout({ children }) {
     return null;
   })();
 
-  // Welfare / pawnbroker accounts get a focused menu; lenders the full nav.
+  // Welfare accounts get a focused menu; lenders the full nav (which now
+  // includes the collateral desk — collateral is a loan type, not a vertical).
   const kind = user?.tenant?.kind;
-  const baseStandalone =
-    kind === "welfare"
-      ? WELFARE_STANDALONE
-      : kind === "pawnbroker"
-        ? PAWNBROKER_STANDALONE
-        : standaloneItems;
-  const baseGroups =
-    kind === "welfare"
-      ? WELFARE_GROUPS
-      : kind === "pawnbroker"
-        ? PAWNBROKER_GROUPS
-        : navGroups;
+  const baseStandalone = kind === "welfare" ? WELFARE_STANDALONE : standaloneItems;
+  const baseGroups = kind === "welfare" ? WELFARE_GROUPS : navGroups;
 
   // Role-filtered: drop items the user can't see, and drop empty
   // groups so their headers don't render at all.

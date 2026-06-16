@@ -77,7 +77,6 @@ import {
   WelfareSettingsPage,
 } from "./pages/welfare/WelfareModules";
 import Pawns from "./pages/Pawns";
-import PawnbrokerRegister from "./pages/PawnbrokerRegister";
 import LoanDetails from "./pages/LoanDetails";
 import Payments from "./pages/Payments";
 import Overdue from "./pages/Overdue";
@@ -155,8 +154,8 @@ function App() {
     // demo.lenderfest.loans the flag is absent.
     let wasDemo = localStorage.getItem("is_demo_session") === "true";
     // Capture the account kind BEFORE we wipe storage, so we can send the user
-    // back to the matching login (pawnbrokers → /pawn/login, welfare →
-    // /welfare/login, everyone else → /login).
+    // back to the matching login (welfare → /welfare/login, everyone else →
+    // /login).
     let kind = "lender";
     try {
       const u = JSON.parse(localStorage.getItem("user") || "null");
@@ -165,12 +164,7 @@ function App() {
     } catch {
       /* ignore */
     }
-    const loginPath =
-      kind === "pawnbroker"
-        ? "/pawn/login"
-        : kind === "welfare"
-          ? "/welfare/login"
-          : "/login";
+    const loginPath = kind === "welfare" ? "/welfare/login" : "/login";
     setUser(null);
     // Clear EVERY auth/session key (incl. the demo flags + the persisted
     // period picker) so nothing on this origin can silently re-auth.
@@ -390,8 +384,6 @@ function App() {
                       element={
                         user?.tenant?.kind === "welfare" ? (
                           <Navigate to="/welfare" replace />
-                        ) : user?.tenant?.kind === "pawnbroker" ? (
-                          <Navigate to="/pawn" replace />
                         ) : (
                           <Dashboard />
                         )
@@ -476,8 +468,6 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/welfare/register" element={<WelfareRegister />} />
             <Route path="/welfare/login" element={<Login />} />
-            <Route path="/pawn/register" element={<PawnbrokerRegister />} />
-            <Route path="/pawn/login" element={<Login />} />
             <Route path="/get-started" element={<GetStarted />} />
             <Route path="/portal/login" element={<CustomerLogin />} />
             <Route path="/portal/register" element={<CustomerRegister />} />

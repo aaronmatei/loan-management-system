@@ -13,15 +13,11 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { setUser } = useAuth();
-  // The same login screen serves lenders (/login), welfare (/welfare/login)
-  // and pawnshops (/pawn/login) — so the "sign up" link must point to the
-  // matching register, not always the lender one.
+  // The same login screen serves lenders (/login) and welfare
+  // (/welfare/login) — so the "sign up" link must point to the matching
+  // register, not always the lender one.
   const { pathname } = useLocation();
-  const variant = pathname.startsWith("/welfare")
-    ? "welfare"
-    : pathname.startsWith("/pawn")
-      ? "pawnbroker"
-      : "lender";
+  const variant = pathname.startsWith("/welfare") ? "welfare" : "lender";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -142,13 +138,6 @@ function Login() {
             Don't have an account?{' '}
             <Link to="/welfare/register" className="text-emerald-700 font-semibold">
               Register a welfare
-            </Link>
-          </p>
-        ) : variant === "pawnbroker" ? (
-          <p className="text-center mt-4 text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/pawn/register" className="text-amber-700 font-semibold">
-              Register a pawnshop
             </Link>
           </p>
         ) : (

@@ -5,7 +5,6 @@ import RequestDemoModal from "../components/RequestDemoModal";
 import {
   Check,
   Building2,
-  Gem,
   UsersRound,
   UserRound,
   Smartphone,
@@ -201,16 +200,9 @@ function LandingHome() {
               {
                 icon: Building2, tone: "ocean",
                 title: "Lenders",
-                who: "Microfinance, SACCOs & individual lenders",
-                body: "Issue personal, logbook, salary and group loans. Price products with packages, run CRB checks, disburse from your capital pool, and chase repayments with reminders.",
+                who: "Microfinance, banks, SACCOs & private lenders",
+                body: "Issue personal, logbook, salary, group and collateral loans. Value a pledged item, advance up to your LTV, then redeem or forfeit/auction on default. Price products with packages, run CRB checks, and disburse from your capital pool.",
                 register: "/signup", login: "/login", cta: "Start free trial",
-              },
-              {
-                icon: Gem, tone: "amber",
-                title: "Pawnshops",
-                who: "Cash against pledged items",
-                body: "Value an item, advance up to your LTV, and run the bullet fee. Redeem on payment or forfeit on default — with a printable pawn ticket every time.",
-                register: "/pawn/register", login: "/pawn/login", cta: "Register pawnshop",
               },
               {
                 icon: UsersRound, tone: "emerald",
@@ -543,7 +535,6 @@ function LandingHome() {
               <h4 className="font-bold text-white mb-3">Sign up</h4>
               <ul className="space-y-2 text-sm">
                 <li><Link to="/signup" className="hover:text-white">Lenders</Link></li>
-                <li><Link to="/pawn/register" className="hover:text-white">Pawnshops</Link></li>
                 <li><Link to="/welfare/register" className="hover:text-white">Chamas &amp; Welfare</Link></li>
                 <li><Link to="/portal/register" className="hover:text-white">Borrowers</Link></li>
               </ul>
