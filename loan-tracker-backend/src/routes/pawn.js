@@ -29,6 +29,98 @@ async function loadPawnLoan(req, loanId) {
   return r.rows[0] || null;
 }
 
+// Paid-to-date for a pawn loan (mirrors the redeem calc): completed
+// transactions, net of penalty/overpayment portions.
+const PAID_SUBQ = `COALESCE((SELECT SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0))
+       FROM transactions t WHERE t.loan_id = l.id AND t.payment_status='completed'),0)`;
+
+// GET /api/pawn — list this pawnshop's pledges (loan + its collateral + balance).
+// ?status=active|completed|defaulted|overdue|forfeited narrows it.
+router.get("/", async (req, res) => {
+  try {
+    const tc = tenantClause(req, 0, "l.tenant_id");
+    const rows = (await query(
+      `SELECT l.id, l.loan_code, l.principal_amount, l.total_amount_due, l.total_interest,
+              l.status, l.start_date, l.end_date, l.created_at, l.interest_rate,
+              c.first_name, c.last_name, c.phone_number,
+              col.description AS item, col.category, col.serial_number, col.condition,
+              col.appraised_value, col.ltv_percent, col.storage_location,
+              col.status AS collateral_status, col.sale_amount, col.photos,
+              ${PAID_SUBQ} AS paid,
+              (l.status='active' AND l.end_date < CURRENT_DATE) AS overdue
+         FROM loans l
+         JOIN clients c ON c.id = l.client_id
+         LEFT JOIN LATERAL (
+           SELECT * FROM loan_collateral lc WHERE lc.loan_id = l.id ORDER BY id DESC LIMIT 1
+         ) col ON true
+        WHERE l.loan_type = 'pawn'${tc.clause}
+        ORDER BY l.created_at DESC`,
+      [...tc.params],
+    )).rows.map((r) => ({
+      ...r,
+      paid: Number(r.paid),
+      balance: round2(parseFloat(r.total_amount_due) - parseFloat(r.paid)),
+    }));
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    logger.error("pawn list error:", e);
+    res.status(500).json({ error: "Failed to load pledges" });
+  }
+});
+
+// GET /api/pawn/summary — dashboard cards for the pawnshop.
+router.get("/summary", async (req, res) => {
+  try {
+    const lt = tenantClause(req, 0, "tenant_id");
+    const loans = (await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status='active')::int AS active,
+         COUNT(*) FILTER (WHERE status='active' AND end_date < CURRENT_DATE)::int AS overdue,
+         COUNT(*) FILTER (WHERE status='active' AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 7)::int AS due_soon,
+         COUNT(*) FILTER (WHERE status='completed' AND updated_at::date = CURRENT_DATE)::int AS redeemed_today,
+         COALESCE(SUM(principal_amount) FILTER (WHERE status='active'),0) AS cash_out,
+         COALESCE(SUM(total_amount_due) FILTER (WHERE status='active'),0) AS due_from_customers
+       FROM loans WHERE loan_type='pawn'${lt.clause}`,
+      [...lt.params],
+    )).rows[0];
+
+    const ct = tenantClause(req, 0, "tenant_id");
+    const col = (await query(
+      `SELECT COALESCE(SUM(appraised_value) FILTER (WHERE status='held'),0) AS collateral_value,
+              COUNT(*) FILTER (WHERE status IN ('forfeited','sold'))::int AS forfeited
+         FROM loan_collateral WHERE 1=1${ct.clause}`,
+      [...ct.params],
+    )).rows[0];
+
+    const tid = tenantId(req);
+    const cap = tid
+      ? (await query(`SELECT initial_capital, total_disbursed, total_collected, total_interest_earned FROM capital_pool WHERE tenant_id=$1`, [tid])).rows[0]
+      : null;
+    const available = cap
+      ? round2(parseFloat(cap.initial_capital) + parseFloat(cap.total_collected) - parseFloat(cap.total_disbursed))
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        active_pledges: loans.active,
+        overdue: loans.overdue,
+        due_soon: loans.due_soon,
+        redeemed_today: loans.redeemed_today,
+        cash_out: Number(loans.cash_out),
+        due_from_customers: Number(loans.due_from_customers),
+        collateral_value: Number(col.collateral_value),
+        forfeited: col.forfeited,
+        capital_available: available,
+        interest_earned: cap ? Number(cap.total_interest_earned) : 0,
+      },
+    });
+  } catch (e) {
+    logger.error("pawn summary error:", e);
+    res.status(500).json({ error: "Failed to load summary" });
+  }
+});
+
 // GET /api/pawn/:loanId — pawn loan + its collateral.
 router.get("/:loanId", async (req, res) => {
   try {

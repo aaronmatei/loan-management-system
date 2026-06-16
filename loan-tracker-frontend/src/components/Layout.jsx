@@ -10,6 +10,7 @@ import {
   CalendarCheck,
   Smartphone,
   Gem,
+  Gavel,
   ClipboardList,
   Wallet,
   CreditCard,
@@ -160,25 +161,22 @@ const WELFARE_GROUPS = [
 // A pawnbroker account (tenant.kind === 'pawnbroker') runs a pawn-only desk:
 // their own clients + pawns, plus reports/account — no general loan workflow.
 const PAWNBROKER_STANDALONE = [
-  { path: "/pawns", label: "Pawns", icon: Gem, variant: "ocean", permission: "loans:view" },
-  { path: "/clients", label: "Clients", icon: Users, variant: "ocean", permission: "clients:view" },
+  { path: "/pawn", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", permission: "loans:view", exact: true },
+  { path: "/pawn/customers", label: "Customers", icon: Users, variant: "ocean", permission: "clients:view" },
+  { path: "/pawn/pledges", label: "Pledges", icon: Gem, variant: "ocean", permission: "loans:view" },
+  { path: "/pawn/payments", label: "Payments", icon: CreditCard, variant: "ocean", permission: "payments:view" },
+  { path: "/pawn/auctions", label: "Auctions", icon: Gavel, variant: "ocean", permission: "loans:view" },
+  { path: "/pawn/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "reports:view" },
 ];
 const PAWNBROKER_GROUPS = [
-  {
-    id: "insights",
-    label: "Insights",
-    variant: "ocean",
-    items: [
-      { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
-    ],
-  },
   {
     id: "account",
     label: "Account",
     variant: "ocean",
     items: [
+      { path: "/pawn/settings", label: "Settings", icon: Settings, roles: ["admin"] },
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
-      { path: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
+      { path: "/billing", label: "Platform Invoices", icon: FileText, roles: ["admin", "manager"] },
     ],
   },
 ];
