@@ -3128,6 +3128,30 @@ CREATE TABLE public.pawn_settings (
   updated_at                timestamp NOT NULL DEFAULT NOW()
 );
 
+-- migration 067: pawn auctions (disposal workflow)
+CREATE TABLE public.pawn_auctions (
+  id            serial PRIMARY KEY,
+  tenant_id     integer NOT NULL,
+  loan_id       integer NOT NULL,
+  status        varchar(20) NOT NULL DEFAULT 'scheduled',
+  auction_date  date,
+  reserve_price numeric(12,2),
+  sale_price    numeric(12,2),
+  buyer_name    varchar(120),
+  fees          numeric(12,2) NOT NULL DEFAULT 0,
+  amount_owed   numeric(12,2),
+  recovered     numeric(12,2) NOT NULL DEFAULT 0,
+  surplus       numeric(12,2) NOT NULL DEFAULT 0,
+  deficiency    numeric(12,2) NOT NULL DEFAULT 0,
+  notes         text,
+  created_by    integer,
+  completed_by  integer,
+  created_at    timestamp NOT NULL DEFAULT NOW(),
+  updated_at    timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_pawn_auctions_tenant ON public.pawn_auctions(tenant_id, status);
+CREATE INDEX idx_pawn_auctions_loan   ON public.pawn_auctions(loan_id);
+
 --
 -- Vehicle security (migration 049) — logbook loans.
 --

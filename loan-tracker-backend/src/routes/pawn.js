@@ -253,6 +253,134 @@ router.post("/applications/:id/review", authorize("admin", "manager", "loan_offi
   }
 });
 
+// Outstanding owed on a pawn loan = total due − completed payments.
+async function pawnOutstanding(loanId, totalDue) {
+  const paid = (await query(
+    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0)),0) AS paid
+       FROM transactions WHERE loan_id=$1 AND payment_status='completed'`,
+    [loanId],
+  )).rows[0].paid;
+  return round2(parseFloat(totalDue) - parseFloat(paid));
+}
+
+// GET /api/pawn/auctions — auction history + scheduled queue for the shop.
+router.get("/auctions", async (req, res) => {
+  try {
+    const tc = tenantClause(req, 0, "a.tenant_id");
+    const params = [...tc.params];
+    let statusClause = "";
+    if (req.query.status) {
+      params.push(req.query.status);
+      statusClause = ` AND a.status = $${params.length}`;
+    }
+    const r = await query(
+      `SELECT a.*, l.loan_code, c.first_name, c.last_name, col.description AS item
+         FROM pawn_auctions a
+         JOIN loans l ON l.id = a.loan_id
+         JOIN clients c ON c.id = l.client_id
+         LEFT JOIN LATERAL (SELECT description FROM loan_collateral lc WHERE lc.loan_id=l.id ORDER BY id DESC LIMIT 1) col ON true
+        WHERE 1=1${tc.clause}${statusClause}
+        ORDER BY (a.status='scheduled') DESC, a.auction_date DESC NULLS LAST, a.id DESC`,
+      params,
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("pawn auctions list error:", e);
+    res.status(500).json({ error: "Failed to load auctions" });
+  }
+});
+
+// POST /api/pawn/:loanId/auction — schedule an auction for an overdue pledge.
+router.post("/:loanId/auction", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const loan = await loadPawnLoan(req, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Pawn loan not found" });
+    if (loan.status !== "active") return res.status(400).json({ error: "Only active pledges can be sent to auction" });
+    const open = (await query(`SELECT id FROM pawn_auctions WHERE loan_id=$1 AND status='scheduled'`, [loan.id])).rows[0];
+    if (open) return res.status(400).json({ error: "This pledge already has a scheduled auction" });
+
+    const reserve = req.body?.reserve_price != null && req.body.reserve_price !== "" ? parseFloat(req.body.reserve_price) : null;
+    const auctionDate = req.body?.auction_date || null;
+
+    // Defaulting the loan + forfeiting the item: it's now the shop's to sell.
+    await query(`UPDATE loans SET status='defaulted', updated_at=NOW() WHERE id=$1`, [loan.id]);
+    await query(`UPDATE loan_collateral SET status='forfeited', forfeited_at=NOW(), updated_at=NOW() WHERE loan_id=$1`, [loan.id]);
+    const r = await query(
+      `INSERT INTO pawn_auctions (tenant_id, loan_id, status, auction_date, reserve_price, notes, created_by)
+       VALUES ($1,$2,'scheduled',$3::date,$4,$5,$6) RETURNING *`,
+      [loan.tenant_id, loan.id, auctionDate, reserve, req.body?.notes || null, req.user.id],
+    );
+    await logAudit({ user: req.user, action: "pawn_auction_scheduled", entityType: "pawn_auction", entityId: r.rows[0].id, entityCode: loan.loan_code, description: `Auction scheduled for pawn ${loan.loan_code}`, req });
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("pawn auction schedule error:", e);
+    res.status(500).json({ error: "Failed to schedule auction" });
+  }
+});
+
+// POST /api/pawn/auctions/:id/complete — record the sale + settle.
+router.post("/auctions/:id/complete", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const tc = tenantClause(req, 1, "tenant_id");
+    const a = (await query(`SELECT * FROM pawn_auctions WHERE id=$1${tc.clause}`, [req.params.id, ...tc.params])).rows[0];
+    if (!a) return res.status(404).json({ error: "Auction not found" });
+    if (a.status !== "scheduled") return res.status(400).json({ error: `Auction is already ${a.status}` });
+    const salePrice = parseFloat(req.body?.sale_price);
+    if (!(salePrice > 0)) return res.status(400).json({ error: "Sale price must be positive" });
+    const fees = req.body?.fees != null && req.body.fees !== "" ? parseFloat(req.body.fees) : 0;
+
+    const loan = (await query(`SELECT * FROM loans WHERE id=$1`, [a.loan_id])).rows[0];
+    const owed = await pawnOutstanding(loan.id, loan.total_amount_due);
+    const net = round2(salePrice - fees);            // proceeds after auction costs
+    const recovered = round2(Math.max(0, Math.min(net, owed))); // back to the pool
+    const surplus = round2(Math.max(0, net - owed)); // owed back to the customer
+    const deficiency = round2(Math.max(0, owed - net));
+
+    await query(
+      `UPDATE pawn_auctions SET status='completed', sale_price=$2, buyer_name=$3, fees=$4,
+            amount_owed=$5, recovered=$6, surplus=$7, deficiency=$8, completed_by=$9, updated_at=NOW()
+        WHERE id=$1`,
+      [a.id, salePrice, req.body?.buyer_name || null, fees, owed, recovered, surplus, deficiency, req.user.id],
+    );
+    await query(
+      `UPDATE loan_collateral SET status='sold', sale_amount=$1, sale_date=CURRENT_DATE, updated_at=NOW() WHERE loan_id=$2`,
+      [salePrice, loan.id],
+    );
+    if (recovered > 0) {
+      await query(`UPDATE capital_pool SET total_collected = total_collected + $1, updated_at=NOW() WHERE tenant_id=$2`, [recovered, loan.tenant_id]);
+      await query(
+        `INSERT INTO capital_transactions (tenant_id, transaction_type, amount, loan_id, description)
+         VALUES ($1,'payment_received',$2,$3,$4)`,
+        [loan.tenant_id, recovered, loan.id, `Pawn ${loan.loan_code} auctioned (sale ${salePrice}, fees ${fees})`],
+      );
+    }
+    await logAudit({ user: req.user, action: "pawn_auction_completed", entityType: "pawn_auction", entityId: a.id, entityCode: loan.loan_code, description: `Auction sold pawn ${loan.loan_code} for ${salePrice}; recovered ${recovered}, surplus ${surplus}, deficiency ${deficiency}`, req });
+    res.json({ success: true, data: { id: a.id, sale_price: salePrice, fees, amount_owed: owed, recovered, surplus, deficiency } });
+  } catch (e) {
+    logger.error("pawn auction complete error:", e);
+    res.status(500).json({ error: "Failed to complete auction" });
+  }
+});
+
+// POST /api/pawn/auctions/:id/cancel — call off a scheduled auction (item back on hold).
+router.post("/auctions/:id/cancel", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const tc = tenantClause(req, 1, "tenant_id");
+    const a = (await query(`SELECT * FROM pawn_auctions WHERE id=$1${tc.clause}`, [req.params.id, ...tc.params])).rows[0];
+    if (!a) return res.status(404).json({ error: "Auction not found" });
+    if (a.status !== "scheduled") return res.status(400).json({ error: `Auction is already ${a.status}` });
+    await query(`UPDATE pawn_auctions SET status='cancelled', notes=COALESCE($2,notes), updated_at=NOW() WHERE id=$1`, [a.id, req.body?.notes || null]);
+    // Restore the pledge: active again, item back on hold.
+    await query(`UPDATE loans SET status='active', updated_at=NOW() WHERE id=$1`, [a.loan_id]);
+    await query(`UPDATE loan_collateral SET status='held', forfeited_at=NULL, updated_at=NOW() WHERE loan_id=$1`, [a.loan_id]);
+    await logAudit({ user: req.user, action: "pawn_auction_cancelled", entityType: "pawn_auction", entityId: a.id, description: `Auction #${a.id} cancelled`, req });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error("pawn auction cancel error:", e);
+    res.status(500).json({ error: "Failed to cancel auction" });
+  }
+});
+
 // GET /api/pawn/:loanId — pawn loan + its collateral.
 router.get("/:loanId", async (req, res) => {
   try {

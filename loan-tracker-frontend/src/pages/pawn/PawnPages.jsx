@@ -177,53 +177,112 @@ export function PawnPledges() {
 // ── Auctions ─────────────────────────────────────────────────────────
 export function PawnAuctions() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState([]);
+  const [pledges, setPledges] = useState([]);
+  const [auctions, setAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    api.get("/pawn").then((r) => setRows(r.data.data || [])).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const [schedule, setSchedule] = useState(null); // pledge to schedule
+  const [complete, setComplete] = useState(null); // auction to complete
 
-  const queue = rows.filter((l) => l.auction_eligible); // overdue beyond the notice period
-  const disposed = rows.filter((l) => ["forfeited", "sold"].includes(l.collateral_status));
+  const load = async () => {
+    try {
+      const [p, a] = await Promise.all([api.get("/pawn"), api.get("/pawn/auctions")]);
+      setPledges(p.data.data || []);
+      setAuctions(a.data.data || []);
+    } catch { /* */ } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const scheduledLoanIds = new Set(auctions.filter((a) => a.status === "scheduled").map((a) => a.loan_id));
+  const queue = pledges.filter((l) => l.auction_eligible && !scheduledLoanIds.has(l.id));
+  const scheduled = auctions.filter((a) => a.status === "scheduled");
+  const history = auctions.filter((a) => a.status !== "scheduled");
+
+  const cancel = async (a) => {
+    if (!confirm("Cancel this auction? The pledge goes back to active and the item back on hold.")) return;
+    try { await api.post(`/pawn/auctions/${a.id}/cancel`, {}); load(); }
+    catch (e) { alert(e.response?.data?.error || "Failed"); }
+  };
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       <PageHeader title="Auctions" />
       {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
         <div className="space-y-6">
+          {/* Eligible queue → schedule */}
           <div className="bg-white rounded-xl shadow-md border border-amber-100 overflow-hidden">
             <div className="bg-amber-50 px-5 py-3 border-b border-amber-100">
-              <h2 className="font-bold text-slate-900 flex items-center gap-2"><Gavel size={18} className="text-amber-600" /> Auction queue <span className="text-sm font-normal text-slate-500">· overdue pledges</span></h2>
+              <h2 className="font-bold text-slate-900 flex items-center gap-2"><Gavel size={18} className="text-amber-600" /> Auction queue <span className="text-sm font-normal text-slate-500">· past the notice period</span></h2>
             </div>
-            {queue.length === 0 ? <p className="p-5 text-sm text-slate-500">Nothing overdue. The queue is clear.</p> : (
-              <PledgeTable rows={queue} onRow={(l) => navigate(`/pawn/pledges/${l.id}`)} />
+            {queue.length === 0 ? <p className="p-5 text-sm text-slate-500">Nothing eligible. The queue is clear.</p> : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Customer</th><th className="text-left px-4 py-2">Item</th><th className="text-right px-4 py-2">Owed</th><th className="px-4 py-2"></th></tr></thead>
+                  <tbody>
+                    {queue.map((l) => (
+                      <tr key={l.id} className="border-t border-slate-100">
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600 cursor-pointer" onClick={() => navigate(`/pawn/pledges/${l.id}`)}>{l.loan_code}</td>
+                        <td className="px-4 py-2 text-slate-800">{l.first_name} {l.last_name}</td>
+                        <td className="px-4 py-2 text-slate-600">{l.item || "—"}</td>
+                        <td className="px-4 py-2 text-right font-semibold">{money2(l.balance)}</td>
+                        <td className="px-4 py-2 text-right">
+                          <PermissionGate role={["admin", "manager"]}>
+                            <button onClick={() => setSchedule(l)} className="text-amber-700 hover:text-amber-900 font-semibold text-sm">Schedule auction</button>
+                          </PermissionGate>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
+          {/* Scheduled → complete / cancel */}
           <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Disposed items</h2></div>
-            {disposed.length === 0 ? <p className="p-5 text-sm text-slate-500">No forfeited or sold items yet.</p> : (
+            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Scheduled</h2></div>
+            {scheduled.length === 0 ? <p className="p-5 text-sm text-slate-500">No auctions scheduled.</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                    <tr>
-                      <th className="text-left px-4 py-2">Code</th>
-                      <th className="text-left px-4 py-2">Item</th>
-                      <th className="text-right px-4 py-2">Appraised</th>
-                      <th className="text-left px-4 py-2">Outcome</th>
-                      <th className="text-right px-4 py-2">Recovered</th>
-                      <th className="px-4 py-2"></th>
-                    </tr>
-                  </thead>
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Item</th><th className="text-left px-4 py-2">Date</th><th className="text-right px-4 py-2">Reserve</th><th className="px-4 py-2"></th></tr></thead>
                   <tbody>
-                    {disposed.map((l) => (
-                      <tr key={l.id} onClick={() => navigate(`/pawn/pledges/${l.id}`)} className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer">
-                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{l.loan_code}</td>
-                        <td className="px-4 py-2 text-slate-700">{l.item || "—"}</td>
-                        <td className="px-4 py-2 text-right">{money(l.appraised_value)}</td>
-                        <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${COLL[l.collateral_status] || "bg-slate-100"}`}>{l.collateral_status}</span></td>
-                        <td className="px-4 py-2 text-right">{l.sale_amount != null ? money(l.sale_amount) : "—"}</td>
-                        <td className="px-4 py-2 text-right"><ChevronRight size={16} className="inline text-slate-400" /></td>
+                    {scheduled.map((a) => (
+                      <tr key={a.id} className="border-t border-slate-100">
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{a.loan_code}</td>
+                        <td className="px-4 py-2 text-slate-700">{a.item || "—"}</td>
+                        <td className="px-4 py-2 text-slate-600">{a.auction_date ? new Date(a.auction_date).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" }) : "TBD"}</td>
+                        <td className="px-4 py-2 text-right">{a.reserve_price != null ? money(a.reserve_price) : "—"}</td>
+                        <td className="px-4 py-2 text-right whitespace-nowrap">
+                          <PermissionGate role={["admin", "manager"]}>
+                            <button onClick={() => setComplete(a)} className="text-emerald-600 hover:text-emerald-800 font-semibold text-sm mr-3">Complete sale</button>
+                            <button onClick={() => cancel(a)} className="text-slate-500 hover:text-rose-600 font-semibold text-sm">Cancel</button>
+                          </PermissionGate>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* History */}
+          <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">History</h2></div>
+            {history.length === 0 ? <p className="p-5 text-sm text-slate-500">No completed or cancelled auctions yet.</p> : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Item</th><th className="text-left px-4 py-2">Outcome</th><th className="text-right px-4 py-2">Sale</th><th className="text-right px-4 py-2">Recovered</th><th className="text-right px-4 py-2">Surplus / Deficiency</th></tr></thead>
+                  <tbody>
+                    {history.map((a) => (
+                      <tr key={a.id} className="border-t border-slate-100">
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{a.loan_code}</td>
+                        <td className="px-4 py-2 text-slate-700">{a.item || "—"}</td>
+                        <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${a.status === "completed" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>{a.status}</span></td>
+                        <td className="px-4 py-2 text-right">{a.sale_price != null ? money(a.sale_price) : "—"}</td>
+                        <td className="px-4 py-2 text-right">{a.status === "completed" ? money(a.recovered) : "—"}</td>
+                        <td className="px-4 py-2 text-right">
+                          {a.status !== "completed" ? "—" : Number(a.surplus) > 0 ? <span className="text-emerald-700">+{money(a.surplus)} to customer</span> : Number(a.deficiency) > 0 ? <span className="text-rose-600">−{money(a.deficiency)} short</span> : "settled"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -233,6 +292,92 @@ export function PawnAuctions() {
           </div>
         </div>
       )}
+
+      {schedule && <ScheduleAuctionModal pledge={schedule} onClose={() => setSchedule(null)} onDone={() => { setSchedule(null); load(); }} />}
+      {complete && <CompleteAuctionModal auction={complete} onClose={() => setComplete(null)} onDone={() => { setComplete(null); load(); }} />}
+    </div>
+  );
+}
+
+function ScheduleAuctionModal({ pledge, onClose, onDone }) {
+  const [reserve, setReserve] = useState(pledge.balance ? String(Math.round(pledge.balance)) : "");
+  const [date, setDate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async (e) => {
+    e.preventDefault(); setBusy(true); setError("");
+    try { await api.post(`/pawn/${pledge.id}/auction`, { reserve_price: reserve || undefined, auction_date: date || undefined }); onDone(); }
+    catch (err) { setError(err.response?.data?.error || "Failed"); setBusy(false); }
+  };
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none";
+  return (
+    <AuctionShell title={`Schedule auction — ${pledge.item || pledge.loan_code}`} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        {error && <Err msg={error} />}
+        <p className="text-sm text-slate-600">Owed: <strong>{money2(pledge.balance)}</strong>. Scheduling defaults the pledge and forfeits the item for sale.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Reserve price</label><input type="number" value={reserve} onChange={(e) => setReserve(e.target.value)} className={fld} /></div>
+          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Auction date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fld} /></div>
+        </div>
+        <Actions busy={busy} onClose={onClose} label="Schedule" tone="bg-amber-600 hover:bg-amber-700" />
+      </form>
+    </AuctionShell>
+  );
+}
+
+function CompleteAuctionModal({ auction, onClose, onDone }) {
+  const [salePrice, setSalePrice] = useState("");
+  const [fees, setFees] = useState("");
+  const [buyer, setBuyer] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async (e) => {
+    e.preventDefault(); setError("");
+    if (!(parseFloat(salePrice) > 0)) return setError("Enter the sale price.");
+    setBusy(true);
+    try {
+      const r = await api.post(`/pawn/auctions/${auction.id}/complete`, { sale_price: salePrice, fees: fees || 0, buyer_name: buyer || undefined });
+      const d = r.data.data;
+      alert(`Sold for ${money(d.sale_price)}. Recovered ${money(d.recovered)}` + (d.surplus > 0 ? `, surplus ${money(d.surplus)} owed to customer.` : d.deficiency > 0 ? `, deficiency ${money(d.deficiency)}.` : "."));
+      onDone();
+    } catch (err) { setError(err.response?.data?.error || "Failed"); setBusy(false); }
+  };
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  return (
+    <AuctionShell title={`Complete sale — ${auction.item || auction.loan_code}`} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        {error && <Err msg={error} />}
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Sale price *</label><input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={fld} autoFocus /></div>
+          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Auction fees</label><input type="number" value={fees} onChange={(e) => setFees(e.target.value)} className={fld} /></div>
+        </div>
+        <div><label className="block text-sm font-semibold text-gray-700 mb-1">Buyer</label><input value={buyer} onChange={(e) => setBuyer(e.target.value)} placeholder="Optional" className={fld} /></div>
+        <p className="text-xs text-slate-500">What the borrower owed is recovered to the pool; any surplus is recorded as owed back to the customer.</p>
+        <Actions busy={busy} onClose={onClose} label="Record sale" tone="bg-emerald-600 hover:bg-emerald-700" />
+      </form>
+    </AuctionShell>
+  );
+}
+
+function AuctionShell({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+const Err = ({ msg }) => <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {msg}</div>;
+function Actions({ busy, onClose, label, tone }) {
+  return (
+    <div className="flex justify-end gap-3 pt-1">
+      <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+      <button type="submit" disabled={busy} className={`px-5 py-2 rounded-lg text-white font-semibold disabled:opacity-50 ${tone}`}>{busy ? "Saving…" : label}</button>
     </div>
   );
 }
