@@ -123,6 +123,28 @@ describe("pawn dashboard + pledge list", () => {
     expect(disb.amount).toBe(12000);
   });
 
+  it("books a pledge to a branch and filters list + summary by it", async () => {
+    const { t, admin, pkg } = await setup();
+    const c1 = await createClient(t.id);
+    const c2 = await createClient(t.id);
+    const branchA = (await query(`INSERT INTO branches (tenant_id, name, active) VALUES ($1,'Downtown',true) RETURNING id`, [t.id])).rows[0].id;
+    const branchB = (await query(`INSERT INTO branches (tenant_id, name, active) VALUES ($1,'Uptown',true) RETURNING id`, [t.id])).rows[0].id;
+    await newPawn(admin, pkg, c1.id, { branch_id: branchA });
+    await newPawn(admin, pkg, c2.id, { branch_id: branchB });
+
+    const all = await request(app).get("/api/pawn").set("Authorization", auth(admin));
+    expect(all.body.data).toHaveLength(2);
+
+    const onlyA = await request(app).get(`/api/pawn?branch_id=${branchA}`).set("Authorization", auth(admin));
+    expect(onlyA.body.data).toHaveLength(1);
+    expect(onlyA.body.data[0].branch_id).toBe(branchA);
+    expect(onlyA.body.data[0].branch_name).toBe("Downtown");
+
+    const sumB = await request(app).get(`/api/pawn/summary?branch_id=${branchB}`).set("Authorization", auth(admin));
+    expect(sumB.body.data.active_pledges).toBe(1);
+    expect(sumB.body.data.collateral_value).toBe(20000); // one item held at Uptown
+  });
+
   it("404s a photo upload for a nonexistent pledge", async () => {
     const { admin } = await setup();
     const res = await request(app).post("/api/pawn/999999/photos").set("Authorization", auth(admin));

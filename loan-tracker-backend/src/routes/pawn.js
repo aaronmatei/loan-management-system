@@ -78,9 +78,16 @@ router.get("/", async (req, res) => {
     const st = await getPawnSettings(tenantId(req));
     const grace = st.grace_days, notice = st.auction_notice_days;
     const tc = tenantClause(req, 0, "l.tenant_id");
+    const params = [...tc.params];
+    let branchClause = "";
+    if (req.query.branch_id) {
+      params.push(req.query.branch_id);
+      branchClause = ` AND l.branch_id = $${params.length}`;
+    }
     const rows = (await query(
       `SELECT l.id, l.loan_code, l.principal_amount, l.total_amount_due, l.total_interest,
-              l.status, l.start_date, l.end_date, l.created_at, l.interest_rate,
+              l.status, l.start_date, l.end_date, l.created_at, l.interest_rate, l.branch_id,
+              b.name AS branch_name,
               c.first_name, c.last_name, c.phone_number,
               col.description AS item, col.category, col.serial_number, col.condition,
               col.appraised_value, col.ltv_percent, col.storage_location,
@@ -90,12 +97,13 @@ router.get("/", async (req, res) => {
               (l.status='active' AND l.end_date + ${notice} < CURRENT_DATE) AS auction_eligible
          FROM loans l
          JOIN clients c ON c.id = l.client_id
+         LEFT JOIN branches b ON b.id = l.branch_id
          LEFT JOIN LATERAL (
            SELECT * FROM loan_collateral lc WHERE lc.loan_id = l.id ORDER BY id DESC LIMIT 1
          ) col ON true
-        WHERE l.loan_type = 'pawn'${tc.clause}
+        WHERE l.loan_type = 'pawn'${tc.clause}${branchClause}
         ORDER BY l.created_at DESC`,
-      [...tc.params],
+      params,
     )).rows.map((r) => ({
       ...r,
       paid: Number(r.paid),
@@ -114,6 +122,9 @@ router.get("/summary", async (req, res) => {
     const st = await getPawnSettings(tenantId(req));
     const grace = st.grace_days, notice = st.auction_notice_days;
     const lt = tenantClause(req, 0, "tenant_id");
+    const lParams = [...lt.params];
+    let lBranch = "";
+    if (req.query.branch_id) { lParams.push(req.query.branch_id); lBranch = ` AND branch_id = $${lParams.length}`; }
     const loans = (await query(
       `SELECT
          COUNT(*) FILTER (WHERE status='active')::int AS active,
@@ -123,16 +134,21 @@ router.get("/summary", async (req, res) => {
          COUNT(*) FILTER (WHERE status='completed' AND updated_at::date = CURRENT_DATE)::int AS redeemed_today,
          COALESCE(SUM(principal_amount) FILTER (WHERE status='active'),0) AS cash_out,
          COALESCE(SUM(total_amount_due) FILTER (WHERE status='active'),0) AS due_from_customers
-       FROM loans WHERE loan_type='pawn'${lt.clause}`,
-      [...lt.params],
+       FROM loans WHERE loan_type='pawn'${lt.clause}${lBranch}`,
+      lParams,
     )).rows[0];
 
-    const ct = tenantClause(req, 0, "tenant_id");
+    // Collateral joins loans so the branch filter applies (loan_collateral has no branch).
+    const ct = tenantClause(req, 0, "lc.tenant_id");
+    const cParams = [...ct.params];
+    let cBranch = "";
+    if (req.query.branch_id) { cParams.push(req.query.branch_id); cBranch = ` AND l.branch_id = $${cParams.length}`; }
     const col = (await query(
-      `SELECT COALESCE(SUM(appraised_value) FILTER (WHERE status='held'),0) AS collateral_value,
-              COUNT(*) FILTER (WHERE status IN ('forfeited','sold'))::int AS forfeited
-         FROM loan_collateral WHERE 1=1${ct.clause}`,
-      [...ct.params],
+      `SELECT COALESCE(SUM(lc.appraised_value) FILTER (WHERE lc.status='held'),0) AS collateral_value,
+              COUNT(*) FILTER (WHERE lc.status IN ('forfeited','sold'))::int AS forfeited
+         FROM loan_collateral lc JOIN loans l ON l.id = lc.loan_id
+        WHERE 1=1${ct.clause}${cBranch}`,
+      cParams,
     )).rows[0];
 
     const tid = tenantId(req);
@@ -558,6 +574,18 @@ router.get("/:loanId/ticket", async (req, res) => {
   }
 });
 
+// Resolve the branch for a pledge: an explicit (valid, active) branch wins;
+// else the borrower's branch; else the tenant's default branch.
+async function resolveBranchId(tid, requested, fallbackBranchId) {
+  if (requested) {
+    const r = await query(`SELECT id FROM branches WHERE id=$1 AND tenant_id=$2 AND active`, [requested, tid]);
+    if (r.rows.length) return r.rows[0].id;
+  }
+  if (fallbackBranchId) return fallbackBranchId;
+  const def = await query(`SELECT id FROM branches WHERE tenant_id=$1 AND is_default LIMIT 1`, [tid]);
+  return def.rows.length ? def.rows[0].id : null;
+}
+
 // POST /api/pawn — create a pawn loan (item + valuation + bullet loan + disburse).
 router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
@@ -577,6 +605,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
       item_condition,
       storage_location,
       photos,
+      branch_id,
       application_id, // optional: converting a customer pawn request
     } = req.body || {};
 
@@ -603,10 +632,11 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     }
 
     const client = await query(
-      `SELECT id FROM clients WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id, branch_id FROM clients WHERE id = $1 AND tenant_id = $2`,
       [client_id, tid],
     );
     if (!client.rows.length) return res.status(404).json({ error: "Client not found" });
+    const branchId = await resolveBranchId(tid, branch_id, client.rows[0].branch_id);
 
     const value = parseFloat(appraised_value);
     if (!(value > 0)) return res.status(400).json({ error: "Appraised value must be positive" });
@@ -661,14 +691,14 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
          loan_duration_months, total_amount_due, total_interest, status, created_by,
          purpose, package_id, interest_method, loan_type,
          start_date, end_date, disbursed_by, disbursed_at,
-         application_date, application_source, net_disbursed_amount
+         application_date, application_source, net_disbursed_amount, branch_id
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,'active',$9,
          'Pawn loan',$10,'flat','pawn',
          $11::date,$12::date,$9,NOW(),
-         $11::date,'pawn',$4
+         $11::date,'pawn',$4,$13
        ) RETURNING *`,
-      [tid, loanCode, client_id, principal, monthlyFeePct, months, totalDue, fee, req.user.id, pkg ? pkg.id : null, startISO, matISO],
+      [tid, loanCode, client_id, principal, monthlyFeePct, months, totalDue, fee, req.user.id, pkg ? pkg.id : null, startISO, matISO, branchId],
     );
     const loan = loanRes.rows[0];
 

@@ -17,6 +17,12 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
   const [showDropdown, setShowDropdown] = useState(false);
   const [photos, setPhotos] = useState([]); // uploaded image URLs
   const [uploading, setUploading] = useState(false);
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState("");
+
+  useEffect(() => {
+    api.get("/branches").then((r) => setBranches((r.data.data || []).filter((b) => b.active))).catch(() => {});
+  }, []);
 
   const uploadPhotos = async (files) => {
     if (!files?.length) return;
@@ -159,6 +165,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
         item_condition: form.item_condition || null,
         storage_location: form.storage_location || null,
         ...(photos.length ? { photos } : {}),
+        ...(branchId ? { branch_id: branchId } : {}),
         ...(application ? { application_id: application.id } : {}),
       });
       onCreated?.(r.data?.data?.loan);
@@ -376,6 +383,17 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                 className={fld}
               />
             </div>
+            {branches.length > 1 && (
+              <div>
+                <label className={lbl}>Branch</label>
+                <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={fld}>
+                  <option value="">— Default / borrower's branch —</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}{b.is_default ? " (default)" : ""}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Item photos */}
