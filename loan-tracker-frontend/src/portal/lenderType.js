@@ -3,12 +3,17 @@
 // directory — and the row's colour reflects that type. Keys match the values
 // set at tenant signup (microfinance / sacco / chama / individual / other).
 const TYPES = {
+  private: { label: "Private Lender", color: "#16a34a" }, // green
+  bank: { label: "Bank", color: "#1e40af" }, // deep blue
   microfinance: { label: "Microfinance", color: "#0086cc" }, // ocean blue
-  sacco: { label: "SACCO", color: "#ea580c" }, // orange (swapped with individual)
-  chama: { label: "Chama", color: "#7c3aed" }, // purple
-  individual: { label: "Individual", color: "#16a34a" }, // green (swapped with sacco)
-  welfare: { label: "Welfare", color: "#0d9488" }, // teal
-  pawnbroker: { label: "Pawnbroker", color: "#d97706" }, // amber / gold
+  sacco: { label: "SACCO", color: "#ea580c" }, // orange
+  dfi: { label: "DFI", color: "#7c3aed" }, // purple
+  welfare_chama: { label: "Welfare/Chama", color: "#0d9488" }, // teal
+  // Legacy values kept so any un-migrated rows still display sensibly.
+  individual: { label: "Private Lender", color: "#16a34a" },
+  chama: { label: "Welfare/Chama", color: "#0d9488" },
+  welfare: { label: "Welfare/Chama", color: "#0d9488" },
+  pawnbroker: { label: "Pawnbroker", color: "#d97706" },
   other: { label: "Other", color: "#64748b" }, // slate
 };
 

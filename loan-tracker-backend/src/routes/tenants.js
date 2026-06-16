@@ -119,7 +119,7 @@ router.post("/signup", async (req, res) => {
       [
         tenantCode,
         business_name,
-        business_type || "microfinance",
+        business_type || "private",
         sub,
         contact_name,
         contact_email.toLowerCase(),

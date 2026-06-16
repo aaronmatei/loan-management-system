@@ -18,7 +18,7 @@ function Signup() {
 
   const [formData, setFormData] = useState({
     business_name: "",
-    business_type: "microfinance",
+    business_type: "private",
     subdomain: "",
     first_name: "",
     last_name: "",
@@ -66,6 +66,11 @@ function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Welfare/Chama is a separate vertical — send them to the Welfare sign-up.
+    if (formData.business_type === "welfare_chama") {
+      navigate("/welfare/register");
+      return;
+    }
     if (formData.admin_password !== formData.confirm_password) {
       alert("Passwords do not match");
       return;
@@ -179,12 +184,18 @@ function Signup() {
                       onChange={set("business_type")}
                       className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
                     >
+                      <option value="private">Private Lender</option>
+                      <option value="bank">Bank</option>
                       <option value="microfinance">Microfinance</option>
                       <option value="sacco">SACCO</option>
-                      <option value="chama">Chama</option>
-                      <option value="individual">Individual Lender</option>
-                      <option value="other">Other</option>
+                      <option value="dfi">Development Finance Institution (DFI)</option>
+                      <option value="welfare_chama">Welfare / Chama</option>
                     </select>
+                    {formData.business_type === "welfare_chama" && (
+                      <p className="text-xs text-amber-200 mt-1">
+                        Welfare / Chama accounts use the dedicated Welfare app — you'll be taken there to finish signing up.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1">
