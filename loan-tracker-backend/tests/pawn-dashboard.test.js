@@ -102,6 +102,27 @@ describe("pawn dashboard + pledge list", () => {
     expect(after.body.data.auction_notice_days).toBe(7);
   });
 
+  it("builds the accounting view: balances + a cash journal", async () => {
+    const { t, admin, pkg } = await setup();
+    const c = await createClient(t.id);
+    const created = (await newPawn(admin, pkg, c.id)).body.data; // 12,000 cash out
+
+    const r = await request(app).get("/api/pawn/accounting").set("Authorization", auth(admin));
+    expect(r.status).toBe(200);
+    const a = r.body.data.accounts;
+    expect(a.principal_disbursed).toBe(12000);
+    expect(a.loans_receivable).toBe(12120); // nothing repaid yet
+    expect(a.collateral_held).toBe(20000); // appraised value of the held item
+    expect(a.cash_available).toBe(988000); // 1,000,000 - 12,000
+
+    // Journal has the disbursement as Receivable↑ / Cash↓.
+    const disb = r.body.data.journal.find((j) => j.ref === created.loan.loan_code);
+    expect(disb).toBeTruthy();
+    expect(disb.debit).toBe("Pawn Loans Receivable");
+    expect(disb.credit).toBe("Cash");
+    expect(disb.amount).toBe(12000);
+  });
+
   it("404s a photo upload for a nonexistent pledge", async () => {
     const { admin } = await setup();
     const res = await request(app).post("/api/pawn/999999/photos").set("Authorization", auth(admin));

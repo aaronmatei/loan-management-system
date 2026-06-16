@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Gem, Wallet, AlertTriangle, Banknote, CheckCircle2, Gavel,
-  Plus, Search, ChevronRight, TrendingUp, X,
+  Plus, Search, ChevronRight, TrendingUp, X, FileSpreadsheet,
 } from "lucide-react";
 import api from "../../services/api";
 import PermissionGate from "../../components/PermissionGate";
@@ -557,6 +557,78 @@ export function PawnSettings() {
           </PermissionGate>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Accounting (account balances + cash journal) ─────────────────────
+export function PawnAccounting() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api.get("/pawn/accounting").then((r) => setData(r.data.data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const exportCsv = () => {
+    const rows = data?.journal || [];
+    const cell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const lines = [["Date", "Ref", "Description", "Debit", "Credit", "Amount"].join(",")];
+    rows.forEach((j) => lines.push([new Date(j.date).toISOString().split("T")[0], j.ref, j.description, j.debit, j.credit, j.amount].map(cell).join(",")));
+    const url = window.URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = "pawn-journal.csv"; a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const a = data?.accounts;
+  return (
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
+      <PageHeader title="Accounting" action={data && <button onClick={exportCsv} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><FileSpreadsheet size={14} /> Journal CSV</button>} />
+      {loading ? <p className="text-sm text-slate-500">Loading…</p> : !data ? <p className="text-sm text-slate-500">Couldn't load accounting.</p> : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Stat icon={Wallet} label="Cash available" value={money(a.cash_available)} tone="emerald" />
+            <Stat icon={Banknote} label="Loans receivable" value={money(a.loans_receivable)} sub="owed by customers" tone="ocean" />
+            <Stat icon={TrendingUp} label="Interest income" value={money(a.interest_income)} sub="lifetime" tone="emerald" />
+            <Stat icon={Gem} label="Collateral held" value={money(a.collateral_held)} sub="appraised" tone="slate" />
+            <Stat icon={Gavel} label="Auction recovered" value={money(a.auction_recovered)} sub={`${a.auctions_completed} sold`} tone="amber" />
+            <Stat icon={Banknote} label="Surplus payable" value={money(a.surplus_payable)} sub="owed to customers" tone="ocean" />
+            <Stat icon={AlertTriangle} label="Deficiency" value={money(a.deficiency)} sub="shortfall" tone="rose" />
+            <Stat icon={Banknote} label="Disbursed / collected" value={money(a.principal_disbursed)} sub={`${money(a.principal_collected)} collected`} tone="slate" />
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Journal</h2></div>
+            {data.journal.length === 0 ? <p className="p-5 text-sm text-slate-500">No cash movements yet.</p> : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                    <tr>
+                      <th className="text-left px-4 py-2">Date</th>
+                      <th className="text-left px-4 py-2">Ref</th>
+                      <th className="text-left px-4 py-2">Description</th>
+                      <th className="text-left px-4 py-2">Debit</th>
+                      <th className="text-left px-4 py-2">Credit</th>
+                      <th className="text-right px-4 py-2">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.journal.map((j) => (
+                      <tr key={j.id} className="border-t border-slate-100">
+                        <td className="px-4 py-2 text-slate-600 whitespace-nowrap">{new Date(j.date).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" })}</td>
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{j.ref}</td>
+                        <td className="px-4 py-2 text-slate-600">{j.description}</td>
+                        <td className="px-4 py-2 text-slate-700">{j.debit}</td>
+                        <td className="px-4 py-2 text-slate-700">{j.credit}</td>
+                        <td className="px-4 py-2 text-right font-semibold">{money(j.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

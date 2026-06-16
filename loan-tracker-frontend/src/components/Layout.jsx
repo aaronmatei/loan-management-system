@@ -168,6 +168,7 @@ const PAWNBROKER_STANDALONE = [
   { path: "/pawn/payments", label: "Payments", icon: CreditCard, variant: "ocean", permission: "payments:view" },
   { path: "/pawn/auctions", label: "Auctions", icon: Gavel, variant: "ocean", permission: "loans:view" },
   { path: "/pawn/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "reports:view" },
+  { path: "/pawn/accounting", label: "Accounting", icon: Receipt, variant: "ocean", roles: ["admin", "manager"] },
 ];
 const PAWNBROKER_GROUPS = [
   {

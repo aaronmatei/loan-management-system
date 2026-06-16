@@ -300,6 +300,91 @@ async function pawnOutstanding(loanId, totalDue) {
   return round2(parseFloat(totalDue) - parseFloat(paid));
 }
 
+// GET /api/pawn/accounting — the pawn book: account balances + a cash journal.
+// A read model over existing data (no separate ledger to keep in sync).
+router.get("/accounting", async (req, res) => {
+  try {
+    const tid = tenantId(req);
+    if (!tid) return res.status(400).json({ error: "No tenant context" });
+
+    const cap = (await query(`SELECT initial_capital, total_disbursed, total_collected, total_interest_earned FROM capital_pool WHERE tenant_id=$1`, [tid])).rows[0];
+    const cashAvailable = cap ? round2(parseFloat(cap.initial_capital) + parseFloat(cap.total_collected) - parseFloat(cap.total_disbursed)) : 0;
+
+    const recv = (await query(
+      `SELECT COALESCE(SUM(l.total_amount_due -
+                COALESCE((SELECT SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0))
+                            FROM transactions t WHERE t.loan_id=l.id AND t.payment_status='completed'),0)),0) AS receivable
+         FROM loans l WHERE l.loan_type='pawn' AND l.status='active' AND l.tenant_id=$1`,
+      [tid],
+    )).rows[0].receivable;
+
+    const col = (await query(
+      `SELECT COALESCE(SUM(appraised_value) FILTER (WHERE status='held'),0) AS held
+         FROM loan_collateral WHERE tenant_id=$1`,
+      [tid],
+    )).rows[0].held;
+
+    // Interest income actually collected on pawn loans (same formula Reports uses).
+    const interest = (await query(
+      `SELECT COALESCE(SUM(LEAST(LEAST(ps.amount_paid, ps.amount_due),
+                GREATEST(0, COALESCE(ps.interest_portion,0) - COALESCE(ps.interest_paid,0)))),0) AS interest
+         FROM payment_schedules ps JOIN loans l ON l.id=ps.loan_id
+        WHERE l.tenant_id=$1 AND l.loan_type='pawn'`,
+      [tid],
+    )).rows[0].interest;
+
+    const auc = (await query(
+      `SELECT COALESCE(SUM(recovered),0) AS recovered, COALESCE(SUM(surplus),0) AS surplus,
+              COALESCE(SUM(deficiency),0) AS deficiency, COUNT(*)::int AS count
+         FROM pawn_auctions WHERE tenant_id=$1 AND status='completed'`,
+      [tid],
+    )).rows[0];
+
+    const journal = (await query(
+      `SELECT ct.id, ct.transaction_type, ct.amount, ct.description, ct.created_at, l.loan_code
+         FROM capital_transactions ct
+         JOIN loans l ON l.id = ct.loan_id
+        WHERE l.loan_type='pawn' AND ct.tenant_id=$1
+        ORDER BY ct.created_at DESC, ct.id DESC LIMIT 200`,
+      [tid],
+    )).rows.map((r) => {
+      // Cash-basis double-entry framing for each pool movement.
+      const disb = r.transaction_type === "loan_disbursed";
+      return {
+        id: r.id,
+        date: r.created_at,
+        ref: r.loan_code,
+        description: r.description,
+        amount: Number(r.amount),
+        debit: disb ? "Pawn Loans Receivable" : "Cash",
+        credit: disb ? "Cash" : "Pawn Loans Receivable",
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        accounts: {
+          cash_available: cashAvailable,
+          loans_receivable: round2(parseFloat(recv)),
+          collateral_held: round2(parseFloat(col)),
+          interest_income: round2(parseFloat(interest)),
+          principal_disbursed: cap ? round2(parseFloat(cap.total_disbursed)) : 0,
+          principal_collected: cap ? round2(parseFloat(cap.total_collected)) : 0,
+          auction_recovered: round2(parseFloat(auc.recovered)),
+          surplus_payable: round2(parseFloat(auc.surplus)),
+          deficiency: round2(parseFloat(auc.deficiency)),
+          auctions_completed: auc.count,
+        },
+        journal,
+      },
+    });
+  } catch (e) {
+    logger.error("pawn accounting error:", e);
+    res.status(500).json({ error: "Failed to build accounting view" });
+  }
+});
+
 // GET /api/pawn/auctions — auction history + scheduled queue for the shop.
 router.get("/auctions", async (req, res) => {
   try {
