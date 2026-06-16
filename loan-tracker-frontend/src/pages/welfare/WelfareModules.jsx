@@ -188,6 +188,65 @@ export function WelfareSettingsPage() {
           </PermissionGate>
         )}
       </div>
+      <NonMemberLendingCard />
     </Page>
+  );
+}
+
+// Whether this welfare extends loans to non-members. When on, the welfare shows
+// up to outside borrowers in the customer lender directory (and is addable);
+// when off it stays members-only and stays hidden. Tenant-scoped, so it uses
+// the singular /welfare endpoint rather than /welfares/:id.
+function NonMemberLendingCard() {
+  const [enabled, setEnabled] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    api.get(`/welfare/lending`)
+      .then((r) => setEnabled(!!r.data?.data?.lends_to_non_members))
+      .catch(() => setEnabled(false));
+  }, []);
+
+  const toggle = async (next) => {
+    setBusy(true);
+    setSaved(false);
+    try {
+      const r = await api.put(`/welfare/lending`, { lends_to_non_members: next });
+      setEnabled(!!r.data?.data?.lends_to_non_members);
+      setSaved(true);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to save");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl mt-6">
+      <h2 className="font-bold text-slate-900 mb-1">Lending to non-members</h2>
+      <p className="text-sm text-slate-500 mb-5">
+        Most chamas lend only to their own members. Turn this on if you also lend
+        to outsiders — your welfare will then appear to borrowers in the public
+        lender directory so they can request a loan.
+      </p>
+      {enabled === null ? <p className="text-sm text-slate-500">Loading…</p> : (
+        <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit this.</p>}>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => toggle(!enabled)}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50 ${enabled ? "bg-emerald-600" : "bg-slate-300"}`}
+              aria-pressed={enabled}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${enabled ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+            <span className="text-sm font-semibold text-slate-700">{enabled ? "Lending to non-members is ON" : "Members only"}</span>
+            {saved && <span className="text-sm text-emerald-600 font-semibold">Saved.</span>}
+          </div>
+        </PermissionGate>
+      )}
+    </div>
   );
 }

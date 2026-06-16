@@ -1194,6 +1194,7 @@ CREATE TABLE public.tenants (
     updated_at timestamp without time zone DEFAULT now(),
     customer_portal_enabled boolean DEFAULT true,
     allow_self_signup boolean DEFAULT true,
+    lends_to_non_members boolean DEFAULT false NOT NULL,
     allow_online_applications boolean DEFAULT true,
     otp_count_this_month integer DEFAULT 0,
     otp_quota_per_month integer DEFAULT 100,

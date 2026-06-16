@@ -220,6 +220,9 @@ router.get("/available-tenants", async (req, res) => {
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true
          AND t.allow_self_signup = true
+         -- Welfares/chamas only lend to outsiders when they opt in; otherwise
+         -- they're members-only and shouldn't surface to a borrower.
+         AND (t.kind <> 'welfare' OR COALESCE(t.lends_to_non_members, false) = true)
          -- Same exclusion as the /lenders directory: the LenderFest platform
          -- owner and the demo sandbox are not real lenders to add.
          AND COALESCE(t.is_demo, false) = false
@@ -280,6 +283,9 @@ router.get("/lenders", async (req, res) => {
        LEFT JOIN pawn_settings ps ON ps.tenant_id = t.id
        WHERE t.status = 'active'
          AND t.customer_portal_enabled = true
+         -- Members-only welfares/chamas stay hidden; only those that lend to
+         -- non-members appear in the borrower directory.
+         AND (t.kind <> 'welfare' OR COALESCE(t.lends_to_non_members, false) = true)
          -- Exclude the LenderFest platform owner and the demo sandbox — they
          -- are not real lenders a customer can borrow from.
          AND COALESCE(t.is_demo, false) = false
@@ -318,6 +324,7 @@ router.get("/lenders/:id", async (req, res) => {
        LEFT JOIN pawn_settings ps ON ps.tenant_id = t.id
        WHERE t.id = $1 AND t.status = 'active'
          AND t.customer_portal_enabled = true
+         AND (t.kind <> 'welfare' OR COALESCE(t.lends_to_non_members, false) = true)
          AND COALESCE(t.is_demo, false) = false
          AND COALESCE(t.plan, '') <> 'platform'
          AND t.subdomain NOT IN ('platform', 'demo')`,
