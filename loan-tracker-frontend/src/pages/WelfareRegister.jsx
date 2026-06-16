@@ -70,11 +70,11 @@ export default function WelfareRegister() {
     >
       <div className="w-full max-w-lg">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white mb-3">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white text-emerald-600 shadow-md mb-3">
             <UsersRound size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Register your Welfare</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-white drop-shadow-sm">Register your Welfare</h1>
+          <p className="text-sm text-white/85 mt-1">
             Run your chama / welfare group — members, contributions and loans from your own pool.
           </p>
         </div>

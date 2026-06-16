@@ -123,7 +123,7 @@ function Signup() {
             markClassName="h-11 w-11"
             textClassName="text-4xl"
           />
-          <p className="text-ocean-100 mt-2">
+          <p className="text-white/90 mt-2">
             Loan Management System for Kenyan Lenders
           </p>
         </div>

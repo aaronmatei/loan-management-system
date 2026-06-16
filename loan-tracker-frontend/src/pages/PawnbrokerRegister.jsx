@@ -72,8 +72,8 @@ export default function PawnbrokerRegister() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-600 text-white mb-3">
             <Gem size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Register your Pawnshop</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-white drop-shadow-sm">Register your Pawnshop</h1>
+          <p className="text-sm text-white/85 mt-1">
             Lend cash against pledged items — value, advance, redeem or forfeit, all in one place.
           </p>
         </div>

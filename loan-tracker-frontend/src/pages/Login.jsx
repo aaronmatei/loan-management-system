@@ -82,11 +82,12 @@ function Login() {
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
           <Logo
+            variant="reversed"
             className="justify-center mb-3"
             markClassName="h-9 w-9"
             textClassName="text-3xl"
           />
-          <h2 className="text-gray-600">Login to your account</h2>
+          <h2 className="text-white/90">Login to your account</h2>
         </div>
 
         {error && (
