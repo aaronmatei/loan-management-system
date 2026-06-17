@@ -1,6 +1,6 @@
 // Welfare/chama MEMBER self-service pages. Shown when the selected portal tenant
 // is a welfare (PortalLayout swaps to the member menu). All data comes from
-// /api/portal/member/* (scoped to the logged-in member by the backend).
+// /api/welfare/member/* (scoped to the logged-in member by the backend).
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -49,9 +49,9 @@ function useFetch(path) {
 // STK pay button. Kicks off the member STK, then polls the member's M-Pesa log
 // until this target is allocated (or a timeout), refreshing the page on success.
 const PAY = {
-  contribution: { url: "/portal/member/mpesa/contribution", key: "schedule_id", type: "contribution_schedule" },
-  loan: { url: "/portal/member/mpesa/loan-repayment", key: "loan_id", type: "member_loan" },
-  penalty: { url: "/portal/member/mpesa/penalty", key: "assessment_id", type: "penalty_assessment" },
+  contribution: { url: "/welfare/member/mpesa/contribution", key: "schedule_id", type: "contribution_schedule" },
+  loan: { url: "/welfare/member/mpesa/loan-repayment", key: "loan_id", type: "member_loan" },
+  penalty: { url: "/welfare/member/mpesa/penalty", key: "assessment_id", type: "penalty_assessment" },
 };
 function PayButton({ kind, targetId, onDone }) {
   const [phase, setPhase] = useState("idle"); // idle | sending | waiting | done
@@ -60,7 +60,7 @@ function PayButton({ kind, targetId, onDone }) {
   const poll = async (deadline) => {
     if (Date.now() > deadline) { setPhase("idle"); onDone?.(); return; }
     try {
-      const r = await portalApi.get("/portal/member/mpesa/transactions");
+      const r = await portalApi.get("/welfare/member/mpesa/transactions");
       const hit = (r.data.data || []).find((t) => t.target_type === cfg.type && String(t.target_id) === String(targetId));
       if (hit?.allocated) { setPhase("done"); onDone?.(); return; }
     } catch {
@@ -195,7 +195,7 @@ function RequestsList({ path, columns }) {
 }
 
 export function MemberDashboard() {
-  const { data, loading, error } = useFetch("/portal/member/overview");
+  const { data, loading, error } = useFetch("/welfare/member/overview");
   return (
     <Shell title="My Chama" icon={PiggyBank}>
       {loading || error || !data ? <Loading error={error} /> : (
@@ -262,7 +262,7 @@ function Table({ head, rows, render, empty }) {
 }
 
 export function MemberSavings() {
-  const { data, loading, error } = useFetch("/portal/member/ledger");
+  const { data, loading, error } = useFetch("/welfare/member/ledger");
   const [modal, setModal] = useState(false);
   const [reqKey, setReqKey] = useState(0);
   return (
@@ -275,7 +275,7 @@ export function MemberSavings() {
       {modal && (
         <RequestModal
           title="Request a savings withdrawal"
-          url="/portal/member/withdrawal-requests"
+          url="/welfare/member/withdrawal-requests"
           fields={[
             { name: "amount", label: "Amount (KES)", type: "number", placeholder: "e.g. 5000" },
             { name: "reason", label: "Reason", placeholder: "Optional" },
@@ -289,7 +289,7 @@ export function MemberSavings() {
           <Stat label="Savings balance" value={KES(data.savings_balance)} tone="text-emerald-700" />
           <RequestsList
             key={reqKey}
-            path="/portal/member/withdrawal-requests"
+            path="/welfare/member/withdrawal-requests"
             columns={[
               { key: "amount", label: "Amount", fmt: KES },
               { key: "reason", label: "Reason" },
@@ -318,7 +318,7 @@ export function MemberSavings() {
 }
 
 export function MemberContributions() {
-  const { data, loading, error, reload } = useFetch("/portal/member/contributions");
+  const { data, loading, error, reload } = useFetch("/welfare/member/contributions");
   return (
     <Shell title="Contributions" icon={Coins}>
       {loading || error || !data ? <Loading error={error} /> : (
@@ -347,7 +347,7 @@ export function MemberContributions() {
 }
 
 export function MemberLoans() {
-  const { data, loading, error, reload } = useFetch("/portal/member/loans");
+  const { data, loading, error, reload } = useFetch("/welfare/member/loans");
   const [modal, setModal] = useState(false);
   const [reqKey, setReqKey] = useState(0);
   return (
@@ -360,7 +360,7 @@ export function MemberLoans() {
       {modal && (
         <RequestModal
           title="Request a chama loan"
-          url="/portal/member/loan-requests"
+          url="/welfare/member/loan-requests"
           fields={[
             { name: "principal", label: "Amount (KES)", type: "number", placeholder: "e.g. 20000" },
             { name: "duration_months", label: "Duration (months)", type: "number", placeholder: "e.g. 6" },
@@ -394,7 +394,7 @@ export function MemberLoans() {
       )}
       <RequestsList
         key={reqKey}
-        path="/portal/member/loan-requests"
+        path="/welfare/member/loan-requests"
         columns={[
           { key: "principal", label: "Amount", fmt: KES },
           { key: "duration_months", label: "Months" },
@@ -406,7 +406,7 @@ export function MemberLoans() {
 }
 
 export function MemberMeetings() {
-  const { data, loading, error } = useFetch("/portal/member/meetings");
+  const { data, loading, error } = useFetch("/welfare/member/meetings");
   return (
     <Shell title="Meetings" icon={CalendarCheck}>
       {loading || error || !data ? <Loading error={error} /> : (
@@ -429,7 +429,7 @@ export function MemberMeetings() {
 }
 
 export function MemberDividends() {
-  const { data, loading, error } = useFetch("/portal/member/dividends");
+  const { data, loading, error } = useFetch("/welfare/member/dividends");
   return (
     <Shell title="Dividends" icon={Gift}>
       {loading || error || !data ? <Loading error={error} /> : (
@@ -451,7 +451,7 @@ export function MemberDividends() {
 }
 
 export function MemberPenalties() {
-  const { data, loading, error, reload } = useFetch("/portal/member/penalties");
+  const { data, loading, error, reload } = useFetch("/welfare/member/penalties");
   return (
     <Shell title="Penalties" icon={AlertTriangle}>
       {loading || error || !data ? <Loading error={error} /> : (

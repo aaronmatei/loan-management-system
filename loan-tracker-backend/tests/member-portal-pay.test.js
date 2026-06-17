@@ -65,7 +65,7 @@ describe("member portal pay (M-Pesa)", () => {
     const { tenant, a, loanA } = await setup();
     const tok = customerToken(await pcIdByPhone("+254795300111"), tenant.id);
     const res = await request(app)
-      .post("/api/portal/member/mpesa/loan-repayment")
+      .post("/api/welfare/member/mpesa/loan-repayment")
       .set("Authorization", tok)
       .send({ loan_id: loanA.id });
     expect(res.status).toBe(200);
@@ -84,7 +84,7 @@ describe("member portal pay (M-Pesa)", () => {
     const { tenant, loanA } = await setup();
     const tokB = customerToken(await pcIdByPhone("+254795300222"), tenant.id);
     const res = await request(app)
-      .post("/api/portal/member/mpesa/loan-repayment")
+      .post("/api/welfare/member/mpesa/loan-repayment")
       .set("Authorization", tokB)
       .send({ loan_id: loanA.id });
     expect(res.status).toBe(404);
@@ -93,8 +93,8 @@ describe("member portal pay (M-Pesa)", () => {
   it("lists only the member's own transactions", async () => {
     const { tenant, a, loanA } = await setup();
     const tok = customerToken(await pcIdByPhone("+254795300111"), tenant.id);
-    await request(app).post("/api/portal/member/mpesa/loan-repayment").set("Authorization", tok).send({ loan_id: loanA.id });
-    const list = await request(app).get("/api/portal/member/mpesa/transactions").set("Authorization", tok);
+    await request(app).post("/api/welfare/member/mpesa/loan-repayment").set("Authorization", tok).send({ loan_id: loanA.id });
+    const list = await request(app).get("/api/welfare/member/mpesa/transactions").set("Authorization", tok);
     expect(list.status).toBe(200);
     expect(list.body.data.length).toBeGreaterThan(0);
     expect(list.body.data.every((x) => x.target_type === "member_loan")).toBe(true);

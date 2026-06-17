@@ -1,7 +1,7 @@
 // Welfare/chama MEMBER self-service portal. A platform_customer who is linked to
 // a welfare tenant (customer_tenant_links.member_id) sees their own savings,
 // contributions, chama loans, dividends, meetings and penalties here. Mounted at
-// /api/portal/member, gated by verifyCustomer + resolveMember. Read-only in this
+// /api/welfare/member, gated by verifyCustomer + resolveMember. Read-only in this
 // phase; pay actions (Phase C) and requests (Phase D) build on the same resolver.
 import express from "express";
 import { query } from "../../config/database.js";

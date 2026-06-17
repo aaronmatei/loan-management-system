@@ -39,7 +39,7 @@ describe("member portal requests + admin approval", () => {
   it("loan request → admin approve issues a real member loan", async () => {
     const { admin, welfare, member, tok } = await setup();
     const reqRes = await request(app)
-      .post("/api/portal/member/loan-requests")
+      .post("/api/welfare/member/loan-requests")
       .set("Authorization", tok)
       .send({ principal: 20000, duration_months: 6, purpose: "School fees" });
     expect(reqRes.status).toBe(201);
@@ -59,14 +59,14 @@ describe("member portal requests + admin approval", () => {
     const row = (await query("SELECT * FROM member_loan_requests WHERE id = $1", [reqId])).rows[0];
     expect(row.status).toBe("approved");
     expect(row.issued_loan_id).toBe(approve.body.data.loan.id);
-    const loans = await request(app).get("/api/portal/member/loans").set("Authorization", tok);
+    const loans = await request(app).get("/api/welfare/member/loans").set("Authorization", tok);
     expect(loans.body.data).toHaveLength(1);
   });
 
   it("rejects a withdrawal request over the member's savings at submit time", async () => {
     const { tok } = await setup(10000);
     const res = await request(app)
-      .post("/api/portal/member/withdrawal-requests")
+      .post("/api/welfare/member/withdrawal-requests")
       .set("Authorization", tok)
       .send({ amount: 99999 });
     expect(res.status).toBe(400);
@@ -75,7 +75,7 @@ describe("member portal requests + admin approval", () => {
   it("withdrawal request → approve pays from the pool; reject leaves it untouched", async () => {
     const { admin, welfare, member, tok } = await setup(40000);
     // Approve path
-    const wr = await request(app).post("/api/portal/member/withdrawal-requests").set("Authorization", tok).send({ amount: 15000, reason: "Emergency" });
+    const wr = await request(app).post("/api/welfare/member/withdrawal-requests").set("Authorization", tok).send({ amount: 15000, reason: "Emergency" });
     expect(wr.status).toBe(201);
     const poolBefore = (await request(app).get(`/api/welfares/${welfare.id}/members/pool`).set("Authorization", auth(admin))).body.data.balance;
     const ap = await request(app).post(`/api/welfares/${welfare.id}/requests/withdrawals/${wr.body.data.id}/approve`).set("Authorization", auth(admin)).send({});
@@ -84,7 +84,7 @@ describe("member portal requests + admin approval", () => {
     expect(Number(poolBefore) - Number(poolAfter)).toBe(15000);
 
     // Reject path — no pool change
-    const wr2 = await request(app).post("/api/portal/member/withdrawal-requests").set("Authorization", tok).send({ amount: 5000 });
+    const wr2 = await request(app).post("/api/welfare/member/withdrawal-requests").set("Authorization", tok).send({ amount: 5000 });
     const poolBeforeRej = (await request(app).get(`/api/welfares/${welfare.id}/members/pool`).set("Authorization", auth(admin))).body.data.balance;
     const rej = await request(app).post(`/api/welfares/${welfare.id}/requests/withdrawals/${wr2.body.data.id}/reject`).set("Authorization", auth(admin)).send({ notes: "Insufficient pool" });
     expect(rej.status).toBe(200);

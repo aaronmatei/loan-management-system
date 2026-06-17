@@ -162,7 +162,10 @@ app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
 app.use("/api/portal/auth", authLimiter, portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
-app.use("/api/portal/member", portalMemberRoutes); // welfare member self-service
+// Welfare member self-service API. Mounted under /api/welfare/member to match
+// the /welfare/member front door, and BEFORE /api/welfare (below) so these
+// customer-authed routes win over the staff "my welfare" router for that path.
+app.use("/api/welfare/member", portalMemberRoutes);
 app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/cron", platformCronRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/audit", platformAuditRoutes); // verifyToken + is_platform_admin
