@@ -1,7 +1,7 @@
 // Welfare/Chama MEMBER front door — separate from the borrower portal but on
 // the same platform_customers identity. Members reach these via an admin email/
 // SMS invite, set their password, and log straight into the member desk
-// (/portal/member). A borrower-only account is bounced to the borrower login.
+// (/welfare/member). A borrower-only account is bounced to the borrower login.
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Users, Lock, ShieldCheck } from "lucide-react";
@@ -34,7 +34,7 @@ async function landMember(navigate, data) {
       "portal_current_tenant",
       JSON.stringify(res.data.current_tenant),
     );
-    navigate("/portal/member");
+    navigate("/welfare/member");
   } else {
     navigate("/welfare/member/select");
   }
@@ -277,7 +277,7 @@ export function WelfareMemberSelect() {
         "portal_current_tenant",
         JSON.stringify(res.data.current_tenant),
       );
-      navigate("/portal/member");
+      navigate("/welfare/member");
     } catch {
       alert("Failed to open that chama");
       setSelecting(null);

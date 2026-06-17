@@ -214,14 +214,14 @@ export function MemberDashboard() {
                 <p className="font-semibold text-amber-900">Next contribution</p>
                 <p className="text-sm text-amber-700">{data.next_contribution.cycle_name} — {KES(data.next_contribution.amount_due)} due {fmt(data.next_contribution.due_date)}</p>
               </div>
-              <Link to="/portal/member/contributions" className="text-amber-800 font-semibold inline-flex items-center gap-1">Pay <ArrowRight size={16} /></Link>
+              <Link to="/welfare/member/contributions" className="text-amber-800 font-semibold inline-flex items-center gap-1">Pay <ArrowRight size={16} /></Link>
             </div>
           )}
 
           <div className="bg-white rounded-xl shadow-md border border-slate-100">
             <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-bold text-slate-900">Recent activity</h2>
-              <Link to="/portal/member/savings" className="text-sm text-emerald-600 font-semibold">Full ledger →</Link>
+              <Link to="/welfare/member/savings" className="text-sm text-emerald-600 font-semibold">Full ledger →</Link>
             </div>
             {(data.recent_transactions || []).length === 0 ? (
               <p className="px-5 py-8 text-center text-slate-500">No activity yet.</p>

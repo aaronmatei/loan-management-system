@@ -118,7 +118,7 @@ function CustomerDashboard() {
       const r = await portalApi.post("/portal/auth/select-tenant", { tenant_id: t.tenant_id });
       localStorage.setItem("portal_token", r.data.token);
       localStorage.setItem("portal_current_tenant", JSON.stringify(r.data.current_tenant));
-      navigate("/portal/member");
+      navigate("/welfare/member");
     } catch {
       alert("Failed to open chama");
     }

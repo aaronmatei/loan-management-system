@@ -36,7 +36,7 @@ function TenantPicker() {
       // land on the member desk.
       navigate(
         res.data.current_tenant?.kind === "welfare"
-          ? "/portal/member"
+          ? "/welfare/member"
           : "/portal/dashboard",
       );
     } catch {

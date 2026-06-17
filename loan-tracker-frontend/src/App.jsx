@@ -571,14 +571,19 @@ function App() {
                 </PortalProtectedRoute>
               }
             />
-            {/* Welfare/chama member self-service (selected tenant kind='welfare') */}
-            <Route path="/portal/member" element={<PortalProtectedRoute><MemberDashboard /></PortalProtectedRoute>} />
-            <Route path="/portal/member/savings" element={<PortalProtectedRoute><MemberSavings /></PortalProtectedRoute>} />
-            <Route path="/portal/member/contributions" element={<PortalProtectedRoute><MemberContributions /></PortalProtectedRoute>} />
-            <Route path="/portal/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
-            <Route path="/portal/member/meetings" element={<PortalProtectedRoute><MemberMeetings /></PortalProtectedRoute>} />
-            <Route path="/portal/member/dividends" element={<PortalProtectedRoute><MemberDividends /></PortalProtectedRoute>} />
-            <Route path="/portal/member/penalties" element={<PortalProtectedRoute><MemberPenalties /></PortalProtectedRoute>} />
+            {/* Welfare/chama member self-service desk — lives under
+                /welfare/member/* (the member's own front door), distinct from
+                the borrower portal. */}
+            <Route path="/welfare/member" element={<PortalProtectedRoute><MemberDashboard /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/savings" element={<PortalProtectedRoute><MemberSavings /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/contributions" element={<PortalProtectedRoute><MemberContributions /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/meetings" element={<PortalProtectedRoute><MemberMeetings /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/dividends" element={<PortalProtectedRoute><MemberDividends /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/penalties" element={<PortalProtectedRoute><MemberPenalties /></PortalProtectedRoute>} />
+            {/* Back-compat: the desk used to live under /portal/member/* */}
+            <Route path="/portal/member" element={<Navigate to="/welfare/member" replace />} />
+            <Route path="/portal/member/*" element={<Navigate to="/welfare/member" replace />} />
             <Route
               path="/portal/applications"
               element={
