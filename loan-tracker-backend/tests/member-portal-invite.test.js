@@ -25,7 +25,7 @@ async function welfareSetup() {
     await request(app)
       .post(`/api/welfares/${w.id}/members`)
       .set("Authorization", auth(admin))
-      .send({ first_name: "Jane", last_name: "Doe", phone_number: "0716000111", id_number: "MBR99001" })
+      .send({ first_name: "Jane", last_name: "Doe", phone_number: "0795100111", id_number: "MBR99001" })
   ).body.data;
   return { tenant: t, admin, welfare: w, member: m };
 }
@@ -42,7 +42,7 @@ describe("member portal invite", () => {
     expect(res.body.data.new_account).toBe(true);
 
     const pc = (
-      await query("SELECT * FROM platform_customers WHERE phone_number = $1", ["+254716000111"])
+      await query("SELECT * FROM platform_customers WHERE phone_number = $1", ["+254795100111"])
     ).rows[0];
     expect(pc).toBeTruthy();
     expect(pc.id_number).toBe("MBR99001");
@@ -72,7 +72,7 @@ describe("member portal invite", () => {
       await request(app)
         .post(`/api/welfares/${welfare.id}/members`)
         .set("Authorization", auth(admin))
-        .send({ first_name: "No", last_name: "Id", phone_number: "0716000222" })
+        .send({ first_name: "No", last_name: "Id", phone_number: "0795100222" })
     ).body.data;
     const res = await request(app)
       .post(`/api/welfares/${welfare.id}/members/${m2.id}/invite`)
@@ -88,12 +88,12 @@ describe("member portal invite", () => {
     const hash = await bcryptjs.hash("Passw0rd!", 4);
     await query("UPDATE platform_customers SET password_hash = $1, phone_verified = true WHERE phone_number = $2", [
       hash,
-      "+254716000111",
+      "+254795100111",
     ]);
 
     const login = await request(app)
       .post("/api/portal/auth/login")
-      .send({ phone_number: "0716000111", password: "Passw0rd!" });
+      .send({ phone_number: "0795100111", password: "Passw0rd!" });
     expect(login.status).toBe(200);
     const welfareLink = (login.body.tenants || []).find((t) => t.tenant_id === tenant.id);
     expect(welfareLink).toBeTruthy();
