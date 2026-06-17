@@ -8,6 +8,7 @@ import {
   Building2,
   ArrowRight,
   PlusCircle,
+  PiggyBank,
 } from "lucide-react";
 import {
   RadialBarChart,
@@ -101,6 +102,50 @@ function CustomerDashboard() {
     }
   };
 
+  // Welfare/chama links this person holds — they're a MEMBER there, not a
+  // borrower, so they enter the member desk (a separate per-welfare experience).
+  const welfareTenants = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("portal_tenants") || "[]").filter(
+        (t) => t?.kind === "welfare",
+      );
+    } catch {
+      return [];
+    }
+  })();
+  const openWelfare = async (t) => {
+    try {
+      const r = await portalApi.post("/portal/auth/select-tenant", { tenant_id: t.tenant_id });
+      localStorage.setItem("portal_token", r.data.token);
+      localStorage.setItem("portal_current_tenant", JSON.stringify(r.data.current_tenant));
+      navigate("/portal/member");
+    } catch {
+      alert("Failed to open chama");
+    }
+  };
+  const WelfareCards = () =>
+    welfareTenants.length === 0 ? null : (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <h2 className="font-bold text-navy-900 mb-3 flex items-center gap-2">
+          <PiggyBank size={18} className="text-emerald-600" /> My chamas &amp; welfares
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {welfareTenants.map((t) => (
+            <button
+              key={t.tenant_id}
+              onClick={() => openWelfare(t)}
+              className="border-2 border-emerald-100 hover:border-emerald-300 rounded-xl px-4 py-3 text-left flex items-center justify-between transition"
+            >
+              <span className="font-semibold text-slate-800">{t.business_name}</span>
+              <span className="text-emerald-600 font-semibold inline-flex items-center gap-1">
+                Open <ArrowRight size={16} />
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+
   if (loading) {
     return (
       <PortalLayout>
@@ -112,7 +157,8 @@ function CustomerDashboard() {
   if (!d?.has_lenders) {
     return (
       <PortalLayout>
-        <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+        <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6">
+          <WelfareCards />
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 text-center">
             <div className="flex justify-center mb-4">
               <IconTile icon={Building2} variant="ocean" size={64} />
@@ -178,6 +224,8 @@ function CustomerDashboard() {
             <PlusCircle size={18} /> Apply for a loan
           </button>
         </div>
+
+        <WelfareCards />
 
         {/* Credit score + KPIs */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

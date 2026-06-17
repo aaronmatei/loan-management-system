@@ -28,6 +28,15 @@ import CustomerMyLoans from "./portal/pages/MyLoans";
 import CustomerPayments from "./portal/pages/Payments";
 import CustomerLoanDetails from "./portal/pages/LoanDetails";
 import { PortalPledges, PortalPledgeDetail, PortalPawnRequests } from "./portal/pages/Pledges";
+import {
+  MemberDashboard,
+  MemberSavings,
+  MemberContributions,
+  MemberLoans,
+  MemberMeetings,
+  MemberDividends,
+  MemberPenalties,
+} from "./portal/pages/member/MemberPages";
 import CustomerProfile from "./portal/pages/Profile";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
@@ -551,6 +560,14 @@ function App() {
                 </PortalProtectedRoute>
               }
             />
+            {/* Welfare/chama member self-service (selected tenant kind='welfare') */}
+            <Route path="/portal/member" element={<PortalProtectedRoute><MemberDashboard /></PortalProtectedRoute>} />
+            <Route path="/portal/member/savings" element={<PortalProtectedRoute><MemberSavings /></PortalProtectedRoute>} />
+            <Route path="/portal/member/contributions" element={<PortalProtectedRoute><MemberContributions /></PortalProtectedRoute>} />
+            <Route path="/portal/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
+            <Route path="/portal/member/meetings" element={<PortalProtectedRoute><MemberMeetings /></PortalProtectedRoute>} />
+            <Route path="/portal/member/dividends" element={<PortalProtectedRoute><MemberDividends /></PortalProtectedRoute>} />
+            <Route path="/portal/member/penalties" element={<PortalProtectedRoute><MemberPenalties /></PortalProtectedRoute>} />
             <Route
               path="/portal/applications"
               element={

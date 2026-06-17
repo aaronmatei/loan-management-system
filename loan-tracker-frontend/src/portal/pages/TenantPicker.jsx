@@ -32,7 +32,13 @@ function TenantPicker() {
         "portal_current_tenant",
         JSON.stringify(res.data.current_tenant),
       );
-      navigate("/portal/dashboard");
+      // A welfare account is a chama membership, not a borrower relationship —
+      // land on the member desk.
+      navigate(
+        res.data.current_tenant?.kind === "welfare"
+          ? "/portal/member"
+          : "/portal/dashboard",
+      );
     } catch {
       alert("Failed to select tenant");
       setSelecting(null);

@@ -14,15 +14,14 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { notifyWithdrawal } from "../services/welfareSmsService.js";
 import { inviteMemberToPortal } from "../services/memberInviteService.js";
+import { round2, SAVINGS_TYPES, poolBalance, memberSavings } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
 router.use(verifyToken);
 
-const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-// Savings principal = what the member put in, net of cash taken out. Dividends
-// are profit paid OUT of the pool (see migration 063), not savings, so excluded.
-const SAVINGS_TYPES = "('contribution','withdrawal','adjustment')";
+// Pool/savings read helpers live in welfarePoolService (shared with the member
+// portal) so the running balance is only ever computed one way.
 
 // Resolve + tenant-check the welfare for every request; stash on req.welfare.
 router.use(async (req, res, next) => {
@@ -44,25 +43,6 @@ router.use(async (req, res, next) => {
 async function loadMember(welfareId, id) {
   const r = await query(`SELECT * FROM members WHERE id = $1 AND welfare_id = $2`, [id, welfareId]);
   return r.rows[0] || null;
-}
-
-async function poolBalance(welfareId) {
-  const r = await query(
-    `SELECT balance_after FROM member_pool_transactions
-      WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
-    [welfareId],
-  );
-  return r.rows.length ? parseFloat(r.rows[0].balance_after) : 0;
-}
-
-async function memberSavings(memberId) {
-  const r = await query(
-    `SELECT COALESCE(SUM(direction * amount), 0) AS bal
-       FROM member_pool_transactions
-      WHERE member_id = $1 AND type IN ${SAVINGS_TYPES}`,
-    [memberId],
-  );
-  return parseFloat(r.rows[0].bal);
 }
 
 async function postPool({ welfare, memberId, type, amount, direction, loanId, txnDate, description, userId }) {

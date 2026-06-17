@@ -66,6 +66,7 @@ import promoRoutes from "./routes/promos.js";
 import mpesaRoutes from "./routes/mpesa.js";
 import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
+import portalMemberRoutes from "./routes/portal/member.js";
 import platformAdminRoutes from "./routes/platform/admin.js";
 import platformCronRoutes from "./routes/platform/cron.js";
 import platformAuditRoutes from "./routes/platform/audit.js";
@@ -160,6 +161,7 @@ app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
 app.use("/api/portal/auth", authLimiter, portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
+app.use("/api/portal/member", portalMemberRoutes); // welfare member self-service
 app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/cron", platformCronRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/audit", platformAuditRoutes); // verifyToken + is_platform_admin

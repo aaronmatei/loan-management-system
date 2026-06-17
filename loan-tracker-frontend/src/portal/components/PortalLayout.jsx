@@ -12,6 +12,11 @@ import {
   LogOut,
   X,
   Gem,
+  PiggyBank,
+  Coins,
+  CalendarCheck,
+  Gift,
+  AlertTriangle,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 import PortalNotificationBell from "./PortalNotificationBell";
@@ -39,15 +44,36 @@ const PAWN_ITEMS = [
   { path: "/portal/pledges", label: "My Pledges", icon: Gem, variant: "teal" },
 ];
 
+// When the SELECTED tenant is a welfare, the same person is a chama member there
+// (not a borrower), so the menu swaps to their member desk — but keeps "Borrow
+// from a lender" so they can still take loans from lenders with this account.
+const WELFARE_MENU = [
+  { path: "/portal/member", label: "My Chama", icon: PiggyBank, variant: "emerald", exact: true },
+  { path: "/portal/member/savings", label: "My Savings", icon: PiggyBank, variant: "teal" },
+  { path: "/portal/member/contributions", label: "Contributions", icon: Coins, variant: "ocean" },
+  { path: "/portal/member/loans", label: "Chama Loans", icon: Wallet, variant: "indigo" },
+  { path: "/portal/member/meetings", label: "Meetings", icon: CalendarCheck, variant: "amber" },
+  { path: "/portal/member/dividends", label: "Dividends", icon: Gift, variant: "emerald" },
+  { path: "/portal/member/penalties", label: "Penalties", icon: AlertTriangle, variant: "rose" },
+  { path: "/lenders", label: "Borrow from a lender", icon: Layers, variant: "indigo" },
+  { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
+];
+
 function buildMenu() {
-  let hasPawn = false;
+  let cur = null;
+  let tenants = [];
   try {
-    const cur = JSON.parse(localStorage.getItem("portal_current_tenant") || "null");
-    const tenants = JSON.parse(localStorage.getItem("portal_tenants") || "[]");
-    hasPawn = cur?.kind === "pawnbroker" || (Array.isArray(tenants) && tenants.some((t) => t?.kind === "pawnbroker"));
+    cur = JSON.parse(localStorage.getItem("portal_current_tenant") || "null");
+    tenants = JSON.parse(localStorage.getItem("portal_tenants") || "[]");
   } catch {
     /* ignore */
   }
+  // Welfare member context wins (data is per-welfare, so it follows the
+  // selected tenant rather than the union of all linked tenants).
+  if (cur?.kind === "welfare") return WELFARE_MENU;
+  const hasPawn =
+    cur?.kind === "pawnbroker" ||
+    (Array.isArray(tenants) && tenants.some((t) => t?.kind === "pawnbroker"));
   if (!hasPawn) return BASE_MENU;
   const m = [...BASE_MENU];
   const after = m.findIndex((x) => x.path === "/portal/loans");
