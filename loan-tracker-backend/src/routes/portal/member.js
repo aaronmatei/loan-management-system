@@ -309,6 +309,87 @@ router.post("/mpesa/penalty", async (req, res) => {
   }
 });
 
+// ── Requests (loan from the pool / savings withdrawal) ────────────────────
+// Members ASK; a welfare admin approves. No pool effect until approval.
+
+// POST /loan-requests { principal, duration_months, interest_rate?, purpose }
+router.post("/loan-requests", async (req, res) => {
+  try {
+    if (req.member.status !== "active") return res.status(400).json({ error: "Your membership is not active" });
+    const principal = parseFloat(req.body?.principal);
+    if (!(principal > 0)) return res.status(400).json({ error: "Enter an amount greater than 0" });
+    const months = parseInt(req.body?.duration_months, 10) || 1;
+    const rate =
+      req.body?.interest_rate != null && req.body.interest_rate !== ""
+        ? parseFloat(req.body.interest_rate)
+        : null;
+    const r = await query(
+      `INSERT INTO member_loan_requests
+         (tenant_id, welfare_id, member_id, principal, duration_months, interest_rate, purpose, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING *`,
+      [req.member.tenant_id, req.welfareId, req.member.id, principal, months, rate, req.body?.purpose || null],
+    );
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("member loan-request error:", e);
+    res.status(500).json({ error: "Failed to submit request" });
+  }
+});
+
+// GET /loan-requests — this member's loan requests.
+router.get("/loan-requests", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT id, principal, duration_months, interest_rate, purpose, status,
+              decision_notes, created_at, decided_at
+         FROM member_loan_requests WHERE member_id = $1 ORDER BY id DESC`,
+      [req.member.id],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("member loan-requests list error:", e);
+    res.status(500).json({ error: "Failed to load requests" });
+  }
+});
+
+// POST /withdrawal-requests { amount, reason }
+router.post("/withdrawal-requests", async (req, res) => {
+  try {
+    if (req.member.status !== "active") return res.status(400).json({ error: "Your membership is not active" });
+    const amount = parseFloat(req.body?.amount);
+    if (!(amount > 0)) return res.status(400).json({ error: "Enter an amount greater than 0" });
+    const savings = await memberSavings(req.member.id);
+    if (amount > savings) {
+      return res.status(400).json({ error: `You only have ${round2(savings).toLocaleString()} in savings` });
+    }
+    const r = await query(
+      `INSERT INTO member_withdrawal_requests
+         (tenant_id, welfare_id, member_id, amount, reason, status)
+       VALUES ($1,$2,$3,$4,$5,'pending') RETURNING *`,
+      [req.member.tenant_id, req.welfareId, req.member.id, round2(amount), req.body?.reason || null],
+    );
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("member withdrawal-request error:", e);
+    res.status(500).json({ error: "Failed to submit request" });
+  }
+});
+
+// GET /withdrawal-requests — this member's withdrawal requests.
+router.get("/withdrawal-requests", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT id, amount, reason, status, decision_notes, created_at, decided_at
+         FROM member_withdrawal_requests WHERE member_id = $1 ORDER BY id DESC`,
+      [req.member.id],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("member withdrawal-requests list error:", e);
+    res.status(500).json({ error: "Failed to load requests" });
+  }
+});
+
 // GET /mpesa/transactions — this member's payment attempts (for status polling).
 router.get("/mpesa/transactions", async (req, res) => {
   try {

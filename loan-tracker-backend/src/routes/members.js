@@ -14,7 +14,10 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { notifyWithdrawal } from "../services/welfareSmsService.js";
 import { inviteMemberToPortal } from "../services/memberInviteService.js";
-import { round2, SAVINGS_TYPES, poolBalance, memberSavings } from "../services/welfarePoolService.js";
+import {
+  round2, SAVINGS_TYPES, poolBalance, memberSavings,
+  postPool, issueMemberLoan, recordWithdrawal,
+} from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -43,22 +46,6 @@ router.use(async (req, res, next) => {
 async function loadMember(welfareId, id) {
   const r = await query(`SELECT * FROM members WHERE id = $1 AND welfare_id = $2`, [id, welfareId]);
   return r.rows[0] || null;
-}
-
-async function postPool({ welfare, memberId, type, amount, direction, loanId, txnDate, description, userId }) {
-  const prev = await poolBalance(welfare.id);
-  const balanceAfter = round2(prev + direction * amount);
-  const r = await query(
-    `INSERT INTO member_pool_transactions
-       (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, member_loan_id, txn_date, description, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
-     RETURNING *`,
-    [
-      welfare.tenant_id, welfare.id, memberId || null, type, amount, direction,
-      balanceAfter, loanId || null, txnDate || null, description || null, userId,
-    ],
-  );
-  return r.rows[0];
 }
 
 // GET /pool — this welfare's pool summary.
@@ -294,24 +281,19 @@ router.post("/:id/withdrawals", authorize("admin", "manager"), async (req, res) 
     const member = await loadMember(req.welfare.id, req.params.id);
     if (!member) return res.status(404).json({ error: "Member not found" });
     const amt = parseFloat(req.body?.amount);
-    if (!(amt > 0)) return res.status(400).json({ error: "Amount must be positive" });
-    const savings = await memberSavings(member.id);
-    if (amt > savings) return res.status(400).json({ error: `Member only has KES ${savings.toLocaleString()} in savings` });
-    const pool = await poolBalance(req.welfare.id);
-    if (amt > pool) return res.status(400).json({ error: `Pool only holds KES ${pool.toLocaleString()}` });
-    const row = await postPool({
-      welfare: req.welfare, memberId: member.id, type: "withdrawal",
-      amount: amt, direction: -1, txnDate: req.body?.txn_date, description: req.body?.notes, userId: req.user.id,
+    const { poolTxn, savingsAfter } = await recordWithdrawal({
+      welfare: req.welfare, member, amount: amt,
+      txnDate: req.body?.txn_date, description: req.body?.notes, userId: req.user.id,
     });
     await logAudit({
       user: req.user, action: "member_withdrawal", entityType: "member",
       entityId: member.id, entityCode: member.member_no,
       description: `Withdrawal KES ${amt} to ${member.first_name} ${member.last_name}`, req,
     });
-    const savingsAfter = await memberSavings(member.id);
     notifyWithdrawal({ welfare: req.welfare, member, amount: amt, savings: savingsAfter, sentBy: req.user.id });
-    res.status(201).json({ success: true, data: row, pool_balance: Number(row.balance_after), savings_balance: savingsAfter });
+    res.status(201).json({ success: true, data: poolTxn, pool_balance: Number(poolTxn.balance_after), savings_balance: savingsAfter });
   } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
     logger.error("member withdrawal error:", e);
     res.status(500).json({ error: "Failed to record withdrawal" });
   }
@@ -407,33 +389,11 @@ router.post("/:id/loans", authorize("admin", "manager", "loan_officer"), async (
     const rate = req.body?.interest_rate != null && req.body.interest_rate !== "" ? parseFloat(req.body.interest_rate) : 0;
     if (rate < 0) return res.status(400).json({ error: "Interest rate can't be negative" });
 
-    const pool = await poolBalance(req.welfare.id);
-    if (principal > pool) {
-      return res.status(400).json({ error: `Pool only holds KES ${pool.toLocaleString()} — can't lend KES ${principal.toLocaleString()}` });
-    }
-
-    const interest = round2(principal * (rate / 100) * (months / 12));
-    const totalDue = round2(principal + interest);
-    const countRes = await query(`SELECT COUNT(*)::int AS n FROM member_loans WHERE tenant_id = $1`, [req.welfare.tenant_id]);
-    const loanCode = `MBL-${String(countRes.rows[0].n + 1).padStart(5, "0")}`;
-    const due = new Date();
-    due.setMonth(due.getMonth() + months);
-    const dueISO = due.toISOString().split("T")[0];
-
-    const loanRes = await query(
-      `INSERT INTO member_loans
-         (tenant_id, member_id, loan_code, principal, interest_rate, duration_months,
-          total_interest, total_amount_due, status, disbursed_at, due_date, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',NOW(),$9::date,$10,$11) RETURNING *`,
-      [req.welfare.tenant_id, member.id, loanCode, principal, rate, months, interest, totalDue, dueISO, req.body?.notes || null, req.user.id],
-    );
-    const loan = loanRes.rows[0];
-
-    const poolTxn = await postPool({
-      welfare: req.welfare, memberId: member.id, type: "loan_disbursed",
-      amount: principal, direction: -1, loanId: loan.id,
-      description: `Loan ${loanCode} to ${member.first_name} ${member.last_name}`, userId: req.user.id,
+    const { loan, poolTxn } = await issueMemberLoan({
+      welfare: req.welfare, member, principal, rate, months,
+      notes: req.body?.notes, userId: req.user.id,
     });
+    const loanCode = loan.loan_code;
 
     await logAudit({
       user: req.user, action: "member_loan_disbursed", entityType: "member_loan",
@@ -442,6 +402,7 @@ router.post("/:id/loans", authorize("admin", "manager", "loan_officer"), async (
     });
     res.status(201).json({ success: true, data: loan, pool_balance: Number(poolTxn.balance_after) });
   } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
     logger.error("member loan issue error:", e);
     res.status(500).json({ error: "Failed to issue member loan" });
   }

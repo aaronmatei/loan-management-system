@@ -1,0 +1,94 @@
+// Phase D — member-initiated requests + welfare-admin approval. A request has no
+// pool effect until approved; approval runs the same pool logic as a direct
+// issue/withdrawal (welfarePoolService).
+import { describe, it, expect, afterAll } from "vitest";
+import request from "supertest";
+import jwt from "jsonwebtoken";
+import app from "../src/app.js";
+import { query, closePool } from "./helpers/db.js";
+import { createTenant, createUser, tokenFor } from "./helpers/factory.js";
+
+const auth = (u) => `Bearer ${tokenFor(u)}`;
+afterAll(closePool);
+
+const customerToken = (pcId, tenantId) =>
+  "Bearer " +
+  jwt.sign(
+    { platform_customer_id: pcId, user_type: "customer", current_tenant_id: tenantId, current_client_id: null },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" },
+  );
+const pcId = async (phone) => (await query("SELECT id FROM platform_customers WHERE phone_number = $1", [phone])).rows[0].id;
+
+async function setup(savings = 50000) {
+  const t = await createTenant();
+  await query("UPDATE tenants SET kind = 'welfare' WHERE id = $1", [t.id]);
+  const admin = await createUser(t.id, { role: "admin" });
+  const w = (await request(app).post("/api/groups").set("Authorization", auth(admin)).send({ name: "Umoja" })).body.data;
+  const m = (
+    await request(app).post(`/api/welfares/${w.id}/members`).set("Authorization", auth(admin))
+      .send({ first_name: "Jane", last_name: "D", phone_number: "0795400111", id_number: "REQ1" })
+  ).body.data;
+  await request(app).post(`/api/welfares/${w.id}/members/${m.id}/invite`).set("Authorization", auth(admin));
+  if (savings) await request(app).post(`/api/welfares/${w.id}/members/${m.id}/contributions`).set("Authorization", auth(admin)).send({ amount: savings });
+  const tok = customerToken(await pcId("+254795400111"), t.id);
+  return { tenant: t, admin, welfare: w, member: m, tok };
+}
+
+describe("member portal requests + admin approval", () => {
+  it("loan request → admin approve issues a real member loan", async () => {
+    const { admin, welfare, member, tok } = await setup();
+    const reqRes = await request(app)
+      .post("/api/portal/member/loan-requests")
+      .set("Authorization", tok)
+      .send({ principal: 20000, duration_months: 6, purpose: "School fees" });
+    expect(reqRes.status).toBe(201);
+    const reqId = reqRes.body.data.id;
+
+    const pending = await request(app).get(`/api/welfares/${welfare.id}/requests/loans?status=pending`).set("Authorization", auth(admin));
+    expect(pending.body.data).toHaveLength(1);
+
+    const approve = await request(app)
+      .post(`/api/welfares/${welfare.id}/requests/loans/${reqId}/approve`)
+      .set("Authorization", auth(admin))
+      .send({ interest_rate: 12, duration_months: 6 });
+    expect(approve.status).toBe(200);
+    expect(approve.body.data.loan.loan_code).toMatch(/^MBL-/);
+
+    // The request is linked to the issued loan, and the member can see it.
+    const row = (await query("SELECT * FROM member_loan_requests WHERE id = $1", [reqId])).rows[0];
+    expect(row.status).toBe("approved");
+    expect(row.issued_loan_id).toBe(approve.body.data.loan.id);
+    const loans = await request(app).get("/api/portal/member/loans").set("Authorization", tok);
+    expect(loans.body.data).toHaveLength(1);
+  });
+
+  it("rejects a withdrawal request over the member's savings at submit time", async () => {
+    const { tok } = await setup(10000);
+    const res = await request(app)
+      .post("/api/portal/member/withdrawal-requests")
+      .set("Authorization", tok)
+      .send({ amount: 99999 });
+    expect(res.status).toBe(400);
+  });
+
+  it("withdrawal request → approve pays from the pool; reject leaves it untouched", async () => {
+    const { admin, welfare, member, tok } = await setup(40000);
+    // Approve path
+    const wr = await request(app).post("/api/portal/member/withdrawal-requests").set("Authorization", tok).send({ amount: 15000, reason: "Emergency" });
+    expect(wr.status).toBe(201);
+    const poolBefore = (await request(app).get(`/api/welfares/${welfare.id}/members/pool`).set("Authorization", auth(admin))).body.data.balance;
+    const ap = await request(app).post(`/api/welfares/${welfare.id}/requests/withdrawals/${wr.body.data.id}/approve`).set("Authorization", auth(admin)).send({});
+    expect(ap.status).toBe(200);
+    const poolAfter = (await request(app).get(`/api/welfares/${welfare.id}/members/pool`).set("Authorization", auth(admin))).body.data.balance;
+    expect(Number(poolBefore) - Number(poolAfter)).toBe(15000);
+
+    // Reject path — no pool change
+    const wr2 = await request(app).post("/api/portal/member/withdrawal-requests").set("Authorization", tok).send({ amount: 5000 });
+    const poolBeforeRej = (await request(app).get(`/api/welfares/${welfare.id}/members/pool`).set("Authorization", auth(admin))).body.data.balance;
+    const rej = await request(app).post(`/api/welfares/${welfare.id}/requests/withdrawals/${wr2.body.data.id}/reject`).set("Authorization", auth(admin)).send({ notes: "Insufficient pool" });
+    expect(rej.status).toBe(200);
+    const poolAfterRej = (await request(app).get(`/api/welfares/${welfare.id}/members/pool`).set("Authorization", auth(admin))).body.data.balance;
+    expect(Number(poolAfterRej)).toBe(Number(poolBeforeRej));
+  });
+});

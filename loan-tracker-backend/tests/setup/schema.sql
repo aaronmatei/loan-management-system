@@ -3413,6 +3413,38 @@ CREATE TABLE public.member_loans (
 CREATE INDEX idx_member_loans_member ON public.member_loans(member_id);
 CREATE INDEX idx_member_loans_tenant ON public.member_loans(tenant_id, status);
 
+CREATE TABLE public.member_loan_requests (
+  id              serial PRIMARY KEY,
+  tenant_id       integer NOT NULL,
+  welfare_id      integer NOT NULL,
+  member_id       integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  principal       numeric(14,2) NOT NULL,
+  duration_months integer NOT NULL DEFAULT 1,
+  interest_rate   numeric(6,3),
+  purpose         text,
+  status          varchar(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reviewed_by     integer,
+  decision_notes  text,
+  issued_loan_id  integer REFERENCES public.member_loans(id) ON DELETE SET NULL,
+  created_at      timestamp NOT NULL DEFAULT now(),
+  decided_at      timestamp
+);
+
+CREATE TABLE public.member_withdrawal_requests (
+  id              serial PRIMARY KEY,
+  tenant_id       integer NOT NULL,
+  welfare_id      integer NOT NULL,
+  member_id       integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  amount          numeric(14,2) NOT NULL,
+  reason          text,
+  status          varchar(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reviewed_by     integer,
+  decision_notes  text,
+  pool_txn_id     integer REFERENCES public.member_pool_transactions(id) ON DELETE SET NULL,
+  created_at      timestamp NOT NULL DEFAULT now(),
+  decided_at      timestamp
+);
+
 --
 -- Welfare settings + penalty engine (migration 059).
 --

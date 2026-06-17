@@ -250,3 +250,89 @@ function NonMemberLendingCard() {
     </div>
   );
 }
+
+// Requests — members ask for loans from the pool or savings withdrawals; an
+// admin/manager approves or rejects. Approval runs the same pool logic as the
+// direct issue/withdrawal flows.
+export function WelfareRequestsPage() {
+  const { welfareId } = useWelfare();
+  const [loans, setLoans] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(null);
+
+  const base = `/welfares/${welfareId}/requests`;
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [l, w] = await Promise.all([
+        api.get(`${base}/loans?status=pending`),
+        api.get(`${base}/withdrawals?status=pending`),
+      ]);
+      setLoans(l.data.data || []);
+      setWithdrawals(w.data.data || []);
+    } catch {
+      /* surfaced as empty */
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); }, [welfareId]);
+
+  const act = async (kind, id, action) => {
+    let body = {};
+    if (kind === "loans" && action === "approve") {
+      const rate = window.prompt("Interest rate % (annual, flat) for this loan:", "12");
+      if (rate === null) return;
+      body.interest_rate = rate;
+    }
+    if (action === "reject") {
+      const notes = window.prompt("Reason (optional):", "");
+      if (notes === null) return;
+      body.notes = notes;
+    }
+    setBusy(`${kind}-${id}`);
+    try {
+      await api.post(`${base}/${kind}/${id}/${action}`, body);
+      load();
+    } catch (e) {
+      alert(e.response?.data?.error || "Action failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const Row = ({ kind, r, amount, extra }) => (
+    <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 last:border-0">
+      <div>
+        <p className="font-semibold text-slate-800">{r.first_name} {r.last_name} <span className="font-mono text-xs text-slate-400">{r.member_no}</span></p>
+        <p className="text-sm text-slate-500">{money(amount)}{extra ? ` · ${extra}` : ""}</p>
+      </div>
+      <PermissionGate role={["admin", "manager"]}>
+        <div className="flex gap-2">
+          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r.id, "approve")} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">Approve</button>
+          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r.id, "reject")} className="px-3 py-1.5 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold disabled:opacity-50">Reject</button>
+        </div>
+      </PermissionGate>
+    </div>
+  );
+
+  return (
+    <Page title="Requests">
+      {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
+        <div className="space-y-6 max-w-3xl">
+          <div className="bg-white rounded-xl shadow-md border border-slate-100">
+            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Loan requests ({loans.length})</h2></div>
+            {loans.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending loan requests.</p> :
+              loans.map((r) => <Row key={r.id} kind="loans" r={r} amount={r.principal} extra={`${r.duration_months} mo${r.purpose ? ` · ${r.purpose}` : ""}`} />)}
+          </div>
+          <div className="bg-white rounded-xl shadow-md border border-slate-100">
+            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Withdrawal requests ({withdrawals.length})</h2></div>
+            {withdrawals.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending withdrawal requests.</p> :
+              withdrawals.map((r) => <Row key={r.id} kind="withdrawals" r={r} amount={r.amount} extra={r.reason} />)}
+          </div>
+        </div>
+      )}
+    </Page>
+  );
+}

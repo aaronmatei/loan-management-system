@@ -84,6 +84,7 @@ import {
   WelfareSmsPage,
   WelfareReportsPage,
   WelfareSettingsPage,
+  WelfareRequestsPage,
 } from "./pages/welfare/WelfareModules";
 import Pawns from "./pages/Pawns";
 import LoanDetails from "./pages/LoanDetails";
@@ -431,6 +432,7 @@ function App() {
                 <Route path="contributions" element={<WelfareContributionsPage />} />
                 <Route path="penalties" element={<WelfarePenaltiesPage />} />
                 <Route path="meetings" element={<WelfareMeetingsPage />} />
+                <Route path="requests" element={<WelfareRequestsPage />} />
                 <Route path="dividends" element={<WelfareDividendsPage />} />
                 <Route path="mpesa" element={<WelfareMpesaPage />} />
                 <Route path="sms" element={<WelfareSmsPage />} />

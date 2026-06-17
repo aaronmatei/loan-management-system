@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
@@ -122,6 +122,78 @@ const Stat = ({ label, value, tone = "text-slate-900" }) => (
   </div>
 );
 
+// Small modal for submitting a request (loan or withdrawal). `fields` is an
+// array of {name,label,type,placeholder}; submits the collected body to `url`.
+function RequestModal({ title, fields, url, onClose, onDone }) {
+  const [form, setForm] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
+    try {
+      await portalApi.post(url, form);
+      onDone();
+      onClose();
+    } catch (e2) {
+      setErr(e2.response?.data?.error || "Failed to submit");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+        </div>
+        {err && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm mb-3">{err}</div>}
+        <form onSubmit={submit} className="space-y-3">
+          {fields.map((f) => (
+            <div key={f.name}>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">{f.label}</label>
+              <input
+                type={f.type || "text"}
+                value={form[f.name] || ""}
+                onChange={(e) => setForm((s) => ({ ...s, [f.name]: e.target.value }))}
+                placeholder={f.placeholder}
+                className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+          ))}
+          <button type="submit" disabled={busy} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg disabled:opacity-50">
+            {busy ? "Submitting…" : "Submit request"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// A member's own request history (loan or withdrawal).
+function RequestsList({ path, columns }) {
+  const { data, loading } = useFetch(path);
+  if (loading || !data || data.length === 0) return null;
+  return (
+    <div className="mt-6">
+      <h2 className="font-bold text-slate-900 mb-2">My requests</h2>
+      <Table
+        head={[...columns.map((c) => c.label), "Status"]}
+        rows={data}
+        empty=""
+        render={(r) => (
+          <tr key={r.id}>
+            {columns.map((c) => <td key={c.key} className="px-4 py-3 text-slate-700">{c.fmt ? c.fmt(r[c.key]) : r[c.key] || "—"}</td>)}
+            <td className="px-4 py-3"><Badge value={r.status} /></td>
+          </tr>
+        )}
+      />
+    </div>
+  );
+}
+
 export function MemberDashboard() {
   const { data, loading, error } = useFetch("/member/overview");
   return (
@@ -191,11 +263,38 @@ function Table({ head, rows, render, empty }) {
 
 export function MemberSavings() {
   const { data, loading, error } = useFetch("/member/ledger");
+  const [modal, setModal] = useState(false);
+  const [reqKey, setReqKey] = useState(0);
   return (
     <Shell title="My Savings" icon={PiggyBank}>
+      <div className="flex justify-end -mt-2 mb-4">
+        <button onClick={() => setModal(true)} className="px-4 py-2 bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold inline-flex items-center gap-2">
+          <ArrowRight size={16} /> Request withdrawal
+        </button>
+      </div>
+      {modal && (
+        <RequestModal
+          title="Request a savings withdrawal"
+          url="/member/withdrawal-requests"
+          fields={[
+            { name: "amount", label: "Amount (KES)", type: "number", placeholder: "e.g. 5000" },
+            { name: "reason", label: "Reason", placeholder: "Optional" },
+          ]}
+          onClose={() => setModal(false)}
+          onDone={() => setReqKey((k) => k + 1)}
+        />
+      )}
       {loading || error || !data ? <Loading error={error} /> : (
         <>
           <Stat label="Savings balance" value={KES(data.savings_balance)} tone="text-emerald-700" />
+          <RequestsList
+            key={reqKey}
+            path="/member/withdrawal-requests"
+            columns={[
+              { key: "amount", label: "Amount", fmt: KES },
+              { key: "reason", label: "Reason" },
+            ]}
+          />
           <div className="mt-6">
             <Table
               head={["Date", "Type", "Description", "Amount", "Balance"]}
@@ -249,8 +348,28 @@ export function MemberContributions() {
 
 export function MemberLoans() {
   const { data, loading, error, reload } = useFetch("/member/loans");
+  const [modal, setModal] = useState(false);
+  const [reqKey, setReqKey] = useState(0);
   return (
     <Shell title="Chama Loans" icon={Wallet}>
+      <div className="flex justify-end -mt-2 mb-4">
+        <button onClick={() => setModal(true)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2">
+          <Plus size={16} /> Request a loan
+        </button>
+      </div>
+      {modal && (
+        <RequestModal
+          title="Request a chama loan"
+          url="/member/loan-requests"
+          fields={[
+            { name: "principal", label: "Amount (KES)", type: "number", placeholder: "e.g. 20000" },
+            { name: "duration_months", label: "Duration (months)", type: "number", placeholder: "e.g. 6" },
+            { name: "purpose", label: "Purpose", placeholder: "What's it for?" },
+          ]}
+          onClose={() => setModal(false)}
+          onDone={() => setReqKey((k) => k + 1)}
+        />
+      )}
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
           head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
@@ -273,6 +392,15 @@ export function MemberLoans() {
           )}
         />
       )}
+      <RequestsList
+        key={reqKey}
+        path="/member/loan-requests"
+        columns={[
+          { key: "principal", label: "Amount", fmt: KES },
+          { key: "duration_months", label: "Months" },
+          { key: "purpose", label: "Purpose" },
+        ]}
+      />
     </Shell>
   );
 }

@@ -33,3 +33,77 @@ export async function memberSavings(memberId) {
   );
   return parseFloat(r.rows[0].bal);
 }
+
+// Append a row to the pool ledger, carrying the running balance forward. The
+// ONLY place balance_after is computed — every contribution/withdrawal/loan
+// movement goes through here.
+export async function postPool({ welfare, memberId, type, amount, direction, loanId, txnDate, description, userId }) {
+  const prev = await poolBalance(welfare.id);
+  const balanceAfter = round2(prev + direction * amount);
+  const r = await query(
+    `INSERT INTO member_pool_transactions
+       (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, member_loan_id, txn_date, description, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
+     RETURNING *`,
+    [
+      welfare.tenant_id, welfare.id, memberId || null, type, amount, direction,
+      balanceAfter, loanId || null, txnDate || null, description || null, userId || null,
+    ],
+  );
+  return r.rows[0];
+}
+
+// Issue a loan from the welfare pool to a member (flat interest, single bullet).
+// Shared by the admin issue endpoint and the member loan-request approval.
+// Throws Error{status:400} if the pool can't cover the principal.
+export async function issueMemberLoan({ welfare, member, principal, rate, months, notes, userId }) {
+  const pool = await poolBalance(welfare.id);
+  if (principal > pool) {
+    throw Object.assign(
+      new Error(`Pool only holds KES ${pool.toLocaleString()} — can't lend KES ${principal.toLocaleString()}`),
+      { status: 400 },
+    );
+  }
+  const interest = round2(principal * (rate / 100) * (months / 12));
+  const totalDue = round2(principal + interest);
+  const countRes = await query(`SELECT COUNT(*)::int AS n FROM member_loans WHERE tenant_id = $1`, [welfare.tenant_id]);
+  const loanCode = `MBL-${String(countRes.rows[0].n + 1).padStart(5, "0")}`;
+  const due = new Date();
+  due.setMonth(due.getMonth() + months);
+  const dueISO = due.toISOString().split("T")[0];
+
+  const loanRes = await query(
+    `INSERT INTO member_loans
+       (tenant_id, member_id, loan_code, principal, interest_rate, duration_months,
+        total_interest, total_amount_due, status, disbursed_at, due_date, notes, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',NOW(),$9::date,$10,$11) RETURNING *`,
+    [welfare.tenant_id, member.id, loanCode, principal, rate, months, interest, totalDue, dueISO, notes || null, userId || null],
+  );
+  const loan = loanRes.rows[0];
+  const poolTxn = await postPool({
+    welfare, memberId: member.id, type: "loan_disbursed", amount: principal, direction: -1,
+    loanId: loan.id, description: `Loan ${loanCode} to ${member.first_name} ${member.last_name}`, userId,
+  });
+  return { loan, poolTxn };
+}
+
+// Pay a member's savings out of the pool. Validates amount > 0, within savings,
+// and within the pool. Throws Error{status:400} on any breach. Shared by the
+// admin withdrawal endpoint and the member withdrawal-request approval.
+export async function recordWithdrawal({ welfare, member, amount, txnDate, description, userId }) {
+  const amt = round2(parseFloat(amount));
+  if (!(amt > 0)) throw Object.assign(new Error("Amount must be positive"), { status: 400 });
+  const savings = await memberSavings(member.id);
+  if (amt > savings) {
+    throw Object.assign(new Error(`Member only has KES ${savings.toLocaleString()} in savings`), { status: 400 });
+  }
+  const pool = await poolBalance(welfare.id);
+  if (amt > pool) {
+    throw Object.assign(new Error(`Pool only holds KES ${pool.toLocaleString()}`), { status: 400 });
+  }
+  const poolTxn = await postPool({
+    welfare, memberId: member.id, type: "withdrawal", amount: amt, direction: -1,
+    txnDate, description, userId,
+  });
+  return { poolTxn, savingsAfter: await memberSavings(member.id) };
+}
