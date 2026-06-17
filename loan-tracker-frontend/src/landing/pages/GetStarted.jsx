@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import { Building2, UserRound, UsersRound, ArrowLeft } from "lucide-react";
 
@@ -20,11 +19,12 @@ const ACCOUNTS = [
     key: "welfare",
     icon: UsersRound,
     color: "emerald",
-    title: "Welfare / Chama",
-    blurb: "Members contribute to a shared pool and borrow from it.",
+    title: "Welfare / Chama admin",
+    blurb: "Run a chama, SACCO or welfare group — set up the shared pool, members and lending. Members are added by you and get an invite.",
     register: "/welfare/register",
     login: "/welfare/login",
     cta: "Register welfare",
+    memberLogin: "/welfare/member/login",
   },
   {
     key: "borrower",
@@ -82,6 +82,14 @@ export default function GetStarted() {
                     Log in
                   </Link>
                 </div>
+                {a.memberLogin && (
+                  <p className="text-xs text-slate-500 mt-3 pt-3 border-t border-slate-100">
+                    A chama member?{" "}
+                    <Link to={a.memberLogin} className="font-semibold text-emerald-700 hover:underline">
+                      Member login
+                    </Link>
+                  </p>
+                )}
               </div>
             );
           })}

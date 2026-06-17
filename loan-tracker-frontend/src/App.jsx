@@ -20,6 +20,11 @@ import { AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import WelfareRegister from "./pages/WelfareRegister";
+import {
+  WelfareMemberLogin,
+  WelfareMemberSetPassword,
+  WelfareMemberSelect,
+} from "./portal/pages/member/WelfareMemberAuth";
 import CustomerLogin from "./portal/pages/Login";
 import CustomerRegister from "./portal/pages/Register";
 import TenantPicker from "./portal/pages/TenantPicker";
@@ -479,6 +484,10 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/welfare/register" element={<WelfareRegister />} />
             <Route path="/welfare/login" element={<Login />} />
+            {/* Welfare MEMBER door — separate from the borrower portal */}
+            <Route path="/welfare/member/login" element={<WelfareMemberLogin />} />
+            <Route path="/welfare/member/register" element={<WelfareMemberSetPassword />} />
+            <Route path="/welfare/member/select" element={<WelfareMemberSelect />} />
             <Route path="/get-started" element={<GetStarted />} />
             <Route path="/portal/login" element={<CustomerLogin />} />
             <Route path="/portal/register" element={<CustomerRegister />} />
