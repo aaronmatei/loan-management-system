@@ -14,6 +14,7 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { notifyWithdrawal } from "../services/welfareSmsService.js";
 import { inviteMemberToPortal } from "../services/memberInviteService.js";
+import { nextMemberNo } from "../utils/clientCode.js";
 import {
   round2, SAVINGS_TYPES, poolBalance, memberSavings,
   postPool, issueMemberLoan, recordWithdrawal,
@@ -117,8 +118,7 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     if (!first_name || !last_name) {
       return res.status(400).json({ error: "First and last name are required" });
     }
-    const countRes = await query(`SELECT COUNT(*)::int AS n FROM members WHERE welfare_id = $1`, [w.id]);
-    const memberNo = `MBR-${String(countRes.rows[0].n + 1).padStart(5, "0")}`;
+    const memberNo = await nextMemberNo(query, w);
     const r = await query(
       `INSERT INTO members
          (tenant_id, welfare_id, member_no, first_name, last_name, phone_number, id_number, email, monthly_contribution, notes, created_by)

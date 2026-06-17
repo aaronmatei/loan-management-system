@@ -34,6 +34,44 @@ export function tenantPrefix(subdomain) {
   );
 }
 
+// Welfare member codes:  MBR-<PREFIX>-<NNNNN>   (e.g. MBR-ROG-00001)
+//
+// PREFIX is a 3-letter uppercase acronym of the welfare's NAME: the words'
+// initials, padded from the LAST word's remaining letters when there are fewer
+// than three words — so "Real OGs" → "ROG", "Umoja" → "UMO". Falls back to
+// "WEL" for an empty name and pads short results with X.
+export function welfarePrefix(name) {
+  const words = String(name || "").trim().split(/[\s\-_]+/).filter(Boolean);
+  if (!words.length) return "WEL";
+  let p =
+    words.length === 1
+      ? words[0].slice(0, 3)
+      : words.map((w) => w[0]).join("") + words[words.length - 1].slice(1);
+  p = p.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
+  return p.padEnd(3, "X");
+}
+
+/**
+ * Next member_no for a welfare:  MBR-<PREFIX>-<NNNNN>
+ *
+ * Sequence is MAX(trailing number)+1 over the welfare's members — collision-safe
+ * across deletes, and tolerant of the legacy prefix-less MBR-<NNNNN> shape so
+ * numbering keeps climbing across the format change.
+ *
+ * @param {Function} query   db query fn (text, params) => Promise
+ * @param {{id:number,name:string}} welfare  the welfare (groups) row
+ * @returns {Promise<string>} e.g. "MBR-ROG-00001"
+ */
+export async function nextMemberNo(query, welfare) {
+  const r = await query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(member_no FROM '(\\d+)$') AS INTEGER)), 0) AS max
+       FROM members WHERE welfare_id = $1`,
+    [welfare.id],
+  );
+  const next = parseInt(r.rows[0].max || 0, 10) + 1;
+  return `MBR-${welfarePrefix(welfare.name)}-${String(next).padStart(5, "0")}`;
+}
+
 /**
  * Generate the next client_code for a tenant.
  * @param {Function} query - the db query fn (text, params) => Promise
