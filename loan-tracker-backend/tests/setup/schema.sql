@@ -462,11 +462,14 @@ CREATE TABLE public.customer_tenant_links (
     id integer NOT NULL,
     platform_customer_id integer NOT NULL,
     tenant_id integer NOT NULL,
-    client_id integer NOT NULL,
+    client_id integer,
+    member_id integer,
     status character varying(20) DEFAULT 'active'::character varying,
     linked_at timestamp without time zone DEFAULT now(),
-    last_activity_at timestamp without time zone
+    last_activity_at timestamp without time zone,
+    CONSTRAINT ctl_client_or_member CHECK (client_id IS NOT NULL OR member_id IS NOT NULL)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ctl_member ON public.customer_tenant_links(member_id) WHERE member_id IS NOT NULL;
 
 
 --

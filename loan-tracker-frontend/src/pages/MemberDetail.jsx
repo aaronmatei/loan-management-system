@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown } from "lucide-react";
+import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown, Smartphone } from "lucide-react";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
 import { useWelfare } from "../context/WelfareContext";
@@ -29,8 +29,27 @@ export default function MemberDetail() {
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
   const [exiting, setExiting] = useState(false);
+  const [portalLinked, setPortalLinked] = useState(false);
+  const [inviting, setInviting] = useState(false);
 
   const base = `/welfares/${welfareId}/members`;
+
+  const inviteToPortal = async () => {
+    setInviting(true);
+    try {
+      const r = await api.post(`${base}/${memberId}/invite`, {});
+      setPortalLinked(true);
+      alert(
+        r.data?.data?.already_linked
+          ? "Invite re-sent — this member already has portal access."
+          : "Invite sent. The member can now log in to the portal with their phone.",
+      );
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to invite member");
+    } finally {
+      setInviting(false);
+    }
+  };
 
   const exitMember = async () => {
     if (!confirm("Close this membership? Their full savings will be paid out and they'll be deactivated. Outstanding loans/penalties must be cleared first.")) return;
@@ -53,6 +72,7 @@ export default function MemberDetail() {
       setMember(r.data.data.member);
       setSavings(r.data.data.savings_balance);
       setTxns(r.data.data.transactions || []);
+      setPortalLinked(!!r.data.data.portal_linked);
       setPoolBalance(p.data?.data?.balance ?? 0);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load member");
@@ -113,6 +133,7 @@ export default function MemberDetail() {
             <button onClick={() => setModal("contribution")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus size={16} /> Contribution</button>
             <PermissionGate role={["admin", "manager"]}>
               <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
+              <button onClick={inviteToPortal} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="px-4 py-2 bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50"><Smartphone size={16} /> {inviting ? "Sending…" : portalLinked ? "Portal access ✓ — resend" : "Invite to portal"}</button>
               <button onClick={exitMember} disabled={exiting} className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 ml-auto"><LogOut size={16} /> {exiting ? "Processing…" : "Exit member"}</button>
             </PermissionGate>
           </div>

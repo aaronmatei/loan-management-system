@@ -13,6 +13,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { notifyWithdrawal } from "../services/welfareSmsService.js";
+import { inviteMemberToPortal } from "../services/memberInviteService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -183,10 +184,57 @@ router.get("/:id", async (req, res) => {
       `SELECT * FROM member_pool_transactions WHERE member_id = $1 ORDER BY id DESC LIMIT 200`,
       [member.id],
     );
-    res.json({ success: true, data: { member, savings_balance: await memberSavings(member.id), transactions: ledger.rows } });
+    const linked = await query(
+      "SELECT 1 FROM customer_tenant_links WHERE member_id = $1 AND status = 'active' LIMIT 1",
+      [member.id],
+    );
+    res.json({
+      success: true,
+      data: {
+        member,
+        savings_balance: await memberSavings(member.id),
+        transactions: ledger.rows,
+        portal_linked: linked.rows.length > 0,
+      },
+    });
   } catch (e) {
     logger.error("welfare member get error:", e);
     res.status(500).json({ error: "Failed to load member" });
+  }
+});
+
+// POST /:id/invite — give this member a self-service portal login. Provisions
+// (or reuses) a platform_customers account by phone, links it to this welfare,
+// and texts them a login link. Re-invites are idempotent (resend the SMS).
+router.post("/:id/invite", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const member = await loadMember(req.welfare.id, req.params.id);
+    if (!member) return res.status(404).json({ error: "Member not found" });
+    if (member.status !== "active") {
+      return res.status(400).json({ error: "Only active members can be invited" });
+    }
+    const result = await inviteMemberToPortal({
+      welfare: req.welfare,
+      member,
+      sentBy: req.user?.id || null,
+    });
+    await logAudit({
+      user: req.user,
+      action: "member_portal_invited",
+      entityType: "member",
+      entityId: member.id,
+      entityCode: member.member_no,
+      description: `Invited ${member.first_name} ${member.last_name} to the member portal`,
+      req,
+    });
+    res.json({
+      success: true,
+      data: { portal_linked: true, already_linked: result.alreadyLinked, new_account: result.isNew },
+    });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("welfare member invite error:", e);
+    res.status(500).json({ error: "Failed to invite member" });
   }
 });
 

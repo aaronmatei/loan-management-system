@@ -608,15 +608,21 @@ router.post(
       return res.status(401).json({ error: "Invalid phone or password" });
     }
 
+    // A customer's links span borrower relationships (client_id) AND welfare
+    // membership (member_id, on a kind='welfare' tenant). LEFT JOIN both so a
+    // member-only customer still sees their welfare here — an INNER join on
+    // clients would silently drop every welfare link. member_no stands in for
+    // client_code on welfare links.
     const links = await query(
-      `SELECT ctl.tenant_id, ctl.client_id, ctl.status, ctl.linked_at,
+      `SELECT ctl.tenant_id, ctl.client_id, ctl.member_id, ctl.status, ctl.linked_at,
               t.business_name, t.subdomain, t.brand_color, t.kind,
-              c.client_code,
+              COALESCE(c.client_code, m.member_no) AS client_code,
               (SELECT COUNT(*) FROM loans
                 WHERE client_id = ctl.client_id AND status = 'active') AS active_loans
        FROM customer_tenant_links ctl
        JOIN tenants t ON ctl.tenant_id = t.id
-       JOIN clients c ON ctl.client_id = c.id
+       LEFT JOIN clients c ON ctl.client_id = c.id
+       LEFT JOIN members m ON ctl.member_id = m.id
        WHERE ctl.platform_customer_id = $1
          AND ctl.status = 'active' AND t.status = 'active'
        ORDER BY active_loans DESC, ctl.linked_at DESC`,
