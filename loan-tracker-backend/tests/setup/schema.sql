@@ -1316,7 +1316,10 @@ CREATE TABLE public.transactions (
     notes text,
     tenant_id integer NOT NULL,
     penalty_portion numeric(12,2) DEFAULT 0,
-    overpayment_portion numeric(12,2) DEFAULT 0
+    overpayment_portion numeric(12,2) DEFAULT 0,
+    voided_at timestamp without time zone,
+    voided_by integer,
+    void_reason text
 );
 
 

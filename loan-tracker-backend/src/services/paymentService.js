@@ -1200,6 +1200,121 @@ export async function editLoanPayment({
 }
 
 /**
+ * Reverse (void) a completed payment. Soft-voids the transaction
+ * (payment_status='voided' — the financial record is never destroyed; every
+ * total filters payment_status='completed', so it drops out of the books), then
+ * re-derives the loan's schedule + status from the REMAINING payments and
+ * reconciles the capital pool by the realised-figure DELTA — the exact same
+ * machinery as editLoanPayment, so a void can't drift the pool. Overpayment is
+ * only a refund liability on the loan (never booked to the pool), so reversal
+ * just recomputes it from the surviving payments.
+ */
+export async function voidLoanPayment({ transactionId, reason, tenantId = null, actor = {}, req = null }) {
+  const txnRes = await query(
+    `SELECT * FROM transactions WHERE id = $1 AND ($2::int IS NULL OR tenant_id = $2)`,
+    [transactionId, tenantId],
+  );
+  if (txnRes.rows.length === 0) throw httpError(404, "Payment not found");
+  const txn = txnRes.rows[0];
+  if (txn.payment_status !== "completed")
+    throw httpError(400, "Only completed payments can be reversed");
+
+  const loanRes = await query(`SELECT * FROM loans WHERE id = $1`, [txn.loan_id]);
+  const loan = loanRes.rows[0];
+  if (!loan) throw httpError(404, "Loan not found");
+
+  const before = await loanRealizedFigures(loan.id);
+
+  // Soft-void the payment + drop its capital-ledger entry (the pool itself is
+  // reconciled by the delta below).
+  await query(
+    `UPDATE transactions
+        SET payment_status = 'voided', voided_at = NOW(), voided_by = $2, void_reason = $3, updated_at = NOW()
+      WHERE id = $1`,
+    [transactionId, actor?.id || null, reason || null],
+  );
+  await query(`DELETE FROM capital_transactions WHERE transaction_id = $1`, [transactionId]);
+
+  // Re-derive schedule fill + completion from the surviving payments.
+  const { fullyPaid } = await recascadeLoanSchedule(loan.id);
+
+  // Overpayment is the sum of surviving payments' overpayment legs.
+  const opRes = await query(
+    `SELECT COALESCE(SUM(COALESCE(overpayment_portion, 0)), 0)::float AS op
+       FROM transactions WHERE loan_id = $1 AND payment_status = 'completed'`,
+    [loan.id],
+  );
+  const newOverpayment = round2(opRes.rows[0].op);
+  const wasRefunded = loan.refund_status === "refunded";
+
+  if (fullyPaid) {
+    await query(
+      `UPDATE loans
+          SET status = 'completed',
+              overpayment_amount = $1,
+              refund_status = CASE WHEN $1 > 0 THEN COALESCE(refund_status, 'pending') ELSE NULL END,
+              updated_at = NOW()
+        WHERE id = $2`,
+      [newOverpayment, loan.id],
+    );
+  } else {
+    // Back to active — clear completion + any refund liability this payment held.
+    await query(
+      `UPDATE loans
+          SET status = 'active', completed_via = NULL,
+              overpayment_amount = 0, refund_status = NULL,
+              refund_method = NULL, refund_reference = NULL, refunded_date = NULL,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [loan.id],
+    );
+  }
+
+  // Reconcile the pool by the realised principal / interest+penalty delta.
+  const after = await loanRealizedFigures(loan.id);
+  const dCollected = round2(after.principal - before.principal);
+  const dInterest = round2(after.interest - before.interest + (after.penalty - before.penalty));
+  if (dCollected !== 0 || dInterest !== 0) {
+    await query(
+      `UPDATE capital_pool
+          SET total_collected = total_collected + $1,
+              total_interest_earned = total_interest_earned + $2,
+              updated_at = NOW()
+        WHERE tenant_id = $3`,
+      [dCollected, dInterest, loan.tenant_id],
+    );
+  }
+
+  await logAudit({
+    user: actor,
+    action: "payment_voided",
+    entityType: "transaction",
+    entityId: transactionId,
+    entityCode: txn.transaction_code,
+    description:
+      `Reversed payment ${txn.transaction_code} (KES ${parseFloat(txn.amount_paid).toLocaleString()}) on ${loan.loan_code}` +
+      (reason ? ` — ${reason}` : "") +
+      (wasRefunded ? " [WARNING: an overpayment on this loan was already marked refunded — verify any cash paid out]" : ""),
+    oldValues: { amount_paid: txn.amount_paid, payment_status: "completed" },
+    newValues: { payment_status: "voided" },
+    req,
+  });
+
+  await recomputeCreditScore(loan.client_id, loan.tenant_id).catch(() => {});
+
+  return {
+    success: true,
+    data: {
+      transaction_id: transactionId,
+      loan_status: fullyPaid ? "completed" : "active",
+      overpayment_amount: newOverpayment,
+      pool_adjustment: { total_collected: dCollected, total_interest_earned: dInterest },
+      was_refunded_warning: wasRefunded,
+    },
+  };
+}
+
+/**
  * Compose the receipt block returned alongside a freshly-recorded
  * payment. Tenant-scoped; returns null on miss rather than throwing —
  * the receipt is a UX enhancement, not part of the payment contract.

@@ -207,6 +207,28 @@ function LoanDetails() {
     }
   };
 
+  const [reversingTxn, setReversingTxn] = useState(null); // the transaction being reversed
+
+  const reversePayment = async (txn) => {
+    const reason = window.prompt(
+      `Reverse payment ${txn.transaction_code} (KES ${parseFloat(txn.amount_paid).toLocaleString()})?\n\nThis restores the loan balance and undoes the capital-pool entry. Optionally note why:`,
+      "",
+    );
+    if (reason === null) return; // cancelled
+    setReversingTxn(txn.id);
+    try {
+      const r = await api.post(`/payments/${txn.id}/void`, { reason: reason.trim() || undefined });
+      if (r.data?.data?.was_refunded_warning) {
+        alert("Reversed. Note: an overpayment on this loan was already marked refunded — verify any cash paid out.");
+      }
+      fetchLoanDetails();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to reverse payment");
+    } finally {
+      setReversingTxn(null);
+    }
+  };
+
   const handleReverseWaiver = async () => {
     if (!reversingWaiver) return;
     if (!reversalReason.trim()) return;
@@ -1517,8 +1539,11 @@ function LoanDetails() {
             <ClipboardList size={20}/> Payment History
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            {transactions.length} payment{transactions.length !== 1 ? "s" : ""}{" "}
-            recorded
+            {(() => {
+              const live = transactions.filter((t) => !t.voided).length;
+              const reversed = transactions.length - live;
+              return `${live} payment${live !== 1 ? "s" : ""} recorded${reversed ? ` · ${reversed} reversed` : ""}`;
+            })()}
           </p>
         </div>
         {transactions.length === 0 ? (
@@ -1561,19 +1586,24 @@ function LoanDetails() {
                 {transactions.map((txn) => (
                   <tr
                     key={txn.id}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition"
+                    className={`border-b border-gray-100 transition ${txn.voided ? "bg-gray-50/60 opacity-70" : "hover:bg-gray-50"}`}
                   >
                     <td className="px-6 py-3 font-mono text-sm font-semibold text-green-600">
                       {txn.transaction_code}
+                      {txn.voided && (
+                        <span className="ml-2 inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                          Reversed
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-3 text-gray-700">
                       {new Date(txn.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
-                    <td className="px-6 py-3 font-bold text-green-600">
+                    <td className={`px-6 py-3 font-bold ${txn.voided ? "text-gray-400 line-through" : "text-green-600"}`}>
                       <div>
                         KES {parseFloat(txn.amount_paid).toLocaleString()}
                       </div>
-                      {(() => {
+                      {!txn.voided && (() => {
                         const penalty = parseFloat(txn.penalty_portion || 0);
                         const overpay = parseFloat(
                           txn.receipt?.overpayment_for_this || 0,
@@ -1654,6 +1684,18 @@ function LoanDetails() {
                       >
                         <Download size={18}/>
                       </button>
+                      {!txn.voided && (
+                        <PermissionGate role={["admin", "manager"]}>
+                          <button
+                            onClick={() => reversePayment(txn)}
+                            disabled={reversingTxn === txn.id}
+                            className="text-rose-600 hover:text-rose-800 ml-2 disabled:opacity-50"
+                            title="Reverse this payment"
+                          >
+                            <RotateCcw size={18} />
+                          </button>
+                        </PermissionGate>
+                      )}
                     </td>
                   </tr>
                 ))}

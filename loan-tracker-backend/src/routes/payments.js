@@ -9,7 +9,7 @@ import {
 } from "../services/emailService.js";
 import { logAudit } from "../services/auditService.js";
 import { tenantClause, tenantId } from "../utils/tenantScope.js";
-import { recordLoanPayment, editLoanPayment } from "../services/paymentService.js";
+import { recordLoanPayment, editLoanPayment, voidLoanPayment } from "../services/paymentService.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
 import { validate, body, param } from "../utils/validate.js";
 import { captureException } from "../config/sentry.js";
@@ -244,6 +244,38 @@ router.put(
         tenant_id: req.user?.tenant_id,
       });
       res.status(500).json({ error: "Failed to edit payment" });
+    }
+  },
+);
+
+// ============================================================
+// REVERSE (VOID) A PAYMENT
+// ============================================================
+router.post(
+  "/:transactionId/void",
+  authorize("admin", "manager"),
+  validate(
+    param("transactionId").isInt({ min: 1 }).toInt(),
+    body("reason").optional({ checkFalsy: true }).isString().isLength({ max: 500 }).trim(),
+  ),
+  async (req, res) => {
+    try {
+      const result = await voidLoanPayment({
+        transactionId: req.params.transactionId,
+        reason: req.body.reason,
+        tenantId: tenantId(req),
+        actor: req.user,
+        req,
+      });
+      res.json(result);
+    } catch (error) {
+      if (error.status) return res.status(error.status).json({ error: error.message });
+      logger.error("Void payment error:", error);
+      captureException(error, {
+        route: { method: "POST", path: "/api/payments/:transactionId/void" },
+        tenant_id: req.user?.tenant_id,
+      });
+      res.status(500).json({ error: "Failed to reverse payment" });
     }
   },
 );
@@ -515,17 +547,24 @@ router.get("/loan/:loanId/summary", async (req, res) => {
     // and gives a sensible running tally even when knockdown is
     // distributed across multiple payments.
     const ascTxns = [...transactionsResult.rows].reverse();
+    // Voided (reversed) payments contribute nothing to the running tally — they
+    // still render in the list, badged, but with no receipt.
     const grossTowardByTxn = ascTxns.map((t) =>
-      Math.max(
-        0,
-        parseFloat(t.amount_paid || 0)
-          - parseFloat(t.penalty_portion || 0)
-          - parseFloat(t.overpayment_portion || 0),
-      ),
+      t.payment_status === "voided"
+        ? 0
+        : Math.max(
+            0,
+            parseFloat(t.amount_paid || 0)
+              - parseFloat(t.penalty_portion || 0)
+              - parseFloat(t.overpayment_portion || 0),
+          ),
     );
     const grossTowardTotal = grossTowardByTxn.reduce((a, b) => a + b, 0);
     let running = totalWaivedAmountDue;
     const annotated = ascTxns.map((t, i) => {
+      if (t.payment_status === "voided") {
+        return { ...t, voided: true, receipt: null };
+      }
       const overpaidThis = parseFloat(t.overpayment_portion || 0);
       const grossToward = grossTowardByTxn[i];
       // Per-txn "cash that filled amount_due" — prorated share of the
