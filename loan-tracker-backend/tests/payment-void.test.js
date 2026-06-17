@@ -167,6 +167,41 @@ describe("payment reversal (void)", () => {
     expect(pp).toBeCloseTo(0, 0);
   });
 
+  it("a fine reopened by a reversal can be paid off — booked as penalty, not overpayment", async () => {
+    const { admin, loan, TD } = await overdueLoan();
+    const summaryUrl = `/api/payments/loan/${loan.id}/summary`;
+    const P = Number((await request(app).get(summaryUrl).set("Authorization", auth(admin)))
+      .body.data.summary.total_penalty_outstanding);
+
+    // Clear the fine, then clear principal+interest → completed.
+    await request(app).post("/api/payments").set("Authorization", auth(admin))
+      .send({ loan_id: loan.id, amount_paid: P, payment_date: today(), payment_method: "M-Pesa" });
+    const fineTxn = (await query("SELECT id FROM transactions WHERE loan_id=$1 AND penalty_portion>0", [loan.id])).rows[0];
+    await request(app).post("/api/payments").set("Authorization", auth(admin))
+      .send({ loan_id: loan.id, amount_paid: TD, payment_date: today(), payment_method: "M-Pesa" });
+
+    // Reverse the fine payment → fine outstanding again, loan active.
+    await request(app).post(`/api/payments/${fineTxn.id}/void`).set("Authorization", auth(admin)).send({});
+    expect((await query("SELECT status FROM loans WHERE id=$1", [loan.id])).rows[0].status).toBe("active");
+
+    // Pay the fine again. It must be COLLECTED as penalty (clearing the loan),
+    // not mis-booked as an overpayment (the bug).
+    await request(app).post("/api/payments").set("Authorization", auth(admin))
+      .send({ loan_id: loan.id, amount_paid: P, payment_date: today(), payment_method: "M-Pesa" });
+
+    const newTxn = (await query(
+      "SELECT penalty_portion, overpayment_portion FROM transactions WHERE loan_id=$1 AND payment_status='completed' ORDER BY id DESC LIMIT 1",
+      [loan.id])).rows[0];
+    expect(Number(newTxn.penalty_portion)).toBeCloseTo(P, 0);   // went to the fine
+    expect(Number(newTxn.overpayment_portion)).toBe(0);          // NOT an overpayment
+    const loanAfter = (await query("SELECT status, overpayment_amount, refund_status FROM loans WHERE id=$1", [loan.id])).rows[0];
+    expect(loanAfter.status).toBe("completed");
+    expect(Number(loanAfter.overpayment_amount)).toBe(0);
+    expect(loanAfter.refund_status).toBeNull();
+    expect(Number((await request(app).get(summaryUrl).set("Authorization", auth(admin)))
+      .body.data.summary.total_penalty_outstanding)).toBeCloseTo(0, 0);
+  });
+
   it("won't reverse an already-voided payment", async () => {
     const { admin, loan } = await disbursedLoan();
     await request(app).post("/api/payments").set("Authorization", auth(admin))

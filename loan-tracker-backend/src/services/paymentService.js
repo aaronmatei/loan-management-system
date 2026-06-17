@@ -301,25 +301,48 @@ export async function recordLoanPayment({
   const overduePenaltyResult = await query(
     `SELECT id, payment_number, amount_due, amount_paid,
             COALESCE(penalty_paid, 0) AS penalty_paid,
+            COALESCE(late_fee_charged, 0) AS late_fee_charged,
+            COALESCE(penalty_interest_charged, 0) AS penalty_interest_charged,
             (CURRENT_DATE - due_date::date) AS days_late
        FROM payment_schedules
       WHERE loan_id = $1
-        AND (status = 'overdue' OR (status = 'pending' AND due_date < CURRENT_DATE))
-        AND amount_due > COALESCE(amount_paid, 0)
+        AND (
+          -- still-overdue installments accrue penalty on their unpaid balance
+          ( (status = 'overdue' OR (status = 'pending' AND due_date < CURRENT_DATE))
+            AND amount_due > COALESCE(amount_paid, 0) )
+          -- OR a fine that's already been charged but isn't fully paid — e.g.
+          -- a penalty reopened by a payment reversal now sits on a row whose
+          -- amount_due is settled, so the live formula reads 0. Without this
+          -- branch the fine is invisible to collection and a payment meant to
+          -- clear it gets mis-booked as overpayment.
+          OR ( COALESCE(late_fee_charged, 0) + COALESCE(penalty_interest_charged, 0)
+                 > COALESCE(penalty_paid, 0) )
+        )
       ORDER BY due_date ASC`,
     [loanId],
   );
   const penaltyRows = overduePenaltyResult.rows.map((s) => {
     const balance = parseFloat(s.amount_due) - parseFloat(s.amount_paid || 0);
     const p = computeInstallmentPenalty({
-      balance,
+      balance: Math.max(0, balance),
       daysLate: parseInt(s.days_late, 10) || 0,
       lateFee: loan.late_payment_fee,
       penaltyRate: loan.penalty_rate,
     });
+    // While a row is still overdue the live formula is the accruing truth.
+    // Only fall back to the persisted charge snapshot once amount_due is
+    // settled (live reads 0) but a fine was charged — e.g. one reopened by a
+    // reversal. Flooring on the (DB-rounded) snapshot for still-overdue rows
+    // would collect a stray cent of penalty against the live figure.
+    const live = parseFloat(p.penalty_total) || 0;
+    const snapshotTotal =
+      Math.round(
+        (parseFloat(s.late_fee_charged) + parseFloat(s.penalty_interest_charged)) * 100,
+      ) / 100;
+    const penaltyTotal = balance > 0.005 ? live : Math.max(live, snapshotTotal);
     const outstanding = Math.max(
       0,
-      Math.round((p.penalty_total - parseFloat(s.penalty_paid)) * 100) / 100,
+      Math.round((penaltyTotal - parseFloat(s.penalty_paid)) * 100) / 100,
     );
     return {
       schedule_id: s.id,
@@ -1157,12 +1180,44 @@ export async function editLoanPayment({
       : parseFloat(txn.amount_paid);
   if (!(newAmount > 0)) throw httpError(400, "Amount must be greater than zero");
   const penalty = parseFloat(txn.penalty_portion || 0);
-  const overpay = parseFloat(txn.overpayment_portion || 0);
-  if (newAmount + 0.001 < penalty + overpay)
+  if (newAmount + 0.001 < penalty)
     throw httpError(
       400,
-      `Amount can't be less than its penalty + overpayment (KES ${(penalty + overpay).toFixed(2)})`,
+      `Amount can't be less than its penalty portion (KES ${penalty.toFixed(2)})`,
     );
+
+  // Overpayment is RE-DERIVED from the new amount, not preserved. Editing a
+  // payment's amount down can drop the loan from overpaid to underpaid; keeping
+  // the old overpayment_portion leaves a phantom surplus (which then gets
+  // refunded, paying out money the loan never actually had). Recompute the
+  // loan's true surplus = all cash that lands on amount_due (net of each
+  // payment's penalty) + approved waivers − total amount due, then give this
+  // edited payment whatever slice of it the OTHER payments don't already hold.
+  const otherTxnRes = await query(
+    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion,0)),0)::float AS net_other,
+            COALESCE(SUM(COALESCE(overpayment_portion,0)),0)::float            AS over_other
+       FROM transactions
+      WHERE loan_id = $1 AND payment_status = 'completed' AND id <> $2`,
+    [loan.id, transactionId],
+  );
+  const editWaiverRes = await query(
+    `SELECT COALESCE(SUM(COALESCE((allocation->>'amount_total')::float, 0)), 0)::float AS waived
+       FROM loan_waivers WHERE loan_id = $1 AND status = 'approved'`,
+    [loan.id],
+  );
+  const thisNet = round2(newAmount - penalty); // this payment's cash toward amount_due/surplus
+  const amountDueTotal = parseFloat(loan.total_amount_due || 0);
+  const rawSurplus = round2(
+    otherTxnRes.rows[0].net_other +
+      thisNet +
+      editWaiverRes.rows[0].waived -
+      amountDueTotal,
+  );
+  // Sub-1-KES diffs are prorated-math dust, not a real overpayment.
+  const loanSurplus = rawSurplus >= 1 ? rawSurplus : 0;
+  const otherOver = round2(otherTxnRes.rows[0].over_other);
+  const overpay = Math.max(0, Math.min(round2(loanSurplus - otherOver), thisNet));
+  const newLoanOverpayment = round2(otherOver + overpay);
 
   const oldDateStr = new Date(txn.payment_date).toISOString().split("T")[0];
   const newDateStr = paymentDate
@@ -1194,9 +1249,10 @@ export async function editLoanPayment({
   await query(
     `UPDATE transactions
         SET amount_paid = $1, payment_date = $2, payment_method = $3,
-            payment_reference = $4, notes = $5, created_at = $6, updated_at = NOW()
-      WHERE id = $7`,
-    [newAmount, newDateStr, newMethod, newRef || null, newNotes || null, createdAt, transactionId],
+            payment_reference = $4, notes = $5, created_at = $6,
+            overpayment_portion = $7, updated_at = NOW()
+      WHERE id = $8`,
+    [newAmount, newDateStr, newMethod, newRef || null, newNotes || null, createdAt, overpay, transactionId],
   );
   // Keep the capital ledger entry for this payment in step with the new net.
   await query(
@@ -1205,11 +1261,29 @@ export async function editLoanPayment({
   );
 
   const { fullyPaid } = await recascadeLoanSchedule(loan.id);
-  if (loan.status === "active" && fullyPaid) {
-    await query(`UPDATE loans SET status='completed', updated_at=NOW() WHERE id=$1`, [loan.id]);
-  } else if (loan.status === "completed" && !fullyPaid) {
-    await query(`UPDATE loans SET status='active', updated_at=NOW() WHERE id=$1`, [loan.id]);
-  }
+  // Sync loan status + the overpayment/refund liability to the re-derived
+  // figures. An already-'refunded' loan is left as-is — the cash is out the
+  // door — even if the edit erased the surplus on paper; that mismatch needs a
+  // human (recover from the borrower or write off), not a silent un-refund.
+  const statusPatch =
+    loan.status === "active" && fullyPaid
+      ? "status='completed', "
+      : loan.status === "completed" && !fullyPaid
+        ? "status='active', "
+        : "";
+  const clearableRefund = loan.refund_status !== "refunded";
+  await query(
+    `UPDATE loans
+        SET ${statusPatch}
+            overpayment_amount = $1::numeric,
+            refund_status = CASE
+              WHEN $3::boolean = false THEN refund_status
+              WHEN $1::numeric > 0 THEN COALESCE(NULLIF(refund_status, 'refunded'), 'pending')
+              ELSE NULL END,
+            updated_at = NOW()
+      WHERE id = $2`,
+    [newLoanOverpayment, loan.id, clearableRefund],
+  );
 
   const after = await loanRealizedFigures(loan.id);
   const dCollected = round2(after.principal - before.principal);

@@ -312,6 +312,11 @@ function Payments() {
         map.set(p.loan_id, g);
       }
       g.transactions.push(p);
+      // Voided (reversed) payments stay visible on expand, badged, but are out
+      // of every total — they've been pulled back off the books (mirrors the
+      // loan-detail summary). Counting them here double-counts reversed cash
+      // and resurrects overpayment that the reversal already cleared.
+      if (p.payment_status === "voided") continue;
       g.count += 1;
       const op = parseFloat(p.overpayment_portion || 0);
       g.total_paid += parseFloat(p.amount_paid || 0);
@@ -362,7 +367,10 @@ function Payments() {
             Payments
           </h1>
           <p className="text-sm lg:text-base text-gray-600 mt-1">
-            Total: <span className="font-semibold">{payments.length}</span>{" "}
+            Total:{" "}
+            <span className="font-semibold">
+              {payments.filter((p) => p.payment_status !== "voided").length}
+            </span>{" "}
             payments recorded
           </p>
         </div>
