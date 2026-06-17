@@ -433,24 +433,33 @@ router.get("/loan/:loanId/summary", async (req, res) => {
         penaltyRate: loan.penalty_rate,
       });
       const penaltyPaid = parseFloat(s.penalty_paid || 0);
-      // "Penalty total" is the headline number for what was ever charged
-      // on this installment. The live formula above re-computes against
-      // CURRENT balance, which drops once a payment lands — so a paid
-      // instalment recomputes to 0 even though penalty was charged at the
-      // time, and a partially-paid one recomputes lower than what was
-      // actually billed. Take the max with what's been paid so the
-      // headline never disputes the historical charge.
-      const penaltyTotal = Math.max(computed.penalty_total, penaltyPaid);
-      const outstanding = Math.max(
-        0,
-        Math.round((penaltyTotal - penaltyPaid) * 100) / 100,
-      );
       // Late-fee / penalty-interest breakdown: prefer the persisted
       // snapshot taken when penalty was paid (migration 030). Falls
       // back to the live formula for installments that haven't yet
       // had penalty charged.
       const lateFeeCharged = parseFloat(s.late_fee_charged || 0);
       const penaltyInterestCharged = parseFloat(s.penalty_interest_charged || 0);
+      // "Penalty total" is the headline number for what was ever charged
+      // on this installment. The live formula above re-computes against
+      // CURRENT balance, which drops once a payment lands — so a paid
+      // instalment recomputes to 0 even though penalty was charged at the
+      // time, and a partially-paid one recomputes lower than what was
+      // actually billed. Take the max with what's been paid AND with the
+      // persisted charge snapshot so the headline never disputes the
+      // historical charge — and so a fine whose payment was reversed (which
+      // resets penalty_paid back toward 0) still shows as outstanding rather
+      // than silently vanishing from a now amount_due-settled row.
+      const chargedSnapshot =
+        Math.round((lateFeeCharged + penaltyInterestCharged) * 100) / 100;
+      const penaltyTotal = Math.max(
+        computed.penalty_total,
+        penaltyPaid,
+        chargedSnapshot,
+      );
+      const outstanding = Math.max(
+        0,
+        Math.round((penaltyTotal - penaltyPaid) * 100) / 100,
+      );
       const lateFee =
         lateFeeCharged > 0 ? lateFeeCharged : computed.late_fee;
       const penaltyInterest =

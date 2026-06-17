@@ -1026,20 +1026,44 @@ async function loanRealizedFigures(loanId) {
 // order — only amount_paid + status change; the interest/principal split
 // is preserved. Returns { fullyPaid }.
 async function recascadeLoanSchedule(loanId) {
+  const loanRes = await query(
+    `SELECT penalty_rate, late_payment_fee FROM loans WHERE id = $1`,
+    [loanId],
+  );
+  const loan = loanRes.rows[0] || {};
   const sched = await query(
-    `SELECT id, amount_due, due_date FROM payment_schedules
+    `SELECT id, amount_due, due_date,
+            COALESCE(late_fee_charged, 0) AS late_fee_charged,
+            COALESCE(penalty_interest_charged, 0) AS penalty_interest_charged
+       FROM payment_schedules
       WHERE loan_id = $1 ORDER BY payment_number ASC`,
     [loanId],
   );
   const cashRes = await query(
-    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0)),0)::float AS cash
+    `SELECT COALESCE(SUM(amount_paid - COALESCE(penalty_portion,0) - COALESCE(overpayment_portion,0)),0)::float AS cash,
+            COALESCE(SUM(COALESCE(penalty_portion,0)),0)::float AS penalty_cash
        FROM transactions WHERE loan_id = $1 AND payment_status = 'completed'`,
+    [loanId],
+  );
+  // Penalty cash that's actually been settled = surviving payments' penalty
+  // portions + approved penalty waivers (waivers credit penalty_paid directly,
+  // see waiverService). A voided/edited payment's penalty portion is gone, so
+  // we re-spread whatever remains across the overdue installments oldest-first
+  // — otherwise penalty_paid stays stuck at the pre-void figure and a fine
+  // looks settled when the cash that cleared it has been pulled back.
+  const waiverRes = await query(
+    `SELECT COALESCE(SUM(COALESCE((allocation->>'penalty_total')::float, 0)), 0)::float AS waived_penalty
+       FROM loan_waivers WHERE loan_id = $1 AND status = 'approved'`,
     [loanId],
   );
   let remaining = cashRes.rows[0].cash;
   const totalCash = cashRes.rows[0].cash;
+  let penaltyCash = round2(
+    cashRes.rows[0].penalty_cash + waiverRes.rows[0].waived_penalty,
+  );
   const now = new Date();
   let totalDue = 0;
+  let outstandingPenalty = 0;
   for (const s of sched.rows) {
     const due = parseFloat(s.amount_due);
     totalDue += due;
@@ -1056,12 +1080,42 @@ async function recascadeLoanSchedule(loanId) {
       }
       status = new Date(s.due_date) < now ? "overdue" : "pending";
     }
+
+    // Penalty CHARGED on this row: the persisted high-water snapshot (set when
+    // penalty was first paid), or — for a row that's overdue now but never had
+    // penalty snapshotted — the live formula. A paid row keeps its snapshot so
+    // a cleared fine doesn't vanish from the books.
+    let charged = round2(
+      parseFloat(s.late_fee_charged) + parseFloat(s.penalty_interest_charged),
+    );
+    if (new Date(s.due_date) < now && paid < due) {
+      const daysLate = Math.floor((now - new Date(s.due_date)) / 86400000);
+      const live = computeInstallmentPenalty({
+        balance: round2(due - paid),
+        daysLate,
+        lateFee: loan.late_payment_fee,
+        penaltyRate: loan.penalty_rate,
+      });
+      charged = Math.max(charged, round2(live.penalty_total));
+    }
+    const penPay = Math.min(penaltyCash, charged);
+    penaltyCash = round2(penaltyCash - penPay);
+    outstandingPenalty = round2(outstandingPenalty + (charged - penPay));
+
     await query(
-      `UPDATE payment_schedules SET amount_paid = $1, status = $2, updated_at = NOW() WHERE id = $3`,
-      [paid, status, s.id],
+      `UPDATE payment_schedules
+          SET amount_paid = $1, status = $2, penalty_paid = $3, updated_at = NOW()
+        WHERE id = $4`,
+      [paid, status, round2(penPay), s.id],
     );
   }
-  return { fullyPaid: totalDue > 0 && totalCash + 0.01 >= totalDue };
+  // A loan isn't settled while a fine is still owed: penalty is owed on top of
+  // principal+interest (recordLoanPayment's effectiveOwed), so the completion
+  // gate must clear penalty too — otherwise a void leaves a "completed" loan
+  // with unpaid fines.
+  const fullyPaid =
+    totalDue > 0 && totalCash + 0.01 >= totalDue && outstandingPenalty <= 0.01;
+  return { fullyPaid, outstandingPenalty };
 }
 
 /**

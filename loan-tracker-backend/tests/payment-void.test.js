@@ -18,6 +18,33 @@ async function pool(tenantId) {
 
 // A disbursed loan (real schedule + capital movement), with future-dated
 // installments so no penalties muddy the split. principal 50k + interest 6k.
+// Like disbursedLoan, but disbursed far in the past so every installment is
+// overdue and penalties accrue — needed to exercise penalty re-derivation.
+async function overdueLoan() {
+  const t = await createTenant();
+  const admin = await createUser(t.id, { role: "admin" });
+  const client = await createClient(t.id);
+  await query(
+    "INSERT INTO capital_pool (tenant_id, initial_capital, total_disbursed, total_collected, total_interest_earned) VALUES ($1, 1000000, 0, 0, 0)",
+    [t.id],
+  );
+  const loan = (
+    await request(app).post("/api/loans").set("Authorization", auth(admin)).send({
+      client_id: client.id, principal_amount: 50000, annual_interest_rate: 24,
+      loan_duration_months: 6, interest_method: "flat",
+      late_payment_fee: 500, penalty_rate: 5,
+    })
+  ).body.data;
+  await request(app).post(`/api/loans/${loan.id}/approve`).set("Authorization", auth(admin)).send({});
+  const past = new Date();
+  past.setMonth(past.getMonth() - 8); // 6-month loan disbursed 8mo ago → all overdue
+  await request(app).post(`/api/loans/${loan.id}/disburse`).set("Authorization", auth(admin))
+    .send({ disbursement_method: "cash", disbursement_date: past.toISOString().slice(0, 10) });
+  const ld = (await query("SELECT total_amount_due, total_interest FROM loans WHERE id = $1", [loan.id])).rows[0];
+  const TD = Number(ld.total_amount_due);
+  return { t, admin, client, loan, TD, TI: Number(ld.total_interest) };
+}
+
 async function disbursedLoan() {
   const t = await createTenant();
   const admin = await createUser(t.id, { role: "admin" });
@@ -97,6 +124,47 @@ describe("payment reversal (void)", () => {
     expect(row.voided).toBe(true);
     expect(row.receipt).toBeNull();
     expect(Number(summary.body.data.summary.total_paid)).toBe(0);
+  });
+
+  it("reversing the payment that cleared the fines reopens them — loan isn't left completed with unpaid penalty", async () => {
+    const { admin, loan, TD } = await overdueLoan();
+    const summaryUrl = `/api/payments/loan/${loan.id}/summary`;
+
+    // Fines accrued and owed right now (nothing paid yet → outstanding == total).
+    const before = await request(app).get(summaryUrl).set("Authorization", auth(admin));
+    const P = Number(before.body.data.summary.total_penalty_outstanding);
+    expect(P).toBeGreaterThan(0);
+
+    // Payment 1 clears the fines only (penalty is allocated first).
+    await request(app).post("/api/payments").set("Authorization", auth(admin))
+      .send({ loan_id: loan.id, amount_paid: P, payment_date: today(), payment_method: "M-Pesa" });
+    const fineTxn = (await query(
+      "SELECT id FROM transactions WHERE loan_id = $1 AND penalty_portion > 0", [loan.id],
+    )).rows[0];
+    expect(fineTxn).toBeTruthy();
+
+    // Payment 2 clears all principal + interest → loan completes, fines paid.
+    await request(app).post("/api/payments").set("Authorization", auth(admin))
+      .send({ loan_id: loan.id, amount_paid: TD, payment_date: today(), payment_method: "M-Pesa" });
+    const done = (await query("SELECT status FROM loans WHERE id = $1", [loan.id])).rows[0];
+    expect(done.status).toBe("completed");
+
+    // Reverse the payment that paid the fines.
+    const v = await request(app).post(`/api/payments/${fineTxn.id}/void`)
+      .set("Authorization", auth(admin)).send({ reason: "wrong amount" });
+    expect(v.status).toBe(200);
+    // The loan must NOT stay completed while the fine is unpaid.
+    expect(v.body.data.loan_status).toBe("active");
+    const after = (await query("SELECT status FROM loans WHERE id = $1", [loan.id])).rows[0];
+    expect(after.status).toBe("active");
+
+    // The fines are outstanding again, and the stale penalty_paid was rolled back.
+    const reopened = await request(app).get(summaryUrl).set("Authorization", auth(admin));
+    expect(Number(reopened.body.data.summary.total_penalty_outstanding)).toBeCloseTo(P, 0);
+    const pp = (await query(
+      "SELECT COALESCE(SUM(penalty_paid),0)::float AS p FROM payment_schedules WHERE loan_id = $1", [loan.id],
+    )).rows[0].p;
+    expect(pp).toBeCloseTo(0, 0);
   });
 
   it("won't reverse an already-voided payment", async () => {
