@@ -691,6 +691,158 @@ router.post(
   },
 );
 
+// ── welfare MEMBER login ───────────────────────────────────────
+// Same platform_customers identity + password as the borrower /login, but a
+// welfare-branded front door: it only ever surfaces the customer's WELFARE
+// memberships (member_id links on kind='welfare' tenants), and tells a
+// borrower-only account to use the borrower portal instead. The token is the
+// standard customer token, so the member desk works unchanged.
+router.post(
+  "/member-login",
+  tenantContext,
+  validate(
+    body("phone_number")
+      .isString().withMessage("required")
+      .isLength({ min: 7, max: 20 }).withMessage("must look like a phone number")
+      .matches(/^[\d+\s\-()]+$/).withMessage("only digits and + - ( ) allowed"),
+    body("password").isString().withMessage("required").isLength({ min: 1, max: 256 }).withMessage("required"),
+  ),
+  async (req, res) => {
+    try {
+      const { phone_number, password } = req.body;
+      const fp = formatPhone(phone_number);
+      const r = await query(
+        "SELECT * FROM platform_customers WHERE phone_number = $1 AND is_active = true",
+        [fp],
+      );
+      if (r.rows.length === 0) return res.status(401).json({ error: "Invalid phone or password" });
+      const customer = r.rows[0];
+      if (customer.is_blacklisted_platform) {
+        return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+      }
+      const ok = await bcryptjs.compare(password, customer.password_hash || "");
+      if (!ok) {
+        await query(
+          `INSERT INTO customer_activities (platform_customer_id, activity_type, ip_address)
+           VALUES ($1,'login_failed',$2)`,
+          [customer.id, ipOf(req)],
+        );
+        return res.status(401).json({ error: "Invalid phone or password" });
+      }
+
+      // Welfare memberships only. A borrower link (client_id, no member_id) or a
+      // non-welfare tenant is excluded — this door is members-only.
+      const links = await query(
+        `SELECT ctl.tenant_id, ctl.member_id, ctl.status, ctl.linked_at,
+                t.business_name, t.subdomain, t.brand_color, t.kind,
+                m.member_no AS client_code
+           FROM customer_tenant_links ctl
+           JOIN tenants t ON ctl.tenant_id = t.id
+           JOIN members m ON ctl.member_id = m.id
+          WHERE ctl.platform_customer_id = $1
+            AND ctl.member_id IS NOT NULL
+            AND ctl.status = 'active' AND t.status = 'active' AND t.kind = 'welfare'
+          ORDER BY ctl.linked_at DESC`,
+        [customer.id],
+      );
+      if (links.rows.length === 0) {
+        return res.status(403).json({
+          error: "No chama / welfare membership found for this account. If you're a borrower, use the borrower login.",
+          action: "use_borrower_login",
+        });
+      }
+
+      await query("UPDATE platform_customers SET last_login = NOW() WHERE id = $1", [customer.id]);
+      await query(
+        `INSERT INTO customer_activities (platform_customer_id, tenant_id, activity_type, ip_address)
+         VALUES ($1,$2,'login',$3)`,
+        [customer.id, req.tenant?.id || null, ipOf(req)],
+      );
+
+      const token = jwt.sign(
+        {
+          platform_customer_id: customer.id,
+          phone_number: customer.phone_number,
+          user_type: "customer",
+          current_tenant_id: null,
+          current_client_id: null,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" },
+      );
+      return res.json({
+        success: true,
+        token,
+        customer: {
+          id: customer.id,
+          customer_code: lfxCode(customer.id),
+          phone_number: customer.phone_number,
+          first_name: customer.first_name,
+          last_name: customer.last_name,
+          profile_photo_url: customer.profile_photo_url,
+        },
+        // Forced "set your password" step after an admin invite's temp password.
+        must_change_password: !!customer.must_change_password,
+        tenants: links.rows,
+        action: "member",
+      });
+    } catch (error) {
+      logger.error("Member login error:", error);
+      captureException(error, { route: { method: "POST", path: "/api/portal/auth/member-login" } });
+      res.status(500).json({ error: "Login failed" });
+    }
+  },
+);
+
+// ── member set / change password ───────────────────────────────
+// Drives /welfare/member/register: a member who was invited with an admin-set
+// temporary password proves it (current_password) and sets their own. Also
+// serves as a routine password change. Clears must_change_password.
+router.post(
+  "/member-set-password",
+  validate(
+    body("phone_number")
+      .isString().withMessage("required")
+      .isLength({ min: 7, max: 20 }).matches(/^[\d+\s\-()]+$/),
+    body("current_password").isString().withMessage("required").isLength({ min: 1, max: 256 }),
+    body("new_password").isString().withMessage("required"),
+  ),
+  async (req, res) => {
+    try {
+      const { phone_number, current_password, new_password } = req.body;
+      if (!validatePassword(new_password)) {
+        return res.status(400).json({
+          error: "Password must be at least 12 characters with an uppercase letter, a number, and a special character.",
+        });
+      }
+
+      const fp = formatPhone(phone_number);
+      const r = await query(
+        "SELECT * FROM platform_customers WHERE phone_number = $1 AND is_active = true",
+        [fp],
+      );
+      const customer = r.rows[0];
+      // Generic 401 whether the phone is unknown or the password is wrong.
+      if (!customer || !(await bcryptjs.compare(current_password, customer.password_hash || ""))) {
+        return res.status(401).json({ error: "Invalid phone or current password" });
+      }
+      const hash = await bcryptjs.hash(new_password, 10);
+      await query(
+        `UPDATE platform_customers
+            SET password_hash = $1, must_change_password = false,
+                phone_verified = true, updated_at = NOW()
+          WHERE id = $2`,
+        [hash, customer.id],
+      );
+      return res.json({ success: true });
+    } catch (error) {
+      logger.error("Member set-password error:", error);
+      captureException(error, { route: { method: "POST", path: "/api/portal/auth/member-set-password" } });
+      res.status(500).json({ error: "Could not set password" });
+    }
+  },
+);
+
 // ── select tenant after multi-tenant login ────────────────────
 router.post("/select-tenant", async (req, res) => {
   try {

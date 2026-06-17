@@ -979,6 +979,7 @@ CREATE TABLE public.platform_customers (
     registration_ip character varying(45),
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now(),
+    must_change_password boolean DEFAULT false,
     client_type character varying(20) NOT NULL DEFAULT 'individual'
         CHECK (client_type IN ('individual', 'group', 'business'))
 );
