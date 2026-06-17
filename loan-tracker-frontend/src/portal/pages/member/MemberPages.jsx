@@ -263,38 +263,11 @@ function Table({ head, rows, render, empty }) {
 
 export function MemberSavings() {
   const { data, loading, error } = useFetch("/welfare/member/ledger");
-  const [modal, setModal] = useState(false);
-  const [reqKey, setReqKey] = useState(0);
   return (
     <Shell title="My Savings" icon={PiggyBank}>
-      <div className="flex justify-end -mt-2 mb-4">
-        <button onClick={() => setModal(true)} className="px-4 py-2 bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold inline-flex items-center gap-2">
-          <ArrowRight size={16} /> Request withdrawal
-        </button>
-      </div>
-      {modal && (
-        <RequestModal
-          title="Request a savings withdrawal"
-          url="/welfare/member/withdrawal-requests"
-          fields={[
-            { name: "amount", label: "Amount (KES)", type: "number", placeholder: "e.g. 5000" },
-            { name: "reason", label: "Reason", placeholder: "Optional" },
-          ]}
-          onClose={() => setModal(false)}
-          onDone={() => setReqKey((k) => k + 1)}
-        />
-      )}
       {loading || error || !data ? <Loading error={error} /> : (
         <>
           <Stat label="Savings balance" value={KES(data.savings_balance)} tone="text-emerald-700" />
-          <RequestsList
-            key={reqKey}
-            path="/welfare/member/withdrawal-requests"
-            columns={[
-              { key: "amount", label: "Amount", fmt: KES },
-              { key: "reason", label: "Reason" },
-            ]}
-          />
           <div className="mt-6">
             <Table
               head={["Date", "Type", "Description", "Amount", "Balance"]}
