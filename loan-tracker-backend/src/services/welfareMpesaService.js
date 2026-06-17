@@ -3,8 +3,63 @@
 // same effects as the manual flows. Idempotent via mpesa_transactions.allocated,
 // so the Daraja callback and manual reconciliation can each run safely.
 import { query } from "../config/database.js";
+import * as mpesa from "./mpesaService.js";
+import logger from "../config/logger.js";
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+// Push a Daraja STK and record the pending welfare transaction. Shared by the
+// admin M-Pesa routes (routes/welfareMpesa.js) and the member self-service
+// portal (routes/portal/member.js) so both initiate identically — the only
+// difference is initiatedByUserId (a staff user, or null for a member). Throws
+// Error with a `.status` on validation/provider failure; returns
+// { checkoutRequestId, message } on success.
+export async function initiateWelfareSTK({
+  welfare,
+  member,
+  amount,
+  targetType,
+  targetId,
+  purpose,
+  desc,
+  phone,
+  initiatedByUserId = null,
+}) {
+  const payPhone = phone || member.phone_number;
+  if (!payPhone) throw Object.assign(new Error("No phone number for this member"), { status: 400 });
+  if (!(amount > 0)) throw Object.assign(new Error("Nothing outstanding to pay"), { status: 400 });
+
+  const ref = (member.member_no || `M${member.id}`).substring(0, 12);
+  let result;
+  try {
+    result = await mpesa.initiateSTKPush({
+      phone: payPhone,
+      amount,
+      accountReference: ref,
+      transactionDesc: desc,
+    });
+  } catch (err) {
+    logger.error("welfare STK error:", err.message);
+    throw Object.assign(new Error(err.message || "M-Pesa is not available right now"), { status: 502 });
+  }
+
+  await query(
+    `INSERT INTO mpesa_transactions (
+       tenant_id, purpose, welfare_id, member_id, target_type, target_id,
+       initiated_by_user_id, phone_number, amount, account_reference, transaction_desc,
+       merchant_request_id, checkout_request_id, status, request_payload
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14)`,
+    [
+      welfare.tenant_id, purpose, welfare.id, member.id, targetType, targetId,
+      initiatedByUserId, result.normalizedPhone, result.amount, ref, desc,
+      result.merchantRequestId, result.checkoutRequestId, JSON.stringify(result.raw),
+    ],
+  );
+  return {
+    checkoutRequestId: result.checkoutRequestId,
+    message: result.customerMessage || "STK sent — enter the M-Pesa PIN",
+  };
+}
 
 async function poolBalance(welfareId) {
   const r = await query(

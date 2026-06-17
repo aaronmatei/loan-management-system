@@ -28,11 +28,13 @@ const Badge = ({ value }) => (
   </span>
 );
 
-// Generic fetch wrapper — keeps each page tiny.
+// Generic fetch wrapper — keeps each page tiny. Exposes reload() so a pay action
+// can refresh the list once the payment lands.
 function useFetch(path) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let on = true;
     portalApi.get(path)
@@ -40,8 +42,55 @@ function useFetch(path) {
       .catch((e) => on && setError(e.response?.data?.error || "Failed to load"))
       .finally(() => on && setLoading(false));
     return () => { on = false; };
-  }, [path]);
-  return { data, loading, error };
+  }, [path, tick]);
+  return { data, loading, error, reload: () => setTick((t) => t + 1) };
+}
+
+// STK pay button. Kicks off the member STK, then polls the member's M-Pesa log
+// until this target is allocated (or a timeout), refreshing the page on success.
+const PAY = {
+  contribution: { url: "/member/mpesa/contribution", key: "schedule_id", type: "contribution_schedule" },
+  loan: { url: "/member/mpesa/loan-repayment", key: "loan_id", type: "member_loan" },
+  penalty: { url: "/member/mpesa/penalty", key: "assessment_id", type: "penalty_assessment" },
+};
+function PayButton({ kind, targetId, onDone }) {
+  const [phase, setPhase] = useState("idle"); // idle | sending | waiting | done
+  const cfg = PAY[kind];
+
+  const poll = async (deadline) => {
+    if (Date.now() > deadline) { setPhase("idle"); onDone?.(); return; }
+    try {
+      const r = await portalApi.get("/member/mpesa/transactions");
+      const hit = (r.data.data || []).find((t) => t.target_type === cfg.type && String(t.target_id) === String(targetId));
+      if (hit?.allocated) { setPhase("done"); onDone?.(); return; }
+    } catch {
+      /* keep polling */
+    }
+    setTimeout(() => poll(deadline), 4000);
+  };
+
+  const pay = async () => {
+    setPhase("sending");
+    try {
+      await portalApi.post(cfg.url, { [cfg.key]: targetId });
+      setPhase("waiting");
+      poll(Date.now() + 60000);
+    } catch (e) {
+      alert(e.response?.data?.error || "Couldn't start the payment");
+      setPhase("idle");
+    }
+  };
+
+  if (phase === "done") return <span className="text-emerald-600 font-semibold text-xs">Paid ✓</span>;
+  return (
+    <button
+      onClick={pay}
+      disabled={phase !== "idle"}
+      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-60 inline-flex items-center gap-1"
+    >
+      {phase === "sending" ? "Sending…" : phase === "waiting" ? "Enter M-Pesa PIN…" : "Pay"}
+    </button>
+  );
 }
 
 function Shell({ title, icon: Icon, children }) {
@@ -170,12 +219,12 @@ export function MemberSavings() {
 }
 
 export function MemberContributions() {
-  const { data, loading, error } = useFetch("/member/contributions");
+  const { data, loading, error, reload } = useFetch("/member/contributions");
   return (
     <Shell title="Contributions" icon={Coins}>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
-          head={["Cycle", "Due date", "Expected", "Paid", "Status"]}
+          head={["Cycle", "Due date", "Expected", "Paid", "Status", ""]}
           rows={data}
           empty="No contribution cycles yet."
           render={(c) => (
@@ -185,6 +234,11 @@ export function MemberContributions() {
               <td className="px-4 py-3">{KES(c.amount_due)}</td>
               <td className="px-4 py-3">{KES(c.amount_paid)}</td>
               <td className="px-4 py-3"><Badge value={c.status} /></td>
+              <td className="px-4 py-3 text-right">
+                {["pending", "partial", "overdue"].includes(c.status) && (
+                  <PayButton kind="contribution" targetId={c.id} onDone={reload} />
+                )}
+              </td>
             </tr>
           )}
         />
@@ -194,12 +248,12 @@ export function MemberContributions() {
 }
 
 export function MemberLoans() {
-  const { data, loading, error } = useFetch("/member/loans");
+  const { data, loading, error, reload } = useFetch("/member/loans");
   return (
     <Shell title="Chama Loans" icon={Wallet}>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
-          head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status"]}
+          head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
           rows={data}
           empty="You have no chama loans."
           render={(l) => (
@@ -210,6 +264,11 @@ export function MemberLoans() {
               <td className="px-4 py-3">{KES(l.amount_paid)}</td>
               <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
               <td className="px-4 py-3"><Badge value={l.status} /></td>
+              <td className="px-4 py-3 text-right">
+                {l.status === "active" && Number(l.balance) > 0 && (
+                  <PayButton kind="loan" targetId={l.id} onDone={reload} />
+                )}
+              </td>
             </tr>
           )}
         />
@@ -264,12 +323,12 @@ export function MemberDividends() {
 }
 
 export function MemberPenalties() {
-  const { data, loading, error } = useFetch("/member/penalties");
+  const { data, loading, error, reload } = useFetch("/member/penalties");
   return (
     <Shell title="Penalties" icon={AlertTriangle}>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
-          head={["Date", "Reason", "Amount", "Paid", "Balance", "Status"]}
+          head={["Date", "Reason", "Amount", "Paid", "Balance", "Status", ""]}
           rows={data}
           empty="No penalties — nicely done."
           render={(p) => (
@@ -280,6 +339,11 @@ export function MemberPenalties() {
               <td className="px-4 py-3">{KES(p.paid_amount)}</td>
               <td className="px-4 py-3 font-semibold">{KES(p.balance)}</td>
               <td className="px-4 py-3"><Badge value={p.status} /></td>
+              <td className="px-4 py-3 text-right">
+                {p.status === "outstanding" && (
+                  <PayButton kind="penalty" targetId={p.id} onDone={reload} />
+                )}
+              </td>
             </tr>
           )}
         />

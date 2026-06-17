@@ -7,6 +7,7 @@ import express from "express";
 import { query } from "../../config/database.js";
 import { verifyCustomer } from "../../middleware/customerAuth.js";
 import { poolBalance, memberSavings, round2 } from "../../services/welfarePoolService.js";
+import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -223,6 +224,105 @@ router.get("/dividends", async (req, res) => {
   } catch (e) {
     logger.error("member dividends error:", e);
     res.status(500).json({ error: "Failed to load dividends" });
+  }
+});
+
+// ── Pay actions (M-Pesa STK) ──────────────────────────────────────────────
+// Each validates the target belongs to THIS member, then reuses the shared
+// welfare STK initiator (initiatedByUserId=null — the member, not staff). The
+// Daraja callback applies the payment via allocateWelfarePayment, unchanged.
+const welfareOf = (req) => ({ id: req.welfareId, tenant_id: req.member.tenant_id });
+
+// POST /mpesa/contribution { schedule_id, phone? }
+router.post("/mpesa/contribution", async (req, res) => {
+  try {
+    const s = (
+      await query(
+        `SELECT s.* FROM contribution_schedules s
+         WHERE s.id = $1 AND s.member_id = $2`,
+        [req.body?.schedule_id, req.member.id],
+      )
+    ).rows[0];
+    if (!s) return res.status(404).json({ error: "Contribution not found" });
+    const amount = round2(parseFloat(s.amount_due) - parseFloat(s.amount_paid));
+    const r = await initiateWelfareSTK({
+      welfare: welfareOf(req), member: req.member, amount,
+      targetType: "contribution_schedule", targetId: s.id,
+      purpose: "welfare_contribution", desc: "Contribution", phone: req.body?.phone,
+    });
+    res.json({ success: true, message: r.message, checkout_request_id: r.checkoutRequestId });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("member pay contribution error:", e);
+    res.status(500).json({ error: "Failed to start payment" });
+  }
+});
+
+// POST /mpesa/loan-repayment { loan_id, amount?, phone? }
+router.post("/mpesa/loan-repayment", async (req, res) => {
+  try {
+    const l = (
+      await query(`SELECT * FROM member_loans WHERE id = $1 AND member_id = $2`, [
+        req.body?.loan_id, req.member.id,
+      ])
+    ).rows[0];
+    if (!l) return res.status(404).json({ error: "Loan not found" });
+    const outstanding = round2(parseFloat(l.total_amount_due) - parseFloat(l.amount_paid));
+    const amount =
+      req.body?.amount != null && req.body.amount !== ""
+        ? Math.min(parseFloat(req.body.amount), outstanding)
+        : outstanding;
+    const r = await initiateWelfareSTK({
+      welfare: welfareOf(req), member: req.member, amount,
+      targetType: "member_loan", targetId: l.id,
+      purpose: "welfare_loan_repayment", desc: "Loan Repay", phone: req.body?.phone,
+    });
+    res.json({ success: true, message: r.message, checkout_request_id: r.checkoutRequestId });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("member pay loan error:", e);
+    res.status(500).json({ error: "Failed to start payment" });
+  }
+});
+
+// POST /mpesa/penalty { assessment_id, phone? }
+router.post("/mpesa/penalty", async (req, res) => {
+  try {
+    const a = (
+      await query(`SELECT * FROM penalty_assessments WHERE id = $1 AND member_id = $2`, [
+        req.body?.assessment_id, req.member.id,
+      ])
+    ).rows[0];
+    if (!a) return res.status(404).json({ error: "Penalty not found" });
+    if (a.status !== "outstanding") return res.status(400).json({ error: `Penalty is ${a.status}` });
+    const amount = round2(parseFloat(a.amount) - parseFloat(a.paid_amount));
+    const r = await initiateWelfareSTK({
+      welfare: welfareOf(req), member: req.member, amount,
+      targetType: "penalty_assessment", targetId: a.id,
+      purpose: "welfare_penalty", desc: "Penalty", phone: req.body?.phone,
+    });
+    res.json({ success: true, message: r.message, checkout_request_id: r.checkoutRequestId });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("member pay penalty error:", e);
+    res.status(500).json({ error: "Failed to start payment" });
+  }
+});
+
+// GET /mpesa/transactions — this member's payment attempts (for status polling).
+router.get("/mpesa/transactions", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT id, purpose, target_type, target_id, amount, status, allocated,
+              mpesa_receipt_number, created_at
+         FROM mpesa_transactions
+        WHERE member_id = $1 ORDER BY id DESC LIMIT 50`,
+      [req.member.id],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("member mpesa list error:", e);
+    res.status(500).json({ error: "Failed to load transactions" });
   }
 });
 

@@ -6,8 +6,7 @@ import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
-import * as mpesa from "../services/mpesaService.js";
-import { allocateWelfarePayment } from "../services/welfareMpesaService.js";
+import { allocateWelfarePayment, initiateWelfareSTK } from "../services/welfareMpesaService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -32,38 +31,26 @@ async function member(welfareId, id) {
   return r.rows[0] || null;
 }
 
-// Push an STK and record the pending welfare transaction. Shared by all 3 flows.
+// Push an STK and record the pending welfare transaction. Thin wrapper over the
+// shared initiateWelfareSTK (also used by the member portal); staff initiate, so
+// initiatedByUserId is the acting user.
 async function pushAndRecord(req, res, { m, amount, targetType, targetId, purpose, desc }) {
-  const phone = req.body?.phone || m.phone_number;
-  if (!phone) return res.status(400).json({ error: "No phone number for this member" });
-  if (!(amount > 0)) return res.status(400).json({ error: "Nothing outstanding to pay" });
-
-  let result;
   try {
-    result = await mpesa.initiateSTKPush({
-      phone,
+    const r = await initiateWelfareSTK({
+      welfare: req.welfare,
+      member: m,
       amount,
-      accountReference: (m.member_no || `M${m.id}`).substring(0, 12),
-      transactionDesc: desc,
+      targetType,
+      targetId,
+      purpose,
+      desc,
+      phone: req.body?.phone,
+      initiatedByUserId: req.user.id,
     });
-  } catch (err) {
-    logger.error("welfare STK error:", err.message);
-    return res.status(502).json({ error: err.message || "M-Pesa is not available right now" });
+    res.json({ success: true, message: r.message, checkout_request_id: r.checkoutRequestId });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message || "Failed to start payment" });
   }
-
-  await query(
-    `INSERT INTO mpesa_transactions (
-       tenant_id, purpose, welfare_id, member_id, target_type, target_id,
-       initiated_by_user_id, phone_number, amount, account_reference, transaction_desc,
-       merchant_request_id, checkout_request_id, status, request_payload
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14)`,
-    [
-      req.welfare.tenant_id, purpose, req.welfare.id, m.id, targetType, targetId,
-      req.user.id, result.normalizedPhone, result.amount, (m.member_no || `M${m.id}`), desc,
-      result.merchantRequestId, result.checkoutRequestId, JSON.stringify(result.raw),
-    ],
-  );
-  res.json({ success: true, message: result.customerMessage || "STK sent — enter the M-Pesa PIN", checkout_request_id: result.checkoutRequestId });
 }
 
 // POST /mpesa/contribution { schedule_id, phone? }
