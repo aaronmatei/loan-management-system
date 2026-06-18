@@ -95,7 +95,14 @@ export async function allocateWelfarePayment(tx, cb = {}) {
       if (amt > 0) {
         const newPaid = round2(parseFloat(s.amount_paid) + amt);
         const status = newPaid >= parseFloat(s.amount_due) ? "paid" : "partial";
-        await query(`UPDATE contribution_schedules SET amount_paid=$2, status=$3, updated_at=NOW() WHERE id=$1`, [s.id, newPaid, status]);
+        await query(
+          `UPDATE contribution_schedules
+              SET amount_paid=$2, status=$3,
+                  paid_at = CASE WHEN $4 AND paid_at IS NULL THEN NOW() ELSE paid_at END,
+                  updated_at=NOW()
+            WHERE id=$1`,
+          [s.id, newPaid, status, status === "paid"],
+        );
         await postPool(tx, "contribution", amt, `Contribution via M-Pesa (${tx.mpesa_receipt_number || "STK"})`);
         applied = true;
       }

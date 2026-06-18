@@ -47,6 +47,23 @@ describe("recurring contribution plans", () => {
     expect(again.body.data).toHaveLength(1);
   });
 
+  it("cycle detail reports per-member timeliness (on time vs late by N days)", async () => {
+    const { admin, w } = await welfareSetup(2);
+    const created = await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))
+      .send({ name: "Drive", amount: 500, due_date: "2020-01-10", grace_days: 0 });
+    const cycleId = created.body.data.id;
+    const s0 = (await request(app).get(`/api/welfares/${w.id}/cycles/${cycleId}`).set("Authorization", auth(admin))).body.data.schedules;
+    await request(app).post(`/api/welfares/${w.id}/cycles/${cycleId}/schedules/${s0[0].id}/pay`).set("Authorization", auth(admin)).send({});
+
+    const detail = (await request(app).get(`/api/welfares/${w.id}/cycles/${cycleId}`).set("Authorization", auth(admin))).body.data.schedules;
+    const paid = detail.find((s) => s.id === s0[0].id);
+    const unpaid = detail.find((s) => s.id === s0[1].id);
+    expect(paid.status).toBe("paid");
+    expect(paid.paid_on_time).toBe(false); // due 2020, paid now → late
+    expect(Number(paid.paid_late_days)).toBeGreaterThan(0);
+    expect(Number(unpaid.days_overdue)).toBeGreaterThan(0); // unpaid & overdue
+  });
+
   it("accrues late fines using the cycle's own rule (rule_id null), not a global one", async () => {
     const { t, admin, w } = await welfareSetup(2);
     await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin))

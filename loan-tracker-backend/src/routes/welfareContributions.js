@@ -154,16 +154,27 @@ router.get("/cycles/:cycleId", async (req, res) => {
   try {
     const c = (await query(`SELECT * FROM contribution_cycles WHERE id = $1 AND welfare_id = $2`, [req.params.cycleId, req.welfare.id])).rows[0];
     if (!c) return res.status(404).json({ error: "Cycle not found" });
+    // Grace: the cycle's own, else the welfare default.
+    const settingsGrace = (await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id = $1`, [req.welfare.tenant_id])).rows[0]?.contribution_grace_days || 0;
+    const grace = c.grace_days != null ? c.grace_days : settingsGrace;
+    // days_overdue: how late an UNPAID/partial member is now (0 if within grace
+    // or paid). paid_on_time / paid_late_days: timeliness for those who've paid.
     const schedules = await query(
       `SELECT s.*, m.first_name, m.last_name, m.member_no,
-              GREATEST(s.amount_due - s.amount_paid, 0) AS balance
+              GREATEST(s.amount_due - s.amount_paid, 0) AS balance,
+              CASE WHEN s.status = 'paid' THEN 0
+                   ELSE GREATEST(0, CURRENT_DATE - (s.due_date + ($2 * INTERVAL '1 day'))::date) END AS days_overdue,
+              CASE WHEN s.status = 'paid' AND s.paid_at IS NOT NULL
+                   THEN s.paid_at::date <= (s.due_date + ($2 * INTERVAL '1 day'))::date END AS paid_on_time,
+              CASE WHEN s.status = 'paid' AND s.paid_at IS NOT NULL
+                   THEN GREATEST(0, s.paid_at::date - (s.due_date + ($2 * INTERVAL '1 day'))::date) ELSE 0 END AS paid_late_days
          FROM contribution_schedules s
          JOIN members m ON m.id = s.member_id
         WHERE s.cycle_id = $1
         ORDER BY m.first_name`,
-      [c.id],
+      [c.id, grace],
     );
-    res.json({ success: true, data: { cycle: c, schedules: schedules.rows } });
+    res.json({ success: true, data: { cycle: { ...c, effective_grace: grace }, schedules: schedules.rows } });
   } catch (e) {
     logger.error("cycle get error:", e);
     res.status(500).json({ error: "Failed to load cycle" });
@@ -208,7 +219,14 @@ router.post(
 
       const newPaid = round2(parseFloat(s.amount_paid) + amt);
       const status = newPaid >= parseFloat(s.amount_due) ? "paid" : "partial";
-      await query(`UPDATE contribution_schedules SET amount_paid=$2, status=$3, updated_at=NOW() WHERE id=$1`, [s.id, newPaid, status]);
+      await query(
+        `UPDATE contribution_schedules
+            SET amount_paid=$2, status=$3,
+                paid_at = CASE WHEN $4 AND paid_at IS NULL THEN NOW() ELSE paid_at END,
+                updated_at=NOW()
+          WHERE id=$1`,
+        [s.id, newPaid, status, status === "paid"],
+      );
 
       // Contribution grows the member's savings + the pool.
       const prev = await poolBalance(req.welfare.id);

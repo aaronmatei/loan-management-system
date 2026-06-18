@@ -3556,6 +3556,7 @@ CREATE TABLE public.contribution_schedules (
   amount_paid numeric NOT NULL DEFAULT 0,
   due_date    date NOT NULL,
   status      varchar(20) NOT NULL DEFAULT 'pending',
+  paid_at     timestamp,
   created_at  timestamp NOT NULL DEFAULT NOW(),
   updated_at  timestamp NOT NULL DEFAULT NOW(),
   UNIQUE (cycle_id, member_id)
