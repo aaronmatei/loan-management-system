@@ -27,9 +27,9 @@ async function welfareSetup(n = 2) {
 describe("recurring contribution plans", () => {
   it("setting the plan auto-opens the current month's cycle with its fine rule (idempotent)", async () => {
     const { admin, w } = await welfareSetup(2);
-    const put = await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin))
-      .send({ amount: 1000, due_day: 10, grace_days: 3, fine_calc_type: "fixed", fine_amount: 50 });
-    expect(put.status).toBe(200);
+    const put = await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
+      .send({ name: "Monthly", amount: 1000, due_day: 10, grace_days: 3, fine_calc_type: "fixed", fine_amount: 50 });
+    expect(put.status).toBe(201);
 
     const list = await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin));
     expect(list.body.data).toHaveLength(1);
@@ -49,8 +49,8 @@ describe("recurring contribution plans", () => {
 
   it("year overview returns all 12 months (opened + projected) and a per-member matrix", async () => {
     const { admin, w } = await welfareSetup(3);
-    await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin)).send({ amount: 1000, due_day: 10 });
-    const ov = await request(app).get(`/api/welfares/${w.id}/contributions/overview`).set("Authorization", auth(admin));
+    const p = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", amount: 1000, due_day: 10 })).body.data;
+    const ov = await request(app).get(`/api/welfares/${w.id}/contribution-plans/${p.id}/overview`).set("Authorization", auth(admin));
     expect(ov.status).toBe(200);
     expect(ov.body.data.periods).toHaveLength(12);
     expect(ov.body.data.members).toHaveLength(3);
@@ -60,25 +60,36 @@ describe("recurring contribution plans", () => {
     expect(dec.short).toBe("Dec");
   });
 
-  it("supports other frequencies — quarterly (4 periods) and weekly (~52), switching deactivates the prior plan", async () => {
+  it("runs MULTIPLE named contributions at once — each drills into its own matrix", async () => {
     const { admin, w } = await welfareSetup(2);
-    // Quarterly, due the 5th of the 3rd month.
-    await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin)).send({ frequency: "quarterly", amount: 500, due_day: 5 });
-    let ov = (await request(app).get(`/api/welfares/${w.id}/contributions/overview`).set("Authorization", auth(admin))).body.data;
-    expect(ov.plan.frequency).toBe("quarterly");
-    expect(ov.periods).toHaveLength(4);
-    expect(ov.periods.map((p) => p.short)).toEqual(["Q1", "Q2", "Q3", "Q4"]);
+    const mo = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", frequency: "monthly", amount: 1070, due_day: 10 })).body.data;
+    const qt = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Quarterly", frequency: "quarterly", amount: 10000, due_day: 5 })).body.data;
 
-    // Switch to weekly (Wednesday) — the quarterly plan is deactivated.
-    await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin)).send({ frequency: "weekly", amount: 100, due_day: 3 });
-    ov = (await request(app).get(`/api/welfares/${w.id}/contributions/overview`).set("Authorization", auth(admin))).body.data;
+    // Both stay active — creating one does NOT deactivate the other.
+    const active = (await query(`SELECT name, frequency FROM contribution_plans WHERE welfare_id=$1 AND active=true ORDER BY id`, [w.id])).rows;
+    expect(active).toHaveLength(2);
+
+    const list = (await request(app).get(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))).body.data;
+    expect(list.plans.map((p) => p.name).sort()).toEqual(["Monthly", "Quarterly"]);
+
+    const moOv = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${mo.id}/overview`).set("Authorization", auth(admin))).body.data;
+    expect(moOv.periods).toHaveLength(12);
+    const qtOv = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${qt.id}/overview`).set("Authorization", auth(admin))).body.data;
+    expect(qtOv.periods).toHaveLength(4);
+    expect(qtOv.periods.map((p) => p.short)).toEqual(["Q1", "Q2", "Q3", "Q4"]);
+
+    // A second contribution with the SAME name is rejected.
+    const dup = await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", amount: 500, due_day: 1 });
+    expect(dup.status).toBe(409);
+  });
+
+  it("weekly contribution enumerates ~52 periods", async () => {
+    const { admin, w } = await welfareSetup(2);
+    const p = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Weekly", frequency: "weekly", amount: 100, due_day: 3 })).body.data;
+    const ov = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${p.id}/overview`).set("Authorization", auth(admin))).body.data;
     expect(ov.plan.frequency).toBe("weekly");
     expect(ov.periods.length).toBeGreaterThanOrEqual(51);
     expect(ov.periods[0].short).toMatch(/^W\d+$/);
-    // only one active plan
-    const active = (await query(`SELECT frequency FROM contribution_plans WHERE welfare_id=$1 AND active=true`, [w.id])).rows;
-    expect(active).toHaveLength(1);
-    expect(active[0].frequency).toBe("weekly");
   });
 
   it("cycle detail reports per-member timeliness (on time vs late by N days)", async () => {
@@ -100,8 +111,8 @@ describe("recurring contribution plans", () => {
 
   it("accrues late fines using the cycle's own rule (rule_id null), not a global one", async () => {
     const { t, admin, w } = await welfareSetup(2);
-    await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin))
-      .send({ amount: 1000, due_day: 10, grace_days: 0, fine_calc_type: "fixed", fine_amount: 75 });
+    await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
+      .send({ name: "Monthly", amount: 1000, due_day: 10, grace_days: 0, fine_calc_type: "fixed", fine_amount: 75 });
     const cycle = (await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))).body.data[0];
     // Make it overdue.
     await query(`UPDATE contribution_schedules SET due_date='2020-01-01' WHERE cycle_id=$1`, [cycle.id]);

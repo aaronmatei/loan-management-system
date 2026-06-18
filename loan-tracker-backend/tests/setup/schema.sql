@@ -3521,7 +3521,7 @@ CREATE TABLE public.contribution_plans (
   created_at     timestamp NOT NULL DEFAULT now(),
   updated_at     timestamp NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX uq_contribution_plan ON public.contribution_plans(welfare_id, frequency) WHERE active;
+CREATE UNIQUE INDEX uq_contribution_plan_name ON public.contribution_plans(welfare_id, lower(name)) WHERE active;
 
 CREATE TABLE public.contribution_cycles (
   id           serial PRIMARY KEY,

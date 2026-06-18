@@ -9,7 +9,7 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
-import { getPlan, getActivePlan, upsertPlan, ensureCurrentCycles, periodsForYear } from "../services/contributionPlanService.js";
+import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, ensureCurrentCycle, ensureCurrentCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -37,30 +37,67 @@ async function poolBalance(welfareId) {
   return r.rows.length ? parseFloat(r.rows[0].balance_after) : 0;
 }
 
-// GET/PUT the recurring contribution plan (set the monthly contribution once).
-router.get("/contribution-plan", async (req, res) => {
+// ── named contributions (plans) ────────────────────────────────────────────
+// A welfare runs SEVERAL named contributions at once (e.g. "Monthly" and
+// "Quarterly"). Each is its own plan and auto-opens its own cycles; the list
+// here is what the Contributions tab shows — click one to drill into it.
+const planBody = (b) => ({
+  name: b.name, frequency: b.frequency || "monthly", amount: b.amount, dueDay: b.due_day, dueMonth: b.due_month,
+  graceDays: b.grace_days, fineCalcType: b.fine_calc_type, fineAmount: b.fine_amount, fineRate: b.fine_rate, fineCap: b.fine_cap,
+});
+
+router.get("/contribution-plans", async (req, res) => {
   try {
-    res.json({ success: true, data: await getActivePlan(req.welfare.id) });
+    try { await ensureCurrentCycles(req.welfare); } catch { /* non-fatal */ }
+    const today = new Date().toISOString().slice(0, 10);
+    const plans = await listActivePlans(req.welfare.id);
+    const memberCount = (await query(`SELECT COUNT(*)::int n FROM members WHERE welfare_id=$1 AND status='active'`, [req.welfare.id])).rows[0].n;
+    const rollup = `(SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id)::int member_count,
+        (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id AND s.status='paid')::int paid_count,
+        (SELECT COALESCE(SUM(s.amount_due),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) expected,
+        (SELECT COALESCE(SUM(s.amount_paid),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) collected`;
+    const out = [];
+    for (const p of plans) {
+      const cur = periodFor(p, new Date());
+      const c = (await query(`SELECT c.*, ${rollup} FROM contribution_cycles c WHERE c.plan_id=$1 AND c.period_key=$2 LIMIT 1`, [p.id, cur.period_key])).rows[0];
+      const ytd = (await query(`SELECT COALESCE(SUM(s.amount_paid),0) v FROM contribution_schedules s JOIN contribution_cycles c ON c.id=s.cycle_id WHERE c.plan_id=$1 AND EXTRACT(YEAR FROM c.due_date)=EXTRACT(YEAR FROM CURRENT_DATE)`, [p.id])).rows[0].v;
+      out.push({
+        ...p, ytd_collected: Number(ytd),
+        current: c
+          ? { cycle_id: c.id, name: c.name, due_date: new Date(c.due_date).toISOString().slice(0, 10), status: c.status, member_count: c.member_count, paid_count: c.paid_count, expected: Number(c.expected), collected: Number(c.collected) }
+          : { cycle_id: null, name: cur.name, due_date: cur.due_date, status: cur.due_date > today ? "upcoming" : "unopened", member_count: memberCount, paid_count: 0, expected: Number(p.amount) * memberCount, collected: 0 },
+      });
+    }
+    const oneoffs = (await query(`SELECT c.id, c.name, c.due_date, c.status, ${rollup} FROM contribution_cycles c WHERE c.welfare_id=$1 AND c.plan_id IS NULL ORDER BY c.due_date DESC`, [req.welfare.id]))
+      .rows.map((c) => ({ ...c, due_date: new Date(c.due_date).toISOString().slice(0, 10), expected: Number(c.expected), collected: Number(c.collected) }));
+    res.json({ success: true, data: { plans: out, oneoffs } });
   } catch (e) {
-    logger.error("contribution-plan get error:", e);
-    res.status(500).json({ error: "Failed to load plan" });
+    logger.error("contribution-plans list error:", e);
+    res.status(500).json({ error: "Failed to load contributions" });
   }
 });
-router.put("/contribution-plan", authorize("admin", "manager"), async (req, res) => {
+
+router.post("/contribution-plans", authorize("admin", "manager"), async (req, res) => {
   try {
-    const b = req.body || {};
-    const plan = await upsertPlan({
-      welfare: req.welfare, frequency: b.frequency || "monthly", name: b.name, amount: b.amount,
-      dueDay: b.due_day, dueMonth: b.due_month, graceDays: b.grace_days, fineCalcType: b.fine_calc_type,
-      fineAmount: b.fine_amount, fineRate: b.fine_rate, fineCap: b.fine_cap, active: b.active !== false, userId: req.user.id,
-    });
-    // Open the current period right away so it shows immediately.
-    await ensureCurrentCycles(req.welfare);
+    const plan = await createPlan({ welfare: req.welfare, userId: req.user.id, ...planBody(req.body || {}) });
+    try { await ensureCurrentCycle({ welfare: req.welfare, plan }); } catch { /* non-fatal */ }
+    res.status(201).json({ success: true, data: plan });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("contribution-plan create error:", e);
+    res.status(500).json({ error: "Failed to create contribution" });
+  }
+});
+
+router.put("/contribution-plans/:planId", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const plan = await editPlan({ welfare: req.welfare, planId: req.params.planId, ...planBody(req.body || {}) });
+    try { await ensureCurrentCycle({ welfare: req.welfare, plan }); } catch { /* non-fatal */ }
     res.json({ success: true, data: plan });
   } catch (e) {
     if (e.status) return res.status(e.status).json({ error: e.message });
-    logger.error("contribution-plan save error:", e);
-    res.status(500).json({ error: "Failed to save plan" });
+    logger.error("contribution-plan edit error:", e);
+    res.status(500).json({ error: "Failed to save contribution" });
   }
 });
 
@@ -165,66 +202,66 @@ function cellFor(s, dueStr, grace, today) {
   return { status: paid > 0 ? "partial" : "pending", paid, days_late: overdue };
 }
 
-// GET /contributions/overview?year=YYYY — the whole year (Jan–Dec): each month's
-// cycle if opened, else projected from the plan, PLUS a per-member matrix.
-router.get("/contributions/overview", async (req, res) => {
-  try {
-    try { await ensureCurrentCycles(req.welfare); } catch { /* non-fatal */ }
-    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
-    const today = new Date().toISOString().slice(0, 10);
-    const plan = await getActivePlan(req.welfare.id);
-    const dueDay = Math.min(plan?.due_day || 10, 28);
-    const settingsGrace = (await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id=$1`, [req.welfare.tenant_id])).rows[0]?.contribution_grace_days || 0;
+// Build the year matrix for ONE contribution: each period (this plan's schedule
+// for the year) with its cycle if opened, else projected, PLUS a per-member
+// timeliness matrix aligned to those periods.
+async function buildPlanOverview(welfare, plan, year) {
+  const today = new Date().toISOString().slice(0, 10);
+  const settingsGrace = (await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id=$1`, [welfare.tenant_id])).rows[0]?.contribution_grace_days || 0;
+  const members = (await query(`SELECT id, first_name, last_name, member_no FROM members WHERE welfare_id=$1 AND status='active' ORDER BY first_name, id`, [welfare.id])).rows;
+  const cycles = (await query(`SELECT * FROM contribution_cycles WHERE plan_id=$1 AND EXTRACT(YEAR FROM due_date)=$2 ORDER BY due_date`, [plan.id, year])).rows;
+  const cycleIds = cycles.map((c) => c.id);
+  const schedules = cycleIds.length ? (await query(`SELECT * FROM contribution_schedules WHERE cycle_id = ANY($1::int[])`, [cycleIds])).rows : [];
+  const schedBy = {};
+  for (const s of schedules) schedBy[`${s.cycle_id}:${s.member_id}`] = s;
 
-    const members = (await query(`SELECT id, first_name, last_name, member_no FROM members WHERE welfare_id=$1 AND status='active' ORDER BY first_name, id`, [req.welfare.id])).rows;
-    const cycles = (await query(`SELECT * FROM contribution_cycles WHERE welfare_id=$1 AND EXTRACT(YEAR FROM due_date)=$2 ORDER BY due_date`, [req.welfare.id, year])).rows;
-    const cycleIds = cycles.map((c) => c.id);
-    const schedules = cycleIds.length
-      ? (await query(`SELECT * FROM contribution_schedules WHERE cycle_id = ANY($1::int[])`, [cycleIds])).rows
-      : [];
-    const schedBy = {};
-    for (const s of schedules) schedBy[`${s.cycle_id}:${s.member_id}`] = s;
-    const cyclesById = {};
-    for (const c of cycles) cyclesById[c.id] = c;
+  // This plan's schedule for the year, matched to opened cycles by period_key.
+  const used = new Set();
+  const entries = periodsForYear(plan, year).map((p) => {
+    const c = cycles.find((cc) => cc.period_key === p.period_key);
+    if (c) used.add(c.id);
+    return { p, c };
+  });
+  for (const c of cycles) if (!used.has(c.id)) entries.push({ p: { period_key: c.period_key || `c${c.id}`, due_date: new Date(c.due_date).toISOString().slice(0, 10), name: c.name, short: MONTHS[new Date(c.due_date).getMonth()].slice(0, 3) }, c });
+  entries.sort((a, b) => new Date(a.p.due_date) - new Date(b.p.due_date));
 
-    // The recurring schedule for the year, matched to opened cycles by period_key.
-    // Any cycle not on the schedule (one-offs / a different frequency) is appended.
-    const used = new Set();
-    const entries = periodsForYear(plan, year).map((p) => {
-      const c = cycles.find((cc) => cc.period_key === p.period_key);
-      if (c) used.add(c.id);
-      return { p, c };
-    });
-    for (const c of cycles) if (!used.has(c.id)) entries.push({ p: { period_key: c.period_key || `c${c.id}`, due_date: new Date(c.due_date).toISOString().slice(0, 10), name: c.name, short: MONTHS[new Date(c.due_date).getMonth()].slice(0, 3) }, c });
-    entries.sort((a, b) => new Date(a.p.due_date) - new Date(b.p.due_date));
-
-    const periods = entries.map(({ p, c }) => {
-      if (c) {
-        const cs = schedules.filter((s) => s.cycle_id === c.id);
-        return {
-          key: p.period_key, name: c.name || p.name, short: p.short, due_date: new Date(c.due_date).toISOString().slice(0, 10),
-          cycle_id: c.id, opened: true, status: c.status,
-          expected: cs.reduce((a, s) => a + Number(s.amount_due), 0), collected: cs.reduce((a, s) => a + Number(s.amount_paid), 0),
-          paid_count: cs.filter((s) => s.status === "paid").length, member_count: cs.length,
-        };
-      }
+  const periods = entries.map(({ p, c }) => {
+    if (c) {
+      const cs = schedules.filter((s) => s.cycle_id === c.id);
       return {
-        key: p.period_key, name: p.name, short: p.short, due_date: p.due_date, cycle_id: null, opened: false,
-        status: p.due_date > today ? "upcoming" : "unopened",
-        expected: plan ? Number(plan.amount) * members.length : 0, collected: 0, paid_count: 0, member_count: members.length,
+        key: p.period_key, name: c.name || p.name, short: p.short, due_date: new Date(c.due_date).toISOString().slice(0, 10),
+        cycle_id: c.id, opened: true, status: c.status,
+        expected: cs.reduce((a, s) => a + Number(s.amount_due), 0), collected: cs.reduce((a, s) => a + Number(s.amount_paid), 0),
+        paid_count: cs.filter((s) => s.status === "paid").length, member_count: cs.length,
       };
-    });
+    }
+    return {
+      key: p.period_key, name: p.name, short: p.short, due_date: p.due_date, cycle_id: null, opened: false,
+      status: p.due_date > today ? "upcoming" : "unopened",
+      expected: Number(plan.amount) * members.length, collected: 0, paid_count: 0, member_count: members.length,
+    };
+  });
 
-    const membersOut = members.map((mem) => {
-      const cells = entries.map(({ p, c }) => {
-        const grace = c ? (c.grace_days != null ? c.grace_days : settingsGrace) : (plan?.grace_days ?? settingsGrace);
-        return cellFor(c ? schedBy[`${c.id}:${mem.id}`] : null, p.due_date, grace, today);
-      });
-      return { ...mem, cells, total_paid: cells.reduce((a, cell) => a + (cell.paid || 0), 0) };
+  const membersOut = members.map((mem) => {
+    const cells = entries.map(({ p, c }) => {
+      const grace = c ? (c.grace_days != null ? c.grace_days : settingsGrace) : (plan.grace_days ?? settingsGrace);
+      return cellFor(c ? schedBy[`${c.id}:${mem.id}`] : null, p.due_date, grace, today);
     });
-    res.json({ success: true, data: { year, plan, periods, members: membersOut } });
+    return { ...mem, cells, total_paid: cells.reduce((a, cell) => a + (cell.paid || 0), 0) };
+  });
+  return { year, plan, periods, members: membersOut };
+}
+
+// GET /contribution-plans/:planId/overview?year= — one contribution's year matrix.
+router.get("/contribution-plans/:planId/overview", async (req, res) => {
+  try {
+    const plan = await getPlanById(req.welfare.id, req.params.planId);
+    if (!plan) return res.status(404).json({ error: "Contribution not found" });
+    try { await ensureCurrentCycle({ welfare: req.welfare, plan }); } catch { /* non-fatal */ }
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    res.json({ success: true, data: await buildPlanOverview(req.welfare, plan, year) });
   } catch (e) {
-    logger.error("contributions overview error:", e);
+    logger.error("contribution overview error:", e);
     res.status(500).json({ error: "Failed to load overview" });
   }
 });

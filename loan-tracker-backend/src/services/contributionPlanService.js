@@ -23,37 +23,56 @@ export async function getActivePlan(welfareId) {
 
 const FREQUENCIES = ["weekly", "biweekly", "monthly", "quarterly", "yearly"];
 
-// Create or update the (one active) plan. A welfare runs ONE active plan at a
-// time, so switching frequency deactivates the others.
-export async function upsertPlan({ welfare, frequency = "monthly", name, amount, dueDay, dueMonth, graceDays, fineCalcType, fineAmount, fineRate, fineCap, active = true, userId }) {
+// All active named contributions for a welfare (it runs several at once).
+export async function listActivePlans(welfareId) {
+  return (await query(`SELECT * FROM contribution_plans WHERE welfare_id=$1 AND active=true ORDER BY id`, [welfareId])).rows;
+}
+export async function getPlanById(welfareId, planId) {
+  return (await query(`SELECT * FROM contribution_plans WHERE id=$1 AND welfare_id=$2`, [planId, welfareId])).rows[0] || null;
+}
+
+// Normalise + validate a plan's fields from a form body.
+function planFields({ frequency = "monthly", name, amount, dueDay, dueMonth, graceDays, fineCalcType, fineAmount, fineRate, fineCap }) {
   if (!FREQUENCIES.includes(frequency)) throw httpErr(400, "Unsupported frequency");
   const amt = parseFloat(amount);
   if (!(amt > 0)) throw httpErr(400, "A positive amount is required");
+  const nm = (name || "").trim();
+  if (!nm) throw httpErr(400, "Give the contribution a name");
   // due_day means weekday (1=Mon..7=Sun) for weekly/biweekly, else day-of-month.
   const maxDay = ["weekly", "biweekly"].includes(frequency) ? 7 : 31;
   const day = Math.min(Math.max(parseInt(dueDay, 10) || 1, 1), maxDay);
-  const month = frequency === "yearly" ? Math.min(Math.max(parseInt(dueMonth, 10) || 12, 1), 12) : null;
   const num = (v) => (v === "" || v == null ? null : parseFloat(v));
+  return {
+    name: nm, frequency, amount: amt, due_day: day,
+    due_month: frequency === "yearly" ? Math.min(Math.max(parseInt(dueMonth, 10) || 12, 1), 12) : null,
+    grace_days: parseInt(graceDays, 10) || 0, fine_calc_type: fineCalcType || null,
+    fine_amount: num(fineAmount), fine_rate: num(fineRate), fine_cap: num(fineCap),
+  };
+}
+const dupErr = (name) => httpErr(409, `A contribution named "${name}" already exists`);
 
-  if (active) await query(`UPDATE contribution_plans SET active=false, updated_at=NOW() WHERE welfare_id=$1 AND frequency<>$2 AND active=true`, [welfare.id, frequency]);
-
-  const existing = await getPlan(welfare.id, frequency);
-  const vals = [name || "Contribution", amt, day, month, parseInt(graceDays, 10) || 0, fineCalcType || null, num(fineAmount), num(fineRate), num(fineCap), !!active];
-  if (existing) {
+export async function createPlan({ welfare, userId, ...rest }) {
+  const f = planFields(rest);
+  try {
     const r = await query(
-      `UPDATE contribution_plans
-          SET name=$2, amount=$3, due_day=$4, due_month=$5, grace_days=$6, fine_calc_type=$7, fine_amount=$8, fine_rate=$9, fine_cap=$10, active=$11, updated_at=NOW()
-        WHERE id=$1 RETURNING *`,
-      [existing.id, ...vals],
+      `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, due_month, grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, active, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,$13) RETURNING *`,
+      [welfare.tenant_id, welfare.id, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, f.fine_calc_type, f.fine_amount, f.fine_rate, f.fine_cap, userId || null],
     );
     return r.rows[0];
-  }
-  const r = await query(
-    `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, due_month, grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, active, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-    [welfare.tenant_id, welfare.id, vals[0], frequency, vals[1], vals[2], vals[3], vals[4], vals[5], vals[6], vals[7], vals[8], vals[9], userId || null],
-  );
-  return r.rows[0];
+  } catch (e) { if (e.code === "23505") throw dupErr(f.name); throw e; }
+}
+export async function editPlan({ welfare, planId, ...rest }) {
+  const existing = await getPlanById(welfare.id, planId);
+  if (!existing) throw httpErr(404, "Contribution not found");
+  const f = planFields({ frequency: existing.frequency, ...rest });
+  try {
+    const r = await query(
+      `UPDATE contribution_plans SET name=$2, frequency=$3, amount=$4, due_day=$5, due_month=$6, grace_days=$7, fine_calc_type=$8, fine_amount=$9, fine_rate=$10, fine_cap=$11, updated_at=NOW() WHERE id=$1 RETURNING *`,
+      [planId, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, f.fine_calc_type, f.fine_amount, f.fine_rate, f.fine_cap],
+    );
+    return r.rows[0];
+  } catch (e) { if (e.code === "23505") throw dupErr(f.name); throw e; }
 }
 
 // ── period math, per frequency ─────────────────────────────────────────────

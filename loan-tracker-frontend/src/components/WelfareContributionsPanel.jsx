@@ -15,42 +15,131 @@ const money = (v) =>
   "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
 
-// Welfare contribution cycles: open a period, collect per-member, and assess
-// late penalties. Welfare accounts only.
+const FREQ_LABEL = { weekly: "Weekly", biweekly: "Bi-weekly", monthly: "Monthly", quarterly: "Every 3 months", yearly: "Yearly" };
+
+// Welfare contributions: a list of named contributions (e.g. "Monthly",
+// "Quarterly"), each its own recurring plan. Click one to drill into its
+// per-member activity for the year. Welfare accounts only.
 export default function WelfareContributionsPanel({ welfareId }) {
-  const [data, setData] = useState(null); // { year, plan, months, members }
+  const [list, setList] = useState(null); // { plans, oneoffs }
   const [loading, setLoading] = useState(true);
-  const [creator, setCreator] = useState(null); // 'new' | 'plan' | null
-  const [openCycle, setOpenCycle] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [view, setView] = useState("months"); // 'months' | 'members'
-  const plan = data?.plan;
+  const [creator, setCreator] = useState(null); // { mode:'new' } | { mode:'edit', plan } | null
+  const [selected, setSelected] = useState(null); // a plan to drill into
+  const [openCycle, setOpenCycle] = useState(null); // a one-off cycle to view
 
   const load = async () => {
     setLoading(true);
-    try {
-      const r = await api.get(`/welfares/${welfareId}/contributions/overview?year=${year}`);
-      setData(r.data.data);
-    } catch {
-      /* non-fatal */
-    } finally {
-      setLoading(false);
-    }
+    try { const r = await api.get(`/welfares/${welfareId}/contribution-plans`); setList(r.data.data); }
+    catch { /* non-fatal */ } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [welfareId, year]);
+  useEffect(() => { load(); }, [welfareId]);
+
+  if (selected) return <ContributionDetail welfareId={welfareId} plan={selected} onBack={() => { setSelected(null); load(); }} />;
+
+  const plans = list?.plans || [];
+  const oneoffs = list?.oneoffs || [];
+  const empty = !loading && plans.length === 0 && oneoffs.length === 0;
+
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
+      <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
+        <h2 className="font-bold text-slate-900 flex items-center gap-2">
+          <CalendarClock size={18} className="text-sky-600" /> Contributions
+        </h2>
+        <PermissionGate role={["admin", "manager"]}>
+          <button onClick={() => setCreator({ mode: "new" })} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
+            <Plus size={15} /> New contribution
+          </button>
+        </PermissionGate>
+      </div>
+
+      <div className="p-5 space-y-3">
+        {loading ? <p className="text-sm text-slate-500">Loading…</p> : empty ? (
+          <div className="text-center py-8 text-slate-500 text-sm">
+            No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span> or <span className="font-semibold">“Quarterly”</span>.
+          </div>
+        ) : (
+          <>
+            {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
+            {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date })} />)}
+          </>
+        )}
+      </div>
+
+      {creator && (
+        <ContributionModal welfareId={welfareId} plan={creator.plan} mode={creator.mode}
+          onClose={() => setCreator(null)} onSaved={() => { setCreator(null); load(); }} />
+      )}
+      {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} onClose={() => setOpenCycle(null)} onChange={load} />}
+    </div>
+  );
+}
+
+// One named contribution in the list — its current period at a glance.
+function PlanRow({ plan, onClick }) {
+  const c = plan.current || {};
+  const done = c.member_count > 0 && c.paid_count >= c.member_count;
+  return (
+    <button onClick={onClick} className="w-full text-left flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 transition">
+      <div className="h-10 w-10 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0"><Repeat size={18} /></div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-900 truncate">{plan.name}</span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{FREQ_LABEL[plan.frequency] || plan.frequency}</span>
+        </div>
+        <p className="text-xs text-slate-500 mt-0.5">{money(plan.amount)} per member · this year collected {money(plan.ytd_collected)}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className={`text-sm font-bold ${done ? "text-emerald-700" : "text-slate-800"}`}>{c.paid_count ?? 0}/{c.member_count ?? 0} paid</p>
+        <p className="text-xs text-slate-500">{money(c.collected)} · due {fmt(c.due_date)}</p>
+      </div>
+      <ChevronRight size={18} className="text-slate-300 shrink-0" />
+    </button>
+  );
+}
+
+function OneoffRow({ cycle, onClick }) {
+  return (
+    <button onClick={onClick} className="w-full text-left flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 transition">
+      <div className="h-10 w-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0"><Coins size={18} /></div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-900 truncate">{cycle.name}</span>
+          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">One-off</span>
+        </div>
+        <p className="text-xs text-slate-500 mt-0.5">due {fmt(cycle.due_date)}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-sm font-bold text-slate-800">{cycle.paid_count}/{cycle.member_count} paid</p>
+        <p className="text-xs text-slate-500">{money(cycle.collected)}</p>
+      </div>
+      <ChevronRight size={18} className="text-slate-300 shrink-0" />
+    </button>
+  );
+}
+
+// One contribution's year matrix: by-month or by-member, with edit / assess-late.
+function ContributionDetail({ welfareId, plan: initialPlan, onBack }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [view, setView] = useState("months");
+  const [openCycle, setOpenCycle] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const plan = data?.plan || initialPlan;
+
+  const load = async () => {
+    setLoading(true);
+    try { const r = await api.get(`/welfares/${welfareId}/contribution-plans/${initialPlan.id}/overview?year=${year}`); setData(r.data.data); }
+    catch { /* non-fatal */ } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const assessLate = async () => {
     setBusy(true);
-    try {
-      const r = await api.post(`/welfares/${welfareId}/cycles/0/assess-late`, {});
-      alert(`${r.data.assessed} new late-contribution penalt${r.data.assessed === 1 ? "y" : "ies"} assessed.`);
-      load();
-    } catch (e) {
-      alert(e.response?.data?.error || "Failed");
-    } finally {
-      setBusy(false);
-    }
+    try { const r = await api.post(`/welfares/${welfareId}/cycles/0/assess-late`, {}); alert(`${r.data.assessed} new late-contribution penalt${r.data.assessed === 1 ? "y" : "ies"} assessed.`); load(); }
+    catch (e) { alert(e.response?.data?.error || "Failed"); } finally { setBusy(false); }
   };
   const close = async (cycleId, name) => {
     if (!confirm(`Close ${name}?`)) return;
@@ -62,26 +151,22 @@ export default function WelfareContributionsPanel({ welfareId }) {
   return (
     <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2">
-          <CalendarClock size={18} className="text-sky-600" /> Contributions
-        </h2>
+        <button onClick={onBack} className="text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ChevronLeft size={16} /> All contributions</button>
         <PermissionGate role={["admin", "manager"]}>
           <div className="flex gap-2">
-            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">
-              Assess late
-            </button>
-            <button onClick={() => setCreator("new")} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
-              <Plus size={15} /> New contribution
-            </button>
+            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+            <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg">Edit</button>
           </div>
         </PermissionGate>
       </div>
 
-      {plan && (
-        <button onClick={() => setCreator("plan")} className="w-full text-left px-5 py-2 bg-sky-50/60 border-b border-sky-100 text-xs text-slate-600 hover:bg-sky-100/60">
-          <Repeat size={12} className="inline mr-1 text-sky-600" /> {planSummary(plan)} · {fineSummary(plan)} <span className="text-sky-600 font-semibold">· edit</span>
-        </button>
-      )}
+      <div className="px-5 py-3 border-b border-sky-100">
+        <h2 className="font-bold text-slate-900 text-lg flex items-center gap-2">{plan.name}
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{FREQ_LABEL[plan.frequency] || plan.frequency}</span>
+        </h2>
+        <p className="text-xs text-slate-500 mt-0.5"><Repeat size={12} className="inline mr-1 text-sky-600" />{planSummary(plan)} · {fineSummary(plan)}</p>
+      </div>
+
       <div className="px-5 pt-3 flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
           <button onClick={() => setYear((y) => y - 1)} className="p-1 text-slate-500 hover:text-slate-800"><ChevronLeft size={16} /></button>
@@ -89,7 +174,7 @@ export default function WelfareContributionsPanel({ welfareId }) {
           <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30"><ChevronRight size={16} /></button>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setView("months")} className={tabCls(view === "months")}>By month</button>
+          <button onClick={() => setView("months")} className={tabCls(view === "months")}>By period</button>
           <button onClick={() => setView("members")} className={tabCls(view === "members")}>By member</button>
         </div>
       </div>
@@ -102,14 +187,9 @@ export default function WelfareContributionsPanel({ welfareId }) {
         )}
       </div>
 
-      {creator && (
-        <ContributionModal
-          welfareId={welfareId}
-          plan={plan}
-          mode={creator}
-          onClose={() => setCreator(null)}
-          onSaved={() => { setCreator(null); load(); }}
-        />
+      {editing && (
+        <ContributionModal welfareId={welfareId} plan={plan} mode="edit"
+          onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load(); }} />
       )}
       {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} onClose={() => setOpenCycle(null)} onChange={load} />}
     </div>
@@ -252,9 +332,11 @@ const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "Ju
 function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
   const today = new Date().toISOString().slice(0, 10);
   const isWeek = (f) => f === "weekly" || f === "biweekly";
+  const editing = mode === "edit";
+  const freqOptions = editing ? FREQS.filter((f) => f.value !== "oneoff") : FREQS;
   const [freq, setFreq] = useState(plan?.frequency || "monthly");
   const [form, setForm] = useState({
-    name: "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? (isWeek(plan?.frequency) ? 1 : 10),
+    name: plan?.name ?? "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? (isWeek(plan?.frequency) ? 1 : 10),
     due_month: plan?.due_month ?? 12, due_date: "",
     grace_days: plan?.grace_days ?? 0, fine_calc_type: plan?.fine_calc_type ?? "",
     fine_amount: plan?.fine_amount ?? "", fine_rate: plan?.fine_rate ?? "", fine_cap: plan?.fine_cap ?? "",
@@ -273,6 +355,7 @@ function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if (recurring && !form.name.trim()) return setError("Give the contribution a name.");
     if (!(parseFloat(form.amount) > 0)) return setError("Enter the contribution amount.");
     if (!recurring && !form.due_date) return setError("Pick a due date.");
     if (recurring && !isWeek(freq)) { const d = parseInt(form.due_day, 10); if (!(d >= 1 && d <= 28)) return setError("Due day must be between 1 and 28."); }
@@ -281,7 +364,10 @@ function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
     setBusy(true);
     try {
       if (recurring) {
-        const r = await api.put(`/welfares/${welfareId}/contribution-plan`, { ...form, frequency: freq });
+        const payload = { ...form, frequency: freq };
+        const r = editing
+          ? await api.put(`/welfares/${welfareId}/contribution-plans/${plan.id}`, payload)
+          : await api.post(`/welfares/${welfareId}/contribution-plans`, payload);
         onSaved({ plan: r.data.data });
       } else {
         const r = await api.post(`/welfares/${welfareId}/cycles`, { ...form, name: form.name || undefined });
@@ -302,15 +388,17 @@ function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
   }[freq];
 
   return (
-    <Shell title={mode === "plan" ? "Contribution plan" : "New contribution"} onClose={onClose}>
+    <Shell title={editing ? "Edit contribution" : "New contribution"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
-        <div><label className={lbl}>Frequency *</label>
-          <select value={freq} onChange={(e) => changeFreq(e.target.value)} className={fld}>
-            {FREQS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-          </select>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Name {recurring && "*"}</label><input value={form.name} onChange={set("name")} placeholder="e.g. Monthly, Quarterly" className={fld} /></div>
+          <div><label className={lbl}>Frequency *</label>
+            <select value={freq} onChange={(e) => changeFreq(e.target.value)} className={fld}>
+              {freqOptions.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
+          </div>
         </div>
-        {!recurring && <div><label className={lbl}>Name</label><input value={form.name} onChange={set("name")} placeholder="e.g. Building fund" className={fld} /></div>}
         <div className="grid grid-cols-2 gap-3">
           <div><label className={lbl}>Amount per member *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} /></div>
           {!recurring ? (
