@@ -9,7 +9,7 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
-import { getPlan, upsertPlan, ensureCurrentCycles } from "../services/contributionPlanService.js";
+import { getPlan, getActivePlan, upsertPlan, ensureCurrentCycles, periodsForYear } from "../services/contributionPlanService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -40,7 +40,7 @@ async function poolBalance(welfareId) {
 // GET/PUT the recurring contribution plan (set the monthly contribution once).
 router.get("/contribution-plan", async (req, res) => {
   try {
-    res.json({ success: true, data: await getPlan(req.welfare.id) });
+    res.json({ success: true, data: await getActivePlan(req.welfare.id) });
   } catch (e) {
     logger.error("contribution-plan get error:", e);
     res.status(500).json({ error: "Failed to load plan" });
@@ -50,9 +50,9 @@ router.put("/contribution-plan", authorize("admin", "manager"), async (req, res)
   try {
     const b = req.body || {};
     const plan = await upsertPlan({
-      welfare: req.welfare, name: b.name, amount: b.amount, dueDay: b.due_day,
-      graceDays: b.grace_days, fineCalcType: b.fine_calc_type, fineAmount: b.fine_amount,
-      fineRate: b.fine_rate, fineCap: b.fine_cap, active: b.active !== false, userId: req.user.id,
+      welfare: req.welfare, frequency: b.frequency || "monthly", name: b.name, amount: b.amount,
+      dueDay: b.due_day, dueMonth: b.due_month, graceDays: b.grace_days, fineCalcType: b.fine_calc_type,
+      fineAmount: b.fine_amount, fineRate: b.fine_rate, fineCap: b.fine_cap, active: b.active !== false, userId: req.user.id,
     });
     // Open the current period right away so it shows immediately.
     await ensureCurrentCycles(req.welfare);
@@ -172,7 +172,7 @@ router.get("/contributions/overview", async (req, res) => {
     try { await ensureCurrentCycles(req.welfare); } catch { /* non-fatal */ }
     const year = parseInt(req.query.year, 10) || new Date().getFullYear();
     const today = new Date().toISOString().slice(0, 10);
-    const plan = await getPlan(req.welfare.id);
+    const plan = await getActivePlan(req.welfare.id);
     const dueDay = Math.min(plan?.due_day || 10, 28);
     const settingsGrace = (await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id=$1`, [req.welfare.tenant_id])).rows[0]?.contribution_grace_days || 0;
 
@@ -182,42 +182,47 @@ router.get("/contributions/overview", async (req, res) => {
     const schedules = cycleIds.length
       ? (await query(`SELECT * FROM contribution_schedules WHERE cycle_id = ANY($1::int[])`, [cycleIds])).rows
       : [];
-
-    const cycleByMonth = {};
-    for (const c of cycles) cycleByMonth[new Date(c.due_date).getMonth() + 1] = c;
     const schedBy = {};
     for (const s of schedules) schedBy[`${s.cycle_id}:${s.member_id}`] = s;
+    const cyclesById = {};
+    for (const c of cycles) cyclesById[c.id] = c;
 
-    const months = [];
-    const matrix = {}; // member_id -> { month -> cell }
-    for (const mem of members) matrix[mem.id] = {};
-    for (let m = 1; m <= 12; m++) {
-      const c = cycleByMonth[m];
-      const due = c ? new Date(c.due_date).toISOString().slice(0, 10) : `${year}-${pad2(m)}-${pad2(dueDay)}`;
-      const grace = c ? (c.grace_days != null ? c.grace_days : settingsGrace) : (plan?.grace_days ?? settingsGrace);
+    // The recurring schedule for the year, matched to opened cycles by period_key.
+    // Any cycle not on the schedule (one-offs / a different frequency) is appended.
+    const used = new Set();
+    const entries = periodsForYear(plan, year).map((p) => {
+      const c = cycles.find((cc) => cc.period_key === p.period_key);
+      if (c) used.add(c.id);
+      return { p, c };
+    });
+    for (const c of cycles) if (!used.has(c.id)) entries.push({ p: { period_key: c.period_key || `c${c.id}`, due_date: new Date(c.due_date).toISOString().slice(0, 10), name: c.name, short: MONTHS[new Date(c.due_date).getMonth()].slice(0, 3) }, c });
+    entries.sort((a, b) => new Date(a.p.due_date) - new Date(b.p.due_date));
+
+    const periods = entries.map(({ p, c }) => {
       if (c) {
         const cs = schedules.filter((s) => s.cycle_id === c.id);
-        months.push({
-          month: m, name: MONTHS[m - 1], due_date: due, cycle_id: c.id, opened: true, label: c.name, status: c.status,
-          expected: cs.reduce((a, s) => a + Number(s.amount_due), 0),
-          collected: cs.reduce((a, s) => a + Number(s.amount_paid), 0),
+        return {
+          key: p.period_key, name: c.name || p.name, short: p.short, due_date: new Date(c.due_date).toISOString().slice(0, 10),
+          cycle_id: c.id, opened: true, status: c.status,
+          expected: cs.reduce((a, s) => a + Number(s.amount_due), 0), collected: cs.reduce((a, s) => a + Number(s.amount_paid), 0),
           paid_count: cs.filter((s) => s.status === "paid").length, member_count: cs.length,
-        });
-      } else {
-        months.push({
-          month: m, name: MONTHS[m - 1], due_date: due, cycle_id: null, opened: false,
-          status: due > today ? "upcoming" : "unopened",
-          expected: plan ? Number(plan.amount) * members.length : 0, collected: 0, paid_count: 0, member_count: members.length,
-        });
+        };
       }
-      for (const mem of members) matrix[mem.id][m] = cellFor(c ? schedBy[`${c.id}:${mem.id}`] : null, due, grace, today);
-    }
-    const membersOut = members.map((mem) => ({
-      ...mem,
-      total_paid: Object.values(matrix[mem.id]).reduce((a, cell) => a + (cell.paid || 0), 0),
-      months: matrix[mem.id],
-    }));
-    res.json({ success: true, data: { year, plan, months, members: membersOut } });
+      return {
+        key: p.period_key, name: p.name, short: p.short, due_date: p.due_date, cycle_id: null, opened: false,
+        status: p.due_date > today ? "upcoming" : "unopened",
+        expected: plan ? Number(plan.amount) * members.length : 0, collected: 0, paid_count: 0, member_count: members.length,
+      };
+    });
+
+    const membersOut = members.map((mem) => {
+      const cells = entries.map(({ p, c }) => {
+        const grace = c ? (c.grace_days != null ? c.grace_days : settingsGrace) : (plan?.grace_days ?? settingsGrace);
+        return cellFor(c ? schedBy[`${c.id}:${mem.id}`] : null, p.due_date, grace, today);
+      });
+      return { ...mem, cells, total_paid: cells.reduce((a, cell) => a + (cell.paid || 0), 0) };
+    });
+    res.json({ success: true, data: { year, plan, periods, members: membersOut } });
   } catch (e) {
     logger.error("contributions overview error:", e);
     res.status(500).json({ error: "Failed to load overview" });

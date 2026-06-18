@@ -15,50 +15,113 @@ export async function getPlan(welfareId, frequency = "monthly") {
   return r.rows[0] || null;
 }
 
-// Create or update the (one active) plan for a welfare + frequency.
-export async function upsertPlan({ welfare, frequency = "monthly", name, amount, dueDay, graceDays, fineCalcType, fineAmount, fineRate, fineCap, active = true, userId }) {
+// The welfare's single active plan, whatever its frequency.
+export async function getActivePlan(welfareId) {
+  const r = await query(`SELECT * FROM contribution_plans WHERE welfare_id = $1 AND active = true ORDER BY id DESC LIMIT 1`, [welfareId]);
+  return r.rows[0] || null;
+}
+
+const FREQUENCIES = ["weekly", "biweekly", "monthly", "quarterly", "yearly"];
+
+// Create or update the (one active) plan. A welfare runs ONE active plan at a
+// time, so switching frequency deactivates the others.
+export async function upsertPlan({ welfare, frequency = "monthly", name, amount, dueDay, dueMonth, graceDays, fineCalcType, fineAmount, fineRate, fineCap, active = true, userId }) {
+  if (!FREQUENCIES.includes(frequency)) throw httpErr(400, "Unsupported frequency");
   const amt = parseFloat(amount);
   if (!(amt > 0)) throw httpErr(400, "A positive amount is required");
-  const day = Math.min(Math.max(parseInt(dueDay, 10) || 1, 1), 31);
+  // due_day means weekday (1=Mon..7=Sun) for weekly/biweekly, else day-of-month.
+  const maxDay = ["weekly", "biweekly"].includes(frequency) ? 7 : 31;
+  const day = Math.min(Math.max(parseInt(dueDay, 10) || 1, 1), maxDay);
+  const month = frequency === "yearly" ? Math.min(Math.max(parseInt(dueMonth, 10) || 12, 1), 12) : null;
   const num = (v) => (v === "" || v == null ? null : parseFloat(v));
+
+  if (active) await query(`UPDATE contribution_plans SET active=false, updated_at=NOW() WHERE welfare_id=$1 AND frequency<>$2 AND active=true`, [welfare.id, frequency]);
+
   const existing = await getPlan(welfare.id, frequency);
-  const vals = [name || "Monthly contribution", amt, day, parseInt(graceDays, 10) || 0, fineCalcType || null, num(fineAmount), num(fineRate), num(fineCap), !!active];
+  const vals = [name || "Contribution", amt, day, month, parseInt(graceDays, 10) || 0, fineCalcType || null, num(fineAmount), num(fineRate), num(fineCap), !!active];
   if (existing) {
     const r = await query(
       `UPDATE contribution_plans
-          SET name=$2, amount=$3, due_day=$4, grace_days=$5, fine_calc_type=$6, fine_amount=$7, fine_rate=$8, fine_cap=$9, active=$10, updated_at=NOW()
+          SET name=$2, amount=$3, due_day=$4, due_month=$5, grace_days=$6, fine_calc_type=$7, fine_amount=$8, fine_rate=$9, fine_cap=$10, active=$11, updated_at=NOW()
         WHERE id=$1 RETURNING *`,
       [existing.id, ...vals],
     );
     return r.rows[0];
   }
   const r = await query(
-    `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, active, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-    [welfare.tenant_id, welfare.id, vals[0], frequency, vals[1], vals[2], vals[3], vals[4], vals[5], vals[6], vals[7], vals[8], userId || null],
+    `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, due_month, grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, active, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+    [welfare.tenant_id, welfare.id, vals[0], frequency, vals[1], vals[2], vals[3], vals[4], vals[5], vals[6], vals[7], vals[8], vals[9], userId || null],
   );
   return r.rows[0];
 }
 
-// The plan's current period (monthly) relative to `ref`.
+// ── period math, per frequency ─────────────────────────────────────────────
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const addDays = (b, n) => new Date(b.getFullYear(), b.getMonth(), b.getDate() + n);
+const dim = (y, m0) => new Date(y, m0 + 1, 0).getDate();
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const mondayOf = (d) => addDays(d, -((d.getDay() + 6) % 7)); // Monday-start week
+const anchorMonday = (y) => mondayOf(new Date(y, 0, 4)); // Monday of ISO week 1
+const weekIndex = (d, y) => Math.round((mondayOf(d) - anchorMonday(y)) / (7 * 86400000));
+
 function monthlyPeriod(plan, ref) {
+  const y = ref.getFullYear(), m = ref.getMonth();
+  const day = Math.min(plan.due_day || 10, dim(y, m));
+  return { period_key: `${y}-${pad(m + 1)}`, period_start: `${y}-${pad(m + 1)}-01`, due_date: `${y}-${pad(m + 1)}-${pad(day)}`, name: `${MONTHS[m]} ${y}`, short: MONTH_ABBR[m] };
+}
+function quarterlyPeriod(plan, ref) {
+  const y = ref.getFullYear(), q = Math.floor(ref.getMonth() / 3), m3 = q * 3 + 2;
+  const day = Math.min(plan.due_day || 10, dim(y, m3));
+  return { period_key: `${y}-Q${q + 1}`, period_start: `${y}-${pad(q * 3 + 1)}-01`, due_date: `${y}-${pad(m3 + 1)}-${pad(day)}`, name: `Q${q + 1} ${y}`, short: `Q${q + 1}` };
+}
+function yearlyPeriod(plan, ref) {
+  const y = ref.getFullYear(), m = (plan.due_month || 12) - 1;
+  const day = Math.min(plan.due_day || 1, dim(y, m));
+  return { period_key: `${y}-Y`, period_start: `${y}-01-01`, due_date: `${y}-${pad(m + 1)}-${pad(day)}`, name: `${y}`, short: `${y}` };
+}
+function weeklyPeriod(plan, ref) {
   const y = ref.getFullYear();
-  const m = ref.getMonth(); // 0-based
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const day = Math.min(plan.due_day || 10, daysInMonth);
-  const mm = String(m + 1).padStart(2, "0");
-  return {
-    period_key: `${y}-${mm}`,
-    period_start: `${y}-${mm}-01`,
-    due_date: `${y}-${mm}-${String(day).padStart(2, "0")}`,
-    name: `${MONTHS[m]} ${y}`,
-  };
+  const wi = weekIndex(ref, y);
+  const due = addDays(mondayOf(ref), (plan.due_day || 1) - 1); // 1=Mon..7=Sun
+  return { period_key: `${y}-W${pad(wi + 1)}`, period_start: ymd(mondayOf(ref)), due_date: ymd(due), name: `Week ${wi + 1}, ${y}`, short: `W${wi + 1}` };
+}
+function biweeklyPeriod(plan, ref) {
+  const y = ref.getFullYear();
+  const block = Math.floor(weekIndex(ref, y) / 2);
+  const due = addDays(anchorMonday(y), (block * 2 + 1) * 7 + (plan.due_day || 1) - 1); // 2nd week's weekday
+  return { period_key: `${y}-B${pad(block + 1)}`, period_start: ymd(addDays(anchorMonday(y), block * 2 * 7)), due_date: ymd(due), name: `Period ${block + 1}, ${y}`, short: `P${block + 1}` };
+}
+export function periodFor(plan, ref) {
+  if (!plan) return monthlyPeriod({ due_day: 1 }, ref);
+  switch (plan.frequency) {
+    case "weekly": return weeklyPeriod(plan, ref);
+    case "biweekly": return biweeklyPeriod(plan, ref);
+    case "quarterly": return quarterlyPeriod(plan, ref);
+    case "yearly": return yearlyPeriod(plan, ref);
+    default: return monthlyPeriod(plan, ref);
+  }
+}
+
+// Enumerate the periods of `year` for the overview, in order.
+export function periodsForYear(plan, year) {
+  const f = plan?.frequency || "monthly";
+  if (f === "monthly" || !plan) { const p = plan || { due_day: 1 }; return Array.from({ length: 12 }, (_, m) => monthlyPeriod(p, new Date(year, m, 15))); }
+  if (f === "quarterly") return Array.from({ length: 4 }, (_, q) => quarterlyPeriod(plan, new Date(year, q * 3 + 1, 15)));
+  if (f === "yearly") return [yearlyPeriod(plan, new Date(year, 5, 15))];
+  const out = [], seen = new Set();
+  for (let d = new Date(year, 0, 1); d <= new Date(year, 11, 31); d = addDays(d, f === "weekly" ? 7 : 14)) {
+    const p = periodFor(plan, d);
+    if (!seen.has(p.period_key) && new Date(p.due_date).getFullYear() === year) { seen.add(p.period_key); out.push(p); }
+  }
+  return out;
 }
 
 // Ensure the plan's current-period cycle exists (idempotent). Returns it.
 export async function ensureCurrentCycle({ welfare, plan, ref = new Date() }) {
-  if (!plan || !plan.active || plan.frequency !== "monthly") return null;
-  const p = monthlyPeriod(plan, ref);
+  if (!plan || !plan.active) return null;
+  const p = periodFor(plan, ref);
   const find = async () =>
     (await query(`SELECT * FROM contribution_cycles WHERE plan_id=$1 AND period_key=$2`, [plan.id, p.period_key])).rows[0];
 
@@ -72,8 +135,8 @@ export async function ensureCurrentCycle({ welfare, plan, ref = new Date() }) {
         `INSERT INTO contribution_cycles
            (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, category, plan_id, period_key,
             grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, created_by)
-         VALUES ($1,$2,$3,'monthly',$4,$5::date,$6::date,'savings',$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-        [welfare.tenant_id, welfare.id, p.name, plan.amount, p.period_start, p.due_date, plan.id, p.period_key,
+         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,'savings',$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+        [welfare.tenant_id, welfare.id, p.name, plan.frequency, plan.amount, p.period_start, p.due_date, plan.id, p.period_key,
           plan.grace_days, plan.fine_calc_type, plan.fine_amount, plan.fine_rate, plan.fine_cap, plan.created_by || null],
       )
     ).rows[0];

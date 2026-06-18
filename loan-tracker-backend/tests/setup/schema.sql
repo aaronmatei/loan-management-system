@@ -3510,6 +3510,7 @@ CREATE TABLE public.contribution_plans (
   frequency      varchar(20) NOT NULL DEFAULT 'monthly',
   amount         numeric NOT NULL,
   due_day        integer NOT NULL DEFAULT 10,
+  due_month      integer,
   grace_days     integer NOT NULL DEFAULT 0,
   fine_calc_type varchar(20),
   fine_amount    numeric,
@@ -3538,7 +3539,7 @@ CREATE TABLE public.contribution_cycles (
   updated_at   timestamp NOT NULL DEFAULT NOW(),
   category     varchar(20) NOT NULL DEFAULT 'savings', -- migration 078 (savings credits equity)
   plan_id        integer REFERENCES public.contribution_plans(id) ON DELETE SET NULL, -- migration 081
-  period_key     varchar(7),
+  period_key     varchar(16),
   grace_days     integer,
   fine_calc_type varchar(20),
   fine_amount    numeric,

@@ -52,12 +52,33 @@ describe("recurring contribution plans", () => {
     await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin)).send({ amount: 1000, due_day: 10 });
     const ov = await request(app).get(`/api/welfares/${w.id}/contributions/overview`).set("Authorization", auth(admin));
     expect(ov.status).toBe(200);
-    expect(ov.body.data.months).toHaveLength(12);
+    expect(ov.body.data.periods).toHaveLength(12);
     expect(ov.body.data.members).toHaveLength(3);
-    expect(Object.keys(ov.body.data.members[0].months)).toHaveLength(12);
-    // December (future or current) is projected with the plan's expected total.
-    const dec = ov.body.data.months[11];
+    expect(ov.body.data.members[0].cells).toHaveLength(12);
+    const dec = ov.body.data.periods[11]; // projected with the plan's expected total
     expect(Number(dec.expected)).toBe(3000); // 1000 × 3 members
+    expect(dec.short).toBe("Dec");
+  });
+
+  it("supports other frequencies — quarterly (4 periods) and weekly (~52), switching deactivates the prior plan", async () => {
+    const { admin, w } = await welfareSetup(2);
+    // Quarterly, due the 5th of the 3rd month.
+    await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin)).send({ frequency: "quarterly", amount: 500, due_day: 5 });
+    let ov = (await request(app).get(`/api/welfares/${w.id}/contributions/overview`).set("Authorization", auth(admin))).body.data;
+    expect(ov.plan.frequency).toBe("quarterly");
+    expect(ov.periods).toHaveLength(4);
+    expect(ov.periods.map((p) => p.short)).toEqual(["Q1", "Q2", "Q3", "Q4"]);
+
+    // Switch to weekly (Wednesday) — the quarterly plan is deactivated.
+    await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin)).send({ frequency: "weekly", amount: 100, due_day: 3 });
+    ov = (await request(app).get(`/api/welfares/${w.id}/contributions/overview`).set("Authorization", auth(admin))).body.data;
+    expect(ov.plan.frequency).toBe("weekly");
+    expect(ov.periods.length).toBeGreaterThanOrEqual(51);
+    expect(ov.periods[0].short).toMatch(/^W\d+$/);
+    // only one active plan
+    const active = (await query(`SELECT frequency FROM contribution_plans WHERE welfare_id=$1 AND active=true`, [w.id])).rows;
+    expect(active).toHaveLength(1);
+    expect(active[0].frequency).toBe("weekly");
   });
 
   it("cycle detail reports per-member timeliness (on time vs late by N days)", async () => {

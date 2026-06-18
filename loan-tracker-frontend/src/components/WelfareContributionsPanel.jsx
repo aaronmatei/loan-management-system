@@ -79,7 +79,7 @@ export default function WelfareContributionsPanel({ welfareId }) {
 
       {plan && (
         <button onClick={() => setCreator("plan")} className="w-full text-left px-5 py-2 bg-sky-50/60 border-b border-sky-100 text-xs text-slate-600 hover:bg-sky-100/60">
-          <Repeat size={12} className="inline mr-1 text-sky-600" /> Auto-opens monthly: <strong>{money(plan.amount)}</strong> due the {ordinal(plan.due_day)} · {fineSummary(plan)} <span className="text-sky-600 font-semibold">· edit</span>
+          <Repeat size={12} className="inline mr-1 text-sky-600" /> {planSummary(plan)} · {fineSummary(plan)} <span className="text-sky-600 font-semibold">· edit</span>
         </button>
       )}
       <div className="px-5 pt-3 flex items-center justify-between text-sm">
@@ -96,7 +96,7 @@ export default function WelfareContributionsPanel({ welfareId }) {
 
       <div className="p-5">
         {loading || !data ? <p className="text-sm text-slate-500">Loading…</p> : view === "months" ? (
-          <MonthsTable months={data.months} year={year} onOpen={(m) => setOpenCycle({ id: m.cycle_id, name: m.label || `${m.name} ${year}`, due_date: m.due_date })} onClose={close} />
+          <MonthsTable periods={data.periods} onOpen={(p) => setOpenCycle({ id: p.cycle_id, name: p.name, due_date: p.due_date })} onClose={close} />
         ) : (
           <MembersGrid data={data} />
         )}
@@ -117,13 +117,13 @@ export default function WelfareContributionsPanel({ welfareId }) {
 }
 
 const MONTH_STATUS = { open: "bg-emerald-100 text-emerald-800", closed: "bg-slate-200 text-slate-700", upcoming: "bg-sky-100 text-sky-700", unopened: "bg-slate-100 text-slate-500" };
-function MonthsTable({ months, onOpen, onClose }) {
+function MonthsTable({ periods, onOpen, onClose }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
           <tr>
-            <th className="text-left px-4 py-2">Month</th>
+            <th className="text-left px-4 py-2">Period</th>
             <th className="text-left px-4 py-2">Due</th>
             <th className="text-right px-4 py-2">Collected / Expected</th>
             <th className="text-right px-4 py-2">Paid</th>
@@ -132,9 +132,9 @@ function MonthsTable({ months, onOpen, onClose }) {
           </tr>
         </thead>
         <tbody>
-          {months.map((m) => (
-            <tr key={m.month} className={`border-t border-slate-100 ${m.opened ? "hover:bg-sky-50/50 cursor-pointer" : "opacity-70"}`} onClick={() => m.opened && onOpen(m)}>
-              <td className="px-4 py-2 font-semibold text-slate-800">{m.label && m.label !== m.name ? m.label : m.name}</td>
+          {periods.map((m) => (
+            <tr key={m.key} className={`border-t border-slate-100 ${m.opened ? "hover:bg-sky-50/50 cursor-pointer" : "opacity-70"}`} onClick={() => m.opened && onOpen(m)}>
+              <td className="px-4 py-2 font-semibold text-slate-800">{m.name}</td>
               <td className="px-4 py-2 text-slate-600">{fmt(m.due_date)}</td>
               <td className="px-4 py-2 text-right">{m.opened ? <>{money(m.collected)} <span className="text-slate-400">/ {money(m.expected)}</span></> : <span className="text-slate-400">{m.expected ? `— / ${money(m.expected)}` : "—"}</span>}</td>
               <td className="px-4 py-2 text-right">{m.opened ? `${m.paid_count}/${m.member_count}` : "—"}</td>
@@ -142,7 +142,7 @@ function MonthsTable({ months, onOpen, onClose }) {
               <td className="px-4 py-2 text-right">
                 {m.opened && m.status === "open" && (
                   <PermissionGate role={["admin", "manager"]}>
-                    <button onClick={(e) => { e.stopPropagation(); onClose(m.cycle_id, m.label || m.name); }} className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 text-sm font-semibold mr-3"><Lock size={13} /> Close</button>
+                    <button onClick={(e) => { e.stopPropagation(); onClose(m.cycle_id, m.name); }} className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 text-sm font-semibold mr-3"><Lock size={13} /> Close</button>
                   </PermissionGate>
                 )}
                 {m.opened && <ChevronRight size={16} className="inline text-sky-400" />}
@@ -155,7 +155,6 @@ function MonthsTable({ months, onOpen, onClose }) {
   );
 }
 
-const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function cellMark(cell) {
   if (!cell || cell.status === "none") return <span className="text-slate-300">·</span>;
   if (cell.status === "upcoming") return <span className="text-slate-300" title="upcoming">·</span>;
@@ -168,23 +167,24 @@ function cellMark(cell) {
     : <span className="text-slate-400" title="not yet paid">○</span>;
 }
 function MembersGrid({ data }) {
+  const periods = data.periods || [];
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
           <tr>
             <th className="text-left px-3 py-2 sticky left-0 bg-slate-50">Member</th>
-            {MONTH_ABBR.map((mo, i) => <th key={i} className="px-2 py-2 text-center">{mo}</th>)}
+            {periods.map((p) => <th key={p.key} className="px-2 py-2 text-center" title={p.name}>{p.short}</th>)}
             <th className="px-3 py-2 text-right">Total paid</th>
           </tr>
         </thead>
         <tbody>
           {data.members.length === 0 ? (
-            <tr><td colSpan={14} className="px-3 py-8 text-center text-slate-500">No active members.</td></tr>
+            <tr><td colSpan={periods.length + 2} className="px-3 py-8 text-center text-slate-500">No active members.</td></tr>
           ) : data.members.map((mem) => (
             <tr key={mem.id} className="border-t border-slate-100">
               <td className="px-3 py-2 text-slate-800 whitespace-nowrap sticky left-0 bg-white">{mem.first_name} {mem.last_name}</td>
-              {MONTH_ABBR.map((_, i) => <td key={i} className="px-2 py-2 text-center">{cellMark(mem.months[i + 1])}</td>)}
+              {periods.map((p, i) => <td key={p.key} className="px-2 py-2 text-center">{cellMark(mem.cells[i])}</td>)}
               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(mem.total_paid)}</td>
             </tr>
           ))}
@@ -210,6 +210,18 @@ function fineSummary(p) {
   return "late fine set";
 }
 
+const WEEKDAY_NAMES = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function planSummary(p) {
+  const amt = money(p.amount);
+  switch (p.frequency) {
+    case "weekly": return `Auto-opens weekly: ${amt} due each ${WEEKDAY_NAMES[p.due_day] || "week"}`;
+    case "biweekly": return `Auto-opens every 2 weeks: ${amt} due on day ${p.due_day} of the 2nd week`;
+    case "quarterly": return `Auto-opens every 3 months: ${amt} due the ${ordinal(p.due_day)} of the 3rd month`;
+    case "yearly": return `Auto-opens yearly: ${amt} due ${MONTH_NAMES[(p.due_month || 12) - 1]} ${ordinal(p.due_day)}`;
+    default: return `Auto-opens monthly: ${amt} due the ${ordinal(p.due_day)}`;
+  }
+}
 const pill = (cls, text) => <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{text}</span>;
 // Per-member timeliness for the cycle view: on time vs late (and by how many days).
 function timeliness(s) {
@@ -226,11 +238,24 @@ function timeliness(s) {
 // One modal for creating a contribution. "Monthly" saves the recurring plan
 // (auto-opens each month); "One-off" opens a single dated cycle. Both carry the
 // late-fine rule. Opened from the plan banner ("plan" mode) it edits the plan.
+const FREQS = [
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Bi-weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Every 3 months" },
+  { value: "yearly", label: "Yearly" },
+  { value: "oneoff", label: "One-off" },
+];
+const WEEKDAYS = [{ v: 1, n: "Monday" }, { v: 2, n: "Tuesday" }, { v: 3, n: "Wednesday" }, { v: 4, n: "Thursday" }, { v: 5, n: "Friday" }, { v: 6, n: "Saturday" }, { v: 7, n: "Sunday" }];
+const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [recurring, setRecurring] = useState(mode === "plan" ? true : !plan ? true : true);
+  const isWeek = (f) => f === "weekly" || f === "biweekly";
+  const [freq, setFreq] = useState(plan?.frequency || "monthly");
   const [form, setForm] = useState({
-    name: "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? 10, due_date: "",
+    name: "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? (isWeek(plan?.frequency) ? 1 : 10),
+    due_month: plan?.due_month ?? 12, due_date: "",
     grace_days: plan?.grace_days ?? 0, fine_calc_type: plan?.fine_calc_type ?? "",
     fine_amount: plan?.fine_amount ?? "", fine_rate: plan?.fine_rate ?? "", fine_cap: plan?.fine_cap ?? "",
   });
@@ -239,21 +264,24 @@ function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const usesAmount = ["fixed", "daily_fixed"].includes(form.fine_calc_type);
   const usesRate = ["percentage", "daily_percentage"].includes(form.fine_calc_type);
+  const recurring = freq !== "oneoff";
 
+  // Reset due_day sensibly when switching between weekday- and day-of-month modes.
+  const changeFreq = (f) => { setFreq(f); setForm((s) => ({ ...s, due_day: isWeek(f) ? (s.due_day > 7 ? 1 : s.due_day) : (s.due_day < 8 && s.due_day < 1 ? 10 : s.due_day) })); };
+
+  const dueLabel = freq === "weekly" ? "Day of the week" : freq === "biweekly" ? "Day (2nd week)" : freq === "quarterly" ? "Day of the 3rd month" : "Due day of month";
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     if (!(parseFloat(form.amount) > 0)) return setError("Enter the contribution amount.");
-    if (recurring) {
-      const day = parseInt(form.due_day, 10);
-      if (!(day >= 1 && day <= 28)) return setError("Due day must be between 1 and 28.");
-    } else if (!form.due_date) return setError("Pick a due date.");
+    if (!recurring && !form.due_date) return setError("Pick a due date.");
+    if (recurring && !isWeek(freq)) { const d = parseInt(form.due_day, 10); if (!(d >= 1 && d <= 28)) return setError("Due day must be between 1 and 28."); }
     if (usesAmount && !(parseFloat(form.fine_amount) > 0)) return setError("Enter the fine amount.");
     if (usesRate && !(parseFloat(form.fine_rate) > 0)) return setError("Enter the fine rate %.");
     setBusy(true);
     try {
       if (recurring) {
-        const r = await api.put(`/welfares/${welfareId}/contribution-plan`, form);
+        const r = await api.put(`/welfares/${welfareId}/contribution-plan`, { ...form, frequency: freq });
         onSaved({ plan: r.data.data });
       } else {
         const r = await api.post(`/welfares/${welfareId}/cycles`, { ...form, name: form.name || undefined });
@@ -263,24 +291,42 @@ function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
   };
   const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none";
   const lbl = "block text-sm font-semibold text-gray-700 mb-1";
-  const tab = (on) => `flex-1 py-2 text-sm font-semibold rounded-lg ${on ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-600"}`;
+
+  const hint = {
+    weekly: `Opens every week, due each ${WEEKDAYS.find((d) => d.v === Number(form.due_day))?.n || "week"}.`,
+    biweekly: "Opens every 2 weeks, due on the chosen day of the second week.",
+    monthly: `Opens each month, due on the ${ordinal(parseInt(form.due_day, 10) || 10)}.`,
+    quarterly: `Opens every 3 months, due on the ${ordinal(parseInt(form.due_day, 10) || 10)} of the 3rd month.`,
+    yearly: `Opens once a year, due ${MONTHS_FULL[(parseInt(form.due_month, 10) || 12) - 1]} ${ordinal(parseInt(form.due_day, 10) || 1)}.`,
+    oneoff: "A one-off collection on the chosen date.",
+  }[freq];
 
   return (
-    <Shell title={mode === "plan" ? "Monthly contribution plan" : "New contribution"} onClose={onClose}>
+    <Shell title={mode === "plan" ? "Contribution plan" : "New contribution"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
-        {mode !== "plan" && (
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setRecurring(true)} className={tab(recurring)}>Monthly (recurring)</button>
-            <button type="button" onClick={() => setRecurring(false)} className={tab(!recurring)}>One-off</button>
-          </div>
-        )}
+        <div><label className={lbl}>Frequency *</label>
+          <select value={freq} onChange={(e) => changeFreq(e.target.value)} className={fld}>
+            {FREQS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+        </div>
         {!recurring && <div><label className={lbl}>Name</label><input value={form.name} onChange={set("name")} placeholder="e.g. Building fund" className={fld} /></div>}
         <div className="grid grid-cols-2 gap-3">
           <div><label className={lbl}>Amount per member *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} /></div>
-          {recurring
-            ? <div><label className={lbl}>Due day of month *</label><input type="number" min="1" max="28" value={form.due_day} onChange={set("due_day")} className={fld} /></div>
-            : <div><label className={lbl}>Due date *</label><input type="date" min={today} value={form.due_date} onChange={set("due_date")} className={fld} /></div>}
+          {!recurring ? (
+            <div><label className={lbl}>Due date *</label><input type="date" min={today} value={form.due_date} onChange={set("due_date")} className={fld} /></div>
+          ) : isWeek(freq) ? (
+            <div><label className={lbl}>{dueLabel} *</label>
+              <select value={form.due_day} onChange={set("due_day")} className={fld}>{WEEKDAYS.map((d) => <option key={d.v} value={d.v}>{d.n}</option>)}</select>
+            </div>
+          ) : freq === "yearly" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className={lbl}>Month *</label><select value={form.due_month} onChange={set("due_month")} className={fld}>{MONTHS_FULL.map((mo, i) => <option key={i} value={i + 1}>{mo}</option>)}</select></div>
+              <div><label className={lbl}>Day *</label><input type="number" min="1" max="28" value={form.due_day} onChange={set("due_day")} className={fld} /></div>
+            </div>
+          ) : (
+            <div><label className={lbl}>{dueLabel} *</label><input type="number" min="1" max="28" value={form.due_day} onChange={set("due_day")} className={fld} /></div>
+          )}
         </div>
         <div className="border-t border-slate-100 pt-3">
           <p className="text-sm font-semibold text-slate-700 mb-2">Late fine</p>
@@ -297,11 +343,7 @@ function ContributionModal({ welfareId, plan, mode, onClose, onSaved }) {
             {form.fine_calc_type && <div><label className={lbl}>Cap (optional)</label><input type="number" value={form.fine_cap} onChange={set("fine_cap")} className={fld} /></div>}
           </div>
         </div>
-        <p className="text-xs text-gray-500">
-          {recurring
-            ? `Opens automatically each month, due on the ${ordinal(parseInt(form.due_day, 10) || 10)}. A schedule is created for every active member.`
-            : "A schedule is created for every active member."}
-        </p>
+        <p className="text-xs text-gray-500">{hint} A schedule is created for every active member.</p>
         <Actions busy={busy} onClose={onClose} label={recurring ? "Save plan" : "Open contribution"} tone="bg-sky-600 hover:bg-sky-700" />
       </form>
     </Shell>
