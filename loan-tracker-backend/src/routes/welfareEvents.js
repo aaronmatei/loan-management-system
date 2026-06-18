@@ -80,10 +80,10 @@ router.get("/events/:id", async (req, res) => {
 // POST /events — create { beneficiary_member_id, amount, due_date?, title?, description? }
 router.post("/events", authorize("admin", "manager"), async (req, res) => {
   try {
-    const { beneficiary_member_id, amount, due_date, title, description } = req.body || {};
+    const { beneficiary_member_id, amount, due_date, needed_by, title, description } = req.body || {};
     const event = await createEvent({
       welfare: req.welfare, beneficiaryMemberId: beneficiary_member_id, amount,
-      dueDate: due_date, title, description, userId: req.user.id,
+      dueDate: due_date, neededBy: needed_by, title, description, userId: req.user.id,
     });
     await logAudit({ user: req.user, action: "welfare_event_created", entityType: "welfare_event", entityId: event.id, description: `Created event "${event.title}" (KES ${parseFloat(event.amount).toLocaleString()})`, req });
     res.status(201).json({ success: true, data: event });

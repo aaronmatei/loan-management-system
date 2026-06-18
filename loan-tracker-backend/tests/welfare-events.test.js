@@ -151,9 +151,10 @@ describe("welfare events — phase 1", () => {
   it("accrues event_late fines on overdue unpaid shares", async () => {
     const { t, admin, w, members } = await welfareSetup(2);
     await query(`INSERT INTO penalty_rules (tenant_id, trigger, calc_type, amount, active) VALUES ($1,'event_late','fixed',100,true)`, [t.id]);
-    const created = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: members[0].id, amount: 2000, due_date: "2020-01-01" });
+    const created = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: members[0].id, amount: 2000 });
     const eventId = created.body.data.id;
     await request(app).post(`/api/welfares/${w.id}/events/${eventId}/fund`).set("Authorization", auth(admin)).send({ mode: "collect" });
+    await query(`UPDATE welfare_events SET due_date='2020-01-01' WHERE id=$1`, [eventId]); // simulate the deadline having passed
 
     const assess = await request(app).post(`/api/welfares/${w.id}/events/assess-late`).set("Authorization", auth(admin)).send({});
     expect(assess.status).toBe(200);
@@ -205,6 +206,17 @@ describe("welfare events — phase 1", () => {
     const pool = (await query("SELECT balance_after FROM welfare_event_ledger WHERE welfare_id=$1 ORDER BY id DESC LIMIT 1", [w.id])).rows[0];
     expect(Number(pool.balance_after)).toBeCloseTo(Number(share.amount_due), 2);
     expect(await memberSavings(m1.id)).toBe(0); // never touched savings
+  });
+
+  it("rejects past dates and a deadline after the date needed", async () => {
+    const { admin, w, members } = await welfareSetup(1);
+    const body = { beneficiary_member_id: members[0].id, amount: 1000 };
+    const past = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ ...body, needed_by: "2020-01-01" });
+    expect(past.status).toBe(400);
+    const order = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ ...body, needed_by: "2090-01-01", due_date: "2090-02-01" });
+    expect(order.status).toBe(400); // deadline after needed
+    const ok = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ ...body, needed_by: "2090-02-01", due_date: "2090-01-01" });
+    expect(ok.status).toBe(201);
   });
 
   it("rejects an event whose beneficiary isn't an active member of the welfare", async () => {

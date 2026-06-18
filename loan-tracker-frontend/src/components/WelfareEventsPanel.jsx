@@ -85,16 +85,20 @@ export default function WelfareEventsPanel({ welfareId }) {
 }
 
 function NewEventModal({ welfareId, members, onClose, onCreated }) {
-  const [form, setForm] = useState({ beneficiary_member_id: "", amount: "", due_date: "", title: "", description: "" });
+  const [form, setForm] = useState({ beneficiary_member_id: "", amount: "", due_date: "", needed_by: "", title: "", description: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const today = new Date().toISOString().slice(0, 10);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     if (!form.beneficiary_member_id) return setError("Pick the beneficiary.");
     if (!(parseFloat(form.amount) > 0)) return setError("Enter the amount needed.");
+    if (form.needed_by && form.needed_by <= today) return setError("Date needed must be in the future.");
+    if (form.due_date && form.due_date <= today) return setError("Collection deadline must be in the future.");
+    if (form.due_date && form.needed_by && form.due_date > form.needed_by) return setError("Collection deadline can't be after the date needed.");
     setBusy(true);
     try { const r = await api.post(`/welfares/${welfareId}/events`, form); onCreated(r.data.data); }
     catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
@@ -113,9 +117,10 @@ function NewEventModal({ welfareId, members, onClose, onCreated }) {
             {members.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name} ({m.member_no})</option>)}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div><label className={lbl}>Amount needed *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} /></div>
-          <div><label className={lbl}>Collection deadline</label><input type="date" value={form.due_date} onChange={set("due_date")} className={fld} /></div>
+          <div><label className={lbl}>Date needed</label><input type="date" min={today} value={form.needed_by} onChange={set("needed_by")} className={fld} /></div>
+          <div><label className={lbl}>Collection deadline</label><input type="date" min={today} max={form.needed_by || undefined} value={form.due_date} onChange={set("due_date")} className={fld} /></div>
         </div>
         <div><label className={lbl}>Title</label><input value={form.title} onChange={set("title")} placeholder="e.g. John — hospital" className={fld} /></div>
         <div><label className={lbl}>Note</label><textarea value={form.description} onChange={set("description")} rows={2} className={fld} /></div>

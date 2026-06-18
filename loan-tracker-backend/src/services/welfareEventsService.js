@@ -55,18 +55,24 @@ export function splitEqually(total, count) {
 }
 
 // Create an event (status 'open'); funding is decided next via fundEvent.
-export async function createEvent({ welfare, beneficiaryMemberId, amount, dueDate, title, description, userId }) {
+export async function createEvent({ welfare, beneficiaryMemberId, amount, dueDate, neededBy, title, description, userId }) {
   const amt = round2(parseFloat(amount));
   if (!(amt > 0)) throw httpErr(400, "A positive amount is required");
+  // Both dates must be in the future, and you can't be collecting past the day
+  // the funds are needed.
+  const today = new Date().toISOString().slice(0, 10);
+  if (dueDate && dueDate <= today) throw httpErr(400, "Collection deadline must be a future date");
+  if (neededBy && neededBy <= today) throw httpErr(400, "Date needed must be a future date");
+  if (dueDate && neededBy && dueDate > neededBy) throw httpErr(400, "Collection deadline can't be after the date needed");
   const ben = await query(
     `SELECT id, first_name, last_name FROM members WHERE id = $1 AND welfare_id = $2 AND status = 'active'`,
     [beneficiaryMemberId, welfare.id],
   );
   if (ben.rows.length === 0) throw httpErr(400, "Beneficiary must be an active member of this welfare");
   const r = await query(
-    `INSERT INTO welfare_events (tenant_id, welfare_id, title, description, beneficiary_member_id, amount, due_date, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7::date,$8) RETURNING *`,
-    [welfare.tenant_id, welfare.id, title || `Event for ${ben.rows[0].first_name} ${ben.rows[0].last_name}`, description || null, beneficiaryMemberId, amt, dueDate || null, userId || null],
+    `INSERT INTO welfare_events (tenant_id, welfare_id, title, description, beneficiary_member_id, amount, due_date, needed_by, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7::date,$8::date,$9) RETURNING *`,
+    [welfare.tenant_id, welfare.id, title || `Event for ${ben.rows[0].first_name} ${ben.rows[0].last_name}`, description || null, beneficiaryMemberId, amt, dueDate || null, neededBy || null, userId || null],
   );
   return r.rows[0];
 }

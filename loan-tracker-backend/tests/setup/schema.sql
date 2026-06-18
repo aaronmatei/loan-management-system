@@ -3545,6 +3545,7 @@ CREATE TABLE public.welfare_events (
   beneficiary_member_id integer NOT NULL REFERENCES public.members(id) ON DELETE RESTRICT,
   amount                numeric NOT NULL CHECK (amount > 0),
   due_date              date,
+  needed_by             date,
   funding_mode          varchar(20),
   shortfall_amount      numeric NOT NULL DEFAULT 0,
   bridged_amount        numeric NOT NULL DEFAULT 0,
