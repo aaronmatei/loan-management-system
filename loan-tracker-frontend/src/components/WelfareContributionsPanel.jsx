@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { CalendarClock, Plus, X, Coins, Lock, AlertTriangle, ChevronRight, Smartphone } from "lucide-react";
+import { CalendarClock, Plus, X, Coins, Lock, AlertTriangle, ChevronRight, Smartphone, Repeat, ChevronLeft } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
+
+const FINE_TYPES = [
+  { value: "", label: "No late fine" },
+  { value: "fixed", label: "Flat amount (once)" },
+  { value: "daily_fixed", label: "Flat amount per day late" },
+  { value: "percentage", label: "% of the amount (once)" },
+  { value: "daily_percentage", label: "% of the amount per day late" },
+];
 
 const money = (v) =>
   "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -13,12 +21,16 @@ export default function WelfareContributionsPanel({ welfareId }) {
   const [cycles, setCycles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
+  const [plan, setPlan] = useState(null);
   const [openCycle, setOpenCycle] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [year, setYear] = useState(new Date().getFullYear());
 
   const load = async () => {
+    setLoading(true);
     try {
-      const r = await api.get(`/welfares/${welfareId}/cycles`);
+      const r = await api.get(`/welfares/${welfareId}/cycles?year=${year}`);
       setCycles(r.data.data || []);
     } catch {
       /* non-fatal */
@@ -28,6 +40,9 @@ export default function WelfareContributionsPanel({ welfareId }) {
   };
   useEffect(() => {
     load();
+  }, [welfareId, year]);
+  useEffect(() => {
+    api.get(`/welfares/${welfareId}/contribution-plan`).then((r) => setPlan(r.data.data)).catch(() => {});
   }, [welfareId]);
 
   const assessLate = async () => {
@@ -59,11 +74,25 @@ export default function WelfareContributionsPanel({ welfareId }) {
             <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">
               Assess late
             </button>
+            <button onClick={() => setShowPlan(true)} className="px-3 py-1.5 bg-white border-2 border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
+              <Repeat size={15} /> {plan ? "Monthly plan" : "Set up monthly"}
+            </button>
             <button onClick={() => setShowNew(true)} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
               <Plus size={15} /> New cycle
             </button>
           </div>
         </PermissionGate>
+      </div>
+
+      {plan && (
+        <div className="px-5 py-2 bg-sky-50/60 border-b border-sky-100 text-xs text-slate-600">
+          Auto-opens monthly: <strong>{money(plan.amount)}</strong> due the {ordinal(plan.due_day)} · {fineSummary(plan)}
+        </div>
+      )}
+      <div className="px-5 pt-3 flex items-center gap-2 text-sm">
+        <button onClick={() => setYear((y) => y - 1)} className="p-1 text-slate-500 hover:text-slate-800"><ChevronLeft size={16} /></button>
+        <span className="font-semibold text-slate-700 w-12 text-center">{year}</span>
+        <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30"><ChevronRight size={16} /></button>
       </div>
 
       <div className="p-5">
@@ -110,9 +139,83 @@ export default function WelfareContributionsPanel({ welfareId }) {
         )}
       </div>
 
+      {showPlan && <PlanModal welfareId={welfareId} plan={plan} onClose={() => setShowPlan(false)} onSaved={(p) => { setShowPlan(false); setPlan(p); load(); }} />}
       {showNew && <NewCycleModal welfareId={welfareId} onClose={() => setShowNew(false)} onCreated={(c) => { setShowNew(false); load(); setOpenCycle(c); }} />}
       {openCycle && <SchedulesModal welfareId={welfareId} cycle={openCycle} onClose={() => setOpenCycle(null)} onChange={load} />}
     </div>
+  );
+}
+
+const ordinal = (n) => {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+function fineSummary(p) {
+  if (!p?.fine_calc_type) return "no late fine";
+  const grace = p.grace_days ? ` after ${p.grace_days}-day grace` : "";
+  const t = p.fine_calc_type;
+  if (t === "fixed") return `late fine ${money(p.fine_amount)}${grace}`;
+  if (t === "daily_fixed") return `late fine ${money(p.fine_amount)}/day${grace}`;
+  if (t === "percentage") return `late fine ${p.fine_rate}%${grace}`;
+  if (t === "daily_percentage") return `late fine ${p.fine_rate}%/day${grace}`;
+  return "late fine set";
+}
+
+// Set the recurring monthly contribution once — amount, due day, and the late
+// fine rule. The current period's cycle auto-opens immediately.
+function PlanModal({ welfareId, plan, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    amount: plan?.amount ?? "", due_day: plan?.due_day ?? 10, grace_days: plan?.grace_days ?? 0,
+    fine_calc_type: plan?.fine_calc_type ?? "", fine_amount: plan?.fine_amount ?? "", fine_rate: plan?.fine_rate ?? "", fine_cap: plan?.fine_cap ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const usesAmount = ["fixed", "daily_fixed"].includes(form.fine_calc_type);
+  const usesRate = ["percentage", "daily_percentage"].includes(form.fine_calc_type);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!(parseFloat(form.amount) > 0)) return setError("Enter the contribution amount.");
+    const day = parseInt(form.due_day, 10);
+    if (!(day >= 1 && day <= 28)) return setError("Due day must be between 1 and 28.");
+    if (usesAmount && !(parseFloat(form.fine_amount) > 0)) return setError("Enter the fine amount.");
+    if (usesRate && !(parseFloat(form.fine_rate) > 0)) return setError("Enter the fine rate %.");
+    setBusy(true);
+    try { const r = await api.put(`/welfares/${welfareId}/contribution-plan`, form); onSaved(r.data.data); }
+    catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
+  };
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+
+  return (
+    <Shell title="Monthly contribution plan" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        {error && <Err msg={error} />}
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Amount per member *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} /></div>
+          <div><label className={lbl}>Due day of month *</label><input type="number" min="1" max="28" value={form.due_day} onChange={set("due_day")} className={fld} /></div>
+        </div>
+        <div className="border-t border-slate-100 pt-3">
+          <p className="text-sm font-semibold text-slate-700 mb-2">Late fine</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className={lbl}>Rule</label>
+              <select value={form.fine_calc_type} onChange={set("fine_calc_type")} className={fld}>
+                {FINE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            {usesAmount && <div><label className={lbl}>Fine amount (KES)</label><input type="number" value={form.fine_amount} onChange={set("fine_amount")} className={fld} /></div>}
+            {usesRate && <div><label className={lbl}>Fine rate (%)</label><input type="number" value={form.fine_rate} onChange={set("fine_rate")} className={fld} /></div>}
+            {form.fine_calc_type && <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /></div>}
+            {form.fine_calc_type && <div><label className={lbl}>Cap (optional)</label><input type="number" value={form.fine_cap} onChange={set("fine_cap")} className={fld} /></div>}
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">Each month a cycle opens automatically on the 1st, due on the {ordinal(parseInt(form.due_day, 10) || 10)}. Fines apply after the due date (+ grace).</p>
+        <Actions busy={busy} onClose={onClose} label="Save plan" tone="bg-sky-600 hover:bg-sky-700" />
+      </form>
+    </Shell>
   );
 }
 

@@ -3,6 +3,7 @@
 // WELFARE_PENALTY_CRON_SCHEDULE (defaults 1 AM). Idempotent — safe to re-run.
 import cron from "node-cron";
 import { accrueAllWelfarePenalties } from "./welfarePenaltyAccrual.js";
+import { openDueCyclesForAllWelfares } from "./contributionPlanService.js";
 import logger from "../config/logger.js";
 
 export function setupWelfarePenaltyCron() {
@@ -13,8 +14,10 @@ export function setupWelfarePenaltyCron() {
   const schedule = process.env.WELFARE_PENALTY_CRON_SCHEDULE || "0 1 * * *";
   cron.schedule(schedule, async () => {
     try {
+      // Open each plan's current-period cycle first, THEN accrue on what's due.
+      const opened = await openDueCyclesForAllWelfares();
       const r = await accrueAllWelfarePenalties();
-      logger.info(`Welfare penalty accrual: ${r.assessed} new across ${r.tenants} welfares.`);
+      logger.info(`Welfare cron: opened ${opened.opened} cycles; ${r.assessed} new penalties across ${r.tenants} welfares.`);
     } catch (err) {
       logger.error("Welfare penalty cron error:", err);
     }

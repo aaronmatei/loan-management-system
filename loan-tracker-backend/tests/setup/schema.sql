@@ -3501,6 +3501,27 @@ CREATE INDEX idx_penalty_assessments_member ON public.penalty_assessments(member
 -- Welfare contribution cycles + schedules (migration 060).
 --
 
+-- Recurring contribution plans (migration 081).
+CREATE TABLE public.contribution_plans (
+  id             serial PRIMARY KEY,
+  tenant_id      integer NOT NULL,
+  welfare_id     integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  name           varchar(80) NOT NULL DEFAULT 'Monthly contribution',
+  frequency      varchar(20) NOT NULL DEFAULT 'monthly',
+  amount         numeric NOT NULL,
+  due_day        integer NOT NULL DEFAULT 10,
+  grace_days     integer NOT NULL DEFAULT 0,
+  fine_calc_type varchar(20),
+  fine_amount    numeric,
+  fine_rate      numeric,
+  fine_cap       numeric,
+  active         boolean NOT NULL DEFAULT true,
+  created_by     integer,
+  created_at     timestamp NOT NULL DEFAULT now(),
+  updated_at     timestamp NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX uq_contribution_plan ON public.contribution_plans(welfare_id, frequency) WHERE active;
+
 CREATE TABLE public.contribution_cycles (
   id           serial PRIMARY KEY,
   tenant_id    integer NOT NULL,
@@ -3515,8 +3536,16 @@ CREATE TABLE public.contribution_cycles (
   created_by   integer,
   created_at   timestamp NOT NULL DEFAULT NOW(),
   updated_at   timestamp NOT NULL DEFAULT NOW(),
-  category     varchar(20) NOT NULL DEFAULT 'savings' -- migration 078 (savings credits equity)
+  category     varchar(20) NOT NULL DEFAULT 'savings', -- migration 078 (savings credits equity)
+  plan_id        integer REFERENCES public.contribution_plans(id) ON DELETE SET NULL, -- migration 081
+  period_key     varchar(7),
+  grace_days     integer,
+  fine_calc_type varchar(20),
+  fine_amount    numeric,
+  fine_rate      numeric,
+  fine_cap       numeric
 );
+CREATE UNIQUE INDEX uq_cycle_plan_period ON public.contribution_cycles(plan_id, period_key) WHERE plan_id IS NOT NULL AND period_key IS NOT NULL;
 
 CREATE TABLE public.contribution_schedules (
   id          serial PRIMARY KEY,

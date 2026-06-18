@@ -9,6 +9,7 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
+import { getPlan, upsertPlan, ensureCurrentCycles } from "../services/contributionPlanService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -36,9 +37,39 @@ async function poolBalance(welfareId) {
   return r.rows.length ? parseFloat(r.rows[0].balance_after) : 0;
 }
 
-// GET /cycles — list with collection rollup.
+// GET/PUT the recurring contribution plan (set the monthly contribution once).
+router.get("/contribution-plan", async (req, res) => {
+  try {
+    res.json({ success: true, data: await getPlan(req.welfare.id) });
+  } catch (e) {
+    logger.error("contribution-plan get error:", e);
+    res.status(500).json({ error: "Failed to load plan" });
+  }
+});
+router.put("/contribution-plan", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const plan = await upsertPlan({
+      welfare: req.welfare, name: b.name, amount: b.amount, dueDay: b.due_day,
+      graceDays: b.grace_days, fineCalcType: b.fine_calc_type, fineAmount: b.fine_amount,
+      fineRate: b.fine_rate, fineCap: b.fine_cap, active: b.active !== false, userId: req.user.id,
+    });
+    // Open the current period right away so it shows immediately.
+    await ensureCurrentCycles(req.welfare);
+    res.json({ success: true, data: plan });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("contribution-plan save error:", e);
+    res.status(500).json({ error: "Failed to save plan" });
+  }
+});
+
+// GET /cycles?year=YYYY — lazily auto-opens the current period from the plan,
+// then lists that year's cycles with collection rollups.
 router.get("/cycles", async (req, res) => {
   try {
+    try { await ensureCurrentCycles(req.welfare); } catch { /* non-fatal */ }
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
     const r = await query(
       `SELECT c.*,
           (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id = c.id)::int AS member_count,
@@ -46,12 +77,13 @@ router.get("/cycles", async (req, res) => {
           (SELECT COALESCE(SUM(s.amount_due),0) FROM contribution_schedules s WHERE s.cycle_id = c.id) AS expected,
           (SELECT COALESCE(SUM(s.amount_paid),0) FROM contribution_schedules s WHERE s.cycle_id = c.id) AS collected
         FROM contribution_cycles c
-        WHERE c.welfare_id = $1
+        WHERE c.welfare_id = $1 AND EXTRACT(YEAR FROM c.due_date) = $2
         ORDER BY c.due_date DESC, c.id DESC`,
-      [req.welfare.id],
+      [req.welfare.id, year],
     );
     res.json({
       success: true,
+      year,
       data: r.rows.map((c) => ({ ...c, expected: Number(c.expected), collected: Number(c.collected) })),
     });
   } catch (e) {
@@ -72,11 +104,26 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
     if (!(amt > 0)) return res.status(400).json({ error: "A positive contribution amount is required (set one here or in settings)" });
     const freq = frequency || settings?.contribution_frequency || "monthly";
 
+    // Per-cycle fine rule — from the body, defaulting to the welfare's plan.
+    const b = req.body || {};
+    const plan = await getPlan(req.welfare.id, freq);
+    const num = (v, d) => (v === "" || v == null ? d : parseFloat(v));
+    const fine = {
+      grace_days: b.grace_days != null && b.grace_days !== "" ? parseInt(b.grace_days, 10) : plan?.grace_days ?? null,
+      calc_type: b.fine_calc_type || plan?.fine_calc_type || null,
+      amount: num(b.fine_amount, plan?.fine_amount ?? null),
+      rate: num(b.fine_rate, plan?.fine_rate ?? null),
+      cap: num(b.fine_cap, plan?.fine_cap ?? null),
+    };
+
     const cycle = (
       await query(
-        `INSERT INTO contribution_cycles (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8) RETURNING *`,
-        [req.welfare.tenant_id, req.welfare.id, name || "Contribution", freq, amt, period_start || null, due_date, req.user.id],
+        `INSERT INTO contribution_cycles
+           (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, created_by,
+            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap)
+         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9,$10,$11,$12,$13) RETURNING *`,
+        [req.welfare.tenant_id, req.welfare.id, name || "Contribution", freq, amt, period_start || null, due_date, req.user.id,
+          fine.grace_days, fine.calc_type, fine.amount, fine.rate, fine.cap],
       )
     ).rows[0];
 
