@@ -309,6 +309,50 @@ router.post("/mpesa/penalty", async (req, res) => {
   }
 });
 
+// GET /events — the member's event shares (welfare events they contribute to).
+router.get("/events", async (req, res) => {
+  try {
+    const rows = (
+      await query(
+        `SELECT s.id AS share_id, s.amount_due, s.amount_paid, s.status,
+                e.id AS event_id, e.title, e.amount, e.status AS event_status,
+                e.due_date, (e.beneficiary_member_id = $2) AS is_beneficiary
+           FROM welfare_event_shares s
+           JOIN welfare_events e ON e.id = s.event_id
+          WHERE s.member_id = $2 AND s.tenant_id = $1
+          ORDER BY e.id DESC`,
+        [req.member.tenant_id, req.member.id],
+      )
+    ).rows;
+    res.json({ success: true, data: { events: rows } });
+  } catch (e) {
+    logger.error("member events error:", e);
+    res.status(500).json({ error: "Failed to load events" });
+  }
+});
+
+// POST /mpesa/event-share { share_id, phone? } — STK to pay an event share.
+router.post("/mpesa/event-share", async (req, res) => {
+  try {
+    const s = (
+      await query(`SELECT * FROM welfare_event_shares WHERE id = $1 AND member_id = $2`, [req.body?.share_id, req.member.id])
+    ).rows[0];
+    if (!s) return res.status(404).json({ error: "Share not found" });
+    const amount = round2(parseFloat(s.amount_due) - parseFloat(s.amount_paid));
+    if (!(amount > 0)) return res.status(400).json({ error: "Share already paid" });
+    const r = await initiateWelfareSTK({
+      welfare: welfareOf(req), member: req.member, amount,
+      targetType: "welfare_event_share", targetId: s.id,
+      purpose: "welfare_event_share", desc: "Event", phone: req.body?.phone,
+    });
+    res.json({ success: true, message: r.message, checkout_request_id: r.checkoutRequestId });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("member pay event share error:", e);
+    res.status(500).json({ error: "Failed to start payment" });
+  }
+});
+
 // ── Requests (loan from the pool / savings withdrawal) ────────────────────
 // Members ASK; a welfare admin approves. No pool effect until approval.
 

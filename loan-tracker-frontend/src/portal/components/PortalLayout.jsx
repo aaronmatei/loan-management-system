@@ -17,6 +17,7 @@ import {
   CalendarCheck,
   Gift,
   AlertTriangle,
+  HeartHandshake,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 import PortalNotificationBell from "./PortalNotificationBell";
@@ -54,6 +55,7 @@ const WELFARE_MENU = [
   { path: "/welfare/member/loans", label: "Chama Loans", icon: Wallet, variant: "indigo" },
   { path: "/welfare/member/meetings", label: "Meetings", icon: CalendarCheck, variant: "amber" },
   { path: "/welfare/member/dividends", label: "Dividends", icon: Gift, variant: "emerald" },
+  { path: "/welfare/member/events", label: "Events", icon: HeartHandshake, variant: "ocean" },
   { path: "/welfare/member/penalties", label: "Penalties", icon: AlertTriangle, variant: "rose" },
   // Hidden for now — reveal to let chama members also borrow from lenders.
   // { path: "/lenders", label: "Borrow from a lender", icon: Layers, variant: "indigo" },

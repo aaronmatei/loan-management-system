@@ -183,6 +183,30 @@ describe("welfare events — phase 1", () => {
     expect(Number(rec.body.data.eventsPoolBalance)).toBe(1000);
   });
 
+  it("M-Pesa callback allocates an event-share payment into the events pool, not savings", async () => {
+    const { t, admin, w, members } = await welfareSetup(2);
+    const [m1] = members;
+    const created = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: m1.id, amount: 2000 });
+    const eventId = created.body.data.id;
+    await request(app).post(`/api/welfares/${w.id}/events/${eventId}/fund`).set("Authorization", auth(admin)).send({ mode: "collect" });
+    const detail = await request(app).get(`/api/welfares/${w.id}/events/${eventId}`).set("Authorization", auth(admin));
+    const share = detail.body.data.shares.find((s) => s.member_id === m1.id);
+
+    const { allocateWelfarePayment } = await import("../src/services/welfareMpesaService.js");
+    const r = await allocateWelfarePayment({
+      id: 0, tenant_id: t.id, welfare_id: w.id, member_id: m1.id,
+      target_type: "welfare_event_share", target_id: share.id, amount: Number(share.amount_due),
+      allocated: false, mpesa_receipt_number: "TESTRCT",
+    });
+    expect(r.applied).toBe(true);
+
+    const after = (await query("SELECT status FROM welfare_event_shares WHERE id=$1", [share.id])).rows[0];
+    expect(after.status).toBe("paid");
+    const pool = (await query("SELECT balance_after FROM welfare_event_ledger WHERE welfare_id=$1 ORDER BY id DESC LIMIT 1", [w.id])).rows[0];
+    expect(Number(pool.balance_after)).toBeCloseTo(Number(share.amount_due), 2);
+    expect(await memberSavings(m1.id)).toBe(0); // never touched savings
+  });
+
   it("rejects an event whose beneficiary isn't an active member of the welfare", async () => {
     const { admin, w } = await welfareSetup(1);
     const r = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: 999999, amount: 1000 });

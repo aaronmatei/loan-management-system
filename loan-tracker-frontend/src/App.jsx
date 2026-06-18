@@ -40,6 +40,7 @@ import {
   MemberLoans,
   MemberMeetings,
   MemberDividends,
+  MemberEvents,
   MemberPenalties,
 } from "./portal/pages/member/MemberPages";
 import CustomerProfile from "./portal/pages/Profile";
@@ -582,6 +583,7 @@ function App() {
             <Route path="/welfare/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
             <Route path="/welfare/member/meetings" element={<PortalProtectedRoute><MemberMeetings /></PortalProtectedRoute>} />
             <Route path="/welfare/member/dividends" element={<PortalProtectedRoute><MemberDividends /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/events" element={<PortalProtectedRoute><MemberEvents /></PortalProtectedRoute>} />
             <Route path="/welfare/member/penalties" element={<PortalProtectedRoute><MemberPenalties /></PortalProtectedRoute>} />
             {/* Back-compat: the desk used to live under /portal/member/* */}
             <Route path="/portal/member" element={<Navigate to="/welfare/member" replace />} />

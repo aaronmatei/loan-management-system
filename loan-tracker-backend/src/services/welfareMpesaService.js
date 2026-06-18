@@ -4,6 +4,7 @@
 // so the Daraja callback and manual reconciliation can each run safely.
 import { query } from "../config/database.js";
 import * as mpesa from "./mpesaService.js";
+import { postEventsPool } from "./welfareEventsService.js";
 import logger from "../config/logger.js";
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -120,6 +121,24 @@ export async function allocateWelfarePayment(tx, cb = {}) {
         const status = newPaid >= parseFloat(a.amount) ? "paid" : "outstanding";
         await query(`UPDATE penalty_assessments SET paid_amount=$2, status=$3 WHERE id=$1`, [a.id, newPaid, status]);
         await postPool(tx, "penalty", amt, `Penalty via M-Pesa (${tx.mpesa_receipt_number || "STK"})`);
+        applied = true;
+      }
+    }
+  } else if (tx.target_type === "welfare_event_share") {
+    // Event shares fund the SEPARATE events pool, not savings — route to the
+    // events ledger, not postPool.
+    const s = (await query(`SELECT * FROM welfare_event_shares WHERE id = $1`, [tx.target_id])).rows[0];
+    if (s && s.status !== "paid") {
+      const amt = Math.min(paid, round2(parseFloat(s.amount_due) - parseFloat(s.amount_paid)));
+      if (amt > 0) {
+        const newPaid = round2(parseFloat(s.amount_paid) + amt);
+        const status = newPaid >= parseFloat(s.amount_due) ? "paid" : "partial";
+        await query(`UPDATE welfare_event_shares SET amount_paid=$2, status=$3, updated_at=NOW() WHERE id=$1`, [s.id, newPaid, status]);
+        await postEventsPool({
+          welfare: { id: tx.welfare_id, tenant_id: tx.tenant_id }, eventId: s.event_id, memberId: tx.member_id,
+          type: "contribution", amount: amt, direction: 1,
+          description: `Event share via M-Pesa (${tx.mpesa_receipt_number || "STK"})`,
+        });
         applied = true;
       }
     }

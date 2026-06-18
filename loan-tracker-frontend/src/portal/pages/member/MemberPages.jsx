@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
@@ -52,6 +52,7 @@ const PAY = {
   contribution: { url: "/welfare/member/mpesa/contribution", key: "schedule_id", type: "contribution_schedule" },
   loan: { url: "/welfare/member/mpesa/loan-repayment", key: "loan_id", type: "member_loan" },
   penalty: { url: "/welfare/member/mpesa/penalty", key: "assessment_id", type: "penalty_assessment" },
+  event: { url: "/welfare/member/mpesa/event-share", key: "share_id", type: "welfare_event_share" },
 };
 function PayButton({ kind, targetId, onDone }) {
   const [phase, setPhase] = useState("idle"); // idle | sending | waiting | done
@@ -417,6 +418,41 @@ export function MemberDividends() {
               <td className="px-4 py-3 font-semibold text-emerald-700">{KES(d.amount)}</td>
             </tr>
           )}
+        />
+      )}
+    </Shell>
+  );
+}
+
+export function MemberEvents() {
+  const { data, loading, error, reload } = useFetch("/welfare/member/events");
+  return (
+    <Shell title="Events" icon={HeartHandshake}>
+      {loading || error || !data ? <Loading error={error} /> : (
+        <Table
+          head={["Event", "Amount", "My share", "Paid", "Status", ""]}
+          rows={data.events}
+          empty="No events yet."
+          render={(e) => {
+            const outstanding = Number(e.amount_due) - Number(e.amount_paid);
+            return (
+              <tr key={e.share_id}>
+                <td className="px-4 py-3 font-medium text-slate-800">
+                  {e.title}
+                  {e.is_beneficiary && <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">beneficiary</span>}
+                </td>
+                <td className="px-4 py-3 text-slate-600">{KES(e.amount)}</td>
+                <td className="px-4 py-3">{KES(e.amount_due)}</td>
+                <td className="px-4 py-3">{KES(e.amount_paid)}</td>
+                <td className="px-4 py-3"><Badge value={e.status} /></td>
+                <td className="px-4 py-3 text-right">
+                  {outstanding > 0.001 && ["pending", "partial", "overdue"].includes(e.status) && (
+                    <PayButton kind="event" targetId={e.share_id} onDone={reload} />
+                  )}
+                </td>
+              </tr>
+            );
+          }}
         />
       )}
     </Shell>
