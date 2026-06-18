@@ -32,10 +32,12 @@ describe("welfare members + contributions pool", () => {
     const admin = await createUser(t.id, { role: "admin" });
     const w = await makeWelfare(admin);
     const m = await makeMember(admin, w.id);
-    expect(m.member_no).toMatch(/^MBR-\d{5}$/);
+    // Member numbers carry the welfare's initials now: MBR-<PREFIX>-<NNNNN>.
+    expect(m.member_no).toMatch(/^MBR-[A-Z]+-\d{5}$/);
+    expect(m.member_no).toMatch(/-00001$/);
     expect(m.welfare_id).toBe(w.id);
     const m2 = await makeMember(admin, w.id, { first_name: "Ann" });
-    expect(m2.member_no).toBe("MBR-00002");
+    expect(m2.member_no).toBe(m.member_no.replace(/\d{5}$/, "00002"));
   });
 
   it("records contributions and tracks pool + per-member balances per welfare", async () => {
