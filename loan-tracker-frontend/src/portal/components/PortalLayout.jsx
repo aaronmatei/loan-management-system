@@ -102,13 +102,18 @@ function PortalLayout({ children }) {
   useEffect(() => setSidebarOpen(false), [location.pathname]);
 
   const logout = () => {
+    // Send a welfare member back to their own door, not the borrower login.
+    let isWelfare = false;
+    try {
+      isWelfare = JSON.parse(localStorage.getItem("portal_current_tenant") || "null")?.kind === "welfare";
+    } catch { /* ignore */ }
     [
       "portal_token",
       "portal_customer",
       "portal_current_tenant",
       "portal_tenants",
     ].forEach((k) => localStorage.removeItem(k));
-    navigate("/portal/login");
+    navigate(isWelfare ? "/welfare/member/login" : "/portal/login");
   };
 
   const isActive = (item) =>
