@@ -18,31 +18,27 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric
 // Welfare contribution cycles: open a period, collect per-member, and assess
 // late penalties. Welfare accounts only.
 export default function WelfareContributionsPanel({ welfareId }) {
-  const [cycles, setCycles] = useState([]);
+  const [data, setData] = useState(null); // { year, plan, months, members }
   const [loading, setLoading] = useState(true);
   const [creator, setCreator] = useState(null); // 'new' | 'plan' | null
-  const [plan, setPlan] = useState(null);
   const [openCycle, setOpenCycle] = useState(null);
   const [busy, setBusy] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [view, setView] = useState("months"); // 'months' | 'members'
+  const plan = data?.plan;
 
   const load = async () => {
     setLoading(true);
     try {
-      const r = await api.get(`/welfares/${welfareId}/cycles?year=${year}`);
-      setCycles(r.data.data || []);
+      const r = await api.get(`/welfares/${welfareId}/contributions/overview?year=${year}`);
+      setData(r.data.data);
     } catch {
       /* non-fatal */
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => {
-    load();
-  }, [welfareId, year]);
-  useEffect(() => {
-    api.get(`/welfares/${welfareId}/contribution-plan`).then((r) => setPlan(r.data.data)).catch(() => {});
-  }, [welfareId]);
+  useEffect(() => { load(); }, [welfareId, year]);
 
   const assessLate = async () => {
     setBusy(true);
@@ -56,11 +52,12 @@ export default function WelfareContributionsPanel({ welfareId }) {
       setBusy(false);
     }
   };
-  const close = async (c) => {
-    if (!confirm(`Close ${c.name}?`)) return;
-    try { await api.post(`/welfares/${welfareId}/cycles/${c.id}/close`, {}); load(); }
+  const close = async (cycleId, name) => {
+    if (!confirm(`Close ${name}?`)) return;
+    try { await api.post(`/welfares/${welfareId}/cycles/${cycleId}/close`, {}); load(); }
     catch (e) { alert(e.response?.data?.error || "Failed"); }
   };
+  const tabCls = (on) => `px-3 py-1 text-sm font-semibold rounded-lg ${on ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`;
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
@@ -85,53 +82,23 @@ export default function WelfareContributionsPanel({ welfareId }) {
           <Repeat size={12} className="inline mr-1 text-sky-600" /> Auto-opens monthly: <strong>{money(plan.amount)}</strong> due the {ordinal(plan.due_day)} · {fineSummary(plan)} <span className="text-sky-600 font-semibold">· edit</span>
         </button>
       )}
-      <div className="px-5 pt-3 flex items-center gap-2 text-sm">
-        <button onClick={() => setYear((y) => y - 1)} className="p-1 text-slate-500 hover:text-slate-800"><ChevronLeft size={16} /></button>
-        <span className="font-semibold text-slate-700 w-12 text-center">{year}</span>
-        <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30"><ChevronRight size={16} /></button>
+      <div className="px-5 pt-3 flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setYear((y) => y - 1)} className="p-1 text-slate-500 hover:text-slate-800"><ChevronLeft size={16} /></button>
+          <span className="font-semibold text-slate-700 w-12 text-center">{year}</span>
+          <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30"><ChevronRight size={16} /></button>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setView("months")} className={tabCls(view === "months")}>By month</button>
+          <button onClick={() => setView("members")} className={tabCls(view === "members")}>By member</button>
+        </div>
       </div>
 
       <div className="p-5">
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
-        ) : cycles.length === 0 ? (
-          <p className="text-sm text-slate-500">No contribution cycles yet. Open one to start collecting.</p>
+        {loading || !data ? <p className="text-sm text-slate-500">Loading…</p> : view === "months" ? (
+          <MonthsTable months={data.months} year={year} onOpen={(m) => setOpenCycle({ id: m.cycle_id, name: m.label || `${m.name} ${year}`, due_date: m.due_date })} onClose={close} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                <tr>
-                  <th className="text-left px-4 py-2">Cycle</th>
-                  <th className="text-left px-4 py-2">Due</th>
-                  <th className="text-right px-4 py-2">Collected / Expected</th>
-                  <th className="text-right px-4 py-2">Paid</th>
-                  <th className="text-left px-4 py-2">Status</th>
-                  <th className="px-4 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {cycles.map((c) => (
-                  <tr key={c.id} className="border-t border-slate-100 hover:bg-sky-50/50 cursor-pointer" onClick={() => setOpenCycle(c)}>
-                    <td className="px-4 py-2 font-semibold text-slate-800">{c.name}</td>
-                    <td className="px-4 py-2 text-slate-600">{fmt(c.due_date)}</td>
-                    <td className="px-4 py-2 text-right">{money(c.collected)} <span className="text-slate-400">/ {money(c.expected)}</span></td>
-                    <td className="px-4 py-2 text-right">{c.paid_count}/{c.member_count}</td>
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.status === "open" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}>{c.status}</span>
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {c.status === "open" && (
-                        <PermissionGate role={["admin", "manager"]}>
-                          <button onClick={(e) => { e.stopPropagation(); close(c); }} className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 text-sm font-semibold mr-3"><Lock size={13} /> Close</button>
-                        </PermissionGate>
-                      )}
-                      <ChevronRight size={16} className="inline text-sky-400" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <MembersGrid data={data} />
         )}
       </div>
 
@@ -141,10 +108,89 @@ export default function WelfareContributionsPanel({ welfareId }) {
           plan={plan}
           mode={creator}
           onClose={() => setCreator(null)}
-          onSaved={(res) => { setCreator(null); if (res?.plan) setPlan(res.plan); load(); if (res?.cycle) setOpenCycle(res.cycle); }}
+          onSaved={() => { setCreator(null); load(); }}
         />
       )}
-      {openCycle && <SchedulesModal welfareId={welfareId} cycle={openCycle} onClose={() => setOpenCycle(null)} onChange={load} />}
+      {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} onClose={() => setOpenCycle(null)} onChange={load} />}
+    </div>
+  );
+}
+
+const MONTH_STATUS = { open: "bg-emerald-100 text-emerald-800", closed: "bg-slate-200 text-slate-700", upcoming: "bg-sky-100 text-sky-700", unopened: "bg-slate-100 text-slate-500" };
+function MonthsTable({ months, onOpen, onClose }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+          <tr>
+            <th className="text-left px-4 py-2">Month</th>
+            <th className="text-left px-4 py-2">Due</th>
+            <th className="text-right px-4 py-2">Collected / Expected</th>
+            <th className="text-right px-4 py-2">Paid</th>
+            <th className="text-left px-4 py-2">Status</th>
+            <th className="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {months.map((m) => (
+            <tr key={m.month} className={`border-t border-slate-100 ${m.opened ? "hover:bg-sky-50/50 cursor-pointer" : "opacity-70"}`} onClick={() => m.opened && onOpen(m)}>
+              <td className="px-4 py-2 font-semibold text-slate-800">{m.label && m.label !== m.name ? m.label : m.name}</td>
+              <td className="px-4 py-2 text-slate-600">{fmt(m.due_date)}</td>
+              <td className="px-4 py-2 text-right">{m.opened ? <>{money(m.collected)} <span className="text-slate-400">/ {money(m.expected)}</span></> : <span className="text-slate-400">{m.expected ? `— / ${money(m.expected)}` : "—"}</span>}</td>
+              <td className="px-4 py-2 text-right">{m.opened ? `${m.paid_count}/${m.member_count}` : "—"}</td>
+              <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${MONTH_STATUS[m.status] || MONTH_STATUS.unopened}`}>{m.status}</span></td>
+              <td className="px-4 py-2 text-right">
+                {m.opened && m.status === "open" && (
+                  <PermissionGate role={["admin", "manager"]}>
+                    <button onClick={(e) => { e.stopPropagation(); onClose(m.cycle_id, m.label || m.name); }} className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 text-sm font-semibold mr-3"><Lock size={13} /> Close</button>
+                  </PermissionGate>
+                )}
+                {m.opened && <ChevronRight size={16} className="inline text-sky-400" />}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function cellMark(cell) {
+  if (!cell || cell.status === "none") return <span className="text-slate-300">·</span>;
+  if (cell.status === "upcoming") return <span className="text-slate-300" title="upcoming">·</span>;
+  if (cell.status === "paid") return cell.on_time === false
+    ? <span className="text-amber-600 font-bold" title={`paid ${cell.late_days}d late`}>✓</span>
+    : <span className="text-emerald-600 font-bold" title="on time">✓</span>;
+  if (cell.status === "partial") return <span className="text-amber-600 font-bold" title="partial">½</span>;
+  return cell.days_late > 0
+    ? <span className="text-red-600 font-semibold text-xs" title={`${cell.days_late}d late`}>{cell.days_late}d</span>
+    : <span className="text-slate-400" title="not yet paid">○</span>;
+}
+function MembersGrid({ data }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+          <tr>
+            <th className="text-left px-3 py-2 sticky left-0 bg-slate-50">Member</th>
+            {MONTH_ABBR.map((mo, i) => <th key={i} className="px-2 py-2 text-center">{mo}</th>)}
+            <th className="px-3 py-2 text-right">Total paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.members.length === 0 ? (
+            <tr><td colSpan={14} className="px-3 py-8 text-center text-slate-500">No active members.</td></tr>
+          ) : data.members.map((mem) => (
+            <tr key={mem.id} className="border-t border-slate-100">
+              <td className="px-3 py-2 text-slate-800 whitespace-nowrap sticky left-0 bg-white">{mem.first_name} {mem.last_name}</td>
+              {MONTH_ABBR.map((_, i) => <td key={i} className="px-2 py-2 text-center">{cellMark(mem.months[i + 1])}</td>)}
+              <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(mem.total_paid)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-xs text-slate-500"><span className="text-emerald-600 font-bold">✓</span> on time · <span className="text-amber-600 font-bold">✓</span> paid late · <span className="text-red-600 font-semibold">Nd</span> days late · <span className="text-slate-400">○</span> due · <span className="text-slate-300">·</span> upcoming</p>
     </div>
   );
 }

@@ -47,6 +47,19 @@ describe("recurring contribution plans", () => {
     expect(again.body.data).toHaveLength(1);
   });
 
+  it("year overview returns all 12 months (opened + projected) and a per-member matrix", async () => {
+    const { admin, w } = await welfareSetup(3);
+    await request(app).put(`/api/welfares/${w.id}/contribution-plan`).set("Authorization", auth(admin)).send({ amount: 1000, due_day: 10 });
+    const ov = await request(app).get(`/api/welfares/${w.id}/contributions/overview`).set("Authorization", auth(admin));
+    expect(ov.status).toBe(200);
+    expect(ov.body.data.months).toHaveLength(12);
+    expect(ov.body.data.members).toHaveLength(3);
+    expect(Object.keys(ov.body.data.members[0].months)).toHaveLength(12);
+    // December (future or current) is projected with the plan's expected total.
+    const dec = ov.body.data.months[11];
+    expect(Number(dec.expected)).toBe(3000); // 1000 × 3 members
+  });
+
   it("cycle detail reports per-member timeliness (on time vs late by N days)", async () => {
     const { admin, w } = await welfareSetup(2);
     const created = await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))

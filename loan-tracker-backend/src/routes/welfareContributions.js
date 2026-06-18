@@ -149,6 +149,81 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
   }
 });
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const pad2 = (n) => String(n).padStart(2, "0");
+
+// Per-member timeliness for one (schedule, cycle) — mirrors the cycle detail.
+function cellFor(s, dueStr, grace, today) {
+  if (!s) return { status: dueStr > today ? "upcoming" : "none" };
+  const graceDate = new Date(new Date(dueStr).getTime() + grace * 86400000).toISOString().slice(0, 10);
+  const paid = Number(s.amount_paid);
+  if (s.status === "paid") {
+    const at = s.paid_at ? new Date(s.paid_at).toISOString().slice(0, 10) : null;
+    return { status: "paid", paid, on_time: at ? at <= graceDate : null, late_days: at ? Math.max(0, Math.round((new Date(at) - new Date(graceDate)) / 86400000)) : 0 };
+  }
+  const overdue = today > graceDate ? Math.round((new Date(today) - new Date(graceDate)) / 86400000) : 0;
+  return { status: paid > 0 ? "partial" : "pending", paid, days_late: overdue };
+}
+
+// GET /contributions/overview?year=YYYY — the whole year (Jan–Dec): each month's
+// cycle if opened, else projected from the plan, PLUS a per-member matrix.
+router.get("/contributions/overview", async (req, res) => {
+  try {
+    try { await ensureCurrentCycles(req.welfare); } catch { /* non-fatal */ }
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    const today = new Date().toISOString().slice(0, 10);
+    const plan = await getPlan(req.welfare.id);
+    const dueDay = Math.min(plan?.due_day || 10, 28);
+    const settingsGrace = (await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id=$1`, [req.welfare.tenant_id])).rows[0]?.contribution_grace_days || 0;
+
+    const members = (await query(`SELECT id, first_name, last_name, member_no FROM members WHERE welfare_id=$1 AND status='active' ORDER BY first_name, id`, [req.welfare.id])).rows;
+    const cycles = (await query(`SELECT * FROM contribution_cycles WHERE welfare_id=$1 AND EXTRACT(YEAR FROM due_date)=$2 ORDER BY due_date`, [req.welfare.id, year])).rows;
+    const cycleIds = cycles.map((c) => c.id);
+    const schedules = cycleIds.length
+      ? (await query(`SELECT * FROM contribution_schedules WHERE cycle_id = ANY($1::int[])`, [cycleIds])).rows
+      : [];
+
+    const cycleByMonth = {};
+    for (const c of cycles) cycleByMonth[new Date(c.due_date).getMonth() + 1] = c;
+    const schedBy = {};
+    for (const s of schedules) schedBy[`${s.cycle_id}:${s.member_id}`] = s;
+
+    const months = [];
+    const matrix = {}; // member_id -> { month -> cell }
+    for (const mem of members) matrix[mem.id] = {};
+    for (let m = 1; m <= 12; m++) {
+      const c = cycleByMonth[m];
+      const due = c ? new Date(c.due_date).toISOString().slice(0, 10) : `${year}-${pad2(m)}-${pad2(dueDay)}`;
+      const grace = c ? (c.grace_days != null ? c.grace_days : settingsGrace) : (plan?.grace_days ?? settingsGrace);
+      if (c) {
+        const cs = schedules.filter((s) => s.cycle_id === c.id);
+        months.push({
+          month: m, name: MONTHS[m - 1], due_date: due, cycle_id: c.id, opened: true, label: c.name, status: c.status,
+          expected: cs.reduce((a, s) => a + Number(s.amount_due), 0),
+          collected: cs.reduce((a, s) => a + Number(s.amount_paid), 0),
+          paid_count: cs.filter((s) => s.status === "paid").length, member_count: cs.length,
+        });
+      } else {
+        months.push({
+          month: m, name: MONTHS[m - 1], due_date: due, cycle_id: null, opened: false,
+          status: due > today ? "upcoming" : "unopened",
+          expected: plan ? Number(plan.amount) * members.length : 0, collected: 0, paid_count: 0, member_count: members.length,
+        });
+      }
+      for (const mem of members) matrix[mem.id][m] = cellFor(c ? schedBy[`${c.id}:${mem.id}`] : null, due, grace, today);
+    }
+    const membersOut = members.map((mem) => ({
+      ...mem,
+      total_paid: Object.values(matrix[mem.id]).reduce((a, cell) => a + (cell.paid || 0), 0),
+      months: matrix[mem.id],
+    }));
+    res.json({ success: true, data: { year, plan, months, members: membersOut } });
+  } catch (e) {
+    logger.error("contributions overview error:", e);
+    res.status(500).json({ error: "Failed to load overview" });
+  }
+});
+
 // GET /cycles/:cycleId — cycle + schedules.
 router.get("/cycles/:cycleId", async (req, res) => {
   try {
