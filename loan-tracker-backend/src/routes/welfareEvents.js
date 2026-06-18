@@ -7,8 +7,9 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import {
-  eventsPoolBalance, createEvent, fundEvent, payEventShare, payoutEvent,
+  eventsPoolBalance, createEvent, fundEvent, payEventShare, payoutEvent, repayBridge, recoverShareFromSavings,
 } from "../services/welfareEventsService.js";
+import { accrueEventSharePenalties } from "../services/welfarePenaltyAccrual.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -108,6 +109,36 @@ router.post("/events/:id/shares/:memberId/pay", authorize("admin", "manager"), a
     const result = await payEventShare({ welfare: req.welfare, event, memberId: parseInt(req.params.memberId, 10), amount: req.body?.amount, userId: req.user.id });
     res.json({ success: true, data: result });
   } catch (e) { fail(res, e, "Failed to record share payment"); }
+});
+
+// POST /events/assess-late — accrue event_late fines on overdue shares (manual).
+router.post("/events/assess-late", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const r = await accrueEventSharePenalties(req.welfare.tenant_id);
+    res.json({ success: true, data: r });
+  } catch (e) { fail(res, e, "Failed to assess event penalties"); }
+});
+
+// POST /events/:id/shares/:memberId/recover — settle an unpaid share from savings.
+router.post("/events/:id/shares/:memberId/recover", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const event = await loadEvent(req.welfare.id, req.params.id);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+    const result = await recoverShareFromSavings({ welfare: req.welfare, event, memberId: parseInt(req.params.memberId, 10), userId: req.user.id });
+    await logAudit({ user: req.user, action: "welfare_event_share_recovered", entityType: "welfare_event", entityId: event.id, description: `Recovered KES ${result.recovered.toLocaleString()} event share from member ${req.params.memberId}'s savings`, req });
+    res.json({ success: true, data: result });
+  } catch (e) { fail(res, e, "Failed to recover share"); }
+});
+
+// POST /events/:id/repay-bridge — repay the savings pool from the events pool.
+router.post("/events/:id/repay-bridge", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const event = await loadEvent(req.welfare.id, req.params.id);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+    const result = await repayBridge({ welfare: req.welfare, event, userId: req.user.id });
+    await logAudit({ user: req.user, action: "welfare_event_bridge_repaid", entityType: "welfare_event", entityId: event.id, description: `Repaid KES ${result.repaid.toLocaleString()} of the savings bridge for "${event.title}"`, req });
+    res.json({ success: true, data: result });
+  } catch (e) { fail(res, e, "Failed to repay bridge"); }
 });
 
 // POST /events/:id/payout — disburse a fully-funded event to its beneficiary.

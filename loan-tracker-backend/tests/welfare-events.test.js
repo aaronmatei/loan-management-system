@@ -106,6 +106,83 @@ describe("welfare events — phase 1", () => {
     expect(early.status).toBe(400);
   });
 
+  it("bridges the shortfall from the savings pool, then repays once members refill the events pool", async () => {
+    const { admin, w, members } = await welfareSetup(3);
+    const [m1, m2, m3] = members;
+    // Seed the savings pool with cash (a member's contribution).
+    await query(
+      `INSERT INTO member_pool_transactions (tenant_id, welfare_id, member_id, type, amount, direction, balance_after)
+       SELECT tenant_id, id, $2, 'contribution', 10000, 1, 10000 FROM groups WHERE id=$1`,
+      [w.id, m1.id],
+    );
+
+    const created = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: m1.id, amount: 3000, title: "Urgent" });
+    const eventId = created.body.data.id;
+
+    const funded = await request(app).post(`/api/welfares/${w.id}/events/${eventId}/fund`).set("Authorization", auth(admin)).send({ mode: "bridge" });
+    expect(funded.status).toBe(200);
+    expect(funded.body.data.event.status).toBe("disbursed");
+    expect(Number(funded.body.data.event.bridged_amount)).toBe(3000);
+    expect(Number(funded.body.data.savingsPoolBalance)).toBeCloseTo(7000, 2); // 10000 - 3000
+    expect(Number(funded.body.data.eventsPoolBalance)).toBeCloseTo(0, 2);
+
+    // Members refill the events pool (shares of 3000 split three ways).
+    for (const m of [m1, m2, m3]) {
+      await request(app).post(`/api/welfares/${w.id}/events/${eventId}/shares/${m.id}/pay`).set("Authorization", auth(admin)).send({});
+    }
+    const repay = await request(app).post(`/api/welfares/${w.id}/events/${eventId}/repay-bridge`).set("Authorization", auth(admin)).send({});
+    expect(repay.status).toBe(200);
+    expect(Number(repay.body.data.event.bridge_repaid)).toBe(3000);
+    expect(repay.body.data.event.status).toBe("settled");
+    expect(Number(repay.body.data.savingsPoolBalance)).toBeCloseTo(10000, 2); // restored
+    expect(Number(repay.body.data.eventsPoolBalance)).toBeCloseTo(0, 2);
+
+    // The bridge never touched anyone's savings equity.
+    expect(await memberSavings(m1.id)).toBe(10000);
+  });
+
+  it("won't bridge more than the savings pool holds", async () => {
+    const { admin, w, members } = await welfareSetup(2);
+    const created = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: members[0].id, amount: 3000 });
+    const funded = await request(app).post(`/api/welfares/${w.id}/events/${created.body.data.id}/fund`).set("Authorization", auth(admin)).send({ mode: "bridge" });
+    expect(funded.status).toBe(400); // empty savings pool
+  });
+
+  it("accrues event_late fines on overdue unpaid shares", async () => {
+    const { t, admin, w, members } = await welfareSetup(2);
+    await query(`INSERT INTO penalty_rules (tenant_id, trigger, calc_type, amount, active) VALUES ($1,'event_late','fixed',100,true)`, [t.id]);
+    const created = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: members[0].id, amount: 2000, due_date: "2020-01-01" });
+    const eventId = created.body.data.id;
+    await request(app).post(`/api/welfares/${w.id}/events/${eventId}/fund`).set("Authorization", auth(admin)).send({ mode: "collect" });
+
+    const assess = await request(app).post(`/api/welfares/${w.id}/events/assess-late`).set("Authorization", auth(admin)).send({});
+    expect(assess.status).toBe(200);
+    expect(assess.body.data.assessed).toBe(2); // both members' shares
+    const fines = (await query(`SELECT * FROM penalty_assessments WHERE tenant_id=$1 AND trigger='event_late'`, [t.id])).rows;
+    expect(fines).toHaveLength(2);
+    expect(Number(fines[0].amount)).toBe(100);
+  });
+
+  it("recovers an unpaid share from the member's savings", async () => {
+    const { admin, w, members } = await welfareSetup(2);
+    const [m1, m2] = members;
+    await query(
+      `INSERT INTO member_pool_transactions (tenant_id, welfare_id, member_id, type, amount, direction, balance_after)
+       SELECT tenant_id, id, $2, 'contribution', 5000, 1, 5000 FROM groups WHERE id=$1`,
+      [w.id, m2.id],
+    );
+    const created = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: m1.id, amount: 2000 });
+    const eventId = created.body.data.id;
+    await request(app).post(`/api/welfares/${w.id}/events/${eventId}/fund`).set("Authorization", auth(admin)).send({ mode: "collect" }); // 1000 each
+
+    const rec = await request(app).post(`/api/welfares/${w.id}/events/${eventId}/shares/${m2.id}/recover`).set("Authorization", auth(admin)).send({});
+    expect(rec.status).toBe(200);
+    expect(Number(rec.body.data.recovered)).toBe(1000);
+    expect(Number(rec.body.data.memberSavings)).toBe(4000); // 5000 - 1000
+    expect(rec.body.data.share.status).toBe("paid");
+    expect(Number(rec.body.data.eventsPoolBalance)).toBe(1000);
+  });
+
   it("rejects an event whose beneficiary isn't an active member of the welfare", async () => {
     const { admin, w } = await welfareSetup(1);
     const r = await request(app).post(`/api/welfares/${w.id}/events`).set("Authorization", auth(admin)).send({ beneficiary_member_id: 999999, amount: 1000 });

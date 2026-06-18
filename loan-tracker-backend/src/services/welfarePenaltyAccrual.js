@@ -79,6 +79,71 @@ export async function accrueContributionPenalties(tenantId) {
   return { assessed, overdue: schedules.length };
 }
 
+// Late event-share penalty accrual — the events analogue of the above. Overdue,
+// unpaid shares (past the event's due_date + grace) get an `event_late` fine.
+// The share's deadline lives on the parent event. Same idempotency rule.
+export async function accrueEventSharePenalties(tenantId) {
+  const rules = (
+    await query(
+      `SELECT * FROM penalty_rules
+        WHERE tenant_id = $1 AND trigger = 'event_late' AND active = true`,
+      [tenantId],
+    )
+  ).rows;
+  if (rules.length === 0) return { assessed: 0, overdue: 0 };
+
+  const grace = (
+    await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id = $1`, [tenantId])
+  ).rows[0]?.contribution_grace_days || 0;
+
+  // Unpaid shares whose event has a due date that's passed (+grace) and that is
+  // still being collected / awaiting bridge repayment.
+  const shares = (
+    await query(
+      `SELECT s.*,
+              (CURRENT_DATE - (e.due_date + ($2 * INTERVAL '1 day'))::date) AS days_late
+         FROM welfare_event_shares s
+         JOIN welfare_events e ON e.id = s.event_id
+        WHERE s.tenant_id = $1 AND s.status <> 'paid'
+          AND e.status IN ('collecting','disbursed')
+          AND e.due_date IS NOT NULL
+          AND (e.due_date + ($2 * INTERVAL '1 day'))::date < CURRENT_DATE`,
+      [tenantId, grace],
+    )
+  ).rows;
+
+  let assessed = 0;
+  for (const s of shares) {
+    const outstanding = round2(parseFloat(s.amount_due) - parseFloat(s.amount_paid));
+    const daysLate = parseInt(s.days_late, 10) || 0;
+    for (const rule of rules) {
+      const amt = computePenaltyAmount(rule, { basis: outstanding, daysLate });
+      if (!(amt > 0)) continue;
+      const existing = (
+        await query(
+          `SELECT id FROM penalty_assessments
+            WHERE tenant_id = $1 AND source_type = 'welfare_event_share'
+              AND source_id = $2 AND rule_id = $3 AND status = 'outstanding' AND paid_amount = 0`,
+          [tenantId, s.id, rule.id],
+        )
+      ).rows[0];
+      if (existing) {
+        await query(`UPDATE penalty_assessments SET amount = $2, assessed_at = NOW() WHERE id = $1`, [existing.id, amt]);
+      } else {
+        await query(
+          `INSERT INTO penalty_assessments
+             (tenant_id, member_id, rule_id, trigger, source_type, source_id, amount, description)
+           VALUES ($1,$2,$3,'event_late','welfare_event_share',$4,$5,'Late event contribution')`,
+          [tenantId, s.member_id, rule.id, s.id, amt],
+        );
+        assessed += 1;
+      }
+    }
+    await query(`UPDATE welfare_event_shares SET status = 'overdue', updated_at = NOW() WHERE id = $1 AND status = 'pending'`, [s.id]);
+  }
+  return { assessed, overdue: shares.length };
+}
+
 // Run for every active welfare tenant (the daily cron's entry point).
 export async function accrueAllWelfarePenalties() {
   const tenants = (
@@ -88,7 +153,8 @@ export async function accrueAllWelfarePenalties() {
   for (const t of tenants) {
     try {
       const r = await accrueContributionPenalties(t.id);
-      assessed += r.assessed;
+      const e = await accrueEventSharePenalties(t.id);
+      assessed += r.assessed + e.assessed;
     } catch {
       /* one chama failing shouldn't stop the rest */
     }

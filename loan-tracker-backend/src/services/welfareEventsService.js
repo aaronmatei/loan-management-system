@@ -11,7 +11,7 @@
 //             payoutEvent disburses once the pool reaches N.
 // (Phase 2 adds the 'bridge' mode: borrow the shortfall from the savings pool.)
 import { query } from "../config/database.js";
-import { round2 } from "./welfarePoolService.js";
+import { round2, poolBalance, postPool, memberSavings } from "./welfarePoolService.js";
 
 const httpErr = (status, message) => Object.assign(new Error(message), { status });
 
@@ -80,28 +80,38 @@ export async function fundEvent({ welfare, event, mode, dueDate, userId }) {
   const N = round2(parseFloat(event.amount));
   const B = await eventsPoolBalance(welfare.id);
 
-  if (mode === "bridge") throw httpErr(400, "Bridge-from-savings funding isn't available yet");
+  // Pool covers it → disburse now, whatever mode was asked for.
+  if (B >= N) return disburse({ welfare, event, fundingMode: "pool", userId });
+  if (mode === "pool")
+    throw httpErr(400, `Events pool holds KES ${B.toLocaleString()} — not enough to disburse KES ${N.toLocaleString()}. Collect the shortfall or bridge from savings.`);
 
-  if (mode === "pool" || B >= N) {
-    if (B < N) throw httpErr(400, `Events pool holds KES ${B.toLocaleString()} — not enough to disburse KES ${N.toLocaleString()}. Collect the shortfall instead.`);
-    return disburse({ welfare, event, fundingMode: "pool", userId });
+  const S = round2(N - B);
+  const members = await activeMembers(welfare.id);
+  if (members.length === 0) throw httpErr(400, "No active members to collect from");
+
+  // Bridge: the savings pool fronts the shortfall, the beneficiary is paid now,
+  // members repay into the events pool, then the admin repays savings.
+  if (mode === "bridge") {
+    const savings = await poolBalance(welfare.id);
+    if (S > savings)
+      throw httpErr(400, `Savings pool holds KES ${savings.toLocaleString()} — can't bridge KES ${S.toLocaleString()}`);
+    await postPool({ welfare, type: "event_bridge_out", amount: S, direction: -1, description: `Bridge to event "${event.title}"`, userId });
+    await postEventsPool({ welfare, eventId: event.id, type: "bridge_in", amount: S, direction: 1, description: `Savings bridge for "${event.title}"`, userId });
+    await postEventsPool({ welfare, eventId: event.id, memberId: event.beneficiary_member_id, type: "payout", amount: N, direction: -1, description: `Payout — ${event.title}`, userId });
+    await generateShares(welfare, event, members, S);
+    const r = await query(
+      `UPDATE welfare_events
+          SET funding_mode = 'bridge', shortfall_amount = $2, bridged_amount = $2,
+              disbursed_amount = $3, disbursed_at = NOW(), status = 'disbursed',
+              due_date = COALESCE($4::date, due_date), updated_at = NOW()
+        WHERE id = $1 RETURNING *`,
+      [event.id, S, N, dueDate || null],
+    );
+    return { event: r.rows[0], bridged: S, eventsPoolBalance: await eventsPoolBalance(welfare.id), savingsPoolBalance: await poolBalance(welfare.id) };
   }
 
   // collect: shortfall split across all active members (beneficiary included).
-  const S = round2(N - B);
-  const members = (
-    await query(`SELECT id FROM members WHERE welfare_id = $1 AND status = 'active' ORDER BY id`, [welfare.id])
-  ).rows;
-  if (members.length === 0) throw httpErr(400, "No active members to collect from");
-  const shares = splitEqually(S, members.length);
-  for (let i = 0; i < members.length; i++) {
-    await query(
-      `INSERT INTO welfare_event_shares (tenant_id, event_id, member_id, amount_due)
-       VALUES ($1,$2,$3,$4)
-       ON CONFLICT (event_id, member_id) DO UPDATE SET amount_due = EXCLUDED.amount_due, updated_at = NOW()`,
-      [welfare.tenant_id, event.id, members[i].id, shares[i]],
-    );
-  }
+  await generateShares(welfare, event, members, S);
   const r = await query(
     `UPDATE welfare_events
         SET funding_mode = 'collect', shortfall_amount = $2, status = 'collecting',
@@ -110,6 +120,41 @@ export async function fundEvent({ welfare, event, mode, dueDate, userId }) {
     [event.id, S, dueDate || null],
   );
   return { event: r.rows[0], shortfall: S, shares: members.length };
+}
+
+const activeMembers = async (welfareId) =>
+  (await query(`SELECT id FROM members WHERE welfare_id = $1 AND status = 'active' ORDER BY id`, [welfareId])).rows;
+
+async function generateShares(welfare, event, members, total) {
+  const shares = splitEqually(total, members.length);
+  for (let i = 0; i < members.length; i++) {
+    await query(
+      `INSERT INTO welfare_event_shares (tenant_id, event_id, member_id, amount_due)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (event_id, member_id) DO UPDATE SET amount_due = EXCLUDED.amount_due, updated_at = NOW()`,
+      [welfare.tenant_id, event.id, members[i].id, shares[i]],
+    );
+  }
+}
+
+// Repay the savings pool from the events pool (members have refilled it). Partial
+// repayment is fine — repay whatever the events pool currently holds, up to the
+// outstanding bridge.
+export async function repayBridge({ welfare, event, userId }) {
+  const outstanding = round2(parseFloat(event.bridged_amount) - parseFloat(event.bridge_repaid));
+  if (!(outstanding > 0)) throw httpErr(400, "No outstanding bridge on this event");
+  const eb = await eventsPoolBalance(welfare.id);
+  const amt = round2(Math.min(outstanding, eb));
+  if (!(amt > 0)) throw httpErr(400, "Events pool is empty — nothing to repay yet");
+  await postEventsPool({ welfare, eventId: event.id, type: "bridge_repay", amount: amt, direction: -1, description: `Repay savings bridge — ${event.title}`, userId });
+  await postPool({ welfare, type: "event_bridge_in", amount: amt, direction: 1, description: `Bridge repaid from event "${event.title}"`, userId });
+  const newRepaid = round2(parseFloat(event.bridge_repaid) + amt);
+  const settled = newRepaid >= parseFloat(event.bridged_amount) - 0.001;
+  const r = await query(
+    `UPDATE welfare_events SET bridge_repaid = $2, status = CASE WHEN $3 THEN 'settled' ELSE status END, updated_at = NOW() WHERE id = $1 RETURNING *`,
+    [event.id, newRepaid, settled],
+  );
+  return { event: r.rows[0], repaid: amt, outstanding: round2(outstanding - amt), savingsPoolBalance: await poolBalance(welfare.id), eventsPoolBalance: await eventsPoolBalance(welfare.id) };
 }
 
 // Record a member paying their event share → into the events pool. Admin path;
@@ -135,6 +180,29 @@ export async function payEventShare({ welfare, event, memberId, amount, txnDate,
     txnDate, description: `Event share — ${event.title}`, userId,
   });
   return { share: { ...share, amount_paid: newPaid, status }, ledger, poolBalance: await eventsPoolBalance(welfare.id) };
+}
+
+// Recover an unpaid event share from the member's savings — their share is a
+// debt, so the admin can settle it out of their equity. Pulls min(outstanding,
+// savings) from the savings pool and credits it into the events pool on the
+// member's behalf, marking the share paid.
+export async function recoverShareFromSavings({ welfare, event, memberId, userId }) {
+  const sres = await query(`SELECT * FROM welfare_event_shares WHERE event_id = $1 AND member_id = $2`, [event.id, memberId]);
+  if (sres.rows.length === 0) throw httpErr(404, "No share for this member on this event");
+  const share = sres.rows[0];
+  const outstanding = round2(parseFloat(share.amount_due) - parseFloat(share.amount_paid));
+  if (!(outstanding > 0)) throw httpErr(400, "Share is already paid");
+  const savings = await memberSavings(memberId);
+  const amt = round2(Math.min(outstanding, savings));
+  if (!(amt > 0)) throw httpErr(400, `Member has KES ${savings.toLocaleString()} in savings — nothing to recover`);
+
+  await postPool({ welfare, memberId, type: "withdrawal", amount: amt, direction: -1, description: `Event share recovered from savings — ${event.title}`, userId });
+  await postEventsPool({ welfare, eventId: event.id, memberId, type: "contribution", amount: amt, direction: 1, description: `Event share (recovered from savings) — ${event.title}`, userId });
+
+  const newPaid = round2(parseFloat(share.amount_paid) + amt);
+  const status = newPaid >= parseFloat(share.amount_due) - 0.001 ? "paid" : "partial";
+  await query(`UPDATE welfare_event_shares SET amount_paid = $2, status = $3, updated_at = NOW() WHERE id = $1`, [share.id, newPaid, status]);
+  return { share: { ...share, amount_paid: newPaid, status }, recovered: amt, memberSavings: await memberSavings(memberId), eventsPoolBalance: await eventsPoolBalance(welfare.id) };
 }
 
 // Disburse a fully-funded event to its beneficiary out of the events pool.
