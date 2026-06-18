@@ -82,6 +82,7 @@ import {
   WelfareDashboardPage,
   WelfareMembersPage,
   WelfareContributionsPage,
+  WelfareEventsPage,
   WelfarePenaltiesPage,
   WelfareMeetingsPage,
   WelfareDividendsPage,
@@ -435,6 +436,7 @@ function App() {
                 <Route path="members" element={<WelfareMembersPage />} />
                 <Route path="members/:memberId" element={<MemberDetail />} />
                 <Route path="contributions" element={<WelfareContributionsPage />} />
+                <Route path="events" element={<WelfareEventsPage />} />
                 <Route path="penalties" element={<WelfarePenaltiesPage />} />
                 <Route path="meetings" element={<WelfareMeetingsPage />} />
                 <Route path="requests" element={<WelfareRequestsPage />} />
