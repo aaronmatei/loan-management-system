@@ -3514,7 +3514,8 @@ CREATE TABLE public.contribution_cycles (
   notes        text,
   created_by   integer,
   created_at   timestamp NOT NULL DEFAULT NOW(),
-  updated_at   timestamp NOT NULL DEFAULT NOW()
+  updated_at   timestamp NOT NULL DEFAULT NOW(),
+  category     varchar(20) NOT NULL DEFAULT 'savings' -- migration 078 (savings credits equity)
 );
 
 CREATE TABLE public.contribution_schedules (
@@ -3533,6 +3534,60 @@ CREATE TABLE public.contribution_schedules (
 CREATE INDEX idx_contrib_cycles_welfare ON public.contribution_cycles(welfare_id, status);
 CREATE INDEX idx_contrib_schedules_cycle ON public.contribution_schedules(cycle_id);
 CREATE INDEX idx_contrib_schedules_member ON public.contribution_schedules(member_id);
+
+-- Welfare EVENTS — ad-hoc member payouts funded by a separate events pool (migration 078).
+CREATE TABLE public.welfare_events (
+  id                    serial PRIMARY KEY,
+  tenant_id             integer NOT NULL,
+  welfare_id            integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  title                 varchar(120) NOT NULL,
+  description           text,
+  beneficiary_member_id integer NOT NULL REFERENCES public.members(id) ON DELETE RESTRICT,
+  amount                numeric NOT NULL CHECK (amount > 0),
+  due_date              date,
+  funding_mode          varchar(20),
+  shortfall_amount      numeric NOT NULL DEFAULT 0,
+  bridged_amount        numeric NOT NULL DEFAULT 0,
+  bridge_repaid         numeric NOT NULL DEFAULT 0,
+  disbursed_amount      numeric NOT NULL DEFAULT 0,
+  disbursed_at          timestamp,
+  status                varchar(20) NOT NULL DEFAULT 'open',
+  notes                 text,
+  created_by            integer,
+  created_at            timestamp NOT NULL DEFAULT NOW(),
+  updated_at            timestamp NOT NULL DEFAULT NOW()
+);
+CREATE TABLE public.welfare_event_shares (
+  id          serial PRIMARY KEY,
+  tenant_id   integer NOT NULL,
+  event_id    integer NOT NULL REFERENCES public.welfare_events(id) ON DELETE CASCADE,
+  member_id   integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  amount_due  numeric NOT NULL,
+  amount_paid numeric NOT NULL DEFAULT 0,
+  status      varchar(20) NOT NULL DEFAULT 'pending',
+  created_at  timestamp NOT NULL DEFAULT NOW(),
+  updated_at  timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (event_id, member_id)
+);
+CREATE TABLE public.welfare_event_ledger (
+  id            serial PRIMARY KEY,
+  tenant_id     integer NOT NULL,
+  welfare_id    integer NOT NULL,
+  event_id      integer REFERENCES public.welfare_events(id) ON DELETE SET NULL,
+  member_id     integer REFERENCES public.members(id) ON DELETE SET NULL,
+  type          varchar(24) NOT NULL,
+  amount        numeric NOT NULL CHECK (amount > 0),
+  direction     smallint NOT NULL,
+  balance_after numeric NOT NULL,
+  txn_date      date NOT NULL DEFAULT CURRENT_DATE,
+  description   text,
+  created_by    integer,
+  created_at    timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_welfare_events_welfare ON public.welfare_events(welfare_id, status);
+CREATE INDEX idx_welfare_event_shares_event ON public.welfare_event_shares(event_id);
+CREATE INDEX idx_welfare_event_shares_member ON public.welfare_event_shares(member_id);
+CREATE INDEX idx_welfare_event_ledger_welfare ON public.welfare_event_ledger(welfare_id, id);
 
 --
 -- Welfare meeting attendance over members (migration 061).

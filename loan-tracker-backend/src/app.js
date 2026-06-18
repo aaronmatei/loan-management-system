@@ -38,6 +38,7 @@ import groupSavingsRoutes from "./routes/groupSavings.js";
 import groupActivityRoutes from "./routes/groupActivity.js";
 import memberRoutes from "./routes/members.js";
 import welfareRequestRoutes from "./routes/welfareRequests.js";
+import welfareEventRoutes from "./routes/welfareEvents.js";
 import welfarePenaltyRoutes from "./routes/welfarePenalties.js";
 import welfareContributionRoutes from "./routes/welfareContributions.js";
 import welfareMeetingRoutes from "./routes/welfareMeetings.js";
@@ -192,6 +193,7 @@ app.use("/api/groups", groupActivityRoutes); // group meetings + attendance + le
 app.use("/api/welfare", welfareCurrentRoutes); // resolve "my welfare" from the tenant (standalone welfare app)
 app.use("/api/welfares/:welfareId/members", memberRoutes); // welfare members + pool + lending
 app.use("/api/welfares/:welfareId/requests", welfareRequestRoutes); // member loan/withdrawal request review
+app.use("/api/welfares/:welfareId", welfareEventRoutes); // ad-hoc member events + separate events pool
 app.use("/api/welfares/:welfareId", welfarePenaltyRoutes); // welfare settings + penalty engine
 app.use("/api/welfares/:welfareId", welfareContributionRoutes); // contribution cycles + schedules
 app.use("/api/welfares/:welfareId", welfareMeetingRoutes); // meetings + member attendance + penalties
