@@ -91,4 +91,35 @@ describe("member portal requests + admin approval", () => {
     const poolAfterRej = (await request(app).get(`/api/welfares/${welfare.id}/members/pool`).set("Authorization", auth(admin))).body.data.balance;
     expect(Number(poolAfterRej)).toBe(Number(poolBeforeRej));
   });
+
+  it("event request → admin approve creates a welfare event for the member", async () => {
+    const { admin, welfare, member, tok } = await setup(0);
+    const reqRes = await request(app)
+      .post("/api/welfare/member/event-requests")
+      .set("Authorization", tok)
+      .send({ amount: 8000, event_date: "2090-06-01", reason: "Medical" });
+    expect(reqRes.status).toBe(201);
+    const reqId = reqRes.body.data.id;
+
+    const queue = await request(app).get(`/api/welfares/${welfare.id}/requests/events?status=pending`).set("Authorization", auth(admin));
+    expect(queue.body.data.find((r) => r.id === reqId)).toBeTruthy();
+
+    const appr = await request(app).post(`/api/welfares/${welfare.id}/requests/events/${reqId}/approve`).set("Authorization", auth(admin)).send({});
+    expect(appr.status).toBe(200);
+    const event = appr.body.data.event;
+    expect(event.beneficiary_member_id).toBe(member.id);
+    expect(Number(event.amount)).toBe(8000);
+    expect(event.status).toBe("open");
+    expect(event.needed_by).toBeTruthy();
+
+    const reqAfter = (await query("SELECT status, created_event_id FROM member_event_requests WHERE id=$1", [reqId])).rows[0];
+    expect(reqAfter.status).toBe("approved");
+    expect(reqAfter.created_event_id).toBe(event.id);
+  });
+
+  it("rejects a member event request for a past date", async () => {
+    const { tok } = await setup(0);
+    const r = await request(app).post("/api/welfare/member/event-requests").set("Authorization", tok).send({ amount: 5000, event_date: "2020-01-01" });
+    expect(r.status).toBe(400);
+  });
 });

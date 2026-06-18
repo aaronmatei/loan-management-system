@@ -396,6 +396,42 @@ router.get("/loan-requests", async (req, res) => {
   }
 });
 
+// POST /event-requests { amount, event_date, reason } — ask for event funds.
+router.post("/event-requests", async (req, res) => {
+  try {
+    if (req.member.status !== "active") return res.status(400).json({ error: "Your membership is not active" });
+    const amount = parseFloat(req.body?.amount);
+    if (!(amount > 0)) return res.status(400).json({ error: "Enter an amount greater than 0" });
+    const eventDate = req.body?.event_date || null;
+    if (eventDate && eventDate <= new Date().toISOString().slice(0, 10))
+      return res.status(400).json({ error: "Event date must be in the future" });
+    const r = await query(
+      `INSERT INTO member_event_requests (tenant_id, welfare_id, member_id, amount, event_date, reason, status)
+       VALUES ($1,$2,$3,$4,$5::date,$6,'pending') RETURNING *`,
+      [req.member.tenant_id, req.welfareId, req.member.id, amount, eventDate, req.body?.reason || null],
+    );
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("member event-request error:", e);
+    res.status(500).json({ error: "Failed to submit request" });
+  }
+});
+
+// GET /event-requests — this member's event-fund requests.
+router.get("/event-requests", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT id, amount, event_date, reason, status, decision_notes, created_at, decided_at
+         FROM member_event_requests WHERE member_id = $1 ORDER BY id DESC`,
+      [req.member.id],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("member event-requests list error:", e);
+    res.status(500).json({ error: "Failed to load requests" });
+  }
+});
+
 // POST /withdrawal-requests { amount, reason }
 router.post("/withdrawal-requests", async (req, res) => {
   try {

@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
@@ -160,6 +160,7 @@ function RequestModal({ title, fields, url, onClose, onDone }) {
                 value={form[f.name] || ""}
                 onChange={(e) => setForm((s) => ({ ...s, [f.name]: e.target.value }))}
                 placeholder={f.placeholder}
+                min={f.min}
                 className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none"
               />
             </div>
@@ -173,13 +174,13 @@ function RequestModal({ title, fields, url, onClose, onDone }) {
   );
 }
 
-// A member's own request history (loan or withdrawal).
-function RequestsList({ path, columns }) {
+// A member's own request history (loan / withdrawal / event).
+function RequestsList({ path, columns, title = "My requests" }) {
   const { data, loading } = useFetch(path);
   if (loading || !data || data.length === 0) return null;
   return (
     <div className="mt-6">
-      <h2 className="font-bold text-slate-900 mb-2">My requests</h2>
+      <h2 className="font-bold text-slate-900 mb-2">{title}</h2>
       <Table
         head={[...columns.map((c) => c.label), "Status"]}
         rows={data}
@@ -322,16 +323,20 @@ export function MemberContributions() {
 
 export function MemberLoans() {
   const { data, loading, error, reload } = useFetch("/welfare/member/loans");
-  const [modal, setModal] = useState(false);
+  const [modal, setModal] = useState(null); // 'loan' | 'event' | null
   const [reqKey, setReqKey] = useState(0);
+  const today = new Date().toISOString().slice(0, 10);
   return (
-    <Shell title="Chama Loans" icon={Wallet}>
-      <div className="flex justify-end -mt-2 mb-4">
-        <button onClick={() => setModal(true)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2">
+    <Shell title="Requests" icon={ClipboardList}>
+      <div className="flex flex-wrap justify-end gap-2 -mt-2 mb-4">
+        <button onClick={() => setModal("event")} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold inline-flex items-center gap-2">
+          <HeartHandshake size={16} /> Request event funds
+        </button>
+        <button onClick={() => setModal("loan")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2">
           <Plus size={16} /> Request a loan
         </button>
       </div>
-      {modal && (
+      {modal === "loan" && (
         <RequestModal
           title="Request a chama loan"
           url="/welfare/member/loan-requests"
@@ -340,7 +345,20 @@ export function MemberLoans() {
             { name: "duration_months", label: "Duration (months)", type: "number", placeholder: "e.g. 6" },
             { name: "purpose", label: "Purpose", placeholder: "What's it for?" },
           ]}
-          onClose={() => setModal(false)}
+          onClose={() => setModal(null)}
+          onDone={() => setReqKey((k) => k + 1)}
+        />
+      )}
+      {modal === "event" && (
+        <RequestModal
+          title="Request event funds"
+          url="/welfare/member/event-requests"
+          fields={[
+            { name: "amount", label: "Amount needed (KES)", type: "number", placeholder: "e.g. 10000" },
+            { name: "event_date", label: "Date of the event", type: "date", min: today },
+            { name: "reason", label: "What's it for?", placeholder: "e.g. medical, funeral, wedding" },
+          ]}
+          onClose={() => setModal(null)}
           onDone={() => setReqKey((k) => k + 1)}
         />
       )}
@@ -367,12 +385,23 @@ export function MemberLoans() {
         />
       )}
       <RequestsList
-        key={reqKey}
+        key={`loan-${reqKey}`}
+        title="Loan requests"
         path="/welfare/member/loan-requests"
         columns={[
           { key: "principal", label: "Amount", fmt: KES },
           { key: "duration_months", label: "Months" },
           { key: "purpose", label: "Purpose" },
+        ]}
+      />
+      <RequestsList
+        key={`event-${reqKey}`}
+        title="Event requests"
+        path="/welfare/member/event-requests"
+        columns={[
+          { key: "amount", label: "Amount", fmt: KES },
+          { key: "event_date", label: "Event date", fmt },
+          { key: "reason", label: "Reason" },
         ]}
       />
     </Shell>

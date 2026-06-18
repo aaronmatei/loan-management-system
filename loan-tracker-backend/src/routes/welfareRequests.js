@@ -9,6 +9,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { issueMemberLoan, recordWithdrawal } from "../services/welfarePoolService.js";
+import { createEvent } from "../services/welfareEventsService.js";
 import { sendWelfareSms } from "../services/welfareSmsService.js";
 import logger from "../config/logger.js";
 
@@ -208,6 +209,92 @@ router.post("/withdrawals/:id/reject", authorize("admin", "manager"), async (req
     res.json({ success: true });
   } catch (e) {
     logger.error("withdrawal-request reject error:", e);
+    res.status(500).json({ error: "Failed to reject request" });
+  }
+});
+
+// GET /events?status=pending — member event-fund requests.
+router.get("/events", async (req, res) => {
+  try {
+    const status = req.query.status;
+    const params = [req.welfare.id];
+    let where = "r.welfare_id = $1";
+    if (status) { params.push(status); where += ` AND r.status = $${params.length}`; }
+    const r = await query(
+      `SELECT r.*, m.first_name, m.last_name, m.member_no, m.phone_number
+         FROM member_event_requests r JOIN members m ON m.id = r.member_id
+        WHERE ${where} ORDER BY r.id DESC`,
+      params,
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("event-requests list error:", e);
+    res.status(500).json({ error: "Failed to load requests" });
+  }
+});
+
+// POST /events/:id/approve { notes? } — create the welfare event (status open)
+// for the requester; the admin funds it next.
+router.post("/events/:id/approve", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const reqRow = await loadPending("member_event_requests", req.welfare.id, req.params.id);
+    if (!reqRow) return res.status(404).json({ error: "Request not found" });
+    if (reqRow.status !== "pending") return res.status(400).json({ error: `Request is ${reqRow.status}` });
+    const member = await loadMember(req.welfare.id, reqRow.member_id);
+    if (!member) return res.status(404).json({ error: "Member not found" });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const ed = reqRow.event_date ? new Date(reqRow.event_date).toISOString().slice(0, 10) : null;
+    const event = await createEvent({
+      welfare: req.welfare, beneficiaryMemberId: member.id, amount: parseFloat(reqRow.amount),
+      neededBy: ed && ed > today ? ed : null, // drop a now-past requested date
+      title: reqRow.reason || `Event for ${member.first_name} ${member.last_name}`,
+      description: req.body?.notes || null, userId: req.user.id,
+    });
+    await query(
+      `UPDATE member_event_requests
+          SET status='approved', reviewed_by=$2, decision_notes=$3, created_event_id=$4, decided_at=NOW()
+        WHERE id=$1`,
+      [reqRow.id, req.user.id, req.body?.notes || null, event.id],
+    );
+    await logAudit({
+      user: req.user, action: "member_event_request_approved", entityType: "welfare_event",
+      entityId: event.id, description: `Approved event request for ${member.first_name} ${member.last_name} (KES ${Number(reqRow.amount).toLocaleString()})`, req,
+    });
+    sendWelfareSms({
+      tenantId: req.welfare.tenant_id, phone: member.phone_number, type: "event_request_approved",
+      message: `Hi ${smsName(member)}, your ${req.welfare.name} event request of KES ${Number(reqRow.amount).toLocaleString()} was approved.`,
+      sentBy: req.user.id,
+    });
+    res.json({ success: true, data: { event } });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("event-request approve error:", e);
+    res.status(500).json({ error: "Failed to approve request" });
+  }
+});
+
+// POST /events/:id/reject { notes? }
+router.post("/events/:id/reject", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const reqRow = await loadPending("member_event_requests", req.welfare.id, req.params.id);
+    if (!reqRow) return res.status(404).json({ error: "Request not found" });
+    if (reqRow.status !== "pending") return res.status(400).json({ error: `Request is ${reqRow.status}` });
+    await query(
+      `UPDATE member_event_requests SET status='rejected', reviewed_by=$2, decision_notes=$3, decided_at=NOW() WHERE id=$1`,
+      [reqRow.id, req.user.id, req.body?.notes || null],
+    );
+    const member = await loadMember(req.welfare.id, reqRow.member_id);
+    if (member) {
+      sendWelfareSms({
+        tenantId: req.welfare.tenant_id, phone: member.phone_number, type: "event_request_rejected",
+        message: `Hi ${smsName(member)}, your ${req.welfare.name} event request was not approved${req.body?.notes ? ` (${req.body.notes})` : ""}.`,
+        sentBy: req.user.id,
+      });
+    }
+    res.json({ success: true });
+  } catch (e) {
+    logger.error("event-request reject error:", e);
     res.status(500).json({ error: "Failed to reject request" });
   }
 });

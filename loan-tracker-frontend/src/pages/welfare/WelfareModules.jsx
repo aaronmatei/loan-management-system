@@ -263,6 +263,7 @@ export function WelfareRequestsPage() {
   const { welfareId } = useWelfare();
   const [loans, setLoans] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
 
@@ -270,12 +271,14 @@ export function WelfareRequestsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [l, w] = await Promise.all([
+      const [l, w, e] = await Promise.all([
         api.get(`${base}/loans?status=pending`),
         api.get(`${base}/withdrawals?status=pending`),
+        api.get(`${base}/events?status=pending`),
       ]);
       setLoans(l.data.data || []);
       setWithdrawals(w.data.data || []);
+      setEvents(e.data.data || []);
     } catch {
       /* surfaced as empty */
     } finally {
@@ -335,6 +338,11 @@ export function WelfareRequestsPage() {
             <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Withdrawal requests ({withdrawals.length})</h2></div>
             {withdrawals.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending withdrawal requests.</p> :
               withdrawals.map((r) => <Row key={r.id} kind="withdrawals" r={r} amount={r.amount} extra={r.reason} />)}
+          </div>
+          <div className="bg-white rounded-xl shadow-md border border-slate-100">
+            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Event requests ({events.length})</h2></div>
+            {events.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending event requests.</p> :
+              events.map((r) => <Row key={r.id} kind="events" r={r} amount={r.amount} extra={[r.event_date ? `needed ${new Date(r.event_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}` : null, r.reason].filter(Boolean).join(" · ")} />)}
           </div>
         </div>
       )}

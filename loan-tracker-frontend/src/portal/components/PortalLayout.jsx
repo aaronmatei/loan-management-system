@@ -52,7 +52,7 @@ const WELFARE_MENU = [
   { path: "/welfare/member", label: "Dashboard", icon: PiggyBank, variant: "emerald", exact: true },
   { path: "/welfare/member/savings", label: "My Savings", icon: PiggyBank, variant: "teal" },
   { path: "/welfare/member/contributions", label: "Contributions", icon: Coins, variant: "ocean" },
-  { path: "/welfare/member/loans", label: "Chama Loans", icon: Wallet, variant: "indigo" },
+  { path: "/welfare/member/loans", label: "Requests", icon: ClipboardList, variant: "indigo" },
   { path: "/welfare/member/meetings", label: "Meetings", icon: CalendarCheck, variant: "amber" },
   { path: "/welfare/member/dividends", label: "Dividends", icon: Gift, variant: "emerald" },
   { path: "/welfare/member/events", label: "Events", icon: HeartHandshake, variant: "ocean" },

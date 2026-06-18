@@ -3590,6 +3590,25 @@ CREATE INDEX idx_welfare_event_shares_event ON public.welfare_event_shares(event
 CREATE INDEX idx_welfare_event_shares_member ON public.welfare_event_shares(member_id);
 CREATE INDEX idx_welfare_event_ledger_welfare ON public.welfare_event_ledger(welfare_id, id);
 
+-- Member-initiated event-fund requests (migration 080).
+CREATE TABLE public.member_event_requests (
+  id               serial PRIMARY KEY,
+  tenant_id        integer NOT NULL,
+  welfare_id       integer NOT NULL,
+  member_id        integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  amount           numeric(14,2) NOT NULL,
+  event_date       date,
+  reason           text,
+  status           varchar(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reviewed_by      integer,
+  decision_notes   text,
+  created_event_id integer REFERENCES public.welfare_events(id) ON DELETE SET NULL,
+  created_at       timestamp NOT NULL DEFAULT now(),
+  decided_at       timestamp
+);
+CREATE INDEX idx_member_event_requests_welfare ON public.member_event_requests(welfare_id, status);
+CREATE INDEX idx_member_event_requests_member ON public.member_event_requests(member_id);
+
 --
 -- Welfare meeting attendance over members (migration 061).
 --
