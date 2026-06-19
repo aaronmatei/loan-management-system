@@ -223,10 +223,22 @@ const pill = (cls, t) => <span className={`px-2 py-0.5 rounded-full text-xs font
 // A member's contribution status, attendance score, and fines — scoped to a year.
 // Loans (year-independent) render via children, just before Contributions.
 function MemberActivity({ activity, year, setYear, money, fmt, children }) {
-  const { contributions, contribution_summary: cs, fines, fines_outstanding, attendance } = activity;
+  const { contributions, fines, fines_outstanding, attendance } = activity;
   const STAT = "bg-white rounded-xl shadow-md p-4";
-  const CSTATUS = { paid: "bg-emerald-100 text-emerald-800", partial: "bg-amber-100 text-amber-800", pending: "bg-slate-100 text-slate-600" };
   const ASTATUS = { present: "bg-emerald-100 text-emerald-800", late: "bg-amber-100 text-amber-800", excused: "bg-sky-100 text-sky-800", absent: "bg-red-100 text-red-700" };
+
+  // Group the member's cycles into ONE card per contribution (Monthly, Quarterly,
+  // each emergency) — no cumulative roll-up.
+  const FREQ_LABEL = { weekly: "Weekly", biweekly: "Bi-weekly", monthly: "Monthly", quarterly: "Quarterly", yearly: "Yearly" };
+  const cards = []; const byKey = {};
+  for (const c of contributions) {
+    const key = c.plan_name || c.cycle_name;
+    let g = byKey[key];
+    if (!g) { g = byKey[key] = { name: key, frequency: c.frequency, oneoff: !c.frequency, cycles: 0, paidCount: 0, paid: 0, expected: 0 }; cards.push(g); }
+    g.cycles++; if (c.status === "paid") g.paidCount++;
+    g.paid += Number(c.amount_paid); g.expected += Number(c.amount_due);
+  }
+
   return (
     <>
       <div className="flex items-center gap-2 mb-4">
@@ -236,29 +248,40 @@ function MemberActivity({ activity, year, setYear, money, fmt, children }) {
         <span className="text-xs text-slate-400 ml-1">contributions, attendance &amp; fines for {year}</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className={STAT}><p className="text-xs text-slate-500">Contributions paid</p><p className="text-xl font-bold text-emerald-700">{money(cs.paid)}</p><p className="text-xs text-slate-500">{cs.paid_count}/{cs.total} cycles · {money(cs.expected)} due</p></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className={STAT}><p className="text-xs text-slate-500">Attendance</p><p className="text-xl font-bold text-sky-700">{attendance.rate == null ? "—" : `${attendance.rate}%`}</p><p className="text-xs text-slate-500">{attendance.attended}/{attendance.recorded} meetings &amp; events</p></div>
         <div className={STAT}><p className="text-xs text-slate-500">Fines outstanding</p><p className={`text-xl font-bold ${fines_outstanding > 0 ? "text-rose-600" : "text-slate-700"}`}>{money(fines_outstanding)}</p><p className="text-xs text-slate-500">{fines.length} fine{fines.length === 1 ? "" : "s"} total</p></div>
       </div>
 
       {children}
 
-      <Section title="Contributions">
-        {contributions.length === 0 ? <Empty>No contributions yet.</Empty> : (
-          <ActTable head={["Contribution", "Due", "Amount", "Paid", "Status"]}>
-            {contributions.map((c, i) => (
-              <tr key={i} className="border-t border-slate-100">
-                <td className="px-5 py-2 text-slate-800">{c.cycle_name}{c.plan_name && c.plan_name !== c.cycle_name ? <span className="text-xs text-slate-400"> · {c.plan_name}</span> : null}</td>
-                <td className="px-5 py-2 text-slate-600">{fmt(c.due_date)}</td>
-                <td className="px-5 py-2 text-right">{money(c.amount_due)}</td>
-                <td className="px-5 py-2 text-right text-emerald-700">{money(c.amount_paid)}</td>
-                <td className="px-5 py-2">{pill(CSTATUS[c.status] || CSTATUS.pending, c.status === "paid" ? (c.on_time ? "paid" : "paid late") : c.status)}</td>
-              </tr>
-            ))}
-          </ActTable>
+      <div className="mb-6">
+        <h2 className="font-bold text-slate-900 mb-3">Contributions</h2>
+        {cards.length === 0 ? (
+          <p className="text-sm text-slate-500 bg-white rounded-xl shadow-md p-5">No contributions in {year}.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cards.map((g) => {
+              const due = Math.max(0, g.expected - g.paid);
+              const pct = g.expected > 0 ? Math.min(100, Math.round((g.paid / g.expected) * 100)) : 0;
+              return (
+                <div key={g.name} className="bg-white rounded-xl shadow-md p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-800 truncate">{g.name}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold shrink-0">{g.oneoff ? "Emergency / one-off" : (FREQ_LABEL[g.frequency] || g.frequency)}</span>
+                  </div>
+                  <p className="text-lg font-bold text-emerald-700 mt-2">{money(g.paid)} <span className="text-xs font-normal text-slate-400">/ {money(g.expected)}</span></p>
+                  <div className="flex items-center justify-between text-xs mt-1">
+                    <span className="text-slate-500">{g.paidCount}/{g.cycles} {g.cycles === 1 ? "paid" : "cycles paid"}</span>
+                    {due > 0 ? <span className="text-rose-600 font-semibold">{money(due)} due</span> : <span className="text-emerald-600 font-semibold">up to date</span>}
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} /></div>
+                </div>
+              );
+            })}
+          </div>
         )}
-      </Section>
+      </div>
 
       <Section title="Attendance — meetings &amp; events">
         {attendance.meetings.length === 0 ? <Empty>No meetings yet.</Empty> : (
