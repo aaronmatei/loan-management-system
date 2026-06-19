@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift } from "lucide-react";
+import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 
@@ -248,6 +248,9 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
   const m = data?.meeting || row;
   const fmtD = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
   const FT = { attendance_late: "Late", attendance_absent: "Absent", contribution_late: "Contribution late" };
+  // Attendance is recorded ONCE: if any member already has a saved status, the
+  // roster is locked (read-only) and there's no second Save.
+  const recorded = roster.some((mem) => mem.attendance_status);
 
   return (
     <Shell title={m.title || "Meeting"} onClose={onClose} wide>
@@ -265,7 +268,10 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
         </div>
       )}
 
-      <p className="text-sm font-semibold text-slate-700 mb-2">Attendance</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-semibold text-slate-700">Attendance</p>
+        {recorded && <span className="text-xs font-semibold text-emerald-700 inline-flex items-center gap-1"><Check size={14} /> Recorded</span>}
+      </div>
       {loading ? <p className="text-sm text-slate-500">Loading roster…</p> : roster.length === 0 ? (
         <p className="text-sm text-slate-500">No active members.</p>
       ) : (
@@ -273,21 +279,29 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
           {roster.map((mem) => (
             <div key={mem.member_id} className="flex items-center justify-between gap-3">
               <span className="text-sm text-slate-800">{mem.first_name} {mem.last_name}</span>
-              <div className="flex gap-1">
-                {ATT.map((a) => (
-                  <button key={a.v} type="button" onClick={() => setStatus(mem.member_id, a.v)}
-                    className={`px-2 py-1 rounded text-xs font-semibold ${mem.status === a.v ? a.cls : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
-                    {a.label}
-                  </button>
-                ))}
-              </div>
+              {recorded ? (
+                (() => { const a = ATT.find((x) => x.v === mem.status) || ATT[0]; return <span className={`px-2 py-1 rounded text-xs font-semibold ${a.cls}`}>{a.label}</span>; })()
+              ) : (
+                <div className="flex gap-1">
+                  {ATT.map((a) => (
+                    <button key={a.v} type="button" onClick={() => setStatus(mem.member_id, a.v)}
+                      className={`px-2 py-1 rounded text-xs font-semibold ${mem.status === a.v ? a.cls : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
       <PermissionGate role={["admin", "manager", "loan_officer"]}>
-        <div className="flex justify-end gap-3 pt-3">
-          <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
+        <div className="flex justify-end items-center gap-3 pt-3">
+          {recorded ? (
+            <span className="text-sm font-semibold text-emerald-700 inline-flex items-center gap-1.5"><Check size={16} /> Attendance recorded</span>
+          ) : (
+            <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
+          )}
         </div>
       </PermissionGate>
 
