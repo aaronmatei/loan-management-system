@@ -78,12 +78,9 @@ describe("welfare contribution cycles", () => {
 
   it("accrues contribution_late penalties for overdue schedules, idempotently", async () => {
     const { welfareId, tenantId, adminAuth } = await bootstrap(["A", "B"]);
-    // A daily-fixed late rule.
-    await request(app).post(`/api/welfares/${welfareId}/penalty-rules`).set("Authorization", adminAuth)
-      .send({ trigger: "contribution_late", calc_type: "daily_fixed", amount: 50 });
-    // A cycle already past due.
+    // A cycle already past due, with its own inline daily-fixed late fine.
     await request(app).post(`/api/welfares/${welfareId}/cycles`).set("Authorization", adminAuth)
-      .send({ amount: 1000, due_date: "2026-01-01" });
+      .send({ amount: 1000, due_date: "2026-01-01", fine_calc_type: "daily_fixed", fine_amount: 50 });
 
     const run1 = await request(app).post(`/api/welfares/${welfareId}/cycles/0/assess-late`).set("Authorization", adminAuth).send({});
     expect(run1.status).toBe(200);

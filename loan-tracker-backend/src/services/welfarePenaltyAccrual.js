@@ -1,7 +1,7 @@
-// Late-contribution penalty accrual. For each overdue contribution schedule,
-// apply the chama's active `contribution_late` penalty rules. Idempotent: one
-// outstanding assessment per (schedule, rule) — daily-accruing rules update the
-// same row's amount rather than stacking new ones. Used by the manual
+// Late-contribution penalty accrual. The late fine is defined INLINE on each
+// contribution cycle — a cycle with no fine config raises no fine. Idempotent:
+// one outstanding assessment per (schedule, rule) — daily-accruing rules update
+// the same row's amount rather than stacking new ones. Used by the manual
 // "assess late" endpoint and the daily cron.
 import { query } from "../config/database.js";
 import { computePenaltyAmount } from "../utils/penaltyEngine.js";
@@ -9,10 +9,6 @@ import { computePenaltyAmount } from "../utils/penaltyEngine.js";
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
 export async function accrueContributionPenalties(tenantId) {
-  // Welfare-wide late rules — the fallback when a cycle carries no fine config.
-  const globalRules = (
-    await query(`SELECT * FROM penalty_rules WHERE tenant_id = $1 AND trigger = 'contribution_late' AND active = true`, [tenantId])
-  ).rows;
   const settingsGrace = (
     await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id = $1`, [tenantId])
   ).rows[0]?.contribution_grace_days || 0;
@@ -40,10 +36,10 @@ export async function accrueContributionPenalties(tenantId) {
     overdue += 1;
     const outstanding = round2(parseFloat(s.amount_due) - parseFloat(s.amount_paid));
 
-    // A cycle's own fine rule wins (rule_id stays NULL); else the welfare rules.
+    // The fine is the cycle's own inline rule; no inline fine → no penalty.
     const rules = s.fine_calc_type
       ? [{ id: null, calc_type: s.fine_calc_type, amount: s.fine_amount, rate: s.fine_rate, cap: s.fine_cap }]
-      : globalRules;
+      : [];
 
     for (const rule of rules) {
       const amt = computePenaltyAmount(rule, { basis: outstanding, daysLate });

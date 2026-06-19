@@ -547,18 +547,26 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
 
 function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
   const [schedules, setSchedules] = useState([]);
+  const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [payFor, setPayFor] = useState(null);
   const [paying, setPaying] = useState(false);
+  const [busy, setBusy] = useState(false);
   const isBenefit = cycle.pool_key && cycle.pool_key !== "savings";
 
   const load = async () => {
     try {
       const r = await api.get(`/welfares/${welfareId}/cycles/${cycle.id}`);
       setSchedules(r.data.data.schedules || []);
+      setDetail(r.data.data.cycle || null);
     } catch {/* */} finally { setLoading(false); }
   };
   useEffect(() => { load(); }, [cycle.id]);
+  const assessLate = async () => {
+    setBusy(true);
+    try { const r = await api.post(`/welfares/${welfareId}/cycles/0/assess-late`, {}); alert(`${r.data.assessed} new late fine${r.data.assessed === 1 ? "" : "s"} assessed.`); load(); onChange?.(); }
+    catch (e) { alert(e.response?.data?.error || "Failed"); } finally { setBusy(false); }
+  };
 
   const STATUS = { paid: "bg-emerald-100 text-emerald-800", partial: "bg-amber-100 text-amber-800", overdue: "bg-red-100 text-red-700", pending: "bg-slate-100 text-slate-700" };
 
@@ -575,6 +583,12 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
           </PermissionGate>
         </div>
       )}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span className="text-slate-500">Late fine: {detail?.fine_calc_type ? <span className="font-semibold text-slate-700">{fineSummary(detail)}</span> : "none"}</span>
+        <PermissionGate role={["admin", "manager"]}>
+          <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+        </PermissionGate>
+      </div>
       {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -585,6 +599,7 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
                 <th className="text-right px-3 py-2">Paid</th>
                 <th className="text-left px-3 py-2">Status</th>
                 <th className="text-left px-3 py-2">Timeliness</th>
+                <th className="text-right px-3 py-2">Fine</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -596,6 +611,7 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
                   <td className="px-3 py-2 text-right">{money(s.amount_paid)}</td>
                   <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[s.status] || STATUS.pending}`}>{s.status}</span></td>
                   <td className="px-3 py-2">{timeliness(s)}</td>
+                  <td className="px-3 py-2 text-right font-semibold">{Number(s.fine) > 0 ? <span className={Number(s.fine_outstanding) > 0 ? "text-rose-600" : "text-slate-500"}>{money(s.fine)}</span> : <span className="text-slate-300">—</span>}</td>
                   <td className="px-3 py-2 text-right">
                     {s.status !== "paid" && (
                       <PermissionGate role={["admin", "manager", "loan_officer"]}>

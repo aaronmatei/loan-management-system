@@ -355,6 +355,8 @@ router.get("/cycles/:cycleId", async (req, res) => {
     const schedules = await query(
       `SELECT s.*, m.first_name, m.last_name, m.member_no,
               GREATEST(s.amount_due - s.amount_paid, 0) AS balance,
+              COALESCE((SELECT SUM(pa.amount) FROM penalty_assessments pa WHERE pa.source_type='contribution_schedule' AND pa.source_id=s.id),0) AS fine,
+              COALESCE((SELECT SUM(pa.amount - pa.paid_amount) FROM penalty_assessments pa WHERE pa.source_type='contribution_schedule' AND pa.source_id=s.id AND pa.status='outstanding'),0) AS fine_outstanding,
               CASE WHEN s.status = 'paid' THEN 0
                    ELSE GREATEST(0, CURRENT_DATE - (s.due_date + ($2 * INTERVAL '1 day'))::date) END AS days_overdue,
               CASE WHEN s.status = 'paid' AND s.paid_at IS NOT NULL
