@@ -157,6 +157,93 @@ router.get("/reports/summary", async (req, res) => {
   }
 });
 
+// GET /reports/charts?year=YYYY — time series + breakdowns for the dashboard charts.
+async function buildCharts(welfare, year) {
+  const wid = welfare.id;
+  const memberFilter = `member_id IN (SELECT id FROM members WHERE welfare_id=$1)`;
+
+  // Savings-pool balance at the end of each month (cumulative by txn DATE, so it's
+  // correct even when rows were backfilled out of insertion order).
+  const poolGrowth = (await query(
+    `SELECT to_char(m,'YYYY-MM') AS label,
+            (SELECT COALESCE(SUM(direction*amount),0) FROM member_pool_transactions
+              WHERE welfare_id=$1 AND txn_date < (m + interval '1 month')) AS balance
+       FROM generate_series(
+              date_trunc('month', COALESCE((SELECT MIN(txn_date) FROM member_pool_transactions WHERE welfare_id=$1), CURRENT_DATE)),
+              date_trunc('month', CURRENT_DATE), interval '1 month') m
+      ORDER BY m`,
+    [wid],
+  )).rows.map((r) => ({ label: r.label, balance: num(r.balance) }));
+
+  // Contributions collected vs expected, per month of the year (all pools).
+  const contributions = (await query(
+    `SELECT EXTRACT(MONTH FROM c.due_date)::int AS mo, to_char(c.due_date,'Mon') AS label,
+            COALESCE(SUM(s.amount_due),0) AS expected, COALESCE(SUM(s.amount_paid),0) AS collected
+       FROM contribution_cycles c JOIN contribution_schedules s ON s.cycle_id=c.id
+      WHERE c.welfare_id=$1 AND EXTRACT(YEAR FROM c.due_date)=$2
+      GROUP BY 1,2 ORDER BY 1`,
+    [wid, year],
+  )).rows.map((r) => ({ label: r.label, expected: num(r.expected), collected: num(r.collected) }));
+
+  // Latest already-due cycle → on-time / late / unpaid breakdown.
+  const cyc = (await query(
+    `SELECT id, name, COALESCE(grace_days,0) AS grace FROM contribution_cycles
+      WHERE welfare_id=$1 AND due_date <= CURRENT_DATE ORDER BY due_date DESC, id DESC LIMIT 1`,
+    [wid],
+  )).rows[0];
+  let cycleBreakdown = null;
+  if (cyc) {
+    const b = (await query(
+      `SELECT COUNT(*) FILTER (WHERE status='paid' AND paid_at::date <= due_date + ($2||' days')::interval)::int AS on_time,
+              COUNT(*) FILTER (WHERE status='paid' AND paid_at::date >  due_date + ($2||' days')::interval)::int AS late,
+              COUNT(*) FILTER (WHERE status<>'paid')::int AS unpaid
+         FROM contribution_schedules WHERE cycle_id=$1`,
+      [cyc.id, cyc.grace],
+    )).rows[0];
+    cycleBreakdown = { name: cyc.name, on_time: b.on_time, late: b.late, unpaid: b.unpaid };
+  }
+
+  // Attendance rate per meeting.
+  const attendance = (await query(
+    `SELECT gm.meeting_date::date AS date,
+            (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id=gm.id AND a.status IN ('present','late'))::int AS attended,
+            (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id=gm.id)::int AS recorded
+       FROM group_meetings gm WHERE gm.group_id=$1 ORDER BY gm.meeting_date ASC, gm.id ASC`,
+    [wid],
+  )).rows.map((r) => ({ label: new Date(r.date).toISOString().slice(0, 10), rate: r.recorded > 0 ? Math.round((r.attended / r.recorded) * 100) : 0, attended: r.attended, recorded: r.recorded }));
+
+  // Fines accrued vs collected, per month (by assessment month).
+  const fines = (await query(
+    `SELECT to_char(date_trunc('month', assessed_at),'YYYY-MM') AS label,
+            COALESCE(SUM(amount),0) AS accrued, COALESCE(SUM(paid_amount),0) AS collected
+       FROM penalty_assessments WHERE ${memberFilter}
+      GROUP BY 1 ORDER BY 1`,
+    [wid],
+  )).rows.map((r) => ({ label: r.label, accrued: num(r.accrued), collected: num(r.collected) }));
+
+  // Savings per active member (savings pool only), highest first.
+  const savingsPerMember = (await query(
+    `SELECT m.first_name || ' ' || LEFT(m.last_name,1) || '.' AS name,
+            COALESCE((SELECT SUM(p.direction*p.amount) FROM member_pool_transactions p
+                       WHERE p.member_id=m.id AND p.type IN ('contribution','withdrawal','adjustment')),0) AS savings
+       FROM members m WHERE m.welfare_id=$1 AND m.status='active'
+      ORDER BY savings DESC, name`,
+    [wid],
+  )).rows.map((r) => ({ name: r.name, savings: num(r.savings) }));
+
+  return { year, pool_growth: poolGrowth, contributions, cycle_breakdown: cycleBreakdown, attendance, fines, savings_per_member: savingsPerMember };
+}
+
+router.get("/reports/charts", async (req, res) => {
+  try {
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    res.json({ success: true, data: await buildCharts(req.welfare, year) });
+  } catch (e) {
+    logger.error("welfare charts error:", e);
+    res.status(500).json({ error: "Failed to build charts" });
+  }
+});
+
 // GET /reports/members — per-member statement rows. ?include=all adds inactive.
 router.get("/reports/members", async (req, res) => {
   try {

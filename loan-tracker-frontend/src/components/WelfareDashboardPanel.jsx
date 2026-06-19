@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LayoutDashboard, Wallet, Users, AlertTriangle, Banknote, Gift, CalendarCheck, FileDown, FileSpreadsheet } from "lucide-react";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
+import WelfareCharts from "./WelfareCharts";
 
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -81,6 +82,7 @@ export default function WelfareDashboardPanel({ welfareId }) {
           <Stat icon={Users} label="Last attendance" value="—" sub="no meetings yet" />
         )}
       </div>
+      <WelfareCharts welfareId={welfareId} />
     </div>
   );
 }

@@ -56,6 +56,26 @@ describe("welfare reports", () => {
     expect(r.body.data.compliance.paid_pct).toBe(50);
   });
 
+  it("charts: pool growth, per-month contributions, latest-cycle timeliness, savings per member", async () => {
+    const { admin, w } = await setup();
+    const a = await addMember(admin, w, "A");
+    await addMember(admin, w, "B");
+    const cycle = (await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin)).send({ amount: 1000, due_date: "2026-01-31" })).body.data;
+    const sched = (await request(app).get(`/api/welfares/${w.id}/cycles/${cycle.id}`).set("Authorization", auth(admin))).body.data.schedules.find((s) => s.member_id === a.id);
+    await request(app).post(`/api/welfares/${w.id}/cycles/${cycle.id}/schedules/${sched.id}/pay`).set("Authorization", auth(admin)).send({});
+
+    const r = await request(app).get(`/api/welfares/${w.id}/reports/charts?year=2026`).set("Authorization", auth(admin));
+    expect(r.status).toBe(200);
+    const d = r.body.data;
+    expect(Array.isArray(d.pool_growth)).toBe(true);
+    expect(d.contributions.find((x) => x.label === "Jan")?.collected).toBe(1000);
+    expect(d.cycle_breakdown.on_time + d.cycle_breakdown.late + d.cycle_breakdown.unpaid).toBe(2);
+    expect(d.savings_per_member).toHaveLength(2);
+    expect(d.savings_per_member[0].savings).toBe(1000); // sorted desc, the payer first
+    expect(Array.isArray(d.fines)).toBe(true);
+    expect(Array.isArray(d.attendance)).toBe(true);
+  });
+
   it("builds per-member statement rows", async () => {
     const { admin, w } = await setup();
     const a = await addMember(admin, w, "A");
