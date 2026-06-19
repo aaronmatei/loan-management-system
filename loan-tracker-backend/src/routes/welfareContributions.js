@@ -216,7 +216,10 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
     const payoutAmt = beneficiaryId && b.payout_amount != null && b.payout_amount !== "" ? round2(parseFloat(b.payout_amount)) : 0;
     if (payoutAmt > 0) {
       const poolBal = await benefitPoolBalance(req.welfare.id, "oneoff");
-      if (payoutAmt > poolBal) return res.status(400).json({ error: `The emergency pool only holds KES ${poolBal.toLocaleString()} — not enough to pay KES ${payoutAmt.toLocaleString()}. Collect more first.` });
+      if (payoutAmt > poolBal) {
+        const shortfall = round2(payoutAmt - poolBal);
+        return res.status(400).json({ error: `The emergency pool only holds KES ${poolBal.toLocaleString()} — not enough to pay KES ${payoutAmt.toLocaleString()}. Collect KES ${shortfall.toLocaleString()} more first.` });
+      }
     }
 
     const cycle = (
