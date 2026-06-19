@@ -45,6 +45,8 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
   const plans = (list?.plans || []).filter((p) => (p.pool_kind === "benefit") === benefit);
   const oneoffs = (list?.oneoffs || []).filter((c) => isBenefitOneoff(c) === benefit);
   const empty = !loading && plans.length === 0 && oneoffs.length === 0;
+  const eventsPool = plans.reduce((a, p) => a + Number(p.pool_balance || 0), 0); // each event has its own pool
+  const emergPool = list?.oneoff_pool_balance ?? 0; // all emergencies share one pool
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
@@ -65,10 +67,11 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
         {loading ? <p className="text-sm text-slate-500">Loading…</p> : benefit ? (
           <div className="space-y-6">
             <BenefitSection title="Events" subtitle="Recurring benefit pools — members contribute, the pool pays a lump sum to each (e.g. Quarterly dowry)."
+              pool={plans.length ? eventsPool : null} poolLabel={plans.length > 1 ? "Pools total" : "Pool"}
               addLabel="New event" onAdd={() => setCreator({ mode: "new", create: "event" })} empty="No events yet.">
               {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
             </BenefitSection>
-            <BenefitSection title="Emergencies" subtitle="One-off collections that pay out to a member in need."
+            <BenefitSection title="Emergencies" subtitle="One-off collections that pay out to a member in need." pool={emergPool} poolLabel="Pool"
               addLabel="New emergency" onAdd={() => setCreator({ mode: "new", create: "emergency" })} empty="No emergencies yet.">
               {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date, pool_key: c.pool_key, beneficiary_member_id: c.beneficiary_member_id, ben_first: c.ben_first, ben_last: c.ben_last, amount: c.amount, pool_balance: c.pool_balance })} />)}
             </BenefitSection>
@@ -93,13 +96,15 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
 }
 
 // A labelled group on the Events & Emergencies page, with its own "add" button.
-function BenefitSection({ title, subtitle, addLabel, onAdd, empty, children }) {
+function BenefitSection({ title, subtitle, pool, poolLabel = "Pool", addLabel, onAdd, empty, children }) {
   const has = React.Children.toArray(children).length > 0;
   return (
     <div>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <h3 className="font-bold text-slate-800">{title}</h3>
+          <h3 className="font-bold text-slate-800 flex items-center gap-2">{title}
+            {pool != null && <span className="font-normal text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">{poolLabel}: <span className={`font-bold ${pool < 0 ? "text-rose-600" : ""}`}>{money(pool)}</span></span>}
+          </h3>
           <p className="text-xs text-slate-400">{subtitle}</p>
         </div>
         <PermissionGate role={["admin", "manager"]}>
@@ -124,7 +129,7 @@ function PlanRow({ plan, onClick }) {
           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{FREQ_LABEL[plan.frequency] || plan.frequency}</span>
           <PoolBadge kind={plan.pool_kind} />
         </div>
-        <p className="text-xs text-slate-500 mt-0.5">{money(plan.amount)} per member · pool {money(plan.pool_balance)}</p>
+        <p className="text-xs text-slate-500 mt-0.5">{money(plan.amount)} per member · this year collected {money(plan.ytd_collected)}</p>
       </div>
       <div className="text-right shrink-0">
         <p className={`text-sm font-bold ${done ? "text-emerald-700" : "text-slate-800"}`}>{c.paid_count ?? 0}/{c.member_count ?? 0} paid</p>
@@ -144,7 +149,7 @@ function OneoffRow({ cycle, onClick }) {
           <span className="font-bold text-slate-900 truncate">{cycle.name}</span>
           <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">{cycle.beneficiary_member_id ? "Emergency" : "One-off"}</span>
         </div>
-        <p className="text-xs text-slate-500 mt-0.5">{cycle.beneficiary_member_id ? <>beneficiary {cycle.ben_first} {cycle.ben_last} · </> : null}due {fmt(cycle.due_date)}{cycle.pool_balance != null ? <> · pool {money(cycle.pool_balance)}</> : null}</p>
+        <p className="text-xs text-slate-500 mt-0.5">{cycle.beneficiary_member_id ? <>beneficiary {cycle.ben_first} {cycle.ben_last} · </> : null}due {fmt(cycle.due_date)}</p>
       </div>
       <div className="text-right shrink-0">
         <p className="text-sm font-bold text-slate-800">{cycle.paid_count}/{cycle.member_count} paid</p>

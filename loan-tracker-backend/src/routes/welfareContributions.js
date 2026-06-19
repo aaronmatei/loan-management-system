@@ -79,7 +79,7 @@ router.get("/contribution-plans", async (req, res) => {
          FROM contribution_cycles c LEFT JOIN members m ON m.id=c.beneficiary_member_id
         WHERE c.welfare_id=$1 AND c.plan_id IS NULL ORDER BY c.due_date DESC`, [req.welfare.id]))
       .rows.map((c) => ({ ...c, due_date: new Date(c.due_date).toISOString().slice(0, 10), expected: Number(c.expected), collected: Number(c.collected), pool_balance: c.pool_key === "oneoff" ? oneoffPoolBalance : null }));
-    res.json({ success: true, data: { plans: out, oneoffs } });
+    res.json({ success: true, data: { plans: out, oneoffs, oneoff_pool_balance: oneoffPoolBalance } });
   } catch (e) {
     logger.error("contribution-plans list error:", e);
     res.status(500).json({ error: "Failed to load contributions" });
