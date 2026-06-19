@@ -187,23 +187,17 @@ async function buildCharts(welfare, year) {
     [wid, year],
   )).rows.map((r) => ({ label: r.label, expected: num(r.expected), collected: num(r.collected) }));
 
-  // Latest already-due cycle → on-time / late / unpaid breakdown.
-  const cyc = (await query(
-    `SELECT id, name, COALESCE(grace_days,0) AS grace FROM contribution_cycles
-      WHERE welfare_id=$1 AND due_date <= CURRENT_DATE ORDER BY due_date DESC, id DESC LIMIT 1`,
-    [wid],
-  )).rows[0];
-  let cycleBreakdown = null;
-  if (cyc) {
-    const b = (await query(
-      `SELECT COUNT(*) FILTER (WHERE status='paid' AND paid_at::date <= due_date + ($2||' days')::interval)::int AS on_time,
-              COUNT(*) FILTER (WHERE status='paid' AND paid_at::date >  due_date + ($2||' days')::interval)::int AS late,
-              COUNT(*) FILTER (WHERE status<>'paid')::int AS unpaid
-         FROM contribution_schedules WHERE cycle_id=$1`,
-      [cyc.id, cyc.grace],
-    )).rows[0];
-    cycleBreakdown = { name: cyc.name, on_time: b.on_time, late: b.late, unpaid: b.unpaid };
-  }
+  // Quarterly contributions — collected vs expected per quarter (Q1–Q4).
+  const quarterly = (await query(
+    `SELECT EXTRACT(QUARTER FROM c.due_date)::int AS q, 'Q' || EXTRACT(QUARTER FROM c.due_date)::int AS label,
+            COALESCE(SUM(s.amount_due),0) AS expected, COALESCE(SUM(s.amount_paid),0) AS collected
+       FROM contribution_cycles c
+       JOIN contribution_plans p ON p.id=c.plan_id
+       JOIN contribution_schedules s ON s.cycle_id=c.id
+      WHERE c.welfare_id=$1 AND p.frequency='quarterly' AND EXTRACT(YEAR FROM c.due_date)=$2
+      GROUP BY 1,2 ORDER BY 1`,
+    [wid, year],
+  )).rows.map((r) => ({ label: r.label, expected: num(r.expected), collected: num(r.collected) }));
 
   // Attendance rate per meeting.
   const attendance = (await query(
@@ -233,7 +227,7 @@ async function buildCharts(welfare, year) {
     [wid],
   )).rows.map((r) => ({ name: r.name, savings: num(r.savings) }));
 
-  return { year, pool_growth: poolGrowth, contributions, cycle_breakdown: cycleBreakdown, attendance, fines, savings_per_member: savingsPerMember };
+  return { year, pool_growth: poolGrowth, contributions, quarterly, attendance, fines, savings_per_member: savingsPerMember };
 }
 
 router.get("/reports/charts", async (req, res) => {

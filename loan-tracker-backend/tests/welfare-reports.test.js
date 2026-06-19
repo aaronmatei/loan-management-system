@@ -56,13 +56,15 @@ describe("welfare reports", () => {
     expect(r.body.data.compliance.paid_pct).toBe(50);
   });
 
-  it("charts: pool growth, MONTHLY-only contributions, latest-cycle timeliness, savings per member", async () => {
+  it("charts: pool growth, MONTHLY-only + QUARTERLY contributions, savings per member", async () => {
     const { admin, w } = await setup();
     const a = await addMember(admin, w, "A");
     await addMember(admin, w, "B");
     // A monthly plan auto-opens the current month's cycle; pay one member.
     await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", amount: 1000, due_day: 10 });
-    const cyc = (await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))).body.data[0];
+    // A quarterly (benefit) plan auto-opens the current quarter's cycle.
+    await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Quarterly", frequency: "quarterly", amount: 5000, due_day: 28, pool_kind: "benefit" });
+    const cyc = (await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))).body.data.find((x) => x.frequency === "monthly");
     const sched = (await request(app).get(`/api/welfares/${w.id}/cycles/${cyc.id}`).set("Authorization", auth(admin))).body.data.schedules.find((s) => s.member_id === a.id);
     await request(app).post(`/api/welfares/${w.id}/cycles/${cyc.id}/schedules/${sched.id}/pay`).set("Authorization", auth(admin)).send({});
 
@@ -72,9 +74,10 @@ describe("welfare reports", () => {
     const d = r.body.data;
     expect(Array.isArray(d.pool_growth)).toBe(true);
     expect(d.contributions.some((x) => x.collected === 1000 && x.expected === 2000)).toBe(true);
-    expect(d.cycle_breakdown.on_time + d.cycle_breakdown.late + d.cycle_breakdown.unpaid).toBe(2);
+    // Quarterly is its own series (Qn label), expected = 5000 × 2 members, unpaid.
+    expect(d.quarterly.some((x) => /^Q[1-4]$/.test(x.label) && x.expected === 10000)).toBe(true);
     expect(d.savings_per_member).toHaveLength(2);
-    expect(d.savings_per_member[0].savings).toBe(1000); // sorted desc, the payer first
+    expect(d.savings_per_member[0].savings).toBe(1000); // monthly only — benefit doesn't count as savings
     expect(Array.isArray(d.fines)).toBe(true);
     expect(Array.isArray(d.attendance)).toBe(true);
   });

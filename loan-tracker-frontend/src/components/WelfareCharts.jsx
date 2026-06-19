@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
-  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
-import { TrendingUp, BarChart3, PieChart as PieIcon, Users, AlertTriangle, Wallet } from "lucide-react";
+import { TrendingUp, BarChart3, Layers, Users, AlertTriangle, Wallet } from "lucide-react";
 import api from "../services/api";
 
 const kfmt = (v) => {
@@ -12,7 +12,7 @@ const kfmt = (v) => {
   return (n < 0 ? "-" : "") + s;
 };
 const ksh = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
-const COLORS = { collected: "#10b981", expected: "#94a3b8", pool: "#0ea5e9", on_time: "#10b981", late: "#f59e0b", unpaid: "#ef4444", accrued: "#ef4444", finePaid: "#10b981", savings: "#6366f1", attend: "#0ea5e9" };
+const COLORS = { collected: "#10b981", expected: "#94a3b8", pool: "#0ea5e9", quarterly: "#8b5cf6", accrued: "#ef4444", finePaid: "#10b981", savings: "#6366f1", attend: "#0ea5e9" };
 
 const Card = ({ icon: Icon, title, sub, children, empty }) => (
   <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
@@ -54,12 +54,6 @@ export default function WelfareCharts({ welfareId }) {
   if (loading) return <div className="text-sm text-slate-500 px-1 py-4">Loading charts…</div>;
   if (!c) return null;
 
-  const cb = c.cycle_breakdown;
-  const donut = cb ? [
-    { name: "On time", value: cb.on_time, key: "on_time" },
-    { name: "Late", value: cb.late, key: "late" },
-    { name: "Unpaid", value: cb.unpaid, key: "unpaid" },
-  ].filter((d) => d.value > 0) : [];
   const finesEmpty = !c.fines?.length;
   const attEmpty = !c.attendance?.length;
 
@@ -94,16 +88,18 @@ export default function WelfareCharts({ welfareId }) {
         </ResponsiveContainer>
       </Card>
 
-      {/* 3. Latest cycle timeliness */}
-      <Card icon={PieIcon} title="Latest cycle timeliness" sub={cb ? cb.name : "No due cycle yet"} empty={!cb || donut.length === 0 ? "No due cycle yet" : null}>
+      {/* 3. Quarterly contributions */}
+      <Card icon={Layers} title={`Quarterly contributions ${c.year}`} sub="Collected vs expected per quarter" empty={!c.quarterly?.length ? "No quarterly contribution yet" : null}>
         <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie data={donut} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={48} outerRadius={75} paddingAngle={2}>
-              {donut.map((d) => <Cell key={d.key} fill={COLORS[d.key]} />)}
-            </Pie>
-            <Tooltip contentStyle={tip.contentStyle} formatter={(v, n) => [`${v} member${v === 1 ? "" : "s"}`, n]} />
+          <BarChart data={c.quarterly} margin={{ left: -10, right: 8, top: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="label" {...axis} />
+            <YAxis {...axis} tickFormatter={kfmt} width={42} />
+            <Tooltip {...tip} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-          </PieChart>
+            <Bar dataKey="expected" fill={COLORS.expected} name="Expected" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="collected" fill={COLORS.quarterly} name="Collected" radius={[3, 3, 0, 0]} />
+          </BarChart>
         </ResponsiveContainer>
       </Card>
 
