@@ -175,6 +175,23 @@ export async function ensureCurrentCycle({ welfare, plan, ref = new Date() }) {
   return cycle;
 }
 
+// Open ALL of a plan's periods for `year` (idempotent), so members can prepay
+// the whole year. Skips very granular plans (weekly/biweekly) — too many cycles
+// to pre-open — falling back to just the current period.
+export async function ensureYearCycles(welfare, plan, year) {
+  if (!plan || !plan.active) return [];
+  if (plan.frequency === "weekly" || plan.frequency === "biweekly") {
+    const c = await ensureCurrentCycle({ welfare, plan });
+    return c ? [c] : [];
+  }
+  const opened = [];
+  for (const p of periodsForYear(plan, year)) {
+    const c = await ensureCurrentCycle({ welfare, plan, ref: new Date(`${p.period_start}T12:00:00`) });
+    if (c) opened.push(c);
+  }
+  return opened;
+}
+
 // Open the current cycle for every active plan of a welfare.
 export async function ensureCurrentCycles(welfare, ref = new Date()) {
   const plans = (await query(`SELECT * FROM contribution_plans WHERE welfare_id = $1 AND active = true`, [welfare.id])).rows;

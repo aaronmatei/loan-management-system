@@ -25,6 +25,22 @@ async function welfareSetup(n = 2) {
 }
 
 describe("recurring contribution plans", () => {
+  it("a quarterly contribution opens ALL 4 quarters so members can prepay the year", async () => {
+    const { admin, w } = await welfareSetup(2);
+    const plan = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
+      .send({ name: "Quarterly", frequency: "quarterly", amount: 5000, due_day: 28, pool_kind: "benefit" })).body.data;
+    const year = new Date().getFullYear();
+    const ov = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${plan.id}/overview?year=${year}`).set("Authorization", auth(admin))).body.data;
+    // Every quarter is open (a real cycle), not a projection — so any quarter is payable now.
+    expect(ov.periods.filter((p) => p.opened)).toHaveLength(4);
+    expect(ov.periods.every((p) => p.cycle_id)).toBe(true);
+    // A monthly plan, by contrast, only opens the current month.
+    const mp = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
+      .send({ name: "Monthly", amount: 1000, due_day: 10 })).body.data;
+    const mov = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${mp.id}/overview?year=${year}`).set("Authorization", auth(admin))).body.data;
+    expect(mov.periods.filter((p) => p.opened).length).toBe(1);
+  });
+
   it("setting the plan auto-opens the current month's cycle with its fine rule (idempotent)", async () => {
     const { admin, w } = await welfareSetup(2);
     const put = await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))

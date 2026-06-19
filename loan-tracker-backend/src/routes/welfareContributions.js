@@ -9,7 +9,7 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
-import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, ensureCurrentCycle, ensureCurrentCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
+import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, ensureCurrentCycle, ensureCurrentCycles, ensureYearCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
 import { poolKeyForPlan, benefitPoolBalance, postBenefitPool, recordPayout, poolPayouts } from "../services/welfareBenefitPoolService.js";
 import { poolBalance as savingsPoolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
@@ -351,8 +351,13 @@ router.get("/contribution-plans/:planId/overview", async (req, res) => {
   try {
     const plan = await getPlanById(req.welfare.id, req.params.planId);
     if (!plan) return res.status(404).json({ error: "Contribution not found" });
-    try { await ensureCurrentCycle({ welfare: req.welfare, plan }); } catch { /* non-fatal */ }
     const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    // Quarterly: open every quarter of the year so members can prepay the whole
+    // year at once; other frequencies just open the current period.
+    try {
+      if (plan.frequency === "quarterly") await ensureYearCycles(req.welfare, plan, year);
+      else await ensureCurrentCycle({ welfare: req.welfare, plan });
+    } catch { /* non-fatal */ }
     res.json({ success: true, data: await buildPlanOverview(req.welfare, plan, year) });
   } catch (e) {
     logger.error("contribution overview error:", e);
