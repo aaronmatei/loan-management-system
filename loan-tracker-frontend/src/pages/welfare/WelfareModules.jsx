@@ -6,7 +6,6 @@ import api from "../../services/api";
 import WelfareDashboardPanel from "../../components/WelfareDashboardPanel";
 import WelfareMembersPanel from "../../components/WelfareMembersPanel";
 import WelfareContributionsPanel from "../../components/WelfareContributionsPanel";
-import WelfareEventsPanel from "../../components/WelfareEventsPanel";
 import WelfarePenaltiesPanel from "../../components/WelfarePenaltiesPanel";
 import WelfareMeetingsPanel from "../../components/WelfareMeetingsPanel";
 import WelfareDividendsPanel from "../../components/WelfareDividendsPanel";
@@ -40,11 +39,13 @@ export function WelfareMembersPage() {
 }
 export function WelfareContributionsPage() {
   const { welfareId } = useWelfare();
-  return <Page title="Contributions"><WelfareContributionsPanel welfareId={welfareId} /></Page>;
+  return <Page title="Contributions"><WelfareContributionsPanel welfareId={welfareId} kind="savings" /></Page>;
 }
 export function WelfareEventsPage() {
   const { welfareId } = useWelfare();
-  return <Page title="Events"><WelfareEventsPanel welfareId={welfareId} /></Page>;
+  // Benefit contributions (Quarterly, emergencies) — collect into a pool that
+  // pays out to a member beneficiary.
+  return <Page title="Events & Emergencies"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" /></Page>;
 }
 export function WelfarePenaltiesPage() {
   const { welfareId } = useWelfare();

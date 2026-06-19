@@ -17,10 +17,13 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric
 
 const FREQ_LABEL = { weekly: "Weekly", biweekly: "Bi-weekly", monthly: "Monthly", quarterly: "Every 3 months", yearly: "Yearly" };
 
-// Welfare contributions: a list of named contributions (e.g. "Monthly",
-// "Quarterly"), each its own recurring plan. Click one to drill into its
-// per-member activity for the year. Welfare accounts only.
-export default function WelfareContributionsPanel({ welfareId }) {
+// Welfare contributions, split by pool kind:
+//   kind="savings"  → group savings (Monthly).
+//   kind="benefit"  → "Events & Emergencies": contributions with a member
+//                     beneficiary (Quarterly dowry, one-off emergencies).
+// Click one to drill into its pool + per-member activity. Welfare accounts only.
+export default function WelfareContributionsPanel({ welfareId, kind = "savings" }) {
+  const benefit = kind === "benefit";
   const [list, setList] = useState(null); // { plans, oneoffs }
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,21 +39,23 @@ export default function WelfareContributionsPanel({ welfareId }) {
   useEffect(() => { load(); }, [welfareId]);
   useEffect(() => { api.get(`/welfares/${welfareId}/members`).then((r) => setMembers((r.data.data || []).filter((m) => m.status === "active"))).catch(() => {}); }, [welfareId]);
 
-  if (selected) return <ContributionDetail welfareId={welfareId} plan={selected} members={members} onBack={() => { setSelected(null); load(); }} />;
+  if (selected) return <ContributionDetail welfareId={welfareId} plan={selected} members={members} kind={kind} onBack={() => { setSelected(null); load(); }} />;
 
-  const plans = list?.plans || [];
-  const oneoffs = list?.oneoffs || [];
+  // This page only shows its kind: benefit pools here, savings pools on Contributions.
+  const isBenefitOneoff = (c) => c.pool_key && c.pool_key !== "savings";
+  const plans = (list?.plans || []).filter((p) => (p.pool_kind === "benefit") === benefit);
+  const oneoffs = (list?.oneoffs || []).filter((c) => isBenefitOneoff(c) === benefit);
   const empty = !loading && plans.length === 0 && oneoffs.length === 0;
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 flex items-center gap-2">
-          <CalendarClock size={18} className="text-sky-600" /> Contributions
+          <CalendarClock size={18} className="text-sky-600" /> {benefit ? "Events & Emergencies" : "Contributions"}
         </h2>
         <PermissionGate role={["admin", "manager"]}>
           <button onClick={() => setCreator({ mode: "new" })} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
-            <Plus size={15} /> New contribution
+            <Plus size={15} /> {benefit ? "New event / emergency" : "New contribution"}
           </button>
         </PermissionGate>
       </div>
@@ -58,7 +63,9 @@ export default function WelfareContributionsPanel({ welfareId }) {
       <div className="p-5 space-y-3">
         {loading ? <p className="text-sm text-slate-500">Loading…</p> : empty ? (
           <div className="text-center py-8 text-slate-500 text-sm">
-            No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span> or <span className="font-semibold">“Quarterly”</span>.
+            {benefit
+              ? <>No events or emergencies yet. Create a recurring benefit pool (e.g. <span className="font-semibold">“Quarterly”</span> dowry) or a one-off <span className="font-semibold">Emergency</span> with a beneficiary.</>
+              : <>No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span>.</>}
           </div>
         ) : (
           <>
@@ -69,7 +76,7 @@ export default function WelfareContributionsPanel({ welfareId }) {
       </div>
 
       {creator && (
-        <ContributionModal welfareId={welfareId} plan={creator.plan} mode={creator.mode} members={members}
+        <ContributionModal welfareId={welfareId} plan={creator.plan} mode={creator.mode} members={members} kind={kind}
           onClose={() => setCreator(null)} onSaved={() => { setCreator(null); load(); }} />
       )}
       {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} members={members} onClose={() => setOpenCycle(null)} onChange={load} />}
@@ -127,7 +134,7 @@ const PoolBadge = ({ kind }) => kind === "benefit"
 
 // One contribution's pool page: pool balance + (for benefit) payouts, plus the
 // year matrix (by-period / by-member), edit, assess-late.
-function ContributionDetail({ welfareId, plan: initialPlan, members = [], onBack }) {
+function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind = "savings", onBack }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -157,7 +164,7 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], onBack
   return (
     <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
-        <button onClick={onBack} className="text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ChevronLeft size={16} /> All contributions</button>
+        <button onClick={onBack} className="text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ChevronLeft size={16} /> {kind === "benefit" ? "All events & emergencies" : "All contributions"}</button>
         <PermissionGate role={["admin", "manager"]}>
           <div className="flex gap-2">
             {isBenefit && <button onClick={() => setPaying(true)} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><ArrowDownToLine size={14} /> Pay a beneficiary</button>}
@@ -399,18 +406,19 @@ const FREQS = [
 const WEEKDAYS = [{ v: 1, n: "Monday" }, { v: 2, n: "Tuesday" }, { v: 3, n: "Wednesday" }, { v: 4, n: "Thursday" }, { v: 5, n: "Friday" }, { v: 6, n: "Saturday" }, { v: 7, n: "Sunday" }];
 const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-function ContributionModal({ welfareId, plan, mode, members = [], onClose, onSaved }) {
+function ContributionModal({ welfareId, plan, mode, members = [], kind = "savings", onClose, onSaved }) {
   const today = new Date().toISOString().slice(0, 10);
+  const benefit = kind === "benefit";
   const isWeek = (f) => f === "weekly" || f === "biweekly";
   const editing = mode === "edit";
   const freqOptions = editing ? FREQS.filter((f) => f.value !== "oneoff") : FREQS;
-  const [freq, setFreq] = useState(plan?.frequency || "monthly");
+  const [freq, setFreq] = useState(plan?.frequency || (benefit ? "quarterly" : "monthly"));
   const [form, setForm] = useState({
     name: plan?.name ?? "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? (isWeek(plan?.frequency) ? 1 : 10),
-    due_month: plan?.due_month ?? 12, due_date: "",
+    due_month: plan?.due_month ?? 12, due_date: "", pool_kind: plan?.pool_kind ?? (benefit ? "benefit" : "savings"),
     grace_days: plan?.grace_days ?? 0, fine_calc_type: plan?.fine_calc_type ?? "",
     fine_amount: plan?.fine_amount ?? "", fine_rate: plan?.fine_rate ?? "", fine_cap: plan?.fine_cap ?? "",
-    pool_kind: plan?.pool_kind ?? "savings", beneficiary_member_id: "",
+    beneficiary_member_id: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -427,8 +435,9 @@ function ContributionModal({ welfareId, plan, mode, members = [], onClose, onSav
     e.preventDefault();
     setError("");
     if (recurring && !form.name.trim()) return setError("Give the contribution a name.");
-    if (!(parseFloat(form.amount) > 0)) return setError("Enter the contribution amount.");
+    if (!(parseFloat(form.amount) > 0)) return setError("Enter the per-member amount.");
     if (!recurring && !form.due_date) return setError("Pick a due date.");
+    if (benefit && !recurring && !form.beneficiary_member_id) return setError("Pick the beneficiary for this emergency.");
     if (recurring && !isWeek(freq)) { const d = parseInt(form.due_day, 10); if (!(d >= 1 && d <= 28)) return setError("Due day must be between 1 and 28."); }
     if (usesAmount && !(parseFloat(form.fine_amount) > 0)) return setError("Enter the fine amount.");
     if (usesRate && !(parseFloat(form.fine_rate) > 0)) return setError("Enter the fine rate %.");
@@ -459,7 +468,7 @@ function ContributionModal({ welfareId, plan, mode, members = [], onClose, onSav
   }[freq];
 
   return (
-    <Shell title={editing ? "Edit contribution" : "New contribution"} onClose={onClose}>
+    <Shell title={editing ? (benefit ? "Edit event / emergency" : "Edit contribution") : (benefit ? "New event / emergency" : "New contribution")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
         <div className="grid grid-cols-2 gap-3">
@@ -488,31 +497,19 @@ function ContributionModal({ welfareId, plan, mode, members = [], onClose, onSav
           )}
         </div>
 
-        {/* Pool type (recurring) or beneficiary (one-off emergency). */}
-        {recurring ? (
+        {/* The pool kind is set by the page. A benefit one-off (emergency) needs a beneficiary. */}
+        {benefit && !recurring && (
           <div>
-            <label className={lbl}>Pool type</label>
-            {editing ? (
-              <div className="flex items-center gap-2 py-1"><PoolBadge kind={form.pool_kind} /><span className="text-xs text-slate-400">(can't change after creation)</span></div>
-            ) : (
-              <>
-                <select value={form.pool_kind} onChange={set("pool_kind")} className={fld}>
-                  <option value="savings">Savings — group savings, members own & withdraw their balance</option>
-                  <option value="benefit">Benefit — collects into a pool that pays lump sums to beneficiaries</option>
-                </select>
-                <p className="text-xs text-slate-500 mt-1">{form.pool_kind === "benefit" ? "e.g. Quarterly dowry — members contribute, the pool pays out 300k to a member." : "e.g. Monthly — each member's contributions are their savings."}</p>
-              </>
-            )}
-          </div>
-        ) : (
-          <div>
-            <label className={lbl}>Beneficiary (optional)</label>
+            <label className={lbl}>Beneficiary *</label>
             <select value={form.beneficiary_member_id} onChange={set("beneficiary_member_id")} className={fld}>
-              <option value="">None — a plain group collection (savings)</option>
+              <option value="">Select the member who receives the payout…</option>
               {members.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
             </select>
-            <p className="text-xs text-slate-500 mt-1">{form.beneficiary_member_id ? "An emergency: members contribute into the one-off pool, then it pays out to this beneficiary." : "Leave blank for a one-off savings collection."}</p>
+            <p className="text-xs text-slate-500 mt-1">An emergency: members contribute into the shared one-off pool, then it pays out to this beneficiary.</p>
           </div>
+        )}
+        {benefit && recurring && (
+          <p className="text-xs text-slate-500 flex items-center gap-2"><PoolBadge kind="benefit" /> Members contribute in; you disburse lump sums to beneficiaries from its pool.</p>
         )}
 
         <div className="border-t border-slate-100 pt-3">
