@@ -175,8 +175,11 @@ async function buildCharts(welfare, year) {
     [wid],
   )).rows.map((r) => ({ label: r.label, balance: num(r.balance) }));
 
-  // Monthly contributions only (the savings plan) — collected vs expected per month.
-  const contributions = (await query(
+  const memberCount = (await query(`SELECT COUNT(*)::int n FROM members WHERE welfare_id=$1 AND status='active'`, [wid])).rows[0].n;
+
+  // Monthly contributions (the savings plan) — collected vs expected per month,
+  // plus contribution-late fines assessed that month (a 3rd bar).
+  const monthRows = (await query(
     `SELECT EXTRACT(MONTH FROM c.due_date)::int AS mo, to_char(c.due_date,'Mon') AS label,
             COALESCE(SUM(s.amount_due),0) AS expected, COALESCE(SUM(s.amount_paid),0) AS collected
        FROM contribution_cycles c
@@ -185,19 +188,32 @@ async function buildCharts(welfare, year) {
       WHERE c.welfare_id=$1 AND p.frequency='monthly' AND EXTRACT(YEAR FROM c.due_date)=$2
       GROUP BY 1,2 ORDER BY 1`,
     [wid, year],
-  )).rows.map((r) => ({ label: r.label, expected: num(r.expected), collected: num(r.collected) }));
+  )).rows;
+  const fineByMonth = {};
+  (await query(
+    `SELECT EXTRACT(MONTH FROM assessed_at)::int AS mo, COALESCE(SUM(amount),0) AS fines
+       FROM penalty_assessments WHERE ${memberFilter} AND trigger='contribution_late' AND EXTRACT(YEAR FROM assessed_at)=$2
+      GROUP BY 1`, [wid, year],
+  )).rows.forEach((r) => { fineByMonth[r.mo] = num(r.fines); });
+  const contributions = monthRows.map((r) => ({ label: r.label, expected: num(r.expected), collected: num(r.collected), fines: fineByMonth[r.mo] || 0 }));
 
-  // Quarterly contributions — collected vs expected per quarter (Q1–Q4).
-  const quarterly = (await query(
-    `SELECT EXTRACT(QUARTER FROM c.due_date)::int AS q, 'Q' || EXTRACT(QUARTER FROM c.due_date)::int AS label,
+  // Quarterly contributions — ALWAYS the 4 quarters; unopened ones are projected
+  // (expected = plan amount × active members, collected 0).
+  const qPlan = (await query(`SELECT amount FROM contribution_plans WHERE welfare_id=$1 AND frequency='quarterly' AND active=true ORDER BY id LIMIT 1`, [wid])).rows[0];
+  const qActual = {};
+  (await query(
+    `SELECT EXTRACT(QUARTER FROM c.due_date)::int AS q,
             COALESCE(SUM(s.amount_due),0) AS expected, COALESCE(SUM(s.amount_paid),0) AS collected
-       FROM contribution_cycles c
-       JOIN contribution_plans p ON p.id=c.plan_id
-       JOIN contribution_schedules s ON s.cycle_id=c.id
-      WHERE c.welfare_id=$1 AND p.frequency='quarterly' AND EXTRACT(YEAR FROM c.due_date)=$2
-      GROUP BY 1,2 ORDER BY 1`,
+       FROM contribution_cycles c JOIN contribution_plans p ON p.id=c.plan_id JOIN contribution_schedules s ON s.cycle_id=c.id
+      WHERE c.welfare_id=$1 AND p.frequency='quarterly' AND EXTRACT(YEAR FROM c.due_date)=$2 GROUP BY 1`,
     [wid, year],
-  )).rows.map((r) => ({ label: r.label, expected: num(r.expected), collected: num(r.collected) }));
+  )).rows.forEach((r) => { qActual[r.q] = { expected: num(r.expected), collected: num(r.collected) }; });
+  const projected = qPlan ? num(qPlan.amount) * memberCount : 0;
+  const quarterly = [1, 2, 3, 4].map((q) => ({
+    label: `Q${q}`,
+    expected: qActual[q]?.expected ?? projected,
+    collected: qActual[q]?.collected ?? 0,
+  }));
 
   // Attendance rate per meeting.
   const attendance = (await query(
@@ -208,14 +224,14 @@ async function buildCharts(welfare, year) {
     [wid],
   )).rows.map((r) => ({ label: new Date(r.date).toISOString().slice(0, 10), rate: r.recorded > 0 ? Math.round((r.attended / r.recorded) * 100) : 0, attended: r.attended, recorded: r.recorded }));
 
-  // Fines accrued vs collected, per month (by assessment month).
+  // Fines by activity type — accrued vs collected per penalty trigger.
+  const FINE_LABELS = { contribution_late: "Contribution late", loan_late: "Loan late", attendance_late: "Attendance late", attendance_absent: "Attendance absent", meeting_missed: "Meeting missed", manual: "Manual" };
   const fines = (await query(
-    `SELECT to_char(date_trunc('month', assessed_at),'YYYY-MM') AS label,
-            COALESCE(SUM(amount),0) AS accrued, COALESCE(SUM(paid_amount),0) AS collected
+    `SELECT trigger, COALESCE(SUM(amount),0) AS accrued, COALESCE(SUM(paid_amount),0) AS collected
        FROM penalty_assessments WHERE ${memberFilter}
-      GROUP BY 1 ORDER BY 1`,
+      GROUP BY trigger ORDER BY accrued DESC`,
     [wid],
-  )).rows.map((r) => ({ label: r.label, accrued: num(r.accrued), collected: num(r.collected) }));
+  )).rows.map((r) => ({ type: r.trigger, label: FINE_LABELS[r.trigger] || r.trigger, accrued: num(r.accrued), collected: num(r.collected) }));
 
   // Savings per active member (savings pool only), highest first.
   const savingsPerMember = (await query(

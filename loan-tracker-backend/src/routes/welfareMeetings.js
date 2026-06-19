@@ -80,17 +80,17 @@ router.get("/meetings", async (req, res) => {
 // POST /meetings
 router.post("/meetings", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
-    const { meeting_date, location, agenda } = req.body || {};
+    const { meeting_date, location, agenda, title } = req.body || {};
     if (!meeting_date) return res.status(400).json({ error: "Meeting date is required" });
     const r = await query(
-      `INSERT INTO group_meetings (tenant_id, group_id, meeting_date, location, agenda, created_by)
-       VALUES ($1,$2,$3::date,$4,$5,$6) RETURNING *`,
-      [req.welfare.tenant_id, req.welfare.id, meeting_date, location || null, agenda || null, req.user.id],
+      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, created_by)
+       VALUES ($1,$2,$3,$4::date,$5,$6,$7) RETURNING *`,
+      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, req.user.id],
     );
     await logAudit({
       user: req.user, action: "welfare_meeting_created", entityType: "group",
       entityId: req.welfare.id, entityCode: req.welfare.group_code,
-      description: `Meeting on ${meeting_date}`, req,
+      description: `Meeting${title ? ` "${title}"` : ""} on ${meeting_date}`, req,
     });
     res.status(201).json({ success: true, data: r.rows[0] });
   } catch (e) {

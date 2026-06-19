@@ -9,7 +9,7 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
-import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, ensureCurrentCycle, ensureCurrentCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
+import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, resolveRule, ensureCurrentCycle, ensureCurrentCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
 import { poolKeyForPlan, benefitPoolBalance, postBenefitPool, recordPayout, poolPayouts } from "../services/welfareBenefitPoolService.js";
 import { poolBalance as savingsPoolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
@@ -45,7 +45,7 @@ async function poolBalance(welfareId) {
 // here is what the Contributions tab shows — click one to drill into it.
 const planBody = (b) => ({
   name: b.name, frequency: b.frequency || "monthly", amount: b.amount, dueDay: b.due_day, dueMonth: b.due_month,
-  graceDays: b.grace_days, fineCalcType: b.fine_calc_type, fineAmount: b.fine_amount, fineRate: b.fine_rate, fineCap: b.fine_cap,
+  graceDays: b.grace_days, penaltyRuleId: b.penalty_rule_id === "" ? null : b.penalty_rule_id,
   poolKind: b.pool_kind === "benefit" ? "benefit" : "savings",
 });
 
@@ -110,6 +110,19 @@ router.put("/contribution-plans/:planId", authorize("admin", "manager"), async (
   }
 });
 
+// A payout can be handed out at a gathering — create (or reuse) the linked
+// meeting so attendance can be taken there. Returns its id, or null.
+async function gatheringMeetingId(welfare, b, userId) {
+  if (b.meeting_id) return parseInt(b.meeting_id, 10);
+  if (!b.gathering_title) return null;
+  const m = (await query(
+    `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, status, created_by)
+     VALUES ($1,$2,$3,COALESCE($4::date, CURRENT_DATE),'scheduled',$5) RETURNING id`,
+    [welfare.tenant_id, welfare.id, b.gathering_title, b.gathering_date || b.txn_date || null, userId || null],
+  )).rows[0];
+  return m.id;
+}
+
 // POST /contribution-plans/:planId/payouts — disburse a lump sum from a benefit
 // pool to a member beneficiary (e.g. the quarterly dowry).
 router.post("/contribution-plans/:planId/payouts", authorize("admin", "manager"), async (req, res) => {
@@ -118,9 +131,10 @@ router.post("/contribution-plans/:planId/payouts", authorize("admin", "manager")
     if (!plan) return res.status(404).json({ error: "Contribution not found" });
     if (plan.pool_kind !== "benefit") return res.status(400).json({ error: "Only benefit pools pay out — this is a savings contribution" });
     const b = req.body || {};
-    const out = await recordPayout({ welfare: req.welfare, poolKey: poolKeyForPlan(plan), beneficiaryId: b.beneficiary_member_id, amount: b.amount, txnDate: b.txn_date, description: b.description || `Payout — ${plan.name}`, userId: req.user.id });
+    const meetingId = await gatheringMeetingId(req.welfare, b, req.user.id);
+    const out = await recordPayout({ welfare: req.welfare, poolKey: poolKeyForPlan(plan), beneficiaryId: b.beneficiary_member_id, amount: b.amount, meetingId, txnDate: b.txn_date, description: b.description || `Payout — ${plan.name}`, userId: req.user.id });
     await logAudit({ user: req.user, action: "contribution_payout", entityType: "group", entityId: req.welfare.id, entityCode: req.welfare.group_code, description: `Payout KES ${b.amount} from ${plan.name}`, req });
-    res.status(201).json({ success: true, data: out });
+    res.status(201).json({ success: true, data: { ...out, meeting_id: meetingId } });
   } catch (e) {
     if (e.status) return res.status(e.status).json({ error: e.message });
     logger.error("contribution payout error:", e);
@@ -135,8 +149,9 @@ router.post("/cycles/:cycleId/payout", authorize("admin", "manager"), async (req
     if (!c) return res.status(404).json({ error: "Not found" });
     if (!c.pool_key || c.pool_key === "savings") return res.status(400).json({ error: "Only benefit pools pay out" });
     const b = req.body || {};
-    const out = await recordPayout({ welfare: req.welfare, poolKey: c.pool_key, beneficiaryId: b.beneficiary_member_id || c.beneficiary_member_id, amount: b.amount, cycleId: c.id, txnDate: b.txn_date, description: b.description || `Emergency payout — ${c.name}`, userId: req.user.id });
-    res.status(201).json({ success: true, data: out });
+    const meetingId = await gatheringMeetingId(req.welfare, b, req.user.id);
+    const out = await recordPayout({ welfare: req.welfare, poolKey: c.pool_key, beneficiaryId: b.beneficiary_member_id || c.beneficiary_member_id, amount: b.amount, cycleId: c.id, meetingId, txnDate: b.txn_date, description: b.description || `Emergency payout — ${c.name}`, userId: req.user.id });
+    res.status(201).json({ success: true, data: { ...out, meeting_id: meetingId } });
   } catch (e) {
     if (e.status) return res.status(e.status).json({ error: e.message });
     logger.error("cycle payout error:", e);
@@ -184,17 +199,10 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
     if (!(amt > 0)) return res.status(400).json({ error: "A positive contribution amount is required (set one here or in settings)" });
     const freq = frequency || settings?.contribution_frequency || "monthly";
 
-    // Per-cycle fine rule — from the body, defaulting to the welfare's plan.
+    // Fine comes from the chosen penalty rule (snapshotted onto the cycle).
     const b = req.body || {};
-    const plan = await getPlan(req.welfare.id, freq);
-    const num = (v, d) => (v === "" || v == null ? d : parseFloat(v));
-    const fine = {
-      grace_days: b.grace_days != null && b.grace_days !== "" ? parseInt(b.grace_days, 10) : plan?.grace_days ?? null,
-      calc_type: b.fine_calc_type || plan?.fine_calc_type || null,
-      amount: num(b.fine_amount, plan?.fine_amount ?? null),
-      rate: num(b.fine_rate, plan?.fine_rate ?? null),
-      cap: num(b.fine_cap, plan?.fine_cap ?? null),
-    };
+    const grace = b.grace_days != null && b.grace_days !== "" ? parseInt(b.grace_days, 10) : 0;
+    const fr = await resolveRule(req.welfare.tenant_id, b.penalty_rule_id === "" ? null : b.penalty_rule_id);
 
     // A one-off WITH a beneficiary is a benefit collection (emergency) → its own
     // shared 'oneoff' pool; otherwise it's a plain savings collection.
@@ -205,10 +213,10 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
       await query(
         `INSERT INTO contribution_cycles
            (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, created_by,
-            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, beneficiary_member_id)
-         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+            grace_days, penalty_rule_id, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, beneficiary_member_id)
+         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
         [req.welfare.tenant_id, req.welfare.id, name || "Contribution", freq, amt, period_start || null, due_date, req.user.id,
-          fine.grace_days, fine.calc_type, fine.amount, fine.rate, fine.cap, poolKey, beneficiaryId],
+          grace, fr.penalty_rule_id, fr.fine_calc_type, fr.fine_amount, fr.fine_rate, fr.fine_cap, poolKey, beneficiaryId],
       )
     ).rows[0];
 

@@ -12,7 +12,7 @@ const kfmt = (v) => {
   return (n < 0 ? "-" : "") + s;
 };
 const ksh = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
-const COLORS = { collected: "#10b981", expected: "#94a3b8", pool: "#0ea5e9", quarterly: "#8b5cf6", accrued: "#ef4444", finePaid: "#10b981", savings: "#6366f1", attend: "#0ea5e9" };
+const COLORS = { collected: "#10b981", expected: "#94a3b8", pool: "#0ea5e9", quarterly: "#8b5cf6", fines: "#f59e0b", accrued: "#ef4444", finePaid: "#10b981", savings: "#6366f1", attend: "#0ea5e9" };
 
 const Card = ({ icon: Icon, title, sub, children, empty }) => (
   <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
@@ -74,7 +74,7 @@ export default function WelfareCharts({ welfareId }) {
       </Card>
 
       {/* 2. Contributions collected vs expected */}
-      <Card icon={BarChart3} title={`Monthly contributions ${c.year}`} sub="Collected vs expected per month">
+      <Card icon={BarChart3} title={`Monthly contributions ${c.year}`} sub="Collected vs expected, plus late fines, per month">
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={c.contributions} margin={{ left: -10, right: 8, top: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -84,6 +84,7 @@ export default function WelfareCharts({ welfareId }) {
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="expected" fill={COLORS.expected} name="Expected" radius={[3, 3, 0, 0]} />
             <Bar dataKey="collected" fill={COLORS.collected} name="Collected" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="fines" fill={COLORS.fines} name="Fines" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </Card>
@@ -116,8 +117,8 @@ export default function WelfareCharts({ welfareId }) {
         </ResponsiveContainer>
       </Card>
 
-      {/* 5. Fines */}
-      <Card icon={AlertTriangle} title="Fines" sub="Accrued vs collected, by month" empty={finesEmpty ? "No fines recorded yet" : null}>
+      {/* 5. Fines by activity type */}
+      <Card icon={AlertTriangle} title="Fines by activity" sub="Accrued vs collected, by penalty type" empty={finesEmpty ? "No fines recorded yet" : null}>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={c.fines} margin={{ left: -10, right: 8, top: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />

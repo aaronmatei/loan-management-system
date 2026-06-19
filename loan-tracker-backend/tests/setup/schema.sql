@@ -3291,6 +3291,7 @@ CREATE TABLE public.group_meetings (
   meeting_date date NOT NULL,
   location     varchar(120),
   agenda       text,
+  title        varchar(120), -- migration 086
   notes        text,
   status       varchar(20) NOT NULL DEFAULT 'scheduled',
   created_by   integer,
@@ -3518,6 +3519,7 @@ CREATE TABLE public.contribution_plans (
   fine_cap       numeric,
   active         boolean NOT NULL DEFAULT true,
   pool_kind      varchar(16) NOT NULL DEFAULT 'savings', -- migration 085 (savings | benefit)
+  penalty_rule_id integer, -- migration 086
   created_by     integer,
   created_at     timestamp NOT NULL DEFAULT now(),
   updated_at     timestamp NOT NULL DEFAULT now()
@@ -3547,7 +3549,8 @@ CREATE TABLE public.contribution_cycles (
   fine_rate      numeric,
   fine_cap       numeric,
   pool_key              varchar(32) NOT NULL DEFAULT 'savings', -- migration 085
-  beneficiary_member_id integer REFERENCES public.members(id) ON DELETE SET NULL
+  beneficiary_member_id integer REFERENCES public.members(id) ON DELETE SET NULL,
+  penalty_rule_id       integer -- migration 086
 );
 CREATE UNIQUE INDEX uq_cycle_plan_period ON public.contribution_cycles(plan_id, period_key) WHERE plan_id IS NOT NULL AND period_key IS NOT NULL;
 
@@ -3566,6 +3569,7 @@ CREATE TABLE public.benefit_pool_ledger (
   txn_date      date NOT NULL DEFAULT CURRENT_DATE,
   description   text,
   created_by    integer,
+  meeting_id    integer, -- migration 086
   created_at    timestamptz NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_benefit_pool_ledger_pool ON public.benefit_pool_ledger(welfare_id, pool_key, id);

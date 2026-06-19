@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { CalendarClock, Plus, X, Coins, AlertTriangle, ChevronRight, Smartphone, Repeat, ChevronLeft, ArrowDownToLine } from "lucide-react";
+import { CalendarClock, Plus, X, Coins, AlertTriangle, ChevronRight, Smartphone, Repeat, ChevronLeft, ArrowDownToLine, Users } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
-
-const FINE_TYPES = [
-  { value: "", label: "No late fine" },
-  { value: "fixed", label: "Flat amount (once)" },
-  { value: "daily_fixed", label: "Flat amount per day late" },
-  { value: "percentage", label: "% of the amount (once)" },
-  { value: "daily_percentage", label: "% of the amount per day late" },
-];
 
 const money = (v) =>
   "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -199,7 +191,9 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
           <div className="space-y-1">
             {pool.payouts.map((p) => (
               <div key={p.id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-700">{p.first_name} {p.last_name} <span className="text-slate-400">· {fmt(p.txn_date)}</span></span>
+                <span className="text-slate-700">{p.first_name} {p.last_name} <span className="text-slate-400">· {fmt(p.txn_date)}</span>
+                  {p.meeting_id ? <span className="ml-1 text-violet-600 text-xs font-semibold" title={p.meeting_title}><Users size={11} className="inline -mt-0.5" /> {p.attended}/{p.recorded} present</span> : null}
+                </span>
                 <span className="font-semibold text-rose-600">− {money(p.amount)}</span>
               </div>
             ))}
@@ -242,7 +236,7 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
 
 // Disburse a lump sum from a benefit pool to a member beneficiary.
 function PayoutModal({ welfareId, planId, cycleId, members, balance, defaultBeneficiary, onClose, onSaved }) {
-  const [form, setForm] = useState({ beneficiary_member_id: defaultBeneficiary || "", amount: "", description: "" });
+  const [form, setForm] = useState({ beneficiary_member_id: defaultBeneficiary || "", amount: "", description: "", gathering_title: "", gathering_date: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -272,6 +266,14 @@ function PayoutModal({ welfareId, planId, cycleId, members, balance, defaultBene
         </div>
         <div><label className={lbl}>Amount *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} /></div>
         <div><label className={lbl}>Note</label><input value={form.description} onChange={set("description")} placeholder="e.g. Dowry / wedding" className={fld} /></div>
+        <div className="border-t border-slate-100 pt-3">
+          <p className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5"><Users size={14} /> Gathering (optional)</p>
+          <p className="text-xs text-slate-400 mb-2">Name the event so you can mark attendance for it (late attendees are fined per the attendance rule). Take attendance afterwards in <span className="font-semibold">Meetings</span>.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <input value={form.gathering_title} onChange={set("gathering_title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} />
+            <input type="date" value={form.gathering_date} onChange={set("gathering_date")} className={fld} />
+          </div>
+        </div>
         <Actions busy={busy} onClose={onClose} label="Record payout" tone="bg-violet-600 hover:bg-violet-700" />
       </form>
     </Shell>
@@ -416,16 +418,17 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
   const [form, setForm] = useState({
     name: plan?.name ?? "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? (isWeek(plan?.frequency) ? 1 : 10),
     due_month: plan?.due_month ?? 12, due_date: "", pool_kind: plan?.pool_kind ?? (benefit ? "benefit" : "savings"),
-    grace_days: plan?.grace_days ?? 0, fine_calc_type: plan?.fine_calc_type ?? "",
-    fine_amount: plan?.fine_amount ?? "", fine_rate: plan?.fine_rate ?? "", fine_cap: plan?.fine_cap ?? "",
+    grace_days: plan?.grace_days ?? 0, penalty_rule_id: plan?.penalty_rule_id ?? "",
     beneficiary_member_id: "",
   });
+  const [rules, setRules] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const usesAmount = ["fixed", "daily_fixed"].includes(form.fine_calc_type);
-  const usesRate = ["percentage", "daily_percentage"].includes(form.fine_calc_type);
   const recurring = freq !== "oneoff";
+  // Fines come from the Penalties module — pick a contribution-late rule.
+  useEffect(() => { api.get(`/welfares/${welfareId}/penalty-rules`).then((r) => setRules((r.data.data || []).filter((x) => x.trigger === "contribution_late"))).catch(() => {}); }, [welfareId]);
+  const ruleLabel = (r) => `${r.calc_type === "fixed" ? `KES ${Number(r.amount).toLocaleString()}` : r.calc_type === "percentage" ? `${Number(r.rate)}%` : `${r.calc_type} ${r.amount ?? r.rate ?? ""}`}${r.notes ? ` · ${r.notes}` : ""}`;
 
   // Reset due_day sensibly when switching between weekday- and day-of-month modes.
   const changeFreq = (f) => { setFreq(f); setForm((s) => ({ ...s, due_day: isWeek(f) ? (s.due_day > 7 ? 1 : s.due_day) : (s.due_day < 8 && s.due_day < 1 ? 10 : s.due_day) })); };
@@ -439,8 +442,6 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
     if (!recurring && !form.due_date) return setError("Pick a due date.");
     if (benefit && !recurring && !form.beneficiary_member_id) return setError("Pick the beneficiary for this emergency.");
     if (recurring && !isWeek(freq)) { const d = parseInt(form.due_day, 10); if (!(d >= 1 && d <= 28)) return setError("Due day must be between 1 and 28."); }
-    if (usesAmount && !(parseFloat(form.fine_amount) > 0)) return setError("Enter the fine amount.");
-    if (usesRate && !(parseFloat(form.fine_rate) > 0)) return setError("Enter the fine rate %.");
     setBusy(true);
     try {
       if (recurring) {
@@ -515,17 +516,16 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
         <div className="border-t border-slate-100 pt-3">
           <p className="text-sm font-semibold text-slate-700 mb-2">Late fine</p>
           <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className={lbl}>Rule</label>
-              <select value={form.fine_calc_type} onChange={set("fine_calc_type")} className={fld}>
-                {FINE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            <div>
+              <label className={lbl}>Penalty rule</label>
+              <select value={form.penalty_rule_id} onChange={set("penalty_rule_id")} className={fld}>
+                <option value="">No late fine</option>
+                {rules.map((r) => <option key={r.id} value={r.id}>{ruleLabel(r)}</option>)}
               </select>
             </div>
-            {usesAmount && <div><label className={lbl}>Fine amount (KES)</label><input type="number" value={form.fine_amount} onChange={set("fine_amount")} className={fld} /></div>}
-            {usesRate && <div><label className={lbl}>Fine rate (%)</label><input type="number" value={form.fine_rate} onChange={set("fine_rate")} className={fld} /></div>}
-            {form.fine_calc_type && <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /></div>}
-            {form.fine_calc_type && <div><label className={lbl}>Cap (optional)</label><input type="number" value={form.fine_cap} onChange={set("fine_cap")} className={fld} /></div>}
+            <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /></div>
           </div>
+          <p className="text-xs text-slate-400 mt-1">Rules come from the <span className="font-semibold">Penalties</span> module. No rule for this trigger yet? Add one there.</p>
         </div>
         <p className="text-xs text-gray-500">{hint} A schedule is created for every active member.</p>
         <Actions busy={busy} onClose={onClose} label={recurring ? "Save plan" : "Open contribution"} tone="bg-sky-600 hover:bg-sky-700" />

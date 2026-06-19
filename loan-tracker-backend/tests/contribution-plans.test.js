@@ -27,8 +27,10 @@ async function welfareSetup(n = 2) {
 describe("recurring contribution plans", () => {
   it("setting the plan auto-opens the current month's cycle with its fine rule (idempotent)", async () => {
     const { admin, w } = await welfareSetup(2);
+    // Fines come from the Penalties module — make a rule, then point the plan at it.
+    const rule = (await request(app).post(`/api/welfares/${w.id}/penalty-rules`).set("Authorization", auth(admin)).send({ trigger: "contribution_late", calc_type: "fixed", amount: 50 })).body.data;
     const put = await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
-      .send({ name: "Monthly", amount: 1000, due_day: 10, grace_days: 3, fine_calc_type: "fixed", fine_amount: 50 });
+      .send({ name: "Monthly", amount: 1000, due_day: 10, grace_days: 3, penalty_rule_id: rule.id });
     expect(put.status).toBe(201);
 
     const list = await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin));
@@ -143,8 +145,9 @@ describe("recurring contribution plans", () => {
 
   it("accrues late fines using the cycle's own rule (rule_id null), not a global one", async () => {
     const { t, admin, w } = await welfareSetup(2);
+    const rule = (await request(app).post(`/api/welfares/${w.id}/penalty-rules`).set("Authorization", auth(admin)).send({ trigger: "contribution_late", calc_type: "fixed", amount: 75 })).body.data;
     await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
-      .send({ name: "Monthly", amount: 1000, due_day: 10, grace_days: 0, fine_calc_type: "fixed", fine_amount: 75 });
+      .send({ name: "Monthly", amount: 1000, due_day: 10, grace_days: 0, penalty_rule_id: rule.id });
     const cycle = (await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))).body.data[0];
     // Make it overdue.
     await query(`UPDATE contribution_schedules SET due_date='2020-01-01' WHERE cycle_id=$1`, [cycle.id]);

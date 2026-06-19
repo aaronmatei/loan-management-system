@@ -72,6 +72,7 @@ export default function WelfareMeetingsPanel({ welfareId }) {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
                 <tr>
+                  <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Date</th>
                   <th className="text-left px-4 py-2">Location</th>
                   <th className="text-left px-4 py-2">Status</th>
@@ -82,7 +83,8 @@ export default function WelfareMeetingsPanel({ welfareId }) {
               <tbody>
                 {meetings.map((m) => (
                   <tr key={m.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-semibold text-slate-800">{fmt(m.meeting_date)}</td>
+                    <td className="px-4 py-2 font-semibold text-slate-800">{m.title || <span className="text-slate-400 font-normal">—</span>}</td>
+                    <td className="px-4 py-2 text-slate-700">{fmt(m.meeting_date)}</td>
                     <td className="px-4 py-2 text-slate-600">{m.location || "—"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
                     <td className="px-4 py-2 text-right text-slate-700">{Number(m.present_count)}</td>
@@ -106,7 +108,7 @@ export default function WelfareMeetingsPanel({ welfareId }) {
 }
 
 function NewMeetingModal({ welfareId, onClose, onCreated }) {
-  const [form, setForm] = useState({ meeting_date: new Date().toISOString().split("T")[0], location: "", agenda: "" });
+  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], location: "", agenda: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -124,6 +126,7 @@ function NewMeetingModal({ welfareId, onClose, onCreated }) {
     <Shell title="Schedule meeting" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
+        <div><label className={lbl}>Name</label><input value={form.title} onChange={set("title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} /></div>
         <div><label className={lbl}>Date</label><input type="date" value={form.meeting_date} onChange={set("meeting_date")} className={fld} /></div>
         <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} className={fld} /></div>
         <div><label className={lbl}>Agenda</label><textarea value={form.agenda} onChange={set("agenda")} rows="2" className={fld} /></div>

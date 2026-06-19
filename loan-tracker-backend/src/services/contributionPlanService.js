@@ -33,7 +33,7 @@ export async function getPlanById(welfareId, planId) {
 }
 
 // Normalise + validate a plan's fields from a form body.
-function planFields({ frequency = "monthly", name, amount, dueDay, dueMonth, graceDays, fineCalcType, fineAmount, fineRate, fineCap, poolKind }) {
+function planFields({ frequency = "monthly", name, amount, dueDay, dueMonth, graceDays, poolKind }) {
   if (!FREQUENCIES.includes(frequency)) throw httpErr(400, "Unsupported frequency");
   const amt = parseFloat(amount);
   if (!(amt > 0)) throw httpErr(400, "A positive amount is required");
@@ -42,37 +42,46 @@ function planFields({ frequency = "monthly", name, amount, dueDay, dueMonth, gra
   // due_day means weekday (1=Mon..7=Sun) for weekly/biweekly, else day-of-month.
   const maxDay = ["weekly", "biweekly"].includes(frequency) ? 7 : 31;
   const day = Math.min(Math.max(parseInt(dueDay, 10) || 1, 1), maxDay);
-  const num = (v) => (v === "" || v == null ? null : parseFloat(v));
   return {
     name: nm, frequency, amount: amt, due_day: day,
     due_month: frequency === "yearly" ? Math.min(Math.max(parseInt(dueMonth, 10) || 12, 1), 12) : null,
-    grace_days: parseInt(graceDays, 10) || 0, fine_calc_type: fineCalcType || null,
-    fine_amount: num(fineAmount), fine_rate: num(fineRate), fine_cap: num(fineCap),
+    grace_days: parseInt(graceDays, 10) || 0,
     pool_kind: poolKind === "benefit" ? "benefit" : "savings",
   };
 }
 const dupErr = (name) => httpErr(409, `A contribution named "${name}" already exists`);
 
-export async function createPlan({ welfare, userId, ...rest }) {
+// Resolve the chosen penalty rule → fine values snapshotted onto the cycle, so
+// fines come from the Penalties module but past cycles don't change with a rule.
+export async function resolveRule(tenantId, ruleId) {
+  if (!ruleId) return { penalty_rule_id: null, fine_calc_type: null, fine_amount: null, fine_rate: null, fine_cap: null };
+  const r = (await query(`SELECT * FROM penalty_rules WHERE id=$1 AND tenant_id=$2`, [ruleId, tenantId])).rows[0];
+  if (!r) throw httpErr(400, "That penalty rule was not found");
+  return { penalty_rule_id: r.id, fine_calc_type: r.calc_type, fine_amount: r.amount, fine_rate: r.rate, fine_cap: r.cap };
+}
+
+export async function createPlan({ welfare, userId, penaltyRuleId, ...rest }) {
   const f = planFields(rest);
+  const fr = await resolveRule(welfare.tenant_id, penaltyRuleId);
   try {
     const r = await query(
-      `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, due_month, grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_kind, active, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true,$14) RETURNING *`,
-      [welfare.tenant_id, welfare.id, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, f.fine_calc_type, f.fine_amount, f.fine_rate, f.fine_cap, f.pool_kind, userId || null],
+      `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, due_month, grace_days, penalty_rule_id, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_kind, active, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,true,$15) RETURNING *`,
+      [welfare.tenant_id, welfare.id, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, fr.penalty_rule_id, fr.fine_calc_type, fr.fine_amount, fr.fine_rate, fr.fine_cap, f.pool_kind, userId || null],
     );
     return r.rows[0];
   } catch (e) { if (e.code === "23505") throw dupErr(f.name); throw e; }
 }
-export async function editPlan({ welfare, planId, ...rest }) {
+export async function editPlan({ welfare, planId, penaltyRuleId, ...rest }) {
   const existing = await getPlanById(welfare.id, planId);
   if (!existing) throw httpErr(404, "Contribution not found");
   // pool_kind can't flip once a pool has activity, so keep the existing kind.
   const f = planFields({ frequency: existing.frequency, poolKind: existing.pool_kind, ...rest });
+  const fr = await resolveRule(welfare.tenant_id, penaltyRuleId === undefined ? existing.penalty_rule_id : penaltyRuleId);
   try {
     const r = await query(
-      `UPDATE contribution_plans SET name=$2, frequency=$3, amount=$4, due_day=$5, due_month=$6, grace_days=$7, fine_calc_type=$8, fine_amount=$9, fine_rate=$10, fine_cap=$11, updated_at=NOW() WHERE id=$1 RETURNING *`,
-      [planId, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, f.fine_calc_type, f.fine_amount, f.fine_rate, f.fine_cap],
+      `UPDATE contribution_plans SET name=$2, frequency=$3, amount=$4, due_day=$5, due_month=$6, grace_days=$7, penalty_rule_id=$8, fine_calc_type=$9, fine_amount=$10, fine_rate=$11, fine_cap=$12, updated_at=NOW() WHERE id=$1 RETURNING *`,
+      [planId, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, fr.penalty_rule_id, fr.fine_calc_type, fr.fine_amount, fr.fine_rate, fr.fine_cap],
     );
     return r.rows[0];
   } catch (e) { if (e.code === "23505") throw dupErr(f.name); throw e; }
@@ -156,10 +165,10 @@ export async function ensureCurrentCycle({ welfare, plan, ref = new Date() }) {
       await query(
         `INSERT INTO contribution_cycles
            (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, category, plan_id, period_key,
-            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,'savings',$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+            grace_days, penalty_rule_id, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,'savings',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
         [welfare.tenant_id, welfare.id, p.name, plan.frequency, plan.amount, p.period_start, p.due_date, plan.id, p.period_key,
-          plan.grace_days, plan.fine_calc_type, plan.fine_amount, plan.fine_rate, plan.fine_cap, poolKeyForPlan(plan), plan.created_by || null],
+          plan.grace_days, plan.penalty_rule_id, plan.fine_calc_type, plan.fine_amount, plan.fine_rate, plan.fine_cap, poolKeyForPlan(plan), plan.created_by || null],
       )
     ).rows[0];
   } catch (e) {
