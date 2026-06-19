@@ -48,9 +48,8 @@ describe("welfare meetings + attendance penalties", () => {
 
   it("auto-assesses absent/late penalties and clears them when status changes", async () => {
     const { welfareId, tenantId, adminAuth, A } = await bootstrap();
-    await request(app).post(`/api/welfares/${welfareId}/penalty-rules`).set("Authorization", adminAuth).send({ trigger: "attendance_absent", calc_type: "fixed", amount: 500 });
-    await request(app).post(`/api/welfares/${welfareId}/penalty-rules`).set("Authorization", adminAuth).send({ trigger: "attendance_late", calc_type: "fixed", amount: 200 });
-    const meeting = (await request(app).post(`/api/welfares/${welfareId}/meetings`).set("Authorization", adminAuth).send({ meeting_date: "2026-06-08" })).body.data;
+    // Fines are defined ON the meeting now (absent 500, late 200).
+    const meeting = (await request(app).post(`/api/welfares/${welfareId}/meetings`).set("Authorization", adminAuth).send({ meeting_date: "2026-06-08", fine_absent: 500, fine_late: 200 })).body.data;
 
     // A absent → 500 penalty.
     await request(app).post(`/api/welfares/${welfareId}/meetings/${meeting.id}/attendance`).set("Authorization", adminAuth)
@@ -77,8 +76,7 @@ describe("welfare meetings + attendance penalties", () => {
 
   it("keeps a paid attendance penalty even if status is later changed", async () => {
     const { welfareId, tenantId, adminAuth, A } = await bootstrap();
-    await request(app).post(`/api/welfares/${welfareId}/penalty-rules`).set("Authorization", adminAuth).send({ trigger: "attendance_absent", calc_type: "fixed", amount: 500 });
-    const meeting = (await request(app).post(`/api/welfares/${welfareId}/meetings`).set("Authorization", adminAuth).send({ meeting_date: "2026-06-15" })).body.data;
+    const meeting = (await request(app).post(`/api/welfares/${welfareId}/meetings`).set("Authorization", adminAuth).send({ meeting_date: "2026-06-15", fine_absent: 500 })).body.data;
     await request(app).post(`/api/welfares/${welfareId}/meetings/${meeting.id}/attendance`).set("Authorization", adminAuth).send({ records: [{ member_id: A.id, status: "absent" }] });
     const a = (await query("SELECT id FROM penalty_assessments WHERE tenant_id=$1", [tenantId])).rows[0];
     // Pay it.
