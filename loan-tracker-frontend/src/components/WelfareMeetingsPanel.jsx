@@ -56,13 +56,7 @@ export default function WelfareMeetingsPanel({ welfareId }) {
 
       <div className="p-5">
         {summary && summary.members.length > 0 && summary.held_meetings > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {summary.members.map((m) => (
-              <span key={m.member_id} className="text-xs bg-slate-50 border border-slate-200 rounded-full px-3 py-1" title={`${m.attended}/${summary.held_meetings} meetings`}>
-                {m.first_name} {m.last_name}: <strong className={m.rate >= 50 ? "text-emerald-700" : "text-red-600"}>{m.rate}%</strong>
-              </span>
-            ))}
-          </div>
+          <AttendanceOverview summary={summary} />
         )}
         {loading ? (
           <p className="text-sm text-slate-500">Loading…</p>
@@ -86,7 +80,7 @@ export default function WelfareMeetingsPanel({ welfareId }) {
                   <tr key={m.id} onClick={() => setAttend(m)} className="border-t border-slate-100 hover:bg-indigo-50/50 cursor-pointer">
                     <td className="px-4 py-2 font-semibold text-slate-800">{m.title || <span className="text-slate-400 font-normal">—</span>}</td>
                     <td className="px-4 py-2 text-slate-700">{fmt(m.meeting_date)}</td>
-                    <td className="px-4 py-2 text-slate-600">{m.location || "—"}</td>
+                    <td className="px-4 py-2 text-slate-600">{m.location || "Home"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
                     <td className="px-4 py-2 text-right text-slate-700">{Number(m.present_count)}</td>
                     <td className="px-4 py-2 text-right text-indigo-500"><ChevronRight size={16} className="inline" /></td>
@@ -100,6 +94,88 @@ export default function WelfareMeetingsPanel({ welfareId }) {
 
       {showNew && <NewMeetingModal welfareId={welfareId} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); load(); }} />}
       {attend && <AttendanceModal welfareId={welfareId} meeting={attend} onClose={() => setAttend(null)} onSaved={() => { setAttend(null); load(); }} />}
+    </div>
+  );
+}
+
+// Scalable attendance summary: headline stats + a distribution bar + the
+// at-risk members surfaced, with the full per-member list behind a searchable,
+// scrollable toggle (works whether the chama has 18 members or 1,000).
+function AttendanceOverview({ summary }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const members = summary.members.map((m) => ({ ...m, rate: Number(m.rate) }));
+  const held = Number(summary.held_meetings);
+  const n = members.length;
+  const avg = n ? Math.round(members.reduce((a, m) => a + m.rate, 0) / n) : 0;
+  const perfect = members.filter((m) => m.rate >= 100).length;
+  const atRisk = members.filter((m) => m.rate < 75).sort((a, b) => a.rate - b.rate);
+  const buckets = [
+    { label: "100%", cls: "bg-emerald-500", count: members.filter((m) => m.rate >= 100).length },
+    { label: "75–99%", cls: "bg-lime-500", count: members.filter((m) => m.rate >= 75 && m.rate < 100).length },
+    { label: "50–74%", cls: "bg-amber-500", count: members.filter((m) => m.rate >= 50 && m.rate < 75).length },
+    { label: "<50%", cls: "bg-rose-500", count: members.filter((m) => m.rate < 50).length },
+  ];
+  const rateCls = (r) => (r >= 75 ? "text-emerald-700" : r >= 50 ? "text-amber-700" : "text-rose-600");
+  const barCls = (r) => (r >= 100 ? "bg-emerald-500" : r >= 75 ? "bg-lime-500" : r >= 50 ? "bg-amber-500" : "bg-rose-500");
+  const filtered = members
+    .filter((m) => `${m.first_name} ${m.last_name}`.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => a.rate - b.rate || a.first_name.localeCompare(b.first_name));
+
+  return (
+    <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <Stat label="Avg attendance" value={`${avg}%`} tone={rateCls(avg)} />
+        <Stat label="Perfect (100%)" value={`${perfect}/${n}`} />
+        <Stat label="Below 75%" value={atRisk.length} tone={atRisk.length ? "text-rose-600" : "text-slate-800"} />
+        <Stat label="Meetings held" value={held} />
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-200 mb-1.5">
+        {buckets.map((b) => b.count > 0 && <div key={b.label} className={b.cls} style={{ width: `${(b.count / n) * 100}%` }} title={`${b.label}: ${b.count}`} />)}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+        {buckets.map((b) => (
+          <span key={b.label} className="inline-flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${b.cls}`} /> {b.label} <strong className="text-slate-700">{b.count}</strong></span>
+        ))}
+      </div>
+
+      {atRisk.length > 0 && !open && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-slate-400">Needs attention:</span>
+          {atRisk.slice(0, 6).map((m) => (
+            <span key={m.member_id} className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5">{m.first_name} {m.last_name}: <strong className="text-rose-600">{m.rate}%</strong></span>
+          ))}
+          {atRisk.length > 6 && <span className="text-slate-400">+{atRisk.length - 6} more</span>}
+        </div>
+      )}
+
+      <button onClick={() => setOpen((o) => !o)} className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+        {open ? "Hide" : "View"} attendance by member
+      </button>
+      {open && (
+        <div className="mt-2">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search members…" className="w-full sm:w-64 mb-2 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:border-indigo-400 focus:outline-none" />
+          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+            {filtered.map((m) => (
+              <div key={m.member_id} className="flex items-center gap-3 px-3 py-1.5 text-sm">
+                <span className="flex-1 truncate text-slate-700">{m.first_name} {m.last_name}</span>
+                <span className="text-xs text-slate-400 tabular-nums">{m.attended}/{held}</span>
+                <div className="hidden sm:block w-24 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className={`h-full ${barCls(m.rate)}`} style={{ width: `${m.rate}%` }} /></div>
+                <strong className={`w-10 text-right tabular-nums ${rateCls(m.rate)}`}>{m.rate}%</strong>
+              </div>
+            ))}
+            {filtered.length === 0 && <p className="px-3 py-2 text-sm text-slate-400">No members match.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function Stat({ label, value, tone = "text-slate-800" }) {
+  return (
+    <div className="rounded-lg bg-white border border-slate-200 px-3 py-2">
+      <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`text-lg font-bold ${tone}`}>{value}</p>
     </div>
   );
 }
@@ -178,7 +254,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
       {error && <div className="mb-3"><Err msg={error} /></div>}
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 mb-4">
         <span><span className="text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
-        {m.location && <span><span className="text-slate-400">Location</span> {m.location}</span>}
+        <span><span className="text-slate-400">Location</span> {m.location || "Home"}</span>
         <span><span className="text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
       </div>
       {m.agenda && <p className="text-sm text-slate-600 mb-4 bg-slate-50 rounded-lg px-3 py-2">{m.agenda}</p>}
