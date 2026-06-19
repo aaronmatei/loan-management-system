@@ -175,12 +175,14 @@ async function buildCharts(welfare, year) {
     [wid],
   )).rows.map((r) => ({ label: r.label, balance: num(r.balance) }));
 
-  // Contributions collected vs expected, per month of the year (all pools).
+  // Monthly contributions only (the savings plan) — collected vs expected per month.
   const contributions = (await query(
     `SELECT EXTRACT(MONTH FROM c.due_date)::int AS mo, to_char(c.due_date,'Mon') AS label,
             COALESCE(SUM(s.amount_due),0) AS expected, COALESCE(SUM(s.amount_paid),0) AS collected
-       FROM contribution_cycles c JOIN contribution_schedules s ON s.cycle_id=c.id
-      WHERE c.welfare_id=$1 AND EXTRACT(YEAR FROM c.due_date)=$2
+       FROM contribution_cycles c
+       JOIN contribution_plans p ON p.id=c.plan_id
+       JOIN contribution_schedules s ON s.cycle_id=c.id
+      WHERE c.welfare_id=$1 AND p.frequency='monthly' AND EXTRACT(YEAR FROM c.due_date)=$2
       GROUP BY 1,2 ORDER BY 1`,
     [wid, year],
   )).rows.map((r) => ({ label: r.label, expected: num(r.expected), collected: num(r.collected) }));

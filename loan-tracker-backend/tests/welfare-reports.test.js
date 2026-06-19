@@ -56,19 +56,22 @@ describe("welfare reports", () => {
     expect(r.body.data.compliance.paid_pct).toBe(50);
   });
 
-  it("charts: pool growth, per-month contributions, latest-cycle timeliness, savings per member", async () => {
+  it("charts: pool growth, MONTHLY-only contributions, latest-cycle timeliness, savings per member", async () => {
     const { admin, w } = await setup();
     const a = await addMember(admin, w, "A");
     await addMember(admin, w, "B");
-    const cycle = (await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin)).send({ amount: 1000, due_date: "2026-01-31" })).body.data;
-    const sched = (await request(app).get(`/api/welfares/${w.id}/cycles/${cycle.id}`).set("Authorization", auth(admin))).body.data.schedules.find((s) => s.member_id === a.id);
-    await request(app).post(`/api/welfares/${w.id}/cycles/${cycle.id}/schedules/${sched.id}/pay`).set("Authorization", auth(admin)).send({});
+    // A monthly plan auto-opens the current month's cycle; pay one member.
+    await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", amount: 1000, due_day: 10 });
+    const cyc = (await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))).body.data[0];
+    const sched = (await request(app).get(`/api/welfares/${w.id}/cycles/${cyc.id}`).set("Authorization", auth(admin))).body.data.schedules.find((s) => s.member_id === a.id);
+    await request(app).post(`/api/welfares/${w.id}/cycles/${cyc.id}/schedules/${sched.id}/pay`).set("Authorization", auth(admin)).send({});
 
-    const r = await request(app).get(`/api/welfares/${w.id}/reports/charts?year=2026`).set("Authorization", auth(admin));
+    const year = new Date().getFullYear();
+    const r = await request(app).get(`/api/welfares/${w.id}/reports/charts?year=${year}`).set("Authorization", auth(admin));
     expect(r.status).toBe(200);
     const d = r.body.data;
     expect(Array.isArray(d.pool_growth)).toBe(true);
-    expect(d.contributions.find((x) => x.label === "Jan")?.collected).toBe(1000);
+    expect(d.contributions.some((x) => x.collected === 1000 && x.expected === 2000)).toBe(true);
     expect(d.cycle_breakdown.on_time + d.cycle_breakdown.late + d.cycle_breakdown.unpaid).toBe(2);
     expect(d.savings_per_member).toHaveLength(2);
     expect(d.savings_per_member[0].savings).toBe(1000); // sorted desc, the payer first

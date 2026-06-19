@@ -23,6 +23,22 @@ const Card = ({ icon: Icon, title, sub, children, empty }) => (
     {empty ? <div className="h-48 flex items-center justify-center text-sm text-slate-400">{empty}</div> : children}
   </div>
 );
+// Bucket member savings into ~6 nice bands → a histogram that stays readable
+// whether the welfare has 5 members or 500 (vs one bar per member).
+function savingsBands(rows) {
+  const vals = (rows || []).map((r) => Number(r.savings) || 0);
+  if (!vals.length) return [];
+  const max = Math.max(...vals);
+  if (max <= 0) return [{ label: "0", count: vals.length }];
+  const rough = max / 6;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const step = Math.max(mag, Math.ceil(rough / mag) * mag);
+  const bands = [];
+  for (let lo = 0; lo < max + 0.5; lo += step) {
+    bands.push({ label: `${kfmt(lo)}–${kfmt(lo + step)}`, count: vals.filter((v) => v >= lo && v < lo + step).length });
+  }
+  return bands;
+}
 const axis = { tick: { fontSize: 11, fill: "#94a3b8" }, axisLine: false, tickLine: false };
 const tip = { contentStyle: { fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }, formatter: (v) => ksh(v) };
 
@@ -46,7 +62,6 @@ export default function WelfareCharts({ welfareId }) {
   ].filter((d) => d.value > 0) : [];
   const finesEmpty = !c.fines?.length;
   const attEmpty = !c.attendance?.length;
-  const savH = Math.max(220, (c.savings_per_member?.length || 0) * 22);
 
   return (
     <div className="px-5 pb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -65,7 +80,7 @@ export default function WelfareCharts({ welfareId }) {
       </Card>
 
       {/* 2. Contributions collected vs expected */}
-      <Card icon={BarChart3} title={`Contributions ${c.year}`} sub="Collected vs expected per month (all pools)">
+      <Card icon={BarChart3} title={`Monthly contributions ${c.year}`} sub="Collected vs expected per month">
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={c.contributions} margin={{ left: -10, right: 8, top: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -120,15 +135,15 @@ export default function WelfareCharts({ welfareId }) {
         </ResponsiveContainer>
       </Card>
 
-      {/* 6. Savings per member */}
-      <Card icon={Wallet} title="Savings per member" sub="Members' equity in the savings pool">
-        <ResponsiveContainer width="100%" height={Math.min(savH, 360)}>
-          <BarChart data={c.savings_per_member} layout="vertical" margin={{ left: 8, right: 12, top: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-            <XAxis type="number" {...axis} tickFormatter={kfmt} />
-            <YAxis type="category" dataKey="name" {...axis} width={70} interval={0} />
-            <Tooltip {...tip} />
-            <Bar dataKey="savings" fill={COLORS.savings} radius={[0, 3, 3, 0]} name="Savings" />
+      {/* 6. Savings distribution — a histogram (scales to any member count) */}
+      <Card icon={Wallet} title="Savings distribution" sub={`How ${c.savings_per_member?.length || 0} members' equity is spread across bands`} empty={!c.savings_per_member?.length ? "No members yet" : null}>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={savingsBands(c.savings_per_member)} margin={{ left: -10, right: 8, top: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="label" {...axis} />
+            <YAxis {...axis} allowDecimals={false} width={32} />
+            <Tooltip contentStyle={tip.contentStyle} formatter={(v) => [`${v} member${v === 1 ? "" : "s"}`, "Members"]} />
+            <Bar dataKey="count" fill={COLORS.savings} radius={[3, 3, 0, 0]} name="Members" />
           </BarChart>
         </ResponsiveContainer>
       </Card>
