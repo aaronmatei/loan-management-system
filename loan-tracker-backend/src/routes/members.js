@@ -170,6 +170,63 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// GET /:id/activity — the member's contribution status, fines, and attendance.
+router.get("/:id/activity", async (req, res) => {
+  try {
+    const member = await loadMember(req.welfare.id, req.params.id);
+    if (!member) return res.status(404).json({ error: "Member not found" });
+    const mid = member.id;
+
+    // Every contribution/event cycle this member has a schedule for.
+    const contributions = (await query(
+      `SELECT c.name AS cycle_name, c.due_date, c.pool_key, p.name AS plan_name, p.frequency,
+              s.amount_due, s.amount_paid, s.status, s.paid_at,
+              (s.status='paid' AND s.paid_at IS NOT NULL AND s.paid_at::date <= (s.due_date + (COALESCE(c.grace_days,0) * INTERVAL '1 day'))::date) AS on_time
+         FROM contribution_schedules s
+         JOIN contribution_cycles c ON c.id = s.cycle_id
+         LEFT JOIN contribution_plans p ON p.id = c.plan_id
+        WHERE s.member_id = $1
+        ORDER BY c.due_date DESC`,
+      [mid],
+    )).rows;
+    const cs = (await query(
+      `SELECT COALESCE(SUM(amount_due),0) expected, COALESCE(SUM(amount_paid),0) paid,
+              COUNT(*) FILTER (WHERE status='paid')::int paid_count, COUNT(*)::int total
+         FROM contribution_schedules WHERE member_id=$1`, [mid])).rows[0];
+
+    // Fines raised against the member, with what they were for.
+    const fines = (await query(
+      `SELECT pa.id, pa.trigger, pa.amount, pa.paid_amount, pa.status, pa.assessed_at,
+              COALESCE(cyc.name, mtg.title) AS source_label,
+              CASE WHEN pa.source_type='meeting' THEN 'meeting' WHEN pa.source_type='contribution_schedule' THEN 'contribution' ELSE pa.source_type END AS source_kind
+         FROM penalty_assessments pa
+         LEFT JOIN contribution_schedules cs2 ON pa.source_type='contribution_schedule' AND cs2.id=pa.source_id
+         LEFT JOIN contribution_cycles cyc ON cyc.id=cs2.cycle_id
+         LEFT JOIN group_meetings mtg ON pa.source_type='meeting' AND mtg.id=pa.source_id
+        WHERE pa.member_id=$1 ORDER BY pa.assessed_at DESC`, [mid])).rows;
+    const finesOutstanding = fines.reduce((a, f) => a + (f.status === "outstanding" ? Number(f.amount) - Number(f.paid_amount) : 0), 0);
+
+    // Attendance across meetings AND events (events are meetings).
+    const meetings = (await query(
+      `SELECT gm.id, gm.title, gm.meeting_date, gm.status AS meeting_status, a.status
+         FROM group_meetings gm
+         LEFT JOIN member_attendance a ON a.meeting_id=gm.id AND a.member_id=$1
+        WHERE gm.group_id=$2 ORDER BY gm.meeting_date DESC`, [mid, req.welfare.id])).rows;
+    const recorded = meetings.filter((m) => m.status).length;
+    const attended = meetings.filter((m) => m.status === "present" || m.status === "late").length;
+
+    res.json({ success: true, data: {
+      contributions,
+      contribution_summary: { expected: Number(cs.expected), paid: Number(cs.paid), paid_count: cs.paid_count, total: cs.total },
+      fines, fines_outstanding: finesOutstanding,
+      attendance: { meetings, recorded, attended, rate: recorded ? Math.round((attended / recorded) * 100) : null },
+    } });
+  } catch (e) {
+    logger.error("member activity error:", e);
+    res.status(500).json({ error: "Failed to load member activity" });
+  }
+});
+
 // POST /:id/invite — give this member a self-service portal login. Provisions
 // (or reuses) a platform_customers account by phone, links it to this welfare,
 // and texts them a login link. Re-invites are idempotent (resend the SMS).

@@ -25,6 +25,7 @@ export default function MemberDetail() {
   const [savings, setSavings] = useState(0);
   const [txns, setTxns] = useState([]);
   const [poolBalance, setPoolBalance] = useState(0);
+  const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
@@ -74,6 +75,7 @@ export default function MemberDetail() {
       setTxns(r.data.data.transactions || []);
       setPortalLinked(!!r.data.data.portal_linked);
       setPoolBalance(p.data?.data?.balance ?? 0);
+      api.get(`${base}/${memberId}/activity`).then((a) => setActivity(a.data.data)).catch(() => {});
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load member");
     } finally {
@@ -140,6 +142,8 @@ export default function MemberDetail() {
         </PermissionGate>
       )}
 
+      {activity && <MemberActivity activity={activity} money={money} fmt={fmt} />}
+
       <MemberLoansPanel welfareId={welfareId} memberId={memberId} poolBalance={poolBalance} onChange={load} />
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
@@ -189,6 +193,86 @@ export default function MemberDetail() {
         />
       )}
     </div>
+  );
+}
+
+const FINE_REASON = { contribution_late: "Late contribution", attendance_late: "Late to meeting", attendance_absent: "Absent", meeting_missed: "Absent", loan_late: "Late loan", manual: "Manual" };
+const Section = ({ title, children }) => (
+  <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+    <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">{title}</h2></div>
+    {children}
+  </div>
+);
+const Empty = ({ children }) => <p className="p-5 text-sm text-slate-500">{children}</p>;
+const ActTable = ({ head, children }) => (
+  <div className="overflow-x-auto max-h-96 overflow-y-auto">
+    <table className="w-full text-sm">
+      <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0"><tr>{head.map((h, i) => <th key={i} className={`px-5 py-2 ${i >= 2 && i < head.length - 1 ? "text-right" : "text-left"}`}>{h}</th>)}</tr></thead>
+      <tbody>{children}</tbody>
+    </table>
+  </div>
+);
+const pill = (cls, t) => <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{t}</span>;
+
+// A member's contribution status, attendance score, and fines.
+function MemberActivity({ activity, money, fmt }) {
+  const { contributions, contribution_summary: cs, fines, fines_outstanding, attendance } = activity;
+  const STAT = "bg-white rounded-xl shadow-md p-4";
+  const CSTATUS = { paid: "bg-emerald-100 text-emerald-800", partial: "bg-amber-100 text-amber-800", pending: "bg-slate-100 text-slate-600" };
+  const ASTATUS = { present: "bg-emerald-100 text-emerald-800", late: "bg-amber-100 text-amber-800", excused: "bg-sky-100 text-sky-800", absent: "bg-red-100 text-red-700" };
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className={STAT}><p className="text-xs text-slate-500">Contributions paid</p><p className="text-xl font-bold text-emerald-700">{money(cs.paid)}</p><p className="text-xs text-slate-500">{cs.paid_count}/{cs.total} cycles · {money(cs.expected)} due</p></div>
+        <div className={STAT}><p className="text-xs text-slate-500">Attendance</p><p className="text-xl font-bold text-sky-700">{attendance.rate == null ? "—" : `${attendance.rate}%`}</p><p className="text-xs text-slate-500">{attendance.attended}/{attendance.recorded} meetings &amp; events</p></div>
+        <div className={STAT}><p className="text-xs text-slate-500">Fines outstanding</p><p className={`text-xl font-bold ${fines_outstanding > 0 ? "text-rose-600" : "text-slate-700"}`}>{money(fines_outstanding)}</p><p className="text-xs text-slate-500">{fines.length} fine{fines.length === 1 ? "" : "s"} total</p></div>
+      </div>
+
+      <Section title="Contributions">
+        {contributions.length === 0 ? <Empty>No contributions yet.</Empty> : (
+          <ActTable head={["Contribution", "Due", "Amount", "Paid", "Status"]}>
+            {contributions.map((c, i) => (
+              <tr key={i} className="border-t border-slate-100">
+                <td className="px-5 py-2 text-slate-800">{c.cycle_name}{c.plan_name && c.plan_name !== c.cycle_name ? <span className="text-xs text-slate-400"> · {c.plan_name}</span> : null}</td>
+                <td className="px-5 py-2 text-slate-600">{fmt(c.due_date)}</td>
+                <td className="px-5 py-2 text-right">{money(c.amount_due)}</td>
+                <td className="px-5 py-2 text-right text-emerald-700">{money(c.amount_paid)}</td>
+                <td className="px-5 py-2">{pill(CSTATUS[c.status] || CSTATUS.pending, c.status === "paid" ? (c.on_time ? "paid" : "paid late") : c.status)}</td>
+              </tr>
+            ))}
+          </ActTable>
+        )}
+      </Section>
+
+      <Section title="Attendance — meetings &amp; events">
+        {attendance.meetings.length === 0 ? <Empty>No meetings yet.</Empty> : (
+          <ActTable head={["Meeting / Event", "Date", "Status"]}>
+            {attendance.meetings.map((m) => (
+              <tr key={m.id} className="border-t border-slate-100">
+                <td className="px-5 py-2 text-slate-800">{m.title || "—"}</td>
+                <td className="px-5 py-2 text-slate-600">{fmt(m.meeting_date)}</td>
+                <td className="px-5 py-2">{m.status ? pill(ASTATUS[m.status] || "bg-slate-100 text-slate-600", m.status) : <span className="text-xs text-slate-400">not recorded</span>}</td>
+              </tr>
+            ))}
+          </ActTable>
+        )}
+      </Section>
+
+      <Section title="Fines">
+        {fines.length === 0 ? <Empty>No fines. 🎉</Empty> : (
+          <ActTable head={["For", "Reason", "Amount", "Status"]}>
+            {fines.map((f) => (
+              <tr key={f.id} className="border-t border-slate-100">
+                <td className="px-5 py-2"><span className="text-slate-700">{f.source_label || "—"}</span> {f.source_kind && <span className="text-xs text-slate-400">({f.source_kind})</span>}</td>
+                <td className="px-5 py-2 text-slate-600">{FINE_REASON[f.trigger] || f.trigger}</td>
+                <td className="px-5 py-2 text-right font-semibold">{money(f.amount)}</td>
+                <td className="px-5 py-2">{pill(f.status === "paid" ? "bg-emerald-100 text-emerald-800" : f.status === "waived" ? "bg-slate-200 text-slate-600" : "bg-rose-100 text-rose-700", f.status)}</td>
+              </tr>
+            ))}
+          </ActTable>
+        )}
+      </Section>
+    </>
   );
 }
 
