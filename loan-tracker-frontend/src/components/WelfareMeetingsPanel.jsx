@@ -179,7 +179,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 mb-4">
         <span><span className="text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
         {m.location && <span><span className="text-slate-400">Location</span> {m.location}</span>}
-        <span><span className="text-slate-400">Fines</span> {(m.fine_late > 0 || m.fine_absent > 0) ? <>late {money(m.fine_late || 0)} · absent {money(m.fine_absent || 0)}</> : "none"}</span>
+        <span><span className="text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
       </div>
       {m.agenda && <p className="text-sm text-slate-600 mb-4 bg-slate-50 rounded-lg px-3 py-2">{m.agenda}</p>}
 
