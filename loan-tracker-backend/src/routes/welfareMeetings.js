@@ -80,12 +80,12 @@ router.get("/meetings", async (req, res) => {
 // POST /meetings
 router.post("/meetings", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
-    const { meeting_date, location, agenda, title } = req.body || {};
+    const { meeting_date, location, agenda, title, penalty_rule_id } = req.body || {};
     if (!meeting_date) return res.status(400).json({ error: "Meeting date is required" });
     const r = await query(
-      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, created_by)
-       VALUES ($1,$2,$3,$4::date,$5,$6,$7) RETURNING *`,
-      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, req.user.id],
+      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, penalty_rule_id, created_by)
+       VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8) RETURNING *`,
+      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, penalty_rule_id || null, req.user.id],
     );
     await logAudit({
       user: req.user, action: "welfare_meeting_created", entityType: "group",
@@ -113,7 +113,22 @@ router.get("/meetings/:meetingId", async (req, res) => {
         ORDER BY mem.first_name`,
       [req.welfare.id, m.id],
     );
-    res.json({ success: true, data: { meeting: m, roster: roster.rows } });
+    // Everything else concerning this meeting: the fine rule, fines raised, and
+    // any pool payout handed out at it.
+    const rule = m.penalty_rule_id ? (await query(`SELECT id, trigger, calc_type, amount, rate, notes FROM penalty_rules WHERE id=$1`, [m.penalty_rule_id])).rows[0] : null;
+    const fines = (await query(
+      `SELECT pa.id, pa.trigger, pa.amount, pa.paid_amount, pa.status, mem.first_name, mem.last_name
+         FROM penalty_assessments pa JOIN members mem ON mem.id = pa.member_id
+        WHERE pa.source_type='meeting' AND pa.source_id=$1 ORDER BY pa.id`,
+      [m.id],
+    )).rows;
+    const payout = (await query(
+      `SELECT l.amount, l.pool_key, l.txn_date, mem.first_name, mem.last_name
+         FROM benefit_pool_ledger l JOIN members mem ON mem.id = l.member_id
+        WHERE l.meeting_id=$1 AND l.type='payout' LIMIT 1`,
+      [m.id],
+    )).rows[0] || null;
+    res.json({ success: true, data: { meeting: { ...m, rule }, roster: roster.rows, fines, payout } });
   } catch (e) {
     logger.error("welfare meeting get error:", e);
     res.status(500).json({ error: "Failed to load meeting" });
@@ -131,18 +146,20 @@ router.post(
       const records = Array.isArray(req.body?.records) ? req.body.records : [];
       if (!records.length) return res.status(400).json({ error: "No attendance records" });
 
-      // Active rules grouped by trigger (one lookup for the whole roster).
-      const ruleRows = (
-        await query(
-          `SELECT * FROM penalty_rules
-            WHERE tenant_id = $1 AND active = true AND trigger IN ('attendance_absent','attendance_late')`,
+      // If the meeting picked its own fine rule, that single rule applies to BOTH
+      // late and absent attendees; otherwise fall back to the chama's active
+      // attendance rules.
+      let rulesByTrigger;
+      if (m.penalty_rule_id) {
+        const r = (await query(`SELECT * FROM penalty_rules WHERE id=$1 AND tenant_id=$2`, [m.penalty_rule_id, req.welfare.tenant_id])).rows[0];
+        rulesByTrigger = r ? { attendance_late: [r], attendance_absent: [r] } : {};
+      } else {
+        const ruleRows = (await query(
+          `SELECT * FROM penalty_rules WHERE tenant_id = $1 AND active = true AND trigger IN ('attendance_absent','attendance_late')`,
           [req.welfare.tenant_id],
-        )
-      ).rows;
-      const rulesByTrigger = ruleRows.reduce((acc, r) => {
-        (acc[r.trigger] ||= []).push(r);
-        return acc;
-      }, {});
+        )).rows;
+        rulesByTrigger = ruleRows.reduce((acc, r) => { (acc[r.trigger] ||= []).push(r); return acc; }, {});
+      }
 
       for (const rec of records) {
         if (!rec.member_id) continue;

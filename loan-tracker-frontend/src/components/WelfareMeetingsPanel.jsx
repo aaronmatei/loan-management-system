@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Plus, X, ClipboardCheck, AlertTriangle } from "lucide-react";
+import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 
@@ -9,6 +9,8 @@ const ATT = [
   { v: "excused", label: "Excused", cls: "bg-sky-100 text-sky-800" },
   { v: "absent", label: "Absent", cls: "bg-red-100 text-red-800" },
 ];
+const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
+const ruleLabel = (r) => `${r.calc_type === "fixed" ? `KES ${Number(r.amount).toLocaleString()}` : r.calc_type === "percentage" ? `${Number(r.rate)}%` : r.calc_type}${r.notes ? ` · ${r.notes}` : ""}`;
 
 // Welfare meetings + member attendance. Absent/late statuses auto-apply the
 // chama's attendance penalties.
@@ -82,17 +84,13 @@ export default function WelfareMeetingsPanel({ welfareId }) {
               </thead>
               <tbody>
                 {meetings.map((m) => (
-                  <tr key={m.id} className="border-t border-slate-100">
+                  <tr key={m.id} onClick={() => setAttend(m)} className="border-t border-slate-100 hover:bg-indigo-50/50 cursor-pointer">
                     <td className="px-4 py-2 font-semibold text-slate-800">{m.title || <span className="text-slate-400 font-normal">—</span>}</td>
                     <td className="px-4 py-2 text-slate-700">{fmt(m.meeting_date)}</td>
                     <td className="px-4 py-2 text-slate-600">{m.location || "—"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
                     <td className="px-4 py-2 text-right text-slate-700">{Number(m.present_count)}</td>
-                    <td className="px-4 py-2 text-right">
-                      <PermissionGate role={["admin", "manager", "loan_officer"]}>
-                        <button onClick={() => setAttend(m)} className="text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-1 text-sm font-semibold"><ClipboardCheck size={15} /> Attendance</button>
-                      </PermissionGate>
-                    </td>
+                    <td className="px-4 py-2 text-right text-indigo-500"><ChevronRight size={16} className="inline" /></td>
                   </tr>
                 ))}
               </tbody>
@@ -108,10 +106,12 @@ export default function WelfareMeetingsPanel({ welfareId }) {
 }
 
 function NewMeetingModal({ welfareId, onClose, onCreated }) {
-  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], location: "", agenda: "" });
+  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], location: "", agenda: "", penalty_rule_id: "" });
+  const [rules, setRules] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  useEffect(() => { api.get(`/welfares/${welfareId}/penalty-rules`).then((r) => setRules((r.data.data || []).filter((x) => x.trigger === "attendance_late" || x.trigger === "attendance_absent"))).catch(() => {}); }, [welfareId]);
   const submit = async (e) => {
     e.preventDefault();
     setError("");
@@ -130,52 +130,80 @@ function NewMeetingModal({ welfareId, onClose, onCreated }) {
         <div><label className={lbl}>Date</label><input type="date" value={form.meeting_date} onChange={set("meeting_date")} className={fld} /></div>
         <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} className={fld} /></div>
         <div><label className={lbl}>Agenda</label><textarea value={form.agenda} onChange={set("agenda")} rows="2" className={fld} /></div>
+        <div>
+          <label className={lbl}>Attendance fine</label>
+          <select value={form.penalty_rule_id} onChange={set("penalty_rule_id")} className={fld}>
+            <option value="">No fine</option>
+            {rules.map((r) => <option key={r.id} value={r.id}>{ruleLabel(r)}</option>)}
+          </select>
+          <p className="text-xs text-slate-400 mt-1">Charged to late & absent members. Rules come from the <span className="font-semibold">Penalties</span> module.</p>
+        </div>
         <Actions busy={busy} onClose={onClose} label="Schedule" />
       </form>
     </Shell>
   );
 }
 
-function AttendanceModal({ welfareId, meeting, onClose, onSaved }) {
+// A meeting's full detail: info + the attendance roster (markable) + the fines it
+// raised + any pool payout handed out at it.
+function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
+  const [data, setData] = useState(null);
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    api.get(`/welfares/${welfareId}/meetings/${meeting.id}`).then((r) => {
+  const load = async () => {
+    try {
+      const r = await api.get(`/welfares/${welfareId}/meetings/${row.id}`);
+      setData(r.data.data);
       setRoster((r.data.data.roster || []).map((m) => ({ ...m, status: m.attendance_status || "present" })));
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [welfareId, meeting.id]);
+    } catch { /* */ } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, [welfareId, row.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setStatus = (memberId, status) => setRoster((r) => r.map((m) => (m.member_id === memberId ? { ...m, status } : m)));
-
   const save = async () => {
-    setBusy(true);
-    setError("");
+    setBusy(true); setError("");
     try {
-      await api.post(`/welfares/${welfareId}/meetings/${meeting.id}/attendance`, {
-        records: roster.map((m) => ({ member_id: m.member_id, status: m.status })),
-      });
-      onSaved();
+      await api.post(`/welfares/${welfareId}/meetings/${row.id}/attendance`, { records: roster.map((m) => ({ member_id: m.member_id, status: m.status })) });
+      await load(); onSaved?.();
+      setBusy(false);
     } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
   };
 
+  const m = data?.meeting || row;
+  const fmtD = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
+  const FT = { attendance_late: "Late", attendance_absent: "Absent", contribution_late: "Contribution late" };
+
   return (
-    <Shell title="Record attendance" onClose={onClose}>
+    <Shell title={m.title || "Meeting"} onClose={onClose} wide>
       {error && <div className="mb-3"><Err msg={error} /></div>}
-      <p className="text-xs text-slate-500 mb-3">Absent / late apply this chama's attendance penalties automatically.</p>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 mb-4">
+        <span><span className="text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
+        {m.location && <span><span className="text-slate-400">Location</span> {m.location}</span>}
+        <span><span className="text-slate-400">Attendance fine</span> {m.rule ? ruleLabel(m.rule) : "none"}</span>
+      </div>
+      {m.agenda && <p className="text-sm text-slate-600 mb-4 bg-slate-50 rounded-lg px-3 py-2">{m.agenda}</p>}
+
+      {data?.payout && (
+        <div className="mb-4 flex items-center gap-2 text-sm bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+          <Gift size={15} className="text-violet-600" /> Handed out <span className="font-semibold">{money(data.payout.amount)}</span> to {data.payout.first_name} {data.payout.last_name}
+        </div>
+      )}
+
+      <p className="text-sm font-semibold text-slate-700 mb-2">Attendance</p>
       {loading ? <p className="text-sm text-slate-500">Loading roster…</p> : roster.length === 0 ? (
         <p className="text-sm text-slate-500">No active members.</p>
       ) : (
-        <div className="space-y-2 max-h-80 overflow-y-auto">
-          {roster.map((m) => (
-            <div key={m.member_id} className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-800">{m.first_name} {m.last_name}</span>
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {roster.map((mem) => (
+            <div key={mem.member_id} className="flex items-center justify-between gap-3">
+              <span className="text-sm text-slate-800">{mem.first_name} {mem.last_name}</span>
               <div className="flex gap-1">
                 {ATT.map((a) => (
-                  <button key={a.v} type="button" onClick={() => setStatus(m.member_id, a.v)}
-                    className={`px-2 py-1 rounded text-xs font-semibold ${m.status === a.v ? a.cls : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
+                  <button key={a.v} type="button" onClick={() => setStatus(mem.member_id, a.v)}
+                    className={`px-2 py-1 rounded text-xs font-semibold ${mem.status === a.v ? a.cls : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
                     {a.label}
                   </button>
                 ))}
@@ -184,18 +212,33 @@ function AttendanceModal({ welfareId, meeting, onClose, onSaved }) {
           ))}
         </div>
       )}
-      <div className="flex justify-end gap-3 pt-4">
-        <button onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-        <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
-      </div>
+      <PermissionGate role={["admin", "manager", "loan_officer"]}>
+        <div className="flex justify-end gap-3 pt-3">
+          <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
+        </div>
+      </PermissionGate>
+
+      {data?.fines?.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-slate-100">
+          <p className="text-sm font-semibold text-slate-700 mb-2">Fines from this meeting ({data.fines.length})</p>
+          <div className="space-y-1">
+            {data.fines.map((f) => (
+              <div key={f.id} className="flex items-center justify-between text-sm">
+                <span className="text-slate-700">{f.first_name} {f.last_name} <span className="text-xs text-slate-400">· {FT[f.trigger] || f.trigger}</span></span>
+                <span className={`font-semibold ${f.status === "paid" ? "text-emerald-600" : "text-rose-600"}`}>{money(f.amount)}{f.status === "paid" ? " ✓" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }
 
-function Shell({ title, onClose, children }) {
+function Shell({ title, onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h3 className="text-lg font-bold text-slate-900">{title}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
