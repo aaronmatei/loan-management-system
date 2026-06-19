@@ -625,8 +625,12 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
     <Shell title={`${cycle.name} — ${fmt(cycle.due_date)}`} onClose={onClose} wide>
       {isBenefit && (
         <div className="mb-4 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3">
-          <PoolBadge kind="benefit" />
-          <p className="text-sm text-slate-700 mt-1">One-off pool: <span className={`font-bold ${cycle.pool_balance < 0 ? "text-rose-600" : ""}`}>{money(cycle.pool_balance)}</span>{cycle.beneficiary_member_id ? <> · beneficiary <span className="font-semibold">{cycle.ben_first} {cycle.ben_last}</span> was paid at creation</> : null}</p>
+          <div className="flex items-center gap-2 mb-2"><PoolBadge kind="benefit" />{cycle.beneficiary_member_id ? <span className="text-sm text-slate-600">Beneficiary: <span className="font-semibold">{cycle.ben_first} {cycle.ben_last}</span></span> : null}</div>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div><p className="text-xs text-slate-500">Received by beneficiary</p><p className="text-lg font-bold text-violet-700">{money(detail?.received)}</p></div>
+            <div><p className="text-xs text-slate-500">Collected from members</p><p className="text-lg font-bold text-emerald-700">{money(detail?.collected)}</p></div>
+            <div><p className="text-xs text-slate-500">Deficit to collect</p><p className={`text-lg font-bold ${detail?.deficit > 0 ? "text-rose-600" : "text-slate-700"}`}>{money(detail?.deficit)}</p></div>
+          </div>
         </div>
       )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">

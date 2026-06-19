@@ -387,7 +387,13 @@ router.get("/cycles/:cycleId", async (req, res) => {
         ORDER BY m.first_name`,
       [c.id, grace],
     );
-    res.json({ success: true, data: { cycle: { ...c, effective_grace: grace }, schedules: schedules.rows } });
+    // For a benefit one-off (emergency): what the beneficiary received (the
+    // payout handed out for THIS emergency), what members have collected toward
+    // it, and the remaining deficit to be collected.
+    const received = Number((await query(`SELECT COALESCE(SUM(amount),0) v FROM benefit_pool_ledger WHERE cycle_id=$1 AND type='payout'`, [c.id])).rows[0].v);
+    const collected = schedules.rows.reduce((a, s) => a + Number(s.amount_paid), 0);
+    const deficit = Math.max(0, Math.round((received - collected) * 100) / 100);
+    res.json({ success: true, data: { cycle: { ...c, effective_grace: grace, received, collected, deficit }, schedules: schedules.rows } });
   } catch (e) {
     logger.error("cycle get error:", e);
     res.status(500).json({ error: "Failed to load cycle" });
