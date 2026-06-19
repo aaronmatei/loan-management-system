@@ -23,6 +23,24 @@ async function setup(n = 2) {
 }
 
 describe("welfare meetings — per-meeting attendance fine", () => {
+  it("a benefit payout's gathering creates a linked meeting (with fines) under Meetings", async () => {
+    const { admin, w, members } = await setup(2);
+    const plan = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
+      .send({ name: "Welfare", frequency: "monthly", amount: 1000, due_day: 10, pool_kind: "benefit" })).body.data;
+    const payout = await request(app).post(`/api/welfares/${w.id}/contribution-plans/${plan.id}/payouts`).set("Authorization", auth(admin))
+      .send({ beneficiary_member_id: members[0].id, amount: 300, gathering_title: "Hand-out — M0", gathering_date: "2026-03-15", gathering_fine_late: 500, gathering_fine_absent: 1000 });
+    expect(payout.status).toBe(201);
+    expect(payout.body.data.meeting_id).toBeTruthy();
+
+    const mtg = (await request(app).get(`/api/welfares/${w.id}/meetings`).set("Authorization", auth(admin))).body.data.find((m) => m.title === "Hand-out — M0");
+    expect(mtg).toBeTruthy();
+    expect(Number(mtg.fine_late)).toBe(500);
+    expect(Number(mtg.fine_absent)).toBe(1000);
+    // The pool's payout is linked to it.
+    const ov = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${plan.id}/overview`).set("Authorization", auth(admin))).body.data;
+    expect(ov.pool.payouts[0].meeting_id).toBe(mtg.id);
+  });
+
   it("a meeting carries DISTINCT late + absent fines; detail lists them per member", async () => {
     const { admin, w, members } = await setup(3);
     // Fines are defined ON the meeting: late 500, absent 1500.

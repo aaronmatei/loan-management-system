@@ -111,14 +111,16 @@ router.put("/contribution-plans/:planId", authorize("admin", "manager"), async (
 });
 
 // A payout can be handed out at a gathering — create (or reuse) the linked
-// meeting so attendance can be taken there. Returns its id, or null.
+// meeting (under Meetings) so attendance can be marked there, with its own
+// late/absent fines. Returns the meeting id, or null.
 async function gatheringMeetingId(welfare, b, userId) {
   if (b.meeting_id) return parseInt(b.meeting_id, 10);
   if (!b.gathering_title) return null;
+  const num = (v) => (v === "" || v == null ? null : parseFloat(v));
   const m = (await query(
-    `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, status, created_by)
-     VALUES ($1,$2,$3,COALESCE($4::date, CURRENT_DATE),'scheduled',$5) RETURNING id`,
-    [welfare.tenant_id, welfare.id, b.gathering_title, b.gathering_date || b.txn_date || null, userId || null],
+    `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, fine_late, fine_absent, status, created_by)
+     VALUES ($1,$2,$3,COALESCE($4::date, CURRENT_DATE),$5,$6,'scheduled',$7) RETURNING id`,
+    [welfare.tenant_id, welfare.id, b.gathering_title, b.gathering_date || b.txn_date || null, num(b.gathering_fine_late), num(b.gathering_fine_absent), userId || null],
   )).rows[0];
   return m.id;
 }

@@ -52,33 +52,61 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
         <h2 className="font-bold text-slate-900 flex items-center gap-2">
           <CalendarClock size={18} className="text-sky-600" /> {benefit ? "Events & Emergencies" : "Contributions"}
         </h2>
-        <PermissionGate role={["admin", "manager"]}>
-          <button onClick={() => setCreator({ mode: "new" })} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
-            <Plus size={15} /> {benefit ? "New event / emergency" : "New contribution"}
-          </button>
-        </PermissionGate>
+        {!benefit && (
+          <PermissionGate role={["admin", "manager"]}>
+            <button onClick={() => setCreator({ mode: "new" })} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
+              <Plus size={15} /> New contribution
+            </button>
+          </PermissionGate>
+        )}
       </div>
 
-      <div className="p-5 space-y-3">
-        {loading ? <p className="text-sm text-slate-500">Loading…</p> : empty ? (
-          <div className="text-center py-8 text-slate-500 text-sm">
-            {benefit
-              ? <>No events or emergencies yet. Create a recurring benefit pool (e.g. <span className="font-semibold">“Quarterly”</span> dowry) or a one-off <span className="font-semibold">Emergency</span> with a beneficiary.</>
-              : <>No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span>.</>}
+      <div className="p-5">
+        {loading ? <p className="text-sm text-slate-500">Loading…</p> : benefit ? (
+          <div className="space-y-6">
+            <BenefitSection title="Events" subtitle="Recurring benefit pools — members contribute, the pool pays a lump sum to each (e.g. Quarterly dowry)."
+              addLabel="New event" onAdd={() => setCreator({ mode: "new", create: "event" })} empty="No events yet.">
+              {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
+            </BenefitSection>
+            <BenefitSection title="Emergencies" subtitle="One-off collections that pay out to a member in need."
+              addLabel="New emergency" onAdd={() => setCreator({ mode: "new", create: "emergency" })} empty="No emergencies yet.">
+              {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date, pool_key: c.pool_key, beneficiary_member_id: c.beneficiary_member_id, ben_first: c.ben_first, ben_last: c.ben_last, amount: c.amount, pool_balance: c.pool_balance })} />)}
+            </BenefitSection>
           </div>
+        ) : empty ? (
+          <div className="text-center py-8 text-slate-500 text-sm">No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span>.</div>
         ) : (
-          <>
+          <div className="space-y-3">
             {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
-            {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date, pool_key: c.pool_key, beneficiary_member_id: c.beneficiary_member_id, ben_first: c.ben_first, ben_last: c.ben_last, amount: c.amount, pool_balance: c.pool_balance }) } />)}
-          </>
+            {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date, pool_key: c.pool_key, beneficiary_member_id: c.beneficiary_member_id, ben_first: c.ben_first, ben_last: c.ben_last, amount: c.amount, pool_balance: c.pool_balance })} />)}
+          </div>
         )}
       </div>
 
       {creator && (
-        <ContributionModal welfareId={welfareId} plan={creator.plan} mode={creator.mode} members={members} kind={kind}
+        <ContributionModal welfareId={welfareId} plan={creator.plan} mode={creator.mode} members={members} kind={kind} createKind={creator.create}
           onClose={() => setCreator(null)} onSaved={() => { setCreator(null); load(); }} />
       )}
       {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} members={members} onClose={() => setOpenCycle(null)} onChange={load} />}
+    </div>
+  );
+}
+
+// A labelled group on the Events & Emergencies page, with its own "add" button.
+function BenefitSection({ title, subtitle, addLabel, onAdd, empty, children }) {
+  const has = React.Children.toArray(children).length > 0;
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div>
+          <h3 className="font-bold text-slate-800">{title}</h3>
+          <p className="text-xs text-slate-400">{subtitle}</p>
+        </div>
+        <PermissionGate role={["admin", "manager"]}>
+          <button onClick={onAdd} className="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> {addLabel}</button>
+        </PermissionGate>
+      </div>
+      {has ? <div className="space-y-3">{children}</div> : <p className="text-sm text-slate-400 py-3">{empty}</p>}
     </div>
   );
 }
@@ -234,6 +262,7 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
       )}
       {paying && (
         <PayoutModal welfareId={welfareId} planId={plan.id} members={members} balance={pool?.balance}
+          excludeIds={(pool?.payouts || []).map((p) => p.beneficiary_id)}
           onClose={() => setPaying(false)} onSaved={() => { setPaying(false); load(); }} />
       )}
       {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} members={members} onClose={() => setOpenCycle(null)} onChange={load} />}
@@ -241,9 +270,11 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
   );
 }
 
-// Disburse a lump sum from a benefit pool to a member beneficiary.
-function PayoutModal({ welfareId, planId, cycleId, members, balance, defaultBeneficiary, onClose, onSaved }) {
-  const [form, setForm] = useState({ beneficiary_member_id: defaultBeneficiary || "", amount: "", description: "", gathering_title: "", gathering_date: "" });
+// Disburse a lump sum from a benefit pool to a member beneficiary. `excludeIds`
+// are members who've already received this benefit (each member enjoys it once).
+function PayoutModal({ welfareId, planId, cycleId, members, balance, defaultBeneficiary, excludeIds = [], onClose, onSaved }) {
+  const [form, setForm] = useState({ beneficiary_member_id: defaultBeneficiary || "", amount: "", description: "", gathering_title: "", gathering_date: "", gathering_fine_late: "", gathering_fine_absent: "" });
+  const eligible = members.filter((m) => m.id === defaultBeneficiary || !excludeIds.includes(m.id));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -268,18 +299,25 @@ function PayoutModal({ welfareId, planId, cycleId, members, balance, defaultBene
         <div><label className={lbl}>Beneficiary *</label>
           <select value={form.beneficiary_member_id} onChange={set("beneficiary_member_id")} className={fld}>
             <option value="">Select a member…</option>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
+            {eligible.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
           </select>
+          {excludeIds.length > 0 && <p className="text-xs text-slate-400 mt-1">{excludeIds.length} member{excludeIds.length === 1 ? "" : "s"} who already received this benefit {excludeIds.length === 1 ? "is" : "are"} hidden.</p>}
         </div>
         <div><label className={lbl}>Amount *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} /></div>
         <div><label className={lbl}>Note</label><input value={form.description} onChange={set("description")} placeholder="e.g. Dowry / wedding" className={fld} /></div>
         <div className="border-t border-slate-100 pt-3">
           <p className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5"><Users size={14} /> Gathering (optional)</p>
-          <p className="text-xs text-slate-400 mb-2">Name the event so you can mark attendance for it (late attendees are fined per the attendance rule). Take attendance afterwards in <span className="font-semibold">Meetings</span>.</p>
+          <p className="text-xs text-slate-400 mb-2">Naming it creates a meeting under <span className="font-semibold">Meetings</span> where you mark attendance. Optionally fine late/absent members.</p>
           <div className="grid grid-cols-2 gap-3">
-            <input value={form.gathering_title} onChange={set("gathering_title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} />
+            <input value={form.gathering_title} onChange={set("gathering_title")} placeholder="Event name e.g. Dowry hand-out — Jane" className={fld} />
             <input type="date" value={form.gathering_date} onChange={set("gathering_date")} className={fld} />
           </div>
+          {form.gathering_title && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div><label className={lbl}>Late fine (KES)</label><input type="number" min="0" value={form.gathering_fine_late} onChange={set("gathering_fine_late")} placeholder="e.g. 500" className={fld} /></div>
+              <div><label className={lbl}>Absent fine (KES)</label><input type="number" min="0" value={form.gathering_fine_absent} onChange={set("gathering_fine_absent")} placeholder="e.g. 1000" className={fld} /></div>
+            </div>
+          )}
         </div>
         <Actions busy={busy} onClose={onClose} label="Record payout" tone="bg-violet-600 hover:bg-violet-700" />
       </form>
@@ -417,13 +455,15 @@ const FREQS = [
 const WEEKDAYS = [{ v: 1, n: "Monday" }, { v: 2, n: "Tuesday" }, { v: 3, n: "Wednesday" }, { v: 4, n: "Thursday" }, { v: 5, n: "Friday" }, { v: 6, n: "Saturday" }, { v: 7, n: "Sunday" }];
 const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-function ContributionModal({ welfareId, plan, mode, members = [], kind = "savings", onClose, onSaved }) {
+function ContributionModal({ welfareId, plan, mode, members = [], kind = "savings", createKind, onClose, onSaved }) {
   const today = new Date().toISOString().slice(0, 10);
   const benefit = kind === "benefit";
   const isWeek = (f) => f === "weekly" || f === "biweekly";
   const editing = mode === "edit";
-  const freqOptions = editing ? FREQS.filter((f) => f.value !== "oneoff") : FREQS;
-  const [freq, setFreq] = useState(plan?.frequency || (benefit ? "quarterly" : "monthly"));
+  // Events are recurring benefit pools; emergencies are one-offs.
+  const freqOptions = editing || createKind === "event" ? FREQS.filter((f) => f.value !== "oneoff")
+    : createKind === "emergency" ? FREQS.filter((f) => f.value === "oneoff") : FREQS;
+  const [freq, setFreq] = useState(createKind === "emergency" ? "oneoff" : plan?.frequency || (createKind === "event" || benefit ? "quarterly" : "monthly"));
   const [form, setForm] = useState({
     name: plan?.name ?? "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? (isWeek(plan?.frequency) ? 1 : 10),
     due_month: plan?.due_month ?? 12, due_date: "", pool_kind: plan?.pool_kind ?? (benefit ? "benefit" : "savings"),
@@ -479,7 +519,7 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
   }[freq];
 
   return (
-    <Shell title={editing ? (benefit ? "Edit event / emergency" : "Edit contribution") : (benefit ? "New event / emergency" : "New contribution")} onClose={onClose}>
+    <Shell title={editing ? (benefit ? "Edit event / emergency" : "Edit contribution") : createKind === "emergency" ? "New emergency" : createKind === "event" ? "New event" : (benefit ? "New event / emergency" : "New contribution")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
         <div className="grid grid-cols-2 gap-3">
