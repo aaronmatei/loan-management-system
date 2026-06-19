@@ -469,7 +469,7 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
     due_month: plan?.due_month ?? 12, due_date: "", pool_kind: plan?.pool_kind ?? (benefit ? "benefit" : "savings"),
     grace_days: plan?.grace_days ?? 0, fine_calc_type: plan?.fine_calc_type ?? "",
     fine_amount: plan?.fine_amount ?? "", fine_rate: plan?.fine_rate ?? "", fine_cap: plan?.fine_cap ?? "",
-    beneficiary_member_id: "",
+    beneficiary_member_id: "", payout_amount: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -489,6 +489,7 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
     if (!(parseFloat(form.amount) > 0)) return setError("Enter the per-member amount.");
     if (!recurring && !form.due_date) return setError("Pick a due date.");
     if (benefit && !recurring && !form.beneficiary_member_id) return setError("Pick the beneficiary for this emergency.");
+    if (benefit && !recurring && !(parseFloat(form.payout_amount) > 0)) return setError("Enter the benefit to pay the beneficiary.");
     if (recurring && !isWeek(freq)) { const d = parseInt(form.due_day, 10); if (!(d >= 1 && d <= 28)) return setError("Due day must be between 1 and 28."); }
     if (usesAmount && !(parseFloat(form.fine_amount) > 0)) return setError("Enter the fine amount.");
     if (usesRate && !(parseFloat(form.fine_rate) > 0)) return setError("Enter the fine rate %.");
@@ -550,13 +551,19 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
 
         {/* The pool kind is set by the page. A benefit one-off (emergency) needs a beneficiary. */}
         {benefit && !recurring && (
-          <div>
-            <label className={lbl}>Beneficiary *</label>
-            <select value={form.beneficiary_member_id} onChange={set("beneficiary_member_id")} className={fld}>
-              <option value="">Select the member who receives the payout…</option>
-              {members.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
-            </select>
-            <p className="text-xs text-slate-500 mt-1">An emergency: members contribute into the shared one-off pool, then it pays out to this beneficiary.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className={lbl}>Beneficiary *</label>
+              <select value={form.beneficiary_member_id} onChange={set("beneficiary_member_id")} className={fld}>
+                <option value="">Select the member who receives the payout…</option>
+                {members.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className={lbl}>Benefit paid to beneficiary *</label>
+              <input type="number" value={form.payout_amount} onChange={set("payout_amount")} placeholder="e.g. 150000" className={fld} />
+              <p className="text-xs text-slate-500 mt-1">Paid out from the emergency pool the moment you create this — only if the pool can cover it. Members' contributions above keep the pool funded.</p>
+            </div>
           </div>
         )}
         {benefit && recurring && (
@@ -590,7 +597,6 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [payFor, setPayFor] = useState(null);
-  const [paying, setPaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const isBenefit = cycle.pool_key && cycle.pool_key !== "savings";
 
@@ -613,14 +619,9 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
   return (
     <Shell title={`${cycle.name} — ${fmt(cycle.due_date)}`} onClose={onClose} wide>
       {isBenefit && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3">
-          <div>
-            <PoolBadge kind="benefit" />
-            <p className="text-sm text-slate-700 mt-1">One-off pool: <span className={`font-bold ${cycle.pool_balance < 0 ? "text-rose-600" : ""}`}>{money(cycle.pool_balance)}</span>{cycle.beneficiary_member_id ? <> · beneficiary <span className="font-semibold">{cycle.ben_first} {cycle.ben_last}</span></> : null}</p>
-          </div>
-          <PermissionGate role={["admin", "manager"]}>
-            <button onClick={() => setPaying(true)} className="px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold inline-flex items-center gap-1.5"><ArrowDownToLine size={14} /> Pay beneficiary</button>
-          </PermissionGate>
+        <div className="mb-4 bg-violet-50 border border-violet-100 rounded-xl px-4 py-3">
+          <PoolBadge kind="benefit" />
+          <p className="text-sm text-slate-700 mt-1">One-off pool: <span className={`font-bold ${cycle.pool_balance < 0 ? "text-rose-600" : ""}`}>{money(cycle.pool_balance)}</span>{cycle.beneficiary_member_id ? <> · beneficiary <span className="font-semibold">{cycle.ben_first} {cycle.ben_last}</span> was paid at creation</> : null}</p>
         </div>
       )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -667,10 +668,6 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
       )}
       {payFor && (
         <PayModal welfareId={welfareId} cycle={cycle} schedule={payFor} onClose={() => setPayFor(null)} onDone={() => { setPayFor(null); load(); onChange?.(); }} />
-      )}
-      {paying && (
-        <PayoutModal welfareId={welfareId} cycleId={cycle.id} members={members} balance={cycle.pool_balance} defaultBeneficiary={cycle.beneficiary_member_id}
-          onClose={() => setPaying(false)} onSaved={() => { setPaying(false); onChange?.(); onClose(); }} />
       )}
     </Shell>
   );

@@ -211,6 +211,14 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
     const beneficiaryId = b.beneficiary_member_id ? parseInt(b.beneficiary_member_id, 10) : null;
     const poolKey = beneficiaryId || b.pool_kind === "benefit" ? "oneoff" : "savings";
 
+    // An emergency pays its beneficiary AT CREATION — only if the pool covers it
+    // (same rule as the events engine: pool balance ≥ payout, else refuse).
+    const payoutAmt = beneficiaryId && b.payout_amount != null && b.payout_amount !== "" ? round2(parseFloat(b.payout_amount)) : 0;
+    if (payoutAmt > 0) {
+      const poolBal = await benefitPoolBalance(req.welfare.id, "oneoff");
+      if (payoutAmt > poolBal) return res.status(400).json({ error: `The emergency pool only holds KES ${poolBal.toLocaleString()} — not enough to pay KES ${payoutAmt.toLocaleString()}. Collect more first.` });
+    }
+
     const cycle = (
       await query(
         `INSERT INTO contribution_cycles
@@ -232,12 +240,17 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
     );
     const n = (await query(`SELECT COUNT(*)::int AS n FROM contribution_schedules WHERE cycle_id = $1`, [cycle.id])).rows[0].n;
 
+    // Disburse the benefit to the beneficiary now (pool already verified above).
+    if (payoutAmt > 0) {
+      await recordPayout({ welfare: req.welfare, poolKey: "oneoff", beneficiaryId, amount: payoutAmt, cycleId: cycle.id, txnDate: due_date, description: `Emergency payout — ${cycle.name}`, userId: req.user.id });
+    }
+
     await logAudit({
       user: req.user, action: "contribution_cycle_opened", entityType: "group",
       entityId: req.welfare.id, entityCode: req.welfare.group_code,
-      description: `Cycle "${cycle.name}" opened — ${n} members @ KES ${amt}`, req,
+      description: `Cycle "${cycle.name}" opened — ${n} members @ KES ${amt}${payoutAmt > 0 ? `; paid KES ${payoutAmt}` : ""}`, req,
     });
-    res.status(201).json({ success: true, data: { ...cycle, member_count: n } });
+    res.status(201).json({ success: true, data: { ...cycle, member_count: n, payout: payoutAmt || null } });
   } catch (e) {
     logger.error("cycle create error:", e);
     res.status(500).json({ error: "Failed to open cycle" });

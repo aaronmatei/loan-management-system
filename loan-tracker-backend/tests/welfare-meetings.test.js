@@ -23,6 +23,27 @@ async function setup(n = 2) {
 }
 
 describe("welfare meetings — per-meeting attendance fine", () => {
+  it("an emergency pays its beneficiary at creation, gated on the pool balance", async () => {
+    const { admin, w, members } = await setup(2);
+    // Empty pool → refuse to pay.
+    const reject = await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))
+      .send({ name: "Emergency", amount: 1000, due_date: "2026-01-10", beneficiary_member_id: members[0].id, payout_amount: 5000 });
+    expect(reject.status).toBe(400);
+
+    // Fund the one-off pool: both members pay their 4000 share (→ 8000 in pool).
+    const fund = (await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin)).send({ name: "Fund", amount: 4000, due_date: "2026-01-10", pool_kind: "benefit" })).body.data;
+    const scheds = (await request(app).get(`/api/welfares/${w.id}/cycles/${fund.id}`).set("Authorization", auth(admin))).body.data.schedules;
+    for (const s of scheds) await request(app).post(`/api/welfares/${w.id}/cycles/${fund.id}/schedules/${s.id}/pay`).set("Authorization", auth(admin)).send({});
+
+    // Now an emergency paying 6000 succeeds; the pool drops to 2000.
+    const ok = await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))
+      .send({ name: "Sickness", amount: 1000, due_date: "2026-02-10", beneficiary_member_id: members[1].id, payout_amount: 6000 });
+    expect(ok.status).toBe(201);
+    expect(Number(ok.body.data.payout)).toBe(6000);
+    const bal = (await query(`SELECT balance_after FROM benefit_pool_ledger WHERE welfare_id=$1 AND pool_key='oneoff' ORDER BY id DESC LIMIT 1`, [w.id])).rows[0].balance_after;
+    expect(Number(bal)).toBe(2000);
+  });
+
   it("a benefit payout's gathering creates a linked meeting (with fines) under Meetings", async () => {
     const { admin, w, members } = await setup(2);
     const plan = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
