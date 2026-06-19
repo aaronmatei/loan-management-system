@@ -83,6 +83,38 @@ describe("recurring contribution plans", () => {
     expect(dup.status).toBe(409);
   });
 
+  it("benefit pool: contributions feed their own ledger (not savings) and payouts disburse to a beneficiary", async () => {
+    const { admin, w } = await welfareSetup(2);
+    const plan = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
+      .send({ name: "Welfare", frequency: "monthly", amount: 1000, due_day: 10, pool_kind: "benefit" })).body.data;
+    expect(plan.pool_kind).toBe("benefit");
+
+    const cycle = (await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))).body.data[0];
+    const sched = (await request(app).get(`/api/welfares/${w.id}/cycles/${cycle.id}`).set("Authorization", auth(admin))).body.data.schedules;
+    await request(app).post(`/api/welfares/${w.id}/cycles/${cycle.id}/schedules/${sched[0].id}/pay`).set("Authorization", auth(admin)).send({});
+
+    let ov = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${plan.id}/overview`).set("Authorization", auth(admin))).body.data;
+    expect(ov.pool.kind).toBe("benefit");
+    expect(Number(ov.pool.balance)).toBe(1000);
+    // The contribution must NOT touch the savings pool.
+    expect((await query(`SELECT COUNT(*)::int n FROM member_pool_transactions WHERE welfare_id=$1`, [w.id])).rows[0].n).toBe(0);
+    expect((await query(`SELECT COUNT(*)::int n FROM benefit_pool_ledger WHERE welfare_id=$1`, [w.id])).rows[0].n).toBe(1);
+
+    // Pay a lump sum to a beneficiary — pool drops, payout is listed.
+    const payout = await request(app).post(`/api/welfares/${w.id}/contribution-plans/${plan.id}/payouts`).set("Authorization", auth(admin))
+      .send({ beneficiary_member_id: sched[1].member_id, amount: 600 });
+    expect(payout.status).toBe(201);
+    ov = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${plan.id}/overview`).set("Authorization", auth(admin))).body.data;
+    expect(Number(ov.pool.balance)).toBe(400);
+    expect(ov.pool.payouts).toHaveLength(1);
+    expect(Number(ov.pool.payouts[0].amount)).toBe(600);
+
+    // A savings plan rejects payouts.
+    const sav = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Savings", amount: 100, due_day: 1 })).body.data;
+    const bad = await request(app).post(`/api/welfares/${w.id}/contribution-plans/${sav.id}/payouts`).set("Authorization", auth(admin)).send({ beneficiary_member_id: sched[0].member_id, amount: 10 });
+    expect(bad.status).toBe(400);
+  });
+
   it("weekly contribution enumerates ~52 periods", async () => {
     const { admin, w } = await welfareSetup(2);
     const p = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Weekly", frequency: "weekly", amount: 100, due_day: 3 })).body.data;

@@ -3,6 +3,7 @@
 // opens the Contributions tab, and via the daily cron. Each opened cycle copies
 // the plan's fine rule so fines are configured per-cycle (defaulted from the plan).
 import { query } from "../config/database.js";
+import { poolKeyForPlan } from "./welfareBenefitPoolService.js";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const httpErr = (status, message) => Object.assign(new Error(message), { status });
@@ -32,7 +33,7 @@ export async function getPlanById(welfareId, planId) {
 }
 
 // Normalise + validate a plan's fields from a form body.
-function planFields({ frequency = "monthly", name, amount, dueDay, dueMonth, graceDays, fineCalcType, fineAmount, fineRate, fineCap }) {
+function planFields({ frequency = "monthly", name, amount, dueDay, dueMonth, graceDays, fineCalcType, fineAmount, fineRate, fineCap, poolKind }) {
   if (!FREQUENCIES.includes(frequency)) throw httpErr(400, "Unsupported frequency");
   const amt = parseFloat(amount);
   if (!(amt > 0)) throw httpErr(400, "A positive amount is required");
@@ -47,6 +48,7 @@ function planFields({ frequency = "monthly", name, amount, dueDay, dueMonth, gra
     due_month: frequency === "yearly" ? Math.min(Math.max(parseInt(dueMonth, 10) || 12, 1), 12) : null,
     grace_days: parseInt(graceDays, 10) || 0, fine_calc_type: fineCalcType || null,
     fine_amount: num(fineAmount), fine_rate: num(fineRate), fine_cap: num(fineCap),
+    pool_kind: poolKind === "benefit" ? "benefit" : "savings",
   };
 }
 const dupErr = (name) => httpErr(409, `A contribution named "${name}" already exists`);
@@ -55,9 +57,9 @@ export async function createPlan({ welfare, userId, ...rest }) {
   const f = planFields(rest);
   try {
     const r = await query(
-      `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, due_month, grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, active, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,$13) RETURNING *`,
-      [welfare.tenant_id, welfare.id, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, f.fine_calc_type, f.fine_amount, f.fine_rate, f.fine_cap, userId || null],
+      `INSERT INTO contribution_plans (tenant_id, welfare_id, name, frequency, amount, due_day, due_month, grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_kind, active, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true,$14) RETURNING *`,
+      [welfare.tenant_id, welfare.id, f.name, f.frequency, f.amount, f.due_day, f.due_month, f.grace_days, f.fine_calc_type, f.fine_amount, f.fine_rate, f.fine_cap, f.pool_kind, userId || null],
     );
     return r.rows[0];
   } catch (e) { if (e.code === "23505") throw dupErr(f.name); throw e; }
@@ -65,7 +67,8 @@ export async function createPlan({ welfare, userId, ...rest }) {
 export async function editPlan({ welfare, planId, ...rest }) {
   const existing = await getPlanById(welfare.id, planId);
   if (!existing) throw httpErr(404, "Contribution not found");
-  const f = planFields({ frequency: existing.frequency, ...rest });
+  // pool_kind can't flip once a pool has activity, so keep the existing kind.
+  const f = planFields({ frequency: existing.frequency, poolKind: existing.pool_kind, ...rest });
   try {
     const r = await query(
       `UPDATE contribution_plans SET name=$2, frequency=$3, amount=$4, due_day=$5, due_month=$6, grace_days=$7, fine_calc_type=$8, fine_amount=$9, fine_rate=$10, fine_cap=$11, updated_at=NOW() WHERE id=$1 RETURNING *`,
@@ -153,10 +156,10 @@ export async function ensureCurrentCycle({ welfare, plan, ref = new Date() }) {
       await query(
         `INSERT INTO contribution_cycles
            (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, category, plan_id, period_key,
-            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,'savings',$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,'savings',$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
         [welfare.tenant_id, welfare.id, p.name, plan.frequency, plan.amount, p.period_start, p.due_date, plan.id, p.period_key,
-          plan.grace_days, plan.fine_calc_type, plan.fine_amount, plan.fine_rate, plan.fine_cap, plan.created_by || null],
+          plan.grace_days, plan.fine_calc_type, plan.fine_amount, plan.fine_rate, plan.fine_cap, poolKeyForPlan(plan), plan.created_by || null],
       )
     ).rows[0];
   } catch (e) {

@@ -5,6 +5,7 @@
 import { query } from "../config/database.js";
 import * as mpesa from "./mpesaService.js";
 import { postEventsPool } from "./welfareEventsService.js";
+import { postBenefitPool } from "./welfareBenefitPoolService.js";
 import logger from "../config/logger.js";
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -89,7 +90,7 @@ export async function allocateWelfarePayment(tx, cb = {}) {
 
   let applied = false;
   if (tx.target_type === "contribution_schedule") {
-    const s = (await query(`SELECT * FROM contribution_schedules WHERE id = $1`, [tx.target_id])).rows[0];
+    const s = (await query(`SELECT s.*, c.pool_key, c.name AS cycle_name FROM contribution_schedules s JOIN contribution_cycles c ON c.id=s.cycle_id WHERE s.id = $1`, [tx.target_id])).rows[0];
     if (s) {
       const amt = Math.min(paid, round2(parseFloat(s.amount_due) - parseFloat(s.amount_paid)));
       if (amt > 0) {
@@ -103,7 +104,12 @@ export async function allocateWelfarePayment(tx, cb = {}) {
             WHERE id=$1`,
           [s.id, newPaid, status, status === "paid"],
         );
-        await postPool(tx, "contribution", amt, `Contribution via M-Pesa (${tx.mpesa_receipt_number || "STK"})`);
+        // Route to the cycle's pool — benefit cycles don't touch the savings pool.
+        if (s.pool_key && s.pool_key !== "savings") {
+          await postBenefitPool({ welfare: { id: tx.welfare_id, tenant_id: tx.tenant_id }, poolKey: s.pool_key, memberId: tx.member_id, type: "contribution", cycleId: s.cycle_id, amount: amt, direction: 1, description: `Contribution via M-Pesa (${tx.mpesa_receipt_number || "STK"})` });
+        } else {
+          await postPool(tx, "contribution", amt, `Contribution via M-Pesa (${tx.mpesa_receipt_number || "STK"})`);
+        }
         applied = true;
       }
     }

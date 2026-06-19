@@ -10,6 +10,8 @@ import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
 import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, ensureCurrentCycle, ensureCurrentCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
+import { poolKeyForPlan, benefitPoolBalance, postBenefitPool, recordPayout, poolPayouts } from "../services/welfareBenefitPoolService.js";
+import { poolBalance as savingsPoolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -44,6 +46,7 @@ async function poolBalance(welfareId) {
 const planBody = (b) => ({
   name: b.name, frequency: b.frequency || "monthly", amount: b.amount, dueDay: b.due_day, dueMonth: b.due_month,
   graceDays: b.grace_days, fineCalcType: b.fine_calc_type, fineAmount: b.fine_amount, fineRate: b.fine_rate, fineCap: b.fine_cap,
+  poolKind: b.pool_kind === "benefit" ? "benefit" : "savings",
 });
 
 router.get("/contribution-plans", async (req, res) => {
@@ -61,15 +64,21 @@ router.get("/contribution-plans", async (req, res) => {
       const cur = periodFor(p, new Date());
       const c = (await query(`SELECT c.*, ${rollup} FROM contribution_cycles c WHERE c.plan_id=$1 AND c.period_key=$2 LIMIT 1`, [p.id, cur.period_key])).rows[0];
       const ytd = (await query(`SELECT COALESCE(SUM(s.amount_paid),0) v FROM contribution_schedules s JOIN contribution_cycles c ON c.id=s.cycle_id WHERE c.plan_id=$1 AND EXTRACT(YEAR FROM c.due_date)=EXTRACT(YEAR FROM CURRENT_DATE)`, [p.id])).rows[0].v;
+      const poolKey = poolKeyForPlan(p);
+      const poolBalance = p.pool_kind === "benefit" ? await benefitPoolBalance(req.welfare.id, poolKey) : await savingsPoolBalance(req.welfare.id);
       out.push({
-        ...p, ytd_collected: Number(ytd),
+        ...p, ytd_collected: Number(ytd), pool_key: poolKey, pool_balance: poolBalance,
         current: c
           ? { cycle_id: c.id, name: c.name, due_date: new Date(c.due_date).toISOString().slice(0, 10), status: c.status, member_count: c.member_count, paid_count: c.paid_count, expected: Number(c.expected), collected: Number(c.collected) }
           : { cycle_id: null, name: cur.name, due_date: cur.due_date, status: cur.due_date > today ? "upcoming" : "unopened", member_count: memberCount, paid_count: 0, expected: Number(p.amount) * memberCount, collected: 0 },
       });
     }
-    const oneoffs = (await query(`SELECT c.id, c.name, c.due_date, c.status, ${rollup} FROM contribution_cycles c WHERE c.welfare_id=$1 AND c.plan_id IS NULL ORDER BY c.due_date DESC`, [req.welfare.id]))
-      .rows.map((c) => ({ ...c, due_date: new Date(c.due_date).toISOString().slice(0, 10), expected: Number(c.expected), collected: Number(c.collected) }));
+    const oneoffPoolBalance = await benefitPoolBalance(req.welfare.id, "oneoff");
+    const oneoffs = (await query(
+      `SELECT c.id, c.name, c.due_date, c.status, c.pool_key, c.amount, c.beneficiary_member_id, m.first_name AS ben_first, m.last_name AS ben_last, ${rollup}
+         FROM contribution_cycles c LEFT JOIN members m ON m.id=c.beneficiary_member_id
+        WHERE c.welfare_id=$1 AND c.plan_id IS NULL ORDER BY c.due_date DESC`, [req.welfare.id]))
+      .rows.map((c) => ({ ...c, due_date: new Date(c.due_date).toISOString().slice(0, 10), expected: Number(c.expected), collected: Number(c.collected), pool_balance: c.pool_key === "oneoff" ? oneoffPoolBalance : null }));
     res.json({ success: true, data: { plans: out, oneoffs } });
   } catch (e) {
     logger.error("contribution-plans list error:", e);
@@ -98,6 +107,40 @@ router.put("/contribution-plans/:planId", authorize("admin", "manager"), async (
     if (e.status) return res.status(e.status).json({ error: e.message });
     logger.error("contribution-plan edit error:", e);
     res.status(500).json({ error: "Failed to save contribution" });
+  }
+});
+
+// POST /contribution-plans/:planId/payouts — disburse a lump sum from a benefit
+// pool to a member beneficiary (e.g. the quarterly dowry).
+router.post("/contribution-plans/:planId/payouts", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const plan = await getPlanById(req.welfare.id, req.params.planId);
+    if (!plan) return res.status(404).json({ error: "Contribution not found" });
+    if (plan.pool_kind !== "benefit") return res.status(400).json({ error: "Only benefit pools pay out — this is a savings contribution" });
+    const b = req.body || {};
+    const out = await recordPayout({ welfare: req.welfare, poolKey: poolKeyForPlan(plan), beneficiaryId: b.beneficiary_member_id, amount: b.amount, txnDate: b.txn_date, description: b.description || `Payout — ${plan.name}`, userId: req.user.id });
+    await logAudit({ user: req.user, action: "contribution_payout", entityType: "group", entityId: req.welfare.id, entityCode: req.welfare.group_code, description: `Payout KES ${b.amount} from ${plan.name}`, req });
+    res.status(201).json({ success: true, data: out });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("contribution payout error:", e);
+    res.status(500).json({ error: "Failed to record payout" });
+  }
+});
+
+// POST /cycles/:cycleId/payout — disburse a one-off (emergency) to its beneficiary.
+router.post("/cycles/:cycleId/payout", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const c = (await query(`SELECT * FROM contribution_cycles WHERE id=$1 AND welfare_id=$2`, [req.params.cycleId, req.welfare.id])).rows[0];
+    if (!c) return res.status(404).json({ error: "Not found" });
+    if (!c.pool_key || c.pool_key === "savings") return res.status(400).json({ error: "Only benefit pools pay out" });
+    const b = req.body || {};
+    const out = await recordPayout({ welfare: req.welfare, poolKey: c.pool_key, beneficiaryId: b.beneficiary_member_id || c.beneficiary_member_id, amount: b.amount, cycleId: c.id, txnDate: b.txn_date, description: b.description || `Emergency payout — ${c.name}`, userId: req.user.id });
+    res.status(201).json({ success: true, data: out });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("cycle payout error:", e);
+    res.status(500).json({ error: "Failed to record payout" });
   }
 });
 
@@ -153,14 +196,19 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
       cap: num(b.fine_cap, plan?.fine_cap ?? null),
     };
 
+    // A one-off WITH a beneficiary is a benefit collection (emergency) → its own
+    // shared 'oneoff' pool; otherwise it's a plain savings collection.
+    const beneficiaryId = b.beneficiary_member_id ? parseInt(b.beneficiary_member_id, 10) : null;
+    const poolKey = beneficiaryId || b.pool_kind === "benefit" ? "oneoff" : "savings";
+
     const cycle = (
       await query(
         `INSERT INTO contribution_cycles
            (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, created_by,
-            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap)
-         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, beneficiary_member_id)
+         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
         [req.welfare.tenant_id, req.welfare.id, name || "Contribution", freq, amt, period_start || null, due_date, req.user.id,
-          fine.grace_days, fine.calc_type, fine.amount, fine.rate, fine.cap],
+          fine.grace_days, fine.calc_type, fine.amount, fine.rate, fine.cap, poolKey, beneficiaryId],
       )
     ).rows[0];
 
@@ -249,7 +297,12 @@ async function buildPlanOverview(welfare, plan, year) {
     });
     return { ...mem, cells, total_paid: cells.reduce((a, cell) => a + (cell.paid || 0), 0) };
   });
-  return { year, plan, periods, members: membersOut };
+  // Pool: monthly = the savings pool; benefit = its own ledger + payouts.
+  const poolKey = poolKeyForPlan(plan);
+  const pool = plan.pool_kind === "benefit"
+    ? { key: poolKey, kind: "benefit", balance: await benefitPoolBalance(welfare.id, poolKey), payouts: await poolPayouts(welfare.id, poolKey) }
+    : { key: "savings", kind: "savings", balance: await savingsPoolBalance(welfare.id), payouts: [] };
+  return { year, plan, pool, periods, members: membersOut };
 }
 
 // GET /contribution-plans/:planId/overview?year= — one contribution's year matrix.
@@ -320,7 +373,7 @@ router.post(
   async (req, res) => {
     try {
       const sRes = await query(
-        `SELECT s.* FROM contribution_schedules s
+        `SELECT s.*, c.pool_key, c.name AS cycle_name FROM contribution_schedules s
            JOIN contribution_cycles c ON c.id = s.cycle_id
           WHERE s.id = $1 AND s.cycle_id = $2 AND c.welfare_id = $3`,
         [req.params.scheduleId, req.params.cycleId, req.welfare.id],
@@ -345,18 +398,26 @@ router.post(
         [s.id, newPaid, status, status === "paid"],
       );
 
-      // Contribution grows the member's savings + the pool.
-      const prev = await poolBalance(req.welfare.id);
-      await query(
-        `INSERT INTO member_pool_transactions
-           (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, description, created_by)
-         VALUES ($1,$2,$3,'contribution',$4,1,$5,$6,$7)`,
-        [req.welfare.tenant_id, req.welfare.id, s.member_id, amt, round2(prev + amt), `Contribution (cycle #${s.cycle_id})`, req.user.id],
-      );
+      // Route the cash to the cycle's pool. Savings (monthly) grows member equity
+      // in the savings pool; benefit pools (quarterly/emergency) get their own ledger.
+      let poolAfter;
+      if (s.pool_key && s.pool_key !== "savings") {
+        const led = await postBenefitPool({ welfare: req.welfare, poolKey: s.pool_key, memberId: s.member_id, type: "contribution", cycleId: s.cycle_id, amount: amt, direction: 1, description: `Contribution — ${s.cycle_name}`, userId: req.user.id });
+        poolAfter = Number(led.balance_after);
+      } else {
+        const prev = await poolBalance(req.welfare.id);
+        poolAfter = round2(prev + amt);
+        await query(
+          `INSERT INTO member_pool_transactions
+             (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, description, created_by)
+           VALUES ($1,$2,$3,'contribution',$4,1,$5,$6,$7)`,
+          [req.welfare.tenant_id, req.welfare.id, s.member_id, amt, poolAfter, `Contribution (cycle #${s.cycle_id})`, req.user.id],
+        );
+      }
       // Best-effort receipt SMS (no-op when SMS is disabled).
       notifyContributionReceipt({ welfare: req.welfare, memberId: s.member_id, amount: amt, sentBy: req.user.id });
 
-      res.json({ success: true, status, pool_balance: round2(prev + amt), outstanding: round2(parseFloat(s.amount_due) - newPaid) });
+      res.json({ success: true, status, pool_balance: poolAfter, outstanding: round2(parseFloat(s.amount_due) - newPaid) });
     } catch (e) {
       logger.error("schedule pay error:", e);
       res.status(500).json({ error: "Failed to record contribution" });

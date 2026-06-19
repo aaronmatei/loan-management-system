@@ -3517,6 +3517,7 @@ CREATE TABLE public.contribution_plans (
   fine_rate      numeric,
   fine_cap       numeric,
   active         boolean NOT NULL DEFAULT true,
+  pool_kind      varchar(16) NOT NULL DEFAULT 'savings', -- migration 085 (savings | benefit)
   created_by     integer,
   created_at     timestamp NOT NULL DEFAULT now(),
   updated_at     timestamp NOT NULL DEFAULT now()
@@ -3544,9 +3545,30 @@ CREATE TABLE public.contribution_cycles (
   fine_calc_type varchar(20),
   fine_amount    numeric,
   fine_rate      numeric,
-  fine_cap       numeric
+  fine_cap       numeric,
+  pool_key              varchar(32) NOT NULL DEFAULT 'savings', -- migration 085
+  beneficiary_member_id integer REFERENCES public.members(id) ON DELETE SET NULL
 );
 CREATE UNIQUE INDEX uq_cycle_plan_period ON public.contribution_cycles(plan_id, period_key) WHERE plan_id IS NOT NULL AND period_key IS NOT NULL;
+
+-- migration 085: benefit-pool ledger (quarterly / one-off emergencies)
+CREATE TABLE public.benefit_pool_ledger (
+  id            serial PRIMARY KEY,
+  tenant_id     integer NOT NULL,
+  welfare_id    integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  pool_key      varchar(32) NOT NULL,
+  member_id     integer REFERENCES public.members(id) ON DELETE SET NULL,
+  type          varchar(24) NOT NULL,
+  cycle_id      integer REFERENCES public.contribution_cycles(id) ON DELETE SET NULL,
+  amount        numeric(14,2) NOT NULL,
+  direction     smallint NOT NULL,
+  balance_after numeric(14,2) NOT NULL,
+  txn_date      date NOT NULL DEFAULT CURRENT_DATE,
+  description   text,
+  created_by    integer,
+  created_at    timestamptz NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_benefit_pool_ledger_pool ON public.benefit_pool_ledger(welfare_id, pool_key, id);
 
 CREATE TABLE public.contribution_schedules (
   id          serial PRIMARY KEY,
