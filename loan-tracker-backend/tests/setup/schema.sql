@@ -3293,6 +3293,8 @@ CREATE TABLE public.group_meetings (
   agenda       text,
   title        varchar(120), -- migration 086
   penalty_rule_id integer, -- migration 087
+  fine_late    numeric, -- migration 088
+  fine_absent  numeric, -- migration 088
   notes        text,
   status       varchar(20) NOT NULL DEFAULT 'scheduled',
   created_by   integer,

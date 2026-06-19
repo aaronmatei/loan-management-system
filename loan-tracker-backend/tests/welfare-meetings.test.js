@@ -23,13 +23,13 @@ async function setup(n = 2) {
 }
 
 describe("welfare meetings — per-meeting attendance fine", () => {
-  it("a meeting's own rule fines late + absent; detail lists the fines and rule", async () => {
+  it("a meeting carries DISTINCT late + absent fines; detail lists them per member", async () => {
     const { admin, w, members } = await setup(3);
-    const rule = (await request(app).post(`/api/welfares/${w.id}/penalty-rules`).set("Authorization", auth(admin))
-      .send({ trigger: "attendance_late", calc_type: "fixed", amount: 500, notes: "Event attendance" })).body.data;
+    // Fines are defined ON the meeting: late 500, absent 1500.
     const meeting = (await request(app).post(`/api/welfares/${w.id}/meetings`).set("Authorization", auth(admin))
-      .send({ title: "Dowry hand-out", meeting_date: "2026-03-31", penalty_rule_id: rule.id })).body.data;
-    expect(meeting.penalty_rule_id).toBe(rule.id);
+      .send({ title: "Utawala Meeting", meeting_date: "2026-03-31", fine_late: 500, fine_absent: 1500 })).body.data;
+    expect(Number(meeting.fine_late)).toBe(500);
+    expect(Number(meeting.fine_absent)).toBe(1500);
 
     await request(app).post(`/api/welfares/${w.id}/meetings/${meeting.id}/attendance`).set("Authorization", auth(admin)).send({
       records: [
@@ -40,10 +40,16 @@ describe("welfare meetings — per-meeting attendance fine", () => {
     });
 
     const detail = (await request(app).get(`/api/welfares/${w.id}/meetings/${meeting.id}`).set("Authorization", auth(admin))).body.data;
-    expect(detail.meeting.rule.id).toBe(rule.id);
-    // The meeting's single rule applies to BOTH the late and the absent member.
     expect(detail.fines).toHaveLength(2);
-    expect(detail.fines.every((f) => Number(f.amount) === 500)).toBe(true);
-    expect(detail.fines.map((f) => f.trigger).sort()).toEqual(["attendance_absent", "attendance_late"]);
+    const late = detail.fines.find((f) => f.trigger === "attendance_late");
+    const absent = detail.fines.find((f) => f.trigger === "attendance_absent");
+    expect(Number(late.amount)).toBe(500);
+    expect(Number(absent.amount)).toBe(1500);
+
+    // Re-marking the absent member present clears their fine.
+    await request(app).post(`/api/welfares/${w.id}/meetings/${meeting.id}/attendance`).set("Authorization", auth(admin))
+      .send({ records: [{ member_id: members[2].id, status: "present" }] });
+    const after = (await request(app).get(`/api/welfares/${w.id}/meetings/${meeting.id}`).set("Authorization", auth(admin))).body.data;
+    expect(after.fines).toHaveLength(1);
   });
 });

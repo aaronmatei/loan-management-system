@@ -10,7 +10,6 @@ const ATT = [
   { v: "absent", label: "Absent", cls: "bg-red-100 text-red-800" },
 ];
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
-const ruleLabel = (r) => `${r.calc_type === "fixed" ? `KES ${Number(r.amount).toLocaleString()}` : r.calc_type === "percentage" ? `${Number(r.rate)}%` : r.calc_type}${r.notes ? ` · ${r.notes}` : ""}`;
 
 // Welfare meetings + member attendance. Absent/late statuses auto-apply the
 // chama's attendance penalties.
@@ -106,12 +105,10 @@ export default function WelfareMeetingsPanel({ welfareId }) {
 }
 
 function NewMeetingModal({ welfareId, onClose, onCreated }) {
-  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], location: "", agenda: "", penalty_rule_id: "" });
-  const [rules, setRules] = useState([]);
+  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], location: "", agenda: "", fine_late: "", fine_absent: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  useEffect(() => { api.get(`/welfares/${welfareId}/penalty-rules`).then((r) => setRules((r.data.data || []).filter((x) => x.trigger === "attendance_late" || x.trigger === "attendance_absent"))).catch(() => {}); }, [welfareId]);
   const submit = async (e) => {
     e.preventDefault();
     setError("");
@@ -131,12 +128,12 @@ function NewMeetingModal({ welfareId, onClose, onCreated }) {
         <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} className={fld} /></div>
         <div><label className={lbl}>Agenda</label><textarea value={form.agenda} onChange={set("agenda")} rows="2" className={fld} /></div>
         <div>
-          <label className={lbl}>Attendance fine</label>
-          <select value={form.penalty_rule_id} onChange={set("penalty_rule_id")} className={fld}>
-            <option value="">No fine</option>
-            {rules.map((r) => <option key={r.id} value={r.id}>{ruleLabel(r)}</option>)}
-          </select>
-          <p className="text-xs text-slate-400 mt-1">Charged to late & absent members. Rules come from the <span className="font-semibold">Penalties</span> module.</p>
+          <p className="text-sm font-semibold text-slate-700 mb-1">Attendance fines</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={lbl}>Late (KES)</label><input type="number" min="0" value={form.fine_late} onChange={set("fine_late")} placeholder="e.g. 500" className={fld} /></div>
+            <div><label className={lbl}>Absent (KES)</label><input type="number" min="0" value={form.fine_absent} onChange={set("fine_absent")} placeholder="e.g. 1500" className={fld} /></div>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">Charged automatically when you mark a member late or absent.</p>
         </div>
         <Actions busy={busy} onClose={onClose} label="Schedule" />
       </form>
@@ -182,7 +179,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 mb-4">
         <span><span className="text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
         {m.location && <span><span className="text-slate-400">Location</span> {m.location}</span>}
-        <span><span className="text-slate-400">Attendance fine</span> {m.rule ? ruleLabel(m.rule) : "none"}</span>
+        <span><span className="text-slate-400">Fines</span> {(m.fine_late > 0 || m.fine_absent > 0) ? <>late {money(m.fine_late || 0)} · absent {money(m.fine_absent || 0)}</> : "none"}</span>
       </div>
       {m.agenda && <p className="text-sm text-slate-600 mb-4 bg-slate-50 rounded-lg px-3 py-2">{m.agenda}</p>}
 

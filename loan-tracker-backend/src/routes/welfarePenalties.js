@@ -195,10 +195,18 @@ router.get("/penalties", async (req, res) => {
       params.push(req.query.member_id);
       where += ` AND a.member_id = $${params.length}`;
     }
+    // Surface what each fine was FOR — the contribution cycle or the meeting.
     const r = await query(
-      `SELECT a.*, m.first_name, m.last_name, m.member_no
+      `SELECT a.*, m.first_name, m.last_name, m.member_no,
+              COALESCE(cyc.name, mtg.title) AS source_label,
+              CASE WHEN a.source_type='meeting' THEN 'meeting'
+                   WHEN a.source_type='contribution_schedule' THEN 'contribution'
+                   ELSE a.source_type END AS source_kind
          FROM penalty_assessments a
          LEFT JOIN members m ON m.id = a.member_id
+         LEFT JOIN contribution_schedules cs ON a.source_type='contribution_schedule' AND cs.id = a.source_id
+         LEFT JOIN contribution_cycles cyc ON cyc.id = cs.cycle_id
+         LEFT JOIN group_meetings mtg ON a.source_type='meeting' AND mtg.id = a.source_id
         WHERE ${where}
         ORDER BY a.assessed_at DESC
         LIMIT 500`,

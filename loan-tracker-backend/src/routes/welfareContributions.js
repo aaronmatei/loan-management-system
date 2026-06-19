@@ -9,7 +9,7 @@ import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.js";
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
-import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, resolveRule, ensureCurrentCycle, ensureCurrentCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
+import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, ensureCurrentCycle, ensureCurrentCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
 import { poolKeyForPlan, benefitPoolBalance, postBenefitPool, recordPayout, poolPayouts } from "../services/welfareBenefitPoolService.js";
 import { poolBalance as savingsPoolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
@@ -45,7 +45,7 @@ async function poolBalance(welfareId) {
 // here is what the Contributions tab shows — click one to drill into it.
 const planBody = (b) => ({
   name: b.name, frequency: b.frequency || "monthly", amount: b.amount, dueDay: b.due_day, dueMonth: b.due_month,
-  graceDays: b.grace_days, penaltyRuleId: b.penalty_rule_id === "" ? null : b.penalty_rule_id,
+  graceDays: b.grace_days, fineCalcType: b.fine_calc_type, fineAmount: b.fine_amount, fineRate: b.fine_rate, fineCap: b.fine_cap,
   poolKind: b.pool_kind === "benefit" ? "benefit" : "savings",
 });
 
@@ -199,10 +199,10 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
     if (!(amt > 0)) return res.status(400).json({ error: "A positive contribution amount is required (set one here or in settings)" });
     const freq = frequency || settings?.contribution_frequency || "monthly";
 
-    // Fine comes from the chosen penalty rule (snapshotted onto the cycle).
+    // The late fine is defined inline on the one-off.
     const b = req.body || {};
+    const num = (v) => (v === "" || v == null ? null : parseFloat(v));
     const grace = b.grace_days != null && b.grace_days !== "" ? parseInt(b.grace_days, 10) : 0;
-    const fr = await resolveRule(req.welfare.tenant_id, b.penalty_rule_id === "" ? null : b.penalty_rule_id);
 
     // A one-off WITH a beneficiary is a benefit collection (emergency) → its own
     // shared 'oneoff' pool; otherwise it's a plain savings collection.
@@ -213,10 +213,10 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
       await query(
         `INSERT INTO contribution_cycles
            (tenant_id, welfare_id, name, frequency, amount, period_start, due_date, created_by,
-            grace_days, penalty_rule_id, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, beneficiary_member_id)
-         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+            grace_days, fine_calc_type, fine_amount, fine_rate, fine_cap, pool_key, beneficiary_member_id)
+         VALUES ($1,$2,$3,$4,$5,$6::date,$7::date,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
         [req.welfare.tenant_id, req.welfare.id, name || "Contribution", freq, amt, period_start || null, due_date, req.user.id,
-          grace, fr.penalty_rule_id, fr.fine_calc_type, fr.fine_amount, fr.fine_rate, fr.fine_cap, poolKey, beneficiaryId],
+          grace, b.fine_calc_type || null, num(b.fine_amount), num(b.fine_rate), num(b.fine_cap), poolKey, beneficiaryId],
       )
     ).rows[0];
 
@@ -298,12 +298,27 @@ async function buildPlanOverview(welfare, plan, year) {
     };
   });
 
+  // Late fines raised against each member for this contribution's cycles.
+  const fineByMember = {};
+  if (cycleIds.length) {
+    (await query(
+      `SELECT s.member_id, COALESCE(SUM(pa.amount),0) AS fined, COALESCE(SUM(pa.amount - pa.paid_amount),0) AS outstanding
+         FROM penalty_assessments pa JOIN contribution_schedules s ON s.id = pa.source_id
+        WHERE pa.source_type='contribution_schedule' AND s.cycle_id = ANY($1::int[])
+        GROUP BY s.member_id`,
+      [cycleIds],
+    )).rows.forEach((r) => { fineByMember[r.member_id] = { fined: Number(r.fined), outstanding: Number(r.outstanding) }; });
+  }
+
   const membersOut = members.map((mem) => {
     const cells = entries.map(({ p, c }) => {
       const grace = c ? (c.grace_days != null ? c.grace_days : settingsGrace) : (plan.grace_days ?? settingsGrace);
       return cellFor(c ? schedBy[`${c.id}:${mem.id}`] : null, p.due_date, grace, today);
     });
-    return { ...mem, cells, total_paid: cells.reduce((a, cell) => a + (cell.paid || 0), 0) };
+    return {
+      ...mem, cells, total_paid: cells.reduce((a, cell) => a + (cell.paid || 0), 0),
+      fines: fineByMember[mem.id]?.fined || 0, fines_outstanding: fineByMember[mem.id]?.outstanding || 0,
+    };
   });
   // Pool: monthly = the savings pool; benefit = its own ledger + payouts.
   const poolKey = poolKeyForPlan(plan);

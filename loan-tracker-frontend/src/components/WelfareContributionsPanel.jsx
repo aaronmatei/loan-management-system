@@ -8,6 +8,13 @@ const money = (v) =>
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
 
 const FREQ_LABEL = { weekly: "Weekly", biweekly: "Bi-weekly", monthly: "Monthly", quarterly: "Every 3 months", yearly: "Yearly" };
+const FINE_TYPES = [
+  { value: "", label: "No late fine" },
+  { value: "fixed", label: "Flat amount (once)" },
+  { value: "daily_fixed", label: "Flat amount per day late" },
+  { value: "percentage", label: "% of the amount (once)" },
+  { value: "daily_percentage", label: "% of the amount per day late" },
+];
 
 // Welfare contributions, split by pool kind:
 //   kind="savings"  → group savings (Monthly).
@@ -335,16 +342,18 @@ function MembersGrid({ data }) {
             <th className="text-left px-3 py-2 sticky left-0 bg-slate-50">Member</th>
             {periods.map((p) => <th key={p.key} className="px-2 py-2 text-center" title={p.name}>{p.short}</th>)}
             <th className="px-3 py-2 text-right">Total paid</th>
+            <th className="px-3 py-2 text-right">Fines</th>
           </tr>
         </thead>
         <tbody>
           {data.members.length === 0 ? (
-            <tr><td colSpan={periods.length + 2} className="px-3 py-8 text-center text-slate-500">No active members.</td></tr>
+            <tr><td colSpan={periods.length + 3} className="px-3 py-8 text-center text-slate-500">No active members.</td></tr>
           ) : data.members.map((mem) => (
             <tr key={mem.id} className="border-t border-slate-100">
               <td className="px-3 py-2 text-slate-800 whitespace-nowrap sticky left-0 bg-white">{mem.first_name} {mem.last_name}</td>
               {periods.map((p, i) => <td key={p.key} className="px-2 py-2 text-center">{cellMark(mem.cells[i])}</td>)}
               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(mem.total_paid)}</td>
+              <td className="px-3 py-2 text-right font-semibold">{mem.fines > 0 ? <span className={mem.fines_outstanding > 0 ? "text-rose-600" : "text-slate-500"}>{money(mem.fines)}</span> : <span className="text-slate-300">—</span>}</td>
             </tr>
           ))}
         </tbody>
@@ -418,17 +427,16 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
   const [form, setForm] = useState({
     name: plan?.name ?? "", amount: plan?.amount ?? "", due_day: plan?.due_day ?? (isWeek(plan?.frequency) ? 1 : 10),
     due_month: plan?.due_month ?? 12, due_date: "", pool_kind: plan?.pool_kind ?? (benefit ? "benefit" : "savings"),
-    grace_days: plan?.grace_days ?? 0, penalty_rule_id: plan?.penalty_rule_id ?? "",
+    grace_days: plan?.grace_days ?? 0, fine_calc_type: plan?.fine_calc_type ?? "",
+    fine_amount: plan?.fine_amount ?? "", fine_rate: plan?.fine_rate ?? "", fine_cap: plan?.fine_cap ?? "",
     beneficiary_member_id: "",
   });
-  const [rules, setRules] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const recurring = freq !== "oneoff";
-  // Fines come from the Penalties module — pick a contribution-late rule.
-  useEffect(() => { api.get(`/welfares/${welfareId}/penalty-rules`).then((r) => setRules((r.data.data || []).filter((x) => x.trigger === "contribution_late"))).catch(() => {}); }, [welfareId]);
-  const ruleLabel = (r) => `${r.calc_type === "fixed" ? `KES ${Number(r.amount).toLocaleString()}` : r.calc_type === "percentage" ? `${Number(r.rate)}%` : `${r.calc_type} ${r.amount ?? r.rate ?? ""}`}${r.notes ? ` · ${r.notes}` : ""}`;
+  const usesAmount = ["fixed", "daily_fixed"].includes(form.fine_calc_type);
+  const usesRate = ["percentage", "daily_percentage"].includes(form.fine_calc_type);
 
   // Reset due_day sensibly when switching between weekday- and day-of-month modes.
   const changeFreq = (f) => { setFreq(f); setForm((s) => ({ ...s, due_day: isWeek(f) ? (s.due_day > 7 ? 1 : s.due_day) : (s.due_day < 8 && s.due_day < 1 ? 10 : s.due_day) })); };
@@ -442,6 +450,8 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
     if (!recurring && !form.due_date) return setError("Pick a due date.");
     if (benefit && !recurring && !form.beneficiary_member_id) return setError("Pick the beneficiary for this emergency.");
     if (recurring && !isWeek(freq)) { const d = parseInt(form.due_day, 10); if (!(d >= 1 && d <= 28)) return setError("Due day must be between 1 and 28."); }
+    if (usesAmount && !(parseFloat(form.fine_amount) > 0)) return setError("Enter the fine amount.");
+    if (usesRate && !(parseFloat(form.fine_rate) > 0)) return setError("Enter the fine rate %.");
     setBusy(true);
     try {
       if (recurring) {
@@ -516,16 +526,17 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
         <div className="border-t border-slate-100 pt-3">
           <p className="text-sm font-semibold text-slate-700 mb-2">Late fine</p>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>Penalty rule</label>
-              <select value={form.penalty_rule_id} onChange={set("penalty_rule_id")} className={fld}>
-                <option value="">No late fine</option>
-                {rules.map((r) => <option key={r.id} value={r.id}>{ruleLabel(r)}</option>)}
+            <div className="col-span-2">
+              <label className={lbl}>Charge</label>
+              <select value={form.fine_calc_type} onChange={set("fine_calc_type")} className={fld}>
+                {FINE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
-            <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /></div>
+            {usesAmount && <div><label className={lbl}>Fine amount (KES)</label><input type="number" value={form.fine_amount} onChange={set("fine_amount")} className={fld} /></div>}
+            {usesRate && <div><label className={lbl}>Fine rate (%)</label><input type="number" value={form.fine_rate} onChange={set("fine_rate")} className={fld} /></div>}
+            {form.fine_calc_type && <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /></div>}
+            {form.fine_calc_type && <div><label className={lbl}>Cap (optional)</label><input type="number" value={form.fine_cap} onChange={set("fine_cap")} className={fld} /></div>}
           </div>
-          <p className="text-xs text-slate-400 mt-1">Rules come from the <span className="font-semibold">Penalties</span> module. No rule for this trigger yet? Add one there.</p>
         </div>
         <p className="text-xs text-gray-500">{hint} A schedule is created for every active member.</p>
         <Actions busy={busy} onClose={onClose} label={recurring ? "Save plan" : "Open contribution"} tone="bg-sky-600 hover:bg-sky-700" />

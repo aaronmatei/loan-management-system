@@ -7,7 +7,6 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
-import { computePenaltyAmount } from "../utils/penaltyEngine.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -37,7 +36,8 @@ async function loadMeeting(welfareId, id) {
 // Re-assess absent/late penalties for one member at one meeting. Clears prior
 // unpaid attendance penalties for that (meeting, member) first so changing the
 // status (e.g. absent → present) removes the penalty.
-async function assessAttendance(welfare, meetingId, memberId, status, rulesByTrigger, userId) {
+async function assessAttendance(welfare, meetingId, memberId, status, fines, userId) {
+  // Re-marking attendance replaces the member's unpaid meeting fine.
   await query(
     `DELETE FROM penalty_assessments
       WHERE tenant_id = $1 AND source_type = 'meeting' AND source_id = $2 AND member_id = $3
@@ -45,17 +45,14 @@ async function assessAttendance(welfare, meetingId, memberId, status, rulesByTri
     [welfare.tenant_id, meetingId, memberId],
   );
   const trigger = TRIGGER_FOR[status];
-  if (!trigger) return;
-  for (const rule of rulesByTrigger[trigger] || []) {
-    const amt = computePenaltyAmount(rule, {});
-    if (!(amt > 0)) continue;
-    await query(
-      `INSERT INTO penalty_assessments
-         (tenant_id, member_id, rule_id, trigger, source_type, source_id, amount, description, created_by)
-       VALUES ($1,$2,$3,$4,'meeting',$5,$6,$7,$8)`,
-      [welfare.tenant_id, memberId, rule.id, trigger, meetingId, amt, status === "absent" ? "Absent from meeting" : "Late to meeting", userId],
-    );
-  }
+  const amt = status === "late" ? fines.late : status === "absent" ? fines.absent : 0;
+  if (!trigger || !(amt > 0)) return;
+  await query(
+    `INSERT INTO penalty_assessments
+       (tenant_id, member_id, rule_id, trigger, source_type, source_id, amount, description, created_by)
+     VALUES ($1,$2,NULL,$3,'meeting',$4,$5,$6,$7)`,
+    [welfare.tenant_id, memberId, trigger, meetingId, amt, status === "absent" ? "Absent from meeting" : "Late to meeting", userId],
+  );
 }
 
 // GET /meetings
@@ -80,12 +77,13 @@ router.get("/meetings", async (req, res) => {
 // POST /meetings
 router.post("/meetings", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
-    const { meeting_date, location, agenda, title, penalty_rule_id } = req.body || {};
+    const { meeting_date, location, agenda, title, fine_late, fine_absent } = req.body || {};
     if (!meeting_date) return res.status(400).json({ error: "Meeting date is required" });
+    const num = (v) => (v === "" || v == null ? null : parseFloat(v));
     const r = await query(
-      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, penalty_rule_id, created_by)
-       VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8) RETURNING *`,
-      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, penalty_rule_id || null, req.user.id],
+      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, fine_late, fine_absent, created_by)
+       VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9) RETURNING *`,
+      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, num(fine_late), num(fine_absent), req.user.id],
     );
     await logAudit({
       user: req.user, action: "welfare_meeting_created", entityType: "group",
@@ -113,9 +111,8 @@ router.get("/meetings/:meetingId", async (req, res) => {
         ORDER BY mem.first_name`,
       [req.welfare.id, m.id],
     );
-    // Everything else concerning this meeting: the fine rule, fines raised, and
-    // any pool payout handed out at it.
-    const rule = m.penalty_rule_id ? (await query(`SELECT id, trigger, calc_type, amount, rate, notes FROM penalty_rules WHERE id=$1`, [m.penalty_rule_id])).rows[0] : null;
+    // Everything else concerning this meeting: the fines raised + any pool payout
+    // handed out at it. (The meeting's own late/absent charges are on m.)
     const fines = (await query(
       `SELECT pa.id, pa.trigger, pa.amount, pa.paid_amount, pa.status, mem.first_name, mem.last_name
          FROM penalty_assessments pa JOIN members mem ON mem.id = pa.member_id
@@ -128,7 +125,7 @@ router.get("/meetings/:meetingId", async (req, res) => {
         WHERE l.meeting_id=$1 AND l.type='payout' LIMIT 1`,
       [m.id],
     )).rows[0] || null;
-    res.json({ success: true, data: { meeting: { ...m, rule }, roster: roster.rows, fines, payout } });
+    res.json({ success: true, data: { meeting: m, roster: roster.rows, fines, payout } });
   } catch (e) {
     logger.error("welfare meeting get error:", e);
     res.status(500).json({ error: "Failed to load meeting" });
@@ -146,20 +143,9 @@ router.post(
       const records = Array.isArray(req.body?.records) ? req.body.records : [];
       if (!records.length) return res.status(400).json({ error: "No attendance records" });
 
-      // If the meeting picked its own fine rule, that single rule applies to BOTH
-      // late and absent attendees; otherwise fall back to the chama's active
-      // attendance rules.
-      let rulesByTrigger;
-      if (m.penalty_rule_id) {
-        const r = (await query(`SELECT * FROM penalty_rules WHERE id=$1 AND tenant_id=$2`, [m.penalty_rule_id, req.welfare.tenant_id])).rows[0];
-        rulesByTrigger = r ? { attendance_late: [r], attendance_absent: [r] } : {};
-      } else {
-        const ruleRows = (await query(
-          `SELECT * FROM penalty_rules WHERE tenant_id = $1 AND active = true AND trigger IN ('attendance_absent','attendance_late')`,
-          [req.welfare.tenant_id],
-        )).rows;
-        rulesByTrigger = ruleRows.reduce((acc, r) => { (acc[r.trigger] ||= []).push(r); return acc; }, {});
-      }
+      // The fine is defined ON the meeting: late attendees pay fine_late, absent
+      // members pay fine_absent (both fixed amounts).
+      const fines = { late: m.fine_late != null ? Number(m.fine_late) : 0, absent: m.fine_absent != null ? Number(m.fine_absent) : 0 };
 
       for (const rec of records) {
         if (!rec.member_id) continue;
@@ -170,7 +156,7 @@ router.post(
            ON CONFLICT (meeting_id, member_id) DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()`,
           [req.welfare.tenant_id, req.welfare.id, m.id, rec.member_id, status],
         );
-        await assessAttendance(req.welfare, m.id, rec.member_id, status, rulesByTrigger, req.user.id);
+        await assessAttendance(req.welfare, m.id, rec.member_id, status, fines, req.user.id);
       }
       await query(`UPDATE group_meetings SET status='held', updated_at=NOW() WHERE id=$1 AND status <> 'cancelled'`, [m.id]);
       await logAudit({
