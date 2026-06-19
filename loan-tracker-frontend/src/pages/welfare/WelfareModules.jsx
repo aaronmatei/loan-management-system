@@ -9,6 +9,7 @@ import WelfareContributionsPanel from "../../components/WelfareContributionsPane
 import WelfarePenaltiesPanel from "../../components/WelfarePenaltiesPanel";
 import WelfareMeetingsPanel from "../../components/WelfareMeetingsPanel";
 import WelfareDividendsPanel from "../../components/WelfareDividendsPanel";
+import WelfareExpensesPanel from "../../components/WelfareExpensesPanel";
 import WelfareMpesaPanel from "../../components/WelfareMpesaPanel";
 import WelfareSmsPanel from "../../components/WelfareSmsPanel";
 import PermissionGate from "../../components/PermissionGate";
@@ -58,6 +59,10 @@ export function WelfareMeetingsPage() {
 export function WelfareDividendsPage() {
   const { welfareId } = useWelfare();
   return <Page title="Dividends & Share-out"><WelfareDividendsPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareExpensesPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Expenses"><WelfareExpensesPanel welfareId={welfareId} /></Page>;
 }
 export function WelfareMpesaPage() {
   const { welfareId } = useWelfare();

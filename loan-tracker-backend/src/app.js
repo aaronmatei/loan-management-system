@@ -46,6 +46,7 @@ import welfareMpesaRoutes from "./routes/welfareMpesa.js";
 import welfareSmsRoutes from "./routes/welfareSms.js";
 import welfareDividendRoutes from "./routes/welfareDividends.js";
 import welfareReportRoutes from "./routes/welfareReports.js";
+import welfareExpenseRoutes from "./routes/welfareExpenses.js";
 import welfareCurrentRoutes from "./routes/welfareCurrent.js";
 import reportsRoutes from "./routes/reports.js";
 import smsRoutes from "./routes/sms.js";
@@ -201,6 +202,7 @@ app.use("/api/welfares/:welfareId", welfareMpesaRoutes); // welfare M-Pesa STK +
 app.use("/api/welfares/:welfareId", welfareSmsRoutes); // welfare SMS broadcast + reminders + logs
 app.use("/api/welfares/:welfareId", welfareDividendRoutes); // welfare dividends / share-out
 app.use("/api/welfares/:welfareId", welfareReportRoutes); // welfare dashboard + per-member reports
+app.use("/api/welfares/:welfareId", welfareExpenseRoutes); // welfare expenses (out of the savings pool)
 app.use("/api/reports", reportsRoutes);
 app.use("/api/sms", smsRoutes);
 app.use("/api/email", emailRoutes);

@@ -159,6 +159,7 @@ const WELFARE_STANDALONE = [
   { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/dividends", label: "Dividends", icon: Gift, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/expenses", label: "Expenses", icon: Receipt, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/mpesa", label: "M-Pesa", icon: Smartphone, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/sms", label: "SMS", icon: MessageSquare, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "loans:view" },

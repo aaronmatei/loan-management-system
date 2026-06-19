@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LayoutDashboard, Wallet, Users, AlertTriangle, Banknote, Gift, CalendarCheck, FileDown, FileSpreadsheet } from "lucide-react";
+import { LayoutDashboard, Wallet, Users, AlertTriangle, Banknote, Gift, CalendarCheck, FileDown, FileSpreadsheet, TrendingUp, Receipt } from "lucide-react";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
 import WelfareCharts from "./WelfareCharts";
@@ -71,6 +71,8 @@ export default function WelfareDashboardPanel({ welfareId }) {
         <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} tone="rose" />
         <Stat icon={Wallet} label="Savings" value={money(d.pool.members_savings)} sub={`${money(d.pool.total_contributions)} contributed`} />
         <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" />
+        <Stat icon={TrendingUp} label="Profit" value={money(d.pool.profit)} sub="pool above member savings" tone={d.pool.profit < 0 ? "rose" : "emerald"} />
+        <Stat icon={Receipt} label="Expenses" value={money(d.pool.expenses)} sub="spent from the savings pool" tone="rose" />
         {d.compliance ? (
           <Stat icon={CalendarCheck} label={`Compliance · ${d.compliance.cycle || "cycle"}`} value={`${d.compliance.paid_pct}%`} sub={`${d.compliance.paid}/${d.compliance.total} paid`} tone="emerald" />
         ) : (

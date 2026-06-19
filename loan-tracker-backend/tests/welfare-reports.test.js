@@ -42,18 +42,30 @@ describe("welfare reports", () => {
     expect(d.penalties.collected).toBe(300);
   });
 
-  it("reflects an open cycle's contribution compliance", async () => {
+  it("compliance reflects the MONTHLY contribution; expenses reduce profit", async () => {
     const { admin, w } = await setup();
     const a = await addMember(admin, w, "A");
-    const b = await addMember(admin, w, "B");
-    const cycle = (await request(app).post(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin)).send({ amount: 1000, due_date: "2026-12-31" })).body.data;
-    const sched = (await request(app).get(`/api/welfares/${w.id}/cycles/${cycle.id}`).set("Authorization", auth(admin))).body.data.schedules.find((s) => s.member_id === a.id);
-    await request(app).post(`/api/welfares/${w.id}/cycles/${cycle.id}/schedules/${sched.id}/pay`).set("Authorization", auth(admin)).send({});
+    await addMember(admin, w, "B");
+    await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", amount: 1000, due_day: 10 });
+    const cyc = (await request(app).get(`/api/welfares/${w.id}/cycles`).set("Authorization", auth(admin))).body.data.find((x) => x.frequency === "monthly");
+    const sched = (await request(app).get(`/api/welfares/${w.id}/cycles/${cyc.id}`).set("Authorization", auth(admin))).body.data.schedules.find((s) => s.member_id === a.id);
+    await request(app).post(`/api/welfares/${w.id}/cycles/${cyc.id}/schedules/${sched.id}/pay`).set("Authorization", auth(admin)).send({});
 
-    const r = await request(app).get(`/api/welfares/${w.id}/reports/summary`).set("Authorization", auth(admin));
+    let r = await request(app).get(`/api/welfares/${w.id}/reports/summary`).set("Authorization", auth(admin));
     expect(r.body.data.compliance.total).toBe(2);
     expect(r.body.data.compliance.paid).toBe(1);
     expect(r.body.data.compliance.paid_pct).toBe(50);
+
+    // An expense draws from the savings pool → pool + profit drop, expenses rise.
+    const exp = await request(app).post(`/api/welfares/${w.id}/expenses`).set("Authorization", auth(admin)).send({ amount: 300, description: "Bank charges" });
+    expect(exp.status).toBe(201);
+    r = await request(app).get(`/api/welfares/${w.id}/reports/summary`).set("Authorization", auth(admin));
+    expect(r.body.data.pool.expenses).toBe(300);
+    expect(r.body.data.pool.balance).toBe(700); // 1000 contributed − 300 spent
+    expect(r.body.data.pool.profit).toBe(-300); // pool 700 − member savings 1000
+    // Can't overspend the pool.
+    const over = await request(app).post(`/api/welfares/${w.id}/expenses`).set("Authorization", auth(admin)).send({ amount: 99999, description: "x" });
+    expect(over.status).toBe(400);
   });
 
   it("charts: pool growth, MONTHLY-only + QUARTERLY contributions, savings per member", async () => {
@@ -76,8 +88,9 @@ describe("welfare reports", () => {
     expect(d.contributions.some((x) => x.collected === 1000 && x.expected === 2000)).toBe(true);
     // Quarterly is its own series (Qn label), expected = 5000 × 2 members, unpaid.
     expect(d.quarterly.some((x) => /^Q[1-4]$/.test(x.label) && x.expected === 10000)).toBe(true);
-    expect(d.savings_per_member).toHaveLength(2);
-    expect(d.savings_per_member[0].savings).toBe(1000); // monthly only — benefit doesn't count as savings
+    // Pools chart: savings (the paid 1000) + the Quarterly benefit pool.
+    expect(d.pools.find((p) => p.name === "Savings").balance).toBe(1000);
+    expect(d.pools.some((p) => p.name === "Quarterly" && p.kind === "benefit")).toBe(true);
     expect(Array.isArray(d.fines)).toBe(true);
     expect(Array.isArray(d.attendance)).toBe(true);
   });

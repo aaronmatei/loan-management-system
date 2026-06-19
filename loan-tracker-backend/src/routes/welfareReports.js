@@ -7,6 +7,7 @@ import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { buildWelfareStatementPdf, buildMemberStatementPdf } from "../utils/welfarePdf.js";
+import { benefitPoolBalance } from "../services/welfareBenefitPoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -40,6 +41,7 @@ async function buildSummary(welfare) {
          COALESCE(SUM(amount) FILTER (WHERE type='contribution'),0) AS contributions,
          COALESCE(SUM(amount) FILTER (WHERE type='withdrawal'),0)   AS withdrawals,
          COALESCE(SUM(amount) FILTER (WHERE type='dividend'),0)     AS dividends,
+         COALESCE(SUM(amount) FILTER (WHERE type='expense'),0)      AS expenses,
          COALESCE(SUM(direction*amount) FILTER (WHERE type IN ${SAVINGS_TYPES}),0) AS savings
        FROM member_pool_transactions WHERE welfare_id=$1`,
       [wid],
@@ -72,7 +74,7 @@ async function buildSummary(welfare) {
 
     const dividends = (await query(`SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS runs FROM dividend_distributions WHERE welfare_id=$1`, [wid])).rows[0];
 
-    // Latest open cycle's contribution compliance.
+    // Latest open MONTHLY cycle's contribution compliance.
     const cycle = (await query(
       `SELECT c.id, c.name, c.due_date,
               (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id)::int AS total,
@@ -80,8 +82,9 @@ async function buildSummary(welfare) {
               (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id AND s.status='partial')::int AS partial,
               (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id AND s.status IN ('pending','overdue'))::int AS unpaid
          FROM contribution_cycles c
-        WHERE c.welfare_id=$1 AND c.status='open'
-        ORDER BY c.id DESC LIMIT 1`,
+         JOIN contribution_plans p ON p.id=c.plan_id
+        WHERE c.welfare_id=$1 AND c.status='open' AND p.frequency='monthly'
+        ORDER BY c.due_date DESC, c.id DESC LIMIT 1`,
       [wid],
     )).rows[0] || null;
     const compliance = cycle && cycle.total > 0
@@ -111,6 +114,8 @@ async function buildSummary(welfare) {
         total_dividends: num(ledger.dividends),
         members_savings: num(ledger.savings),
         surplus: Math.round((poolBalance - num(ledger.savings)) * 100) / 100,
+        profit: Math.round((poolBalance - num(ledger.savings)) * 100) / 100,
+        expenses: num(ledger.expenses),
       },
       members: { active: members.active, inactive: members.inactive },
       penalties: { assessed: num(penalties.assessed), outstanding: num(penalties.outstanding), collected: num(penalties.collected) },
@@ -233,17 +238,17 @@ async function buildCharts(welfare, year) {
     [wid],
   )).rows.map((r) => ({ type: r.trigger, label: FINE_LABELS[r.trigger] || r.trigger, accrued: num(r.accrued), collected: num(r.collected) }));
 
-  // Savings per active member (savings pool only), highest first.
-  const savingsPerMember = (await query(
-    `SELECT m.first_name || ' ' || LEFT(m.last_name,1) || '.' AS name,
-            COALESCE((SELECT SUM(p.direction*p.amount) FROM member_pool_transactions p
-                       WHERE p.member_id=m.id AND p.type IN ('contribution','withdrawal','adjustment')),0) AS savings
-       FROM members m WHERE m.welfare_id=$1 AND m.status='active'
-      ORDER BY savings DESC, name`,
-    [wid],
-  )).rows.map((r) => ({ name: r.name, savings: num(r.savings) }));
+  // Balance of every pool — savings + each benefit pool (quarterly, emergencies).
+  const savingsBal = (await query(`SELECT balance_after FROM member_pool_transactions WHERE welfare_id=$1 ORDER BY id DESC LIMIT 1`, [wid])).rows[0];
+  const pools = [{ name: "Savings", balance: savingsBal ? num(savingsBal.balance_after) : 0, kind: "savings" }];
+  for (const p of (await query(`SELECT id, name FROM contribution_plans WHERE welfare_id=$1 AND pool_kind='benefit' AND active=true ORDER BY id`, [wid])).rows) {
+    pools.push({ name: p.name, balance: await benefitPoolBalance(wid, `plan-${p.id}`), kind: "benefit" });
+  }
+  if ((await query(`SELECT 1 FROM benefit_pool_ledger WHERE welfare_id=$1 AND pool_key='oneoff' LIMIT 1`, [wid])).rows.length) {
+    pools.push({ name: "Emergencies", balance: await benefitPoolBalance(wid, "oneoff"), kind: "benefit" });
+  }
 
-  return { year, pool_growth: poolGrowth, contributions, quarterly, attendance, fines, savings_per_member: savingsPerMember };
+  return { year, pool_growth: poolGrowth, contributions, quarterly, attendance, fines, pools };
 }
 
 router.get("/reports/charts", async (req, res) => {

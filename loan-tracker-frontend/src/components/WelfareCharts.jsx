@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
 import { TrendingUp, BarChart3, Layers, Users, AlertTriangle, Wallet } from "lucide-react";
@@ -23,22 +23,6 @@ const Card = ({ icon: Icon, title, sub, children, empty }) => (
     {empty ? <div className="h-48 flex items-center justify-center text-sm text-slate-400">{empty}</div> : children}
   </div>
 );
-// Bucket member savings into ~6 nice bands → a histogram that stays readable
-// whether the welfare has 5 members or 500 (vs one bar per member).
-function savingsBands(rows) {
-  const vals = (rows || []).map((r) => Number(r.savings) || 0);
-  if (!vals.length) return [];
-  const max = Math.max(...vals);
-  if (max <= 0) return [{ label: "0", count: vals.length }];
-  const rough = max / 6;
-  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
-  const step = Math.max(mag, Math.ceil(rough / mag) * mag);
-  const bands = [];
-  for (let lo = 0; lo < max + 0.5; lo += step) {
-    bands.push({ label: `${kfmt(lo)}–${kfmt(lo + step)}`, count: vals.filter((v) => v >= lo && v < lo + step).length });
-  }
-  return bands;
-}
 const axis = { tick: { fontSize: 11, fill: "#94a3b8" }, axisLine: false, tickLine: false };
 const tip = { contentStyle: { fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }, formatter: (v) => ksh(v) };
 
@@ -132,15 +116,17 @@ export default function WelfareCharts({ welfareId }) {
         </ResponsiveContainer>
       </Card>
 
-      {/* 6. Savings distribution — a histogram (scales to any member count) */}
-      <Card icon={Wallet} title="Savings distribution" sub={`How ${c.savings_per_member?.length || 0} members' equity is spread across bands`} empty={!c.savings_per_member?.length ? "No members yet" : null}>
+      {/* 6. Pool balances — savings vs each benefit pool */}
+      <Card icon={Wallet} title="Pool balances" sub="Savings vs benefit pools (can go negative)" empty={!c.pools?.length ? "No pools yet" : null}>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={savingsBands(c.savings_per_member)} margin={{ left: -10, right: 8, top: 5 }}>
+          <BarChart data={c.pools} margin={{ left: -10, right: 8, top: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="label" {...axis} />
-            <YAxis {...axis} allowDecimals={false} width={32} />
-            <Tooltip contentStyle={tip.contentStyle} formatter={(v) => [`${v} member${v === 1 ? "" : "s"}`, "Members"]} />
-            <Bar dataKey="count" fill={COLORS.savings} radius={[3, 3, 0, 0]} name="Members" />
+            <XAxis dataKey="name" {...axis} />
+            <YAxis {...axis} tickFormatter={kfmt} width={42} />
+            <Tooltip {...tip} />
+            <Bar dataKey="balance" radius={[3, 3, 0, 0]} name="Balance">
+              {(c.pools || []).map((p, i) => <Cell key={i} fill={p.balance < 0 ? "#ef4444" : p.kind === "savings" ? "#10b981" : COLORS.quarterly} />)}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </Card>

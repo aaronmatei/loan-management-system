@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown, Smartphone } from "lucide-react";
+import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown, Smartphone, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
 import { useWelfare } from "../context/WelfareContext";
@@ -26,6 +26,7 @@ export default function MemberDetail() {
   const [txns, setTxns] = useState([]);
   const [poolBalance, setPoolBalance] = useState(0);
   const [activity, setActivity] = useState(null);
+  const [year, setYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
@@ -75,7 +76,6 @@ export default function MemberDetail() {
       setTxns(r.data.data.transactions || []);
       setPortalLinked(!!r.data.data.portal_linked);
       setPoolBalance(p.data?.data?.balance ?? 0);
-      api.get(`${base}/${memberId}/activity`).then((a) => setActivity(a.data.data)).catch(() => {});
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load member");
     } finally {
@@ -85,6 +85,10 @@ export default function MemberDetail() {
   useEffect(() => {
     load();
   }, [welfareId, memberId]);
+  // Contributions / attendance / fines are scoped to the selected year.
+  useEffect(() => {
+    api.get(`${base}/${memberId}/activity?year=${year}`).then((a) => setActivity(a.data.data)).catch(() => {});
+  }, [welfareId, memberId, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const money = (v) =>
     "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -142,9 +146,11 @@ export default function MemberDetail() {
         </PermissionGate>
       )}
 
-      {activity && <MemberActivity activity={activity} money={money} fmt={fmt} />}
-
-      <MemberLoansPanel welfareId={welfareId} memberId={memberId} poolBalance={poolBalance} onChange={load} />
+      {activity && (
+        <MemberActivity activity={activity} year={year} setYear={setYear} money={money} fmt={fmt}>
+          <MemberLoansPanel welfareId={welfareId} memberId={memberId} poolBalance={poolBalance} onChange={load} />
+        </MemberActivity>
+      )}
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Activity</h2></div>
@@ -214,19 +220,29 @@ const ActTable = ({ head, children }) => (
 );
 const pill = (cls, t) => <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{t}</span>;
 
-// A member's contribution status, attendance score, and fines.
-function MemberActivity({ activity, money, fmt }) {
+// A member's contribution status, attendance score, and fines — scoped to a year.
+// Loans (year-independent) render via children, just before Contributions.
+function MemberActivity({ activity, year, setYear, money, fmt, children }) {
   const { contributions, contribution_summary: cs, fines, fines_outstanding, attendance } = activity;
   const STAT = "bg-white rounded-xl shadow-md p-4";
   const CSTATUS = { paid: "bg-emerald-100 text-emerald-800", partial: "bg-amber-100 text-amber-800", pending: "bg-slate-100 text-slate-600" };
   const ASTATUS = { present: "bg-emerald-100 text-emerald-800", late: "bg-amber-100 text-amber-800", excused: "bg-sky-100 text-sky-800", absent: "bg-red-100 text-red-700" };
   return (
     <>
+      <div className="flex items-center gap-2 mb-4">
+        <button onClick={() => setYear((y) => y - 1)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><ChevronLeft size={16} /></button>
+        <span className="font-bold text-slate-800 w-16 text-center">{year}</span>
+        <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30"><ChevronRight size={16} /></button>
+        <span className="text-xs text-slate-400 ml-1">contributions, attendance &amp; fines for {year}</span>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className={STAT}><p className="text-xs text-slate-500">Contributions paid</p><p className="text-xl font-bold text-emerald-700">{money(cs.paid)}</p><p className="text-xs text-slate-500">{cs.paid_count}/{cs.total} cycles · {money(cs.expected)} due</p></div>
         <div className={STAT}><p className="text-xs text-slate-500">Attendance</p><p className="text-xl font-bold text-sky-700">{attendance.rate == null ? "—" : `${attendance.rate}%`}</p><p className="text-xs text-slate-500">{attendance.attended}/{attendance.recorded} meetings &amp; events</p></div>
         <div className={STAT}><p className="text-xs text-slate-500">Fines outstanding</p><p className={`text-xl font-bold ${fines_outstanding > 0 ? "text-rose-600" : "text-slate-700"}`}>{money(fines_outstanding)}</p><p className="text-xs text-slate-500">{fines.length} fine{fines.length === 1 ? "" : "s"} total</p></div>
       </div>
+
+      {children}
 
       <Section title="Contributions">
         {contributions.length === 0 ? <Empty>No contributions yet.</Empty> : (

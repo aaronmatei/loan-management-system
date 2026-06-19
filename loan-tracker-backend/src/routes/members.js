@@ -176,8 +176,9 @@ router.get("/:id/activity", async (req, res) => {
     const member = await loadMember(req.welfare.id, req.params.id);
     if (!member) return res.status(404).json({ error: "Member not found" });
     const mid = member.id;
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
 
-    // Every contribution/event cycle this member has a schedule for.
+    // Contribution/event cycles (in the selected year) this member is scheduled for.
     const contributions = (await query(
       `SELECT c.name AS cycle_name, c.due_date, c.pool_key, p.name AS plan_name, p.frequency,
               s.amount_due, s.amount_paid, s.status, s.paid_at,
@@ -185,16 +186,17 @@ router.get("/:id/activity", async (req, res) => {
          FROM contribution_schedules s
          JOIN contribution_cycles c ON c.id = s.cycle_id
          LEFT JOIN contribution_plans p ON p.id = c.plan_id
-        WHERE s.member_id = $1
+        WHERE s.member_id = $1 AND EXTRACT(YEAR FROM c.due_date) = $2
         ORDER BY c.due_date DESC`,
-      [mid],
+      [mid, year],
     )).rows;
     const cs = (await query(
-      `SELECT COALESCE(SUM(amount_due),0) expected, COALESCE(SUM(amount_paid),0) paid,
-              COUNT(*) FILTER (WHERE status='paid')::int paid_count, COUNT(*)::int total
-         FROM contribution_schedules WHERE member_id=$1`, [mid])).rows[0];
+      `SELECT COALESCE(SUM(s.amount_due),0) expected, COALESCE(SUM(s.amount_paid),0) paid,
+              COUNT(*) FILTER (WHERE s.status='paid')::int paid_count, COUNT(*)::int total
+         FROM contribution_schedules s JOIN contribution_cycles c ON c.id=s.cycle_id
+        WHERE s.member_id=$1 AND EXTRACT(YEAR FROM c.due_date)=$2`, [mid, year])).rows[0];
 
-    // Fines raised against the member, with what they were for.
+    // Fines (for that year's contributions/meetings), with what they were for.
     const fines = (await query(
       `SELECT pa.id, pa.trigger, pa.amount, pa.paid_amount, pa.status, pa.assessed_at,
               COALESCE(cyc.name, mtg.title) AS source_label,
@@ -203,19 +205,21 @@ router.get("/:id/activity", async (req, res) => {
          LEFT JOIN contribution_schedules cs2 ON pa.source_type='contribution_schedule' AND cs2.id=pa.source_id
          LEFT JOIN contribution_cycles cyc ON cyc.id=cs2.cycle_id
          LEFT JOIN group_meetings mtg ON pa.source_type='meeting' AND mtg.id=pa.source_id
-        WHERE pa.member_id=$1 ORDER BY pa.assessed_at DESC`, [mid])).rows;
+        WHERE pa.member_id=$1 AND EXTRACT(YEAR FROM COALESCE(cyc.due_date, mtg.meeting_date, pa.assessed_at))=$2
+        ORDER BY pa.assessed_at DESC`, [mid, year])).rows;
     const finesOutstanding = fines.reduce((a, f) => a + (f.status === "outstanding" ? Number(f.amount) - Number(f.paid_amount) : 0), 0);
 
-    // Attendance across meetings AND events (events are meetings).
+    // Attendance across meetings AND events in the year (events are meetings).
     const meetings = (await query(
       `SELECT gm.id, gm.title, gm.meeting_date, gm.status AS meeting_status, a.status
          FROM group_meetings gm
          LEFT JOIN member_attendance a ON a.meeting_id=gm.id AND a.member_id=$1
-        WHERE gm.group_id=$2 ORDER BY gm.meeting_date DESC`, [mid, req.welfare.id])).rows;
+        WHERE gm.group_id=$2 AND EXTRACT(YEAR FROM gm.meeting_date)=$3 ORDER BY gm.meeting_date DESC`, [mid, req.welfare.id, year])).rows;
     const recorded = meetings.filter((m) => m.status).length;
     const attended = meetings.filter((m) => m.status === "present" || m.status === "late").length;
 
     res.json({ success: true, data: {
+      year,
       contributions,
       contribution_summary: { expected: Number(cs.expected), paid: Number(cs.paid), paid_count: cs.paid_count, total: cs.total },
       fines, fines_outstanding: finesOutstanding,
