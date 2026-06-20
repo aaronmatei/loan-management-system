@@ -199,16 +199,30 @@ function RequestsList({ path, columns, title = "My requests" }) {
 
 export function MemberDashboard() {
   const { data, loading, error } = useFetch("/welfare/member/overview");
+  const downloadStatement = async () => {
+    try {
+      const res = await portalApi.get("/welfare/member/statement.pdf", { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a"); a.href = url; a.download = "my-statement.pdf"; a.click(); URL.revokeObjectURL(url);
+    } catch { /* */ }
+  };
   return (
     <Shell title="My Chama" icon={PiggyBank}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
           <p className="text-slate-500 -mt-3 mb-5">{data.welfare?.name}</p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <Stat label="My savings" value={KES(data.savings_balance)} tone="text-emerald-700" />
             <Stat label="Loan balance" value={KES(data.loans?.outstanding)} tone={data.loans?.outstanding > 0 ? "text-ocean-700" : "text-slate-900"} />
             <Stat label="Penalties due" value={KES(data.penalties_outstanding)} tone={data.penalties_outstanding > 0 ? "text-rose-600" : "text-slate-900"} />
             <Stat label="Chama pool" value={KES(data.welfare?.pool_balance)} />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 items-stretch">
+            <Stat label={`Compliance${data.compliance ? ` (${data.compliance.paid}/${data.compliance.total})` : ""}`} value={data.compliance_pct == null ? "—" : `${data.compliance_pct}%`} tone={data.compliance_pct != null && data.compliance_pct < 75 ? "text-rose-600" : "text-emerald-700"} />
+            <Stat label={`Attendance${data.attendance ? ` (${data.attendance.attended}/${data.attendance.recorded})` : ""}`} value={data.attendance_pct == null ? "—" : `${data.attendance_pct}%`} tone={data.attendance_pct != null && data.attendance_pct < 75 ? "text-rose-600" : "text-emerald-700"} />
+            <div className="col-span-2 flex items-center justify-end">
+              <button onClick={downloadStatement} className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
+            </div>
           </div>
 
           {data.next_contribution && (
@@ -586,11 +600,27 @@ export function MemberEvents() {
   );
 }
 
+const FINE_GROUP = (t) => (t === "contribution_late" ? "Contributions" : t === "event_late" ? "Events" : (t || "").startsWith("attendance") ? "Meetings" : t === "loan_late" ? "Loans" : "Other");
+
 export function MemberPenalties() {
   const { data, loading, error, reload } = useFetch("/welfare/member/penalties");
+  const groups = (data || []).reduce((acc, p) => {
+    const g = FINE_GROUP(p.trigger);
+    acc[g] = acc[g] || { count: 0, outstanding: 0 };
+    acc[g].count += 1; acc[g].outstanding += Number(p.balance || 0);
+    return acc;
+  }, {});
   return (
     <Shell title="Penalties" icon={AlertTriangle}>
       {loading || error || !data ? <Loading error={error} /> : (
+        <>
+        {Object.keys(groups).length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {Object.entries(groups).map(([g, v]) => (
+              <span key={g} className="text-xs rounded-full border border-slate-200 bg-white px-3 py-1.5">{g}: <strong className="text-slate-800">{v.count}</strong>{v.outstanding > 0 && <span className="text-rose-600"> · {KES(v.outstanding)} due</span>}</span>
+            ))}
+          </div>
+        )}
         <Table
           head={["Date", "Reason", "Amount", "Paid", "Balance", "Status", ""]}
           rows={data}
@@ -611,6 +641,7 @@ export function MemberPenalties() {
             </tr>
           )}
         />
+        </>
       )}
     </Shell>
   );

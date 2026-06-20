@@ -8,6 +8,7 @@ import { query } from "../../config/database.js";
 import { verifyCustomer } from "../../middleware/customerAuth.js";
 import { poolBalance, memberSavings, round2 } from "../../services/welfarePoolService.js";
 import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
+import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -48,7 +49,7 @@ router.use(async (req, res, next) => {
 router.get("/overview", async (req, res) => {
   try {
     const m = req.member;
-    const [savings, pool, loans, penalties, nextDue, recent] = await Promise.all([
+    const [savings, pool, loans, penalties, nextDue, recent, attend, comply] = await Promise.all([
       memberSavings(m.id),
       poolBalance(req.welfareId),
       query(
@@ -75,7 +76,23 @@ router.get("/overview", async (req, res) => {
            FROM member_pool_transactions WHERE member_id = $1 ORDER BY id DESC LIMIT 10`,
         [m.id],
       ),
+      // Attendance % over recorded meetings; compliance % over the member's
+      // monthly contribution schedules (paid vs expected).
+      query(
+        `SELECT COUNT(*) FILTER (WHERE status IN ('present','late'))::int AS attended, COUNT(*)::int AS recorded
+           FROM member_attendance WHERE member_id = $1`,
+        [m.id],
+      ),
+      query(
+        `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE cs.status = 'paid')::int AS paid
+           FROM contribution_schedules cs
+           JOIN contribution_cycles cc ON cc.id = cs.cycle_id
+           JOIN contribution_plans p ON p.id = cc.plan_id
+          WHERE cs.member_id = $1 AND p.frequency = 'monthly'`,
+        [m.id],
+      ),
     ]);
+    const at = attend.rows[0], co = comply.rows[0];
     res.json({
       success: true,
       data: {
@@ -90,6 +107,10 @@ router.get("/overview", async (req, res) => {
         penalties_outstanding: round2(penalties.rows[0].outstanding),
         next_contribution: nextDue.rows[0] || null,
         recent_transactions: recent.rows,
+        attendance_pct: at.recorded > 0 ? Math.round((at.attended / at.recorded) * 100) : null,
+        attendance: { attended: at.attended, recorded: at.recorded },
+        compliance_pct: co.total > 0 ? Math.round((co.paid / co.total) * 100) : null,
+        compliance: { paid: co.paid, total: co.total },
       },
     });
   } catch (e) {
@@ -110,6 +131,28 @@ router.get("/ledger", async (req, res) => {
   } catch (e) {
     logger.error("member ledger error:", e);
     res.status(500).json({ error: "Failed to load ledger" });
+  }
+});
+
+// GET /statement.pdf — the member's own statement (balances + full ledger).
+router.get("/statement.pdf", async (req, res) => {
+  try {
+    const m = req.member;
+    const [savings, loanOut, penOut, div, ledger] = await Promise.all([
+      memberSavings(m.id),
+      query(`SELECT COALESCE(SUM(total_amount_due - amount_paid),0) v FROM member_loans WHERE member_id=$1 AND status='active'`, [m.id]),
+      query(`SELECT COALESCE(SUM(amount - paid_amount),0) v FROM penalty_assessments WHERE member_id=$1 AND status='outstanding'`, [m.id]),
+      query(`SELECT COALESCE(SUM(amount),0) v FROM member_pool_transactions WHERE member_id=$1 AND type='dividend'`, [m.id]),
+      query(`SELECT type, amount, direction, balance_after, txn_date FROM member_pool_transactions WHERE member_id=$1 ORDER BY id ASC`, [m.id]),
+    ]);
+    const balances = { savings: round2(savings), loan_outstanding: round2(loanOut.rows[0].v), penalty_outstanding: round2(penOut.rows[0].v), dividends: round2(div.rows[0].v) };
+    const { buffer, filename } = await buildMemberStatementPdf({ id: req.welfareId, name: m.welfare_name }, m, balances, ledger.rows);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (e) {
+    logger.error("member self statement pdf error:", e);
+    res.status(500).json({ error: "Failed to build statement" });
   }
 });
 

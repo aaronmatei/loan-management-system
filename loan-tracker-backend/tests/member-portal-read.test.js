@@ -69,6 +69,31 @@ describe("member portal read API", () => {
     expect(led.body.data.transactions.some((x) => x.type === "contribution")).toBe(true);
   });
 
+  it("surfaces compliance %, attendance %, and a self statement PDF", async () => {
+    const { tenant, admin, welfare } = await welfareSetup();
+    const m = await makeMember(admin, welfare.id, { phone: "0795200401", id: "STMT1" });
+    await invite(admin, welfare.id, m.id);
+    // A monthly contribution, paid → compliance 100%.
+    await request(app).post(`/api/welfares/${welfare.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", amount: 1000, due_day: 10 });
+    const cyc = (await request(app).get(`/api/welfares/${welfare.id}/cycles`).set("Authorization", auth(admin))).body.data.find((x) => x.frequency === "monthly");
+    const sched = (await request(app).get(`/api/welfares/${welfare.id}/cycles/${cyc.id}`).set("Authorization", auth(admin))).body.data.schedules.find((s) => s.member_id === m.id);
+    await request(app).post(`/api/welfares/${welfare.id}/cycles/${cyc.id}/schedules/${sched.id}/pay`).set("Authorization", auth(admin)).send({});
+    // A held meeting with the member present → attendance 100%.
+    const mtg = (await request(app).post(`/api/welfares/${welfare.id}/meetings`).set("Authorization", auth(admin)).send({ title: "AGM", meeting_date: "2026-03-01" })).body.data;
+    await request(app).post(`/api/welfares/${welfare.id}/meetings/${mtg.id}/attendance`).set("Authorization", auth(admin)).send({ records: [{ member_id: m.id, status: "present" }] });
+
+    const tok = customerToken(await pcIdByPhone("+254795200401"), tenant.id);
+    const ov = await request(app).get("/api/welfare/member/overview").set("Authorization", tok);
+    expect(ov.body.data.compliance_pct).toBe(100);
+    expect(ov.body.data.attendance_pct).toBe(100);
+
+    const pdf = await request(app).get("/api/welfare/member/statement.pdf").set("Authorization", tok).buffer(true).parse((res, cb) => {
+      const c = []; res.on("data", (x) => c.push(x)); res.on("end", () => cb(null, Buffer.concat(c)));
+    });
+    expect(pdf.status).toBe(200);
+    expect(pdf.body.slice(0, 5).toString()).toBe("%PDF-");
+  });
+
   it("isolates members — one member can't see another's loans", async () => {
     const { tenant, admin, welfare } = await welfareSetup();
     const a = await makeMember(admin, welfare.id, { phone: "0795200201", id: "ISOA" });
