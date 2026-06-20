@@ -29,7 +29,7 @@ router.use(async (req, res, next) => {
 });
 
 // Assemble the dashboard summary for a welfare (shared by JSON + PDF export).
-async function buildSummary(welfare) {
+export async function buildSummary(welfare) {
     const wid = welfare.id;
     const tid = welfare.tenant_id;
 
@@ -163,7 +163,7 @@ router.get("/reports/summary", async (req, res) => {
 });
 
 // GET /reports/charts?year=YYYY — time series + breakdowns for the dashboard charts.
-async function buildCharts(welfare, year) {
+export async function buildCharts(welfare, year) {
   const wid = welfare.id;
   const memberFilter = `member_id IN (SELECT id FROM members WHERE welfare_id=$1)`;
 

@@ -10,6 +10,7 @@ import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
 import Spinner from "../../../components/Spinner";
 import { computeLoanTotals } from "../../../utils/loanMath";
+import WelfareDashboardPanel from "../../../components/WelfareDashboardPanel";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -224,6 +225,9 @@ export function MemberDashboard() {
               <button onClick={downloadStatement} className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
             </div>
           </div>
+
+          {/* The same group dashboard the admin sees — members are equal owners. */}
+          <WelfareDashboardPanel client={portalApi} summaryUrl="/welfare/member/dashboard" chartsUrl="/welfare/member/charts" showExports={false} />
 
           {data.next_contribution && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between">

@@ -94,6 +94,23 @@ describe("member portal read API", () => {
     expect(pdf.body.slice(0, 5).toString()).toBe("%PDF-");
   });
 
+  it("a member sees the same group dashboard + charts the admin sees", async () => {
+    const { tenant, admin, welfare } = await welfareSetup();
+    const m = await makeMember(admin, welfare.id, { phone: "0795200601", id: "DSH1" });
+    await invite(admin, welfare.id, m.id);
+    await request(app).post(`/api/welfares/${welfare.id}/members/${m.id}/contributions`).set("Authorization", auth(admin)).send({ amount: 5000 });
+
+    const tok = customerToken(await pcIdByPhone("+254795200601"), tenant.id);
+    const dash = await request(app).get("/api/welfare/member/dashboard").set("Authorization", tok);
+    expect(dash.status).toBe(200);
+    expect(dash.body.data.pool.balance).toBe(5000);
+    expect(dash.body.data.members.active).toBe(1);
+
+    const charts = await request(app).get("/api/welfare/member/charts").set("Authorization", tok);
+    expect(charts.status).toBe(200);
+    expect(Array.isArray(charts.body.data.pool_growth)).toBe(true);
+  });
+
   it("projects the member's dividend share from the surplus", async () => {
     const { tenant, admin, welfare } = await welfareSetup();
     const m = await makeMember(admin, welfare.id, { phone: "0795200501", id: "DVP1" });

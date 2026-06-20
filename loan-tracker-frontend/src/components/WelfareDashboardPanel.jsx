@@ -6,14 +6,23 @@ import WelfareCharts from "./WelfareCharts";
 
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-// Welfare dashboard: the group's health at a glance. Read-only.
-export default function WelfareDashboardPanel({ welfareId }) {
+// Welfare dashboard: the group's health at a glance. Read-only — so it's shared
+// by the admin app AND the welfare-member portal (members are equal owners and
+// see the same figures). `client`/`summaryUrl`/`chartsUrl` let the member portal
+// point it at its own token + endpoints; `showExports` hides the staff exports.
+export default function WelfareDashboardPanel({
+  welfareId,
+  client = api,
+  summaryUrl = `/welfares/${welfareId}/reports/summary`,
+  chartsUrl = `/welfares/${welfareId}/reports/charts`,
+  showExports = true,
+}) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/welfares/${welfareId}/reports/summary`).then((r) => setD(r.data.data)).catch(() => {}).finally(() => setLoading(false));
-  }, [welfareId]);
+    client.get(summaryUrl).then((r) => setD(r.data.data)).catch(() => {}).finally(() => setLoading(false));
+  }, [summaryUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [exporting, setExporting] = useState("");
   const doExport = async (kind) => {
@@ -55,14 +64,16 @@ export default function WelfareDashboardPanel({ welfareId }) {
     <div className="bg-white rounded-xl shadow-md border border-slate-100 mb-6 overflow-hidden">
       <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 flex items-center gap-2"><LayoutDashboard size={18} className="text-slate-600" /> Dashboard</h2>
-        <div className="flex gap-2">
-          <button onClick={() => doExport("pdf")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
-            <FileDown size={14} /> {exporting === "pdf" ? "…" : "Statement PDF"}
-          </button>
-          <button onClick={() => doExport("csv")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
-            <FileSpreadsheet size={14} /> {exporting === "csv" ? "…" : "Members CSV"}
-          </button>
-        </div>
+        {showExports && (
+          <div className="flex gap-2">
+            <button onClick={() => doExport("pdf")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+              <FileDown size={14} /> {exporting === "pdf" ? "…" : "Statement PDF"}
+            </button>
+            <button onClick={() => doExport("csv")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+              <FileSpreadsheet size={14} /> {exporting === "csv" ? "…" : "Members CSV"}
+            </button>
+          </div>
+        )}
       </div>
       <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <Stat icon={Wallet} label="Pool balance" value={money(d.pool.balance)} sub={`Surplus ${money(d.pool.surplus)}`} tone="emerald" />
@@ -84,7 +95,7 @@ export default function WelfareDashboardPanel({ welfareId }) {
           <Stat icon={Users} label="Last attendance" value="—" sub="no meetings yet" />
         )}
       </div>
-      <WelfareCharts welfareId={welfareId} />
+      <WelfareCharts welfareId={welfareId} client={client} url={chartsUrl} />
     </div>
   );
 }

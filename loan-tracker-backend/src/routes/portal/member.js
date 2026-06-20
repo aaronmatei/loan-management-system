@@ -9,6 +9,7 @@ import { verifyCustomer } from "../../middleware/customerAuth.js";
 import { poolBalance, memberSavings, round2, SAVINGS_TYPES } from "../../services/welfarePoolService.js";
 import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
+import { buildSummary, buildCharts } from "../welfareReports.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -131,6 +132,31 @@ router.get("/ledger", async (req, res) => {
   } catch (e) {
     logger.error("member ledger error:", e);
     res.status(500).json({ error: "Failed to load ledger" });
+  }
+});
+
+// GET /dashboard — the SAME group dashboard the admin sees (read-only). A member
+// is an equal owner of the chama, so they see the group's health, not just their
+// own numbers. Reuses the admin aggregation so the figures match exactly.
+router.get("/dashboard", async (req, res) => {
+  try {
+    const welfare = { id: req.welfareId, tenant_id: req.member.tenant_id, name: req.member.welfare_name };
+    res.json({ success: true, data: await buildSummary(welfare) });
+  } catch (e) {
+    logger.error("member dashboard error:", e);
+    res.status(500).json({ error: "Failed to load dashboard" });
+  }
+});
+
+// GET /charts — the group dashboard charts (read-only).
+router.get("/charts", async (req, res) => {
+  try {
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    const welfare = { id: req.welfareId, tenant_id: req.member.tenant_id, name: req.member.welfare_name };
+    res.json({ success: true, data: await buildCharts(welfare, year) });
+  } catch (e) {
+    logger.error("member charts error:", e);
+    res.status(500).json({ error: "Failed to load charts" });
   }
 });
 

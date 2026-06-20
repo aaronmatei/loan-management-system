@@ -27,13 +27,13 @@ const axis = { tick: { fontSize: 11, fill: "#94a3b8" }, axisLine: false, tickLin
 const tip = { contentStyle: { fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }, formatter: (v) => ksh(v) };
 
 // Dashboard charts for a welfare. Pulls /reports/charts and renders the starter set.
-export default function WelfareCharts({ welfareId }) {
+export default function WelfareCharts({ welfareId, client = api, url = `/welfares/${welfareId}/reports/charts` }) {
   const [c, setC] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/welfares/${welfareId}/reports/charts`).then((r) => setC(r.data.data)).catch(() => {}).finally(() => setLoading(false));
-  }, [welfareId]);
+    client.get(url).then((r) => setC(r.data.data)).catch(() => {}).finally(() => setLoading(false));
+  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="text-sm text-slate-500 px-1 py-4">Loading charts…</div>;
   if (!c) return null;
