@@ -142,3 +142,52 @@ export async function buildMemberStatementPdf(welfare, member, balances, ledger)
 }
 
 export default { buildWelfareStatementPdf, buildMemberStatementPdf };
+
+// Member-loan statement: loan terms + installment schedule + repayment postings.
+export async function buildMemberLoanStatementPdf(welfare, loan, member, schedule, ledger) {
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
+  const done = streamToBuffer(doc);
+  header(doc, welfare.name, `Loan statement — ${loan.loan_code}`);
+
+  doc.fontSize(10).fillColor("#000");
+  doc.text(`Member: ${member.first_name} ${member.last_name} (${member.member_no || "—"})`);
+  doc.text(`Principal: ${money(loan.principal)}   Rate: ${Number(loan.interest_rate)}% ${loan.interest_method}   Term: ${loan.duration_months} mo`);
+  doc.text(`Total repayable: ${money(loan.total_amount_due)}   Paid: ${money(loan.amount_paid)}   Balance: ${money(Number(loan.total_amount_due) - Number(loan.amount_paid))}`);
+  doc.text(`Status: ${loan.status}${loan.disbursed_at ? `   Disbursed: ${dt(loan.disbursed_at)}` : ""}`);
+  doc.moveDown(0.7);
+
+  if (schedule?.length) {
+    doc.fontSize(11).fillColor(ACCENT).text("Schedule", { underline: true });
+    doc.moveDown(0.3);
+    const cols = [{ x: 50, w: 30 }, { x: 85, w: 80 }, { x: 170, w: 90, align: "right" }, { x: 265, w: 90, align: "right" }, { x: 360, w: 90, align: "right" }, { x: 455, w: 90 }];
+    row(doc, [{ text: "#", x: cols[0].x, w: cols[0].w }, { text: "Due", x: cols[1].x, w: cols[1].w }, { text: "Amount", x: cols[2].x, w: cols[2].w, align: "right" }, { text: "Interest", x: cols[3].x, w: cols[3].w, align: "right" }, { text: "Paid", x: cols[4].x, w: cols[4].w, align: "right" }, { text: "Status", x: cols[5].x, w: cols[5].w }], doc.y, { color: "#888" });
+    doc.moveDown(0.6);
+    for (const s of schedule) {
+      if (doc.y > 770) doc.addPage();
+      const y = doc.y;
+      row(doc, [
+        { text: String(s.payment_number), x: cols[0].x, w: cols[0].w },
+        { text: dt(s.due_date), x: cols[1].x, w: cols[1].w },
+        { text: money(s.amount_due), x: cols[2].x, w: cols[2].w, align: "right" },
+        { text: money(s.interest_portion), x: cols[3].x, w: cols[3].w, align: "right" },
+        { text: money(s.amount_paid), x: cols[4].x, w: cols[4].w, align: "right" },
+        { text: s.status, x: cols[5].x, w: cols[5].w },
+      ], y);
+      doc.moveDown(0.6);
+    }
+    doc.moveDown(0.5);
+  }
+
+  if (ledger?.length) {
+    doc.fontSize(11).fillColor(ACCENT).text("Postings", { underline: true });
+    doc.moveDown(0.3);
+    doc.fontSize(9).fillColor("#000");
+    for (const t of ledger) {
+      if (doc.y > 780) doc.addPage();
+      doc.text(`${dt(t.txn_date)}  ${String(t.type).replace(/_/g, " ")}  ${t.direction < 0 ? "−" : "+"}${money(t.amount)}`);
+    }
+  }
+
+  doc.end();
+  return { buffer: await done, filename: `${loan.loan_code}_statement_${new Date().toISOString().split("T")[0]}.pdf` };
+}

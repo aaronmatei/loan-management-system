@@ -3,6 +3,7 @@ import { Plus, X, AlertTriangle, HandCoins, ChevronRight, CheckCircle2 } from "l
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 import { computeLoanTotals } from "../utils/loanMath";
+import { downloadFile } from "../utils/bulkExport";
 
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -92,7 +93,7 @@ export default function WelfareLoansPanel({ welfareId }) {
       </div>
 
       {creating && <ApplyModal welfareId={welfareId} members={members} products={products} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
-      {selectedId && <LoanDetailModal welfareId={welfareId} loanId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} />}
+      {selectedId && <LoanDetailModal welfareId={welfareId} loanId={selectedId} members={members} onClose={() => setSelectedId(null)} onChanged={load} />}
     </div>
   );
 }
@@ -169,7 +170,7 @@ function ApplyModal({ welfareId, members, products, onClose, onSaved }) {
   );
 }
 
-function LoanDetailModal({ welfareId, loanId, onClose, onChanged }) {
+function LoanDetailModal({ welfareId, loanId, members = [], onClose, onChanged }) {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -179,6 +180,20 @@ function LoanDetailModal({ welfareId, loanId, onClose, onChanged }) {
     try { setData((await api.get(`/welfares/${welfareId}/loans/${loanId}`)).data.data); } catch { /* */ }
   };
   useEffect(() => { load(); }, [welfareId, loanId]); // eslint-disable-line
+  const base = `/welfares/${welfareId}/loans/${loanId}`;
+  const addCollateral = async () => {
+    const description = window.prompt("Collateral description (e.g. TV, logbook):"); if (!description) return;
+    const appraised_value = window.prompt("Appraised value (KES):"); if (!appraised_value) return;
+    try { await api.post(`${base}/collateral`, { description, appraised_value }); await load(); } catch (e) { setError(e.response?.data?.error || "Failed."); }
+  };
+  const setCollStatus = async (cid, status) => { try { await api.put(`${base}/collateral/${cid}`, { status }); await load(); } catch (e) { setError(e.response?.data?.error || "Failed."); } };
+  const removeColl = async (cid) => { try { await api.delete(`${base}/collateral/${cid}`); await load(); } catch (e) { setError(e.response?.data?.error || "Failed."); } };
+  const addGuarantor = async () => {
+    const choices = members.filter((m) => m.id !== data?.loan?.member_id).map((m) => `${m.id}: ${m.first_name} ${m.last_name}`).join("\n");
+    const pick = window.prompt(`Guarantor member id:\n${choices}`); if (!pick) return;
+    try { await api.post(`${base}/guarantors`, { guarantor_member_id: parseInt(pick, 10) }); await load(); } catch (e) { setError(e.response?.data?.error || "Failed."); }
+  };
+  const removeGuarantor = async (gid) => { try { await api.delete(`${base}/guarantors/${gid}`); await load(); } catch (e) { setError(e.response?.data?.error || "Failed."); } };
 
   const act = async (action, body = {}) => {
     setBusy(action); setError("");
@@ -255,6 +270,37 @@ function LoanDetailModal({ welfareId, loanId, onClose, onChanged }) {
               </div>
             </div>
           )}
+
+          <PermissionGate role={["admin", "manager", "loan_officer"]}>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-1"><p className="text-sm font-semibold text-slate-700">Collateral</p><button onClick={addCollateral} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Add</button></div>
+                {(!data.collateral || data.collateral.length === 0) ? <p className="text-xs text-slate-400">None.</p> : data.collateral.map((c) => (
+                  <div key={c.id} className="text-xs text-slate-600 flex items-center justify-between gap-2 py-0.5">
+                    <span className="truncate">{c.description} · {money(c.appraised_value)} <span className="text-slate-400">{c.status}</span></span>
+                    <span className="flex gap-1 shrink-0">
+                      {c.status === "held" && <button onClick={() => setCollStatus(c.id, "forfeited")} className="text-rose-600 hover:underline">forfeit</button>}
+                      {c.status === "held" && <button onClick={() => setCollStatus(c.id, "returned")} className="text-emerald-600 hover:underline">return</button>}
+                      <button onClick={() => removeColl(c.id)} className="text-slate-400 hover:text-slate-700">✕</button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1"><p className="text-sm font-semibold text-slate-700">Guarantors</p><button onClick={addGuarantor} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Add</button></div>
+                {(!data.guarantors || data.guarantors.length === 0) ? <p className="text-xs text-slate-400">None.</p> : data.guarantors.map((g) => (
+                  <div key={g.id} className="text-xs text-slate-600 flex items-center justify-between gap-2 py-0.5">
+                    <span className="truncate">{g.guarantor_name}{g.guaranteed_amount ? ` · ${money(g.guaranteed_amount)}` : ""}</span>
+                    <button onClick={() => removeGuarantor(g.id)} className="text-slate-400 hover:text-slate-700 shrink-0">✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PermissionGate>
+
+          <div className="pt-1">
+            <button onClick={() => downloadFile(`/welfares/${welfareId}/loans/${loanId}/statement.pdf`, `${loan.loan_code}-statement.pdf`)} className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">Download statement PDF</button>
+          </div>
         </div>
       )}
     </Shell>

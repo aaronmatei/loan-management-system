@@ -14,6 +14,7 @@ import { logAudit } from "../services/auditService.js";
 import { validateAgainstPackage } from "../utils/loanMath.js";
 import { createMemberLoanApplication, disburseMemberLoan, recordMemberLoanPayment } from "../services/memberLoanService.js";
 import { poolBalance } from "../services/welfarePoolService.js";
+import { buildMemberLoanStatementPdf } from "../utils/welfarePdf.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -226,7 +227,13 @@ router.get("/:loanId", async (req, res) => {
       `SELECT id, type, amount, direction, balance_after, txn_date, description, created_at
          FROM member_pool_transactions WHERE member_loan_id=$1 ORDER BY id`, [loan.id],
     )).rows;
-    res.json({ success: true, data: { loan: { ...loan, balance: Math.max(Number(loan.total_amount_due) - Number(loan.amount_paid), 0) }, member, schedule, ledger } });
+    const collateral = (await query(`SELECT * FROM member_loan_collateral WHERE member_loan_id=$1 ORDER BY id`, [loan.id])).rows;
+    const guarantors = (await query(
+      `SELECT g.*, m.first_name AS gm_first, m.last_name AS gm_last
+         FROM member_loan_guarantors g LEFT JOIN members m ON m.id=g.guarantor_member_id
+        WHERE g.member_loan_id=$1 ORDER BY g.id`, [loan.id],
+    )).rows;
+    res.json({ success: true, data: { loan: { ...loan, balance: Math.max(Number(loan.total_amount_due) - Number(loan.amount_paid), 0) }, member, schedule, ledger, collateral, guarantors } });
   } catch (e) {
     logger.error("member loan detail error:", e);
     res.status(500).json({ error: "Failed to load loan" });
@@ -353,6 +360,113 @@ router.post("/:loanId/payments", authorize("admin", "manager", "loan_officer"), 
     logger.error("member loan payment error:", e);
     res.status(500).json({ error: "Failed to record payment" });
   }
+});
+
+// ── Collateral ────────────────────────────────────────────────
+router.get("/:loanId/collateral", async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const r = await query(`SELECT * FROM member_loan_collateral WHERE member_loan_id=$1 ORDER BY id`, [loan.id]);
+    res.json({ success: true, data: r.rows });
+  } catch (e) { logger.error("collateral list error:", e); res.status(500).json({ error: "Failed to load collateral" }); }
+});
+router.post("/:loanId/collateral", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const b = req.body || {};
+    if (!b.description || !String(b.description).trim()) return res.status(400).json({ error: "Describe the collateral" });
+    if (!(parseFloat(b.appraised_value) > 0)) return res.status(400).json({ error: "Enter an appraised value" });
+    const r = await query(
+      `INSERT INTO member_loan_collateral (tenant_id, member_loan_id, category, description, serial_number, condition, appraised_value, ltv_percent, storage_location, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [req.welfare.tenant_id, loan.id, b.category || null, String(b.description).trim(), b.serial_number || null, b.condition || null, parseFloat(b.appraised_value), b.ltv_percent != null && b.ltv_percent !== "" ? parseFloat(b.ltv_percent) : 50, b.storage_location || null, req.user.id],
+    );
+    await logAudit({ user: req.user, action: "member_loan_collateral_added", entityType: "member_loan", entityId: loan.id, entityCode: loan.loan_code, description: `Collateral on ${loan.loan_code}: ${b.description}`, req });
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) { logger.error("collateral create error:", e); res.status(500).json({ error: "Failed to add collateral" }); }
+});
+router.put("/:loanId/collateral/:cid", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const status = req.body?.status;
+    if (!["held", "returned", "forfeited", "sold"].includes(status)) return res.status(400).json({ error: "Invalid status" });
+    const stamp = status === "returned" ? "returned_at=NOW()," : status === "forfeited" ? "forfeited_at=NOW()," : "";
+    const r = await query(
+      `UPDATE member_loan_collateral SET status=$3, ${stamp} sale_amount=COALESCE($4,sale_amount), sale_date=COALESCE($5::date,sale_date), updated_at=NOW()
+        WHERE id=$1 AND member_loan_id=$2 RETURNING *`,
+      [req.params.cid, loan.id, status, req.body?.sale_amount != null && req.body.sale_amount !== "" ? parseFloat(req.body.sale_amount) : null, req.body?.sale_date || null],
+    );
+    if (!r.rows.length) return res.status(404).json({ error: "Collateral not found" });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) { logger.error("collateral update error:", e); res.status(500).json({ error: "Failed to update collateral" }); }
+});
+router.delete("/:loanId/collateral/:cid", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    await query(`DELETE FROM member_loan_collateral WHERE id=$1 AND member_loan_id=$2`, [req.params.cid, loan.id]);
+    res.json({ success: true });
+  } catch (e) { logger.error("collateral delete error:", e); res.status(500).json({ error: "Failed to remove collateral" }); }
+});
+
+// ── Guarantors (often other members) ──────────────────────────
+router.get("/:loanId/guarantors", async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const r = await query(
+      `SELECT g.*, m.first_name AS gm_first, m.last_name AS gm_last, m.member_no AS gm_no
+         FROM member_loan_guarantors g LEFT JOIN members m ON m.id=g.guarantor_member_id
+        WHERE g.member_loan_id=$1 ORDER BY g.id`, [loan.id]);
+    res.json({ success: true, data: r.rows });
+  } catch (e) { logger.error("guarantors list error:", e); res.status(500).json({ error: "Failed to load guarantors" }); }
+});
+router.post("/:loanId/guarantors", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const b = req.body || {};
+    let memberId = null, name = b.guarantor_name?.trim() || null, phone = b.guarantor_phone || null, idn = b.guarantor_id_number || null;
+    if (b.guarantor_member_id) {
+      const gm = (await query(`SELECT * FROM members WHERE id=$1 AND welfare_id=$2`, [b.guarantor_member_id, req.welfare.id])).rows[0];
+      if (!gm) return res.status(400).json({ error: "Guarantor member not found" });
+      memberId = gm.id; name = name || `${gm.first_name} ${gm.last_name}`; phone = phone || gm.phone_number;
+    }
+    if (!memberId && !name) return res.status(400).json({ error: "Pick a member or enter a guarantor name" });
+    const r = await query(
+      `INSERT INTO member_loan_guarantors (tenant_id, member_loan_id, guarantor_member_id, guarantor_name, guarantor_phone, guarantor_id_number, guaranteed_amount, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.welfare.tenant_id, loan.id, memberId, name, phone, idn, b.guaranteed_amount != null && b.guaranteed_amount !== "" ? parseFloat(b.guaranteed_amount) : null, req.user.id],
+    );
+    await logAudit({ user: req.user, action: "member_loan_guarantor_added", entityType: "member_loan", entityId: loan.id, entityCode: loan.loan_code, description: `Guarantor on ${loan.loan_code}: ${name}`, req });
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) { logger.error("guarantor create error:", e); res.status(500).json({ error: "Failed to add guarantor" }); }
+});
+router.delete("/:loanId/guarantors/:gid", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    await query(`DELETE FROM member_loan_guarantors WHERE id=$1 AND member_loan_id=$2`, [req.params.gid, loan.id]);
+    res.json({ success: true });
+  } catch (e) { logger.error("guarantor delete error:", e); res.status(500).json({ error: "Failed to remove guarantor" }); }
+});
+
+// ── Statement PDF ─────────────────────────────────────────────
+router.get("/:loanId/statement.pdf", async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const member = (await query(`SELECT first_name, last_name, member_no, phone_number FROM members WHERE id=$1`, [loan.member_id])).rows[0];
+    const schedule = (await query(`SELECT * FROM member_loan_schedules WHERE member_loan_id=$1 ORDER BY payment_number`, [loan.id])).rows;
+    const ledger = (await query(`SELECT type, amount, direction, txn_date FROM member_pool_transactions WHERE member_loan_id=$1 ORDER BY id`, [loan.id])).rows;
+    const { buffer, filename } = await buildMemberLoanStatementPdf(req.welfare, loan, member, schedule, ledger);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (e) { logger.error("loan statement pdf error:", e); res.status(500).json({ error: "Failed to build statement" }); }
 });
 
 export default router;
