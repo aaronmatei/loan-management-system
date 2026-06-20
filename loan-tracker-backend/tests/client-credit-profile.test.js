@@ -32,4 +32,35 @@ describe("GET /api/clients/:id/credit-profile", () => {
     expect(loans[0].id).toBe(active.id);
     expect(summary.total_loans_count).toBe(1);
   });
+
+  it("treats a defaulted loan as a WARNING, not a hard blocker (lender can still proceed)", async () => {
+    const t = await createTenant();
+    const admin = await createUser(t.id, { role: "admin" });
+    const client = await createClient(t.id);
+    await createLoan(t.id, client.id, { status: "defaulted" });
+
+    const res = await request(app)
+      .get(`/api/clients/${client.id}/credit-profile`)
+      .set("Authorization", auth(admin));
+    const e = res.body.data.eligibility;
+    expect(e.can_borrow).toBe(true); // not blocked
+    expect(e.warnings.some((w) => /defaulted/i.test(w))).toBe(true);
+    expect(e.blockers).toHaveLength(0);
+  });
+
+  it("keeps the 3-active-loan cap a hard blocker", async () => {
+    const t = await createTenant();
+    const admin = await createUser(t.id, { role: "admin" });
+    const client = await createClient(t.id);
+    await createLoan(t.id, client.id, { status: "active" });
+    await createLoan(t.id, client.id, { status: "active" });
+    await createLoan(t.id, client.id, { status: "active" });
+
+    const res = await request(app)
+      .get(`/api/clients/${client.id}/credit-profile`)
+      .set("Authorization", auth(admin));
+    const e = res.body.data.eligibility;
+    expect(e.can_borrow).toBe(false);
+    expect(e.blockers.some((b) => /3 active/i.test(b))).toBe(true);
+  });
 });

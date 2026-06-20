@@ -55,15 +55,18 @@ export function getRiskLevel(score, hasDefault, hasOverdue) {
 }
 
 export function checkEligibility(metrics, creditScore) {
+  // Hard blockers stop lending outright. Soft warnings (dues / defaults) are
+  // surfaced to the lender, who can still choose to proceed.
   const blockers = [];
+  const warnings = [];
 
   if (metrics.defaulted_loans_count > 0) {
-    blockers.push("Has defaulted loans - must resolve first");
+    warnings.push("Has a defaulted loan");
   }
 
   if (metrics.current_overdue_count > 0) {
-    blockers.push(
-      `Has ${metrics.current_overdue_count} overdue payment(s) - must clear first`,
+    warnings.push(
+      `Has ${metrics.current_overdue_count} overdue payment(s)`,
     );
   }
 
@@ -97,5 +100,6 @@ export function checkEligibility(metrics, creditScore) {
     max_recommended_amount: Math.round(maxRecommended),
     recommended_interest_rate: recommendedRate,
     blockers,
+    warnings,
   };
 }

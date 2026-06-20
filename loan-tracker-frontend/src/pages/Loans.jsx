@@ -937,9 +937,11 @@ function Loans() {
             {clientCreditProfile && (
               <div
                 className={`rounded-lg p-4 ${
-                  clientCreditProfile.eligibility.can_borrow
-                    ? "bg-green-50 border border-green-200"
-                    : "bg-red-50 border border-red-200"
+                  !clientCreditProfile.eligibility.can_borrow
+                    ? "bg-red-50 border border-red-200"
+                    : clientCreditProfile.eligibility.warnings?.length
+                      ? "bg-amber-50 border border-amber-200"
+                      : "bg-green-50 border border-green-200"
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -985,6 +987,23 @@ function Loans() {
                         </ul>
                       </div>
                     )}
+
+                    {clientCreditProfile.eligibility.can_borrow &&
+                      clientCreditProfile.eligibility.warnings?.length > 0 && (
+                        <div className="mt-2">
+                          <p className="font-semibold text-amber-700 flex items-center gap-1">
+                            <AlertTriangle size={16} className="text-amber-600" /> Heads up — lend with care:
+                          </p>
+                          <ul className="list-disc list-inside text-sm text-amber-700 mt-1">
+                            {clientCreditProfile.eligibility.warnings.map((w, i) => (
+                              <li key={i}>{w}</li>
+                            ))}
+                          </ul>
+                          <p className="text-xs text-amber-600 mt-1">
+                            You can still proceed — you'll confirm before the loan is created.
+                          </p>
+                        </div>
+                      )}
                   </div>
 
                   {clientCreditProfile.eligibility.can_borrow && (
