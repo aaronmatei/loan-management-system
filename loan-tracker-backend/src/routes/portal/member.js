@@ -156,18 +156,23 @@ router.get("/loans/:loanId", async (req, res) => {
       await query(
         `SELECT id, loan_code, principal, interest_rate, duration_months, total_interest,
                 total_amount_due, amount_paid, (total_amount_due - amount_paid) AS balance,
-                status, disbursed_at, due_date, notes
+                status, disbursed_at, due_date, notes, interest_method, start_date, end_date
            FROM member_loans WHERE id = $1 AND member_id = $2`,
         [req.params.loanId, req.member.id],
       )
     ).rows[0];
     if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const schedule = (await query(
+      `SELECT payment_number, due_date, amount_due, amount_paid, interest_portion, principal_portion, status
+         FROM member_loan_schedules WHERE member_loan_id = $1 ORDER BY payment_number`,
+      [loan.id],
+    )).rows;
     const payments = await query(
-      `SELECT amount, txn_date, description FROM member_pool_transactions
-        WHERE member_loan_id = $1 AND type = 'loan_repayment' ORDER BY id DESC`,
+      `SELECT amount, type, txn_date, description FROM member_pool_transactions
+        WHERE member_loan_id = $1 AND type IN ('loan_repayment','loan_interest','loan_penalty') ORDER BY id DESC`,
       [loan.id],
     );
-    res.json({ success: true, data: { loan, payments: payments.rows } });
+    res.json({ success: true, data: { loan, schedule, payments: payments.rows } });
   } catch (e) {
     logger.error("member loan detail error:", e);
     res.status(500).json({ error: "Failed to load loan" });
@@ -363,20 +368,43 @@ router.post("/loan-requests", async (req, res) => {
     const principal = parseFloat(req.body?.principal);
     if (!(principal > 0)) return res.status(400).json({ error: "Enter an amount greater than 0" });
     const months = parseInt(req.body?.duration_months, 10) || 1;
-    const rate =
-      req.body?.interest_rate != null && req.body.interest_rate !== ""
-        ? parseFloat(req.body.interest_rate)
-        : null;
+    // A product (optional) locks the rate/method + range-validates.
+    let productId = null, rate = null, method = "flat";
+    if (req.body?.product_id) {
+      const p = (await query(`SELECT * FROM member_loan_products WHERE id=$1 AND welfare_id=$2 AND active`, [req.body.product_id, req.welfareId])).rows[0];
+      if (!p) return res.status(400).json({ error: "Loan product not found" });
+      if (principal < parseFloat(p.min_amount) || principal > parseFloat(p.max_amount)) return res.status(400).json({ error: `Amount must be between KES ${Number(p.min_amount).toLocaleString()} and KES ${Number(p.max_amount).toLocaleString()}` });
+      if (months < p.min_duration_months || months > p.max_duration_months) return res.status(400).json({ error: `Duration must be ${p.min_duration_months}–${p.max_duration_months} months` });
+      productId = p.id; rate = parseFloat(p.annual_interest_rate); method = p.interest_method;
+    } else if (req.body?.interest_rate != null && req.body.interest_rate !== "") {
+      rate = parseFloat(req.body.interest_rate);
+    }
     const r = await query(
       `INSERT INTO member_loan_requests
-         (tenant_id, welfare_id, member_id, principal, duration_months, interest_rate, purpose, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING *`,
-      [req.member.tenant_id, req.welfareId, req.member.id, principal, months, rate, req.body?.purpose || null],
+         (tenant_id, welfare_id, member_id, principal, duration_months, interest_rate, product_id, interest_method, purpose, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending') RETURNING *`,
+      [req.member.tenant_id, req.welfareId, req.member.id, principal, months, rate, productId, method, req.body?.purpose || null],
     );
     res.status(201).json({ success: true, data: r.rows[0] });
   } catch (e) {
     logger.error("member loan-request error:", e);
     res.status(500).json({ error: "Failed to submit request" });
+  }
+});
+
+// GET /loan-products — active products the member can apply on.
+router.get("/loan-products", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT id, name, annual_interest_rate, interest_method, processing_fee_rate,
+              min_amount, max_amount, min_duration_months, max_duration_months
+         FROM member_loan_products WHERE welfare_id = $1 AND active ORDER BY name`,
+      [req.welfareId],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("member loan-products error:", e);
+    res.status(500).json({ error: "Failed to load loan products" });
   }
 });
 

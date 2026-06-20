@@ -9,6 +9,7 @@ import {
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
 import Spinner from "../../../components/Spinner";
+import { computeLoanTotals } from "../../../utils/loanMath";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -325,6 +326,7 @@ export function MemberLoans() {
   const { data, loading, error, reload } = useFetch("/welfare/member/loans");
   const [modal, setModal] = useState(null); // 'loan' | 'event' | null
   const [reqKey, setReqKey] = useState(0);
+  const [openLoan, setOpenLoan] = useState(null);
   const today = new Date().toISOString().slice(0, 10);
   return (
     <Shell title="Requests" icon={ClipboardList}>
@@ -337,17 +339,7 @@ export function MemberLoans() {
         </button>
       </div>
       {modal === "loan" && (
-        <RequestModal
-          title="Request a chama loan"
-          url="/welfare/member/loan-requests"
-          fields={[
-            { name: "principal", label: "Amount (KES)", type: "number", placeholder: "e.g. 20000" },
-            { name: "duration_months", label: "Duration (months)", type: "number", placeholder: "e.g. 6" },
-            { name: "purpose", label: "Purpose", placeholder: "What's it for?" },
-          ]}
-          onClose={() => setModal(null)}
-          onDone={() => setReqKey((k) => k + 1)}
-        />
+        <LoanApplyModal onClose={() => setModal(null)} onDone={() => setReqKey((k) => k + 1)} />
       )}
       {modal === "event" && (
         <RequestModal
@@ -368,14 +360,14 @@ export function MemberLoans() {
           rows={data}
           empty="You have no chama loans."
           render={(l) => (
-            <tr key={l.id}>
+            <tr key={l.id} onClick={() => setOpenLoan(l.id)} className="cursor-pointer hover:bg-slate-50">
               <td className="px-4 py-3 font-mono text-slate-700">{l.loan_code}</td>
               <td className="px-4 py-3">{KES(l.principal)}</td>
               <td className="px-4 py-3">{KES(l.total_amount_due)}</td>
               <td className="px-4 py-3">{KES(l.amount_paid)}</td>
               <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
               <td className="px-4 py-3"><Badge value={l.status} /></td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                 {l.status === "active" && Number(l.balance) > 0 && (
                   <PayButton kind="loan" targetId={l.id} onDone={reload} />
                 )}
@@ -384,6 +376,7 @@ export function MemberLoans() {
           )}
         />
       )}
+      {openLoan && <LoanDetailModal loanId={openLoan} onClose={() => setOpenLoan(null)} />}
       <RequestsList
         key={`loan-${reqKey}`}
         title="Loan requests"
@@ -405,6 +398,111 @@ export function MemberLoans() {
         ]}
       />
     </Shell>
+  );
+}
+
+// Apply for a chama loan — optional product (locks rate/method + range) with a
+// live repayment-schedule preview, else a plain amount/duration request.
+function LoanApplyModal({ onClose, onDone }) {
+  const { data: products } = useFetch("/welfare/member/loan-products");
+  const [form, setForm] = useState({ product_id: "", principal: "", duration_months: "", purpose: "" });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
+  const product = (products || []).find((p) => String(p.id) === String(form.product_id));
+
+  const preview = (() => {
+    const principal = Number(form.principal), months = Number(form.duration_months);
+    if (!product || !(principal > 0) || !(months > 0)) return null;
+    try { return computeLoanTotals({ principal, annualRatePct: Number(product.annual_interest_rate), months, method: product.interest_method }); } catch { return null; }
+  })();
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr("");
+    try {
+      await portalApi.post("/welfare/member/loan-requests", { product_id: form.product_id || undefined, principal: form.principal, duration_months: form.duration_months, purpose: form.purpose });
+      onDone(); onClose();
+    } catch (e2) { setErr(e2.response?.data?.error || "Failed to submit"); setBusy(false); }
+  };
+  const fld = "w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-900">Request a chama loan</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
+        {err && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm mb-3">{err}</div>}
+        <form onSubmit={submit} className="space-y-3">
+          {(products || []).length > 0 && (
+            <div><label className="block text-sm font-semibold text-slate-700 mb-1">Loan product</label>
+              <select value={form.product_id} onChange={set("product_id")} className={fld}>
+                <option value="">No product (standard request)</option>
+                {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% {p.interest_method}</option>)}
+              </select>
+              {product && <p className="text-xs text-slate-400 mt-1">KES {Number(product.min_amount).toLocaleString()}–{Number(product.max_amount).toLocaleString()} · {product.min_duration_months}–{product.max_duration_months} mo</p>}
+            </div>
+          )}
+          <div><label className="block text-sm font-semibold text-slate-700 mb-1">Amount (KES)</label><input type="number" value={form.principal} onChange={set("principal")} placeholder="e.g. 20000" className={fld} /></div>
+          <div><label className="block text-sm font-semibold text-slate-700 mb-1">Duration (months)</label><input type="number" value={form.duration_months} onChange={set("duration_months")} placeholder="e.g. 6" className={fld} /></div>
+          <div><label className="block text-sm font-semibold text-slate-700 mb-1">Purpose</label><input value={form.purpose} onChange={set("purpose")} placeholder="What's it for?" className={fld} /></div>
+          {preview && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-center text-sm">
+              <div><p className="text-xs text-slate-500">Interest</p><p className="font-bold text-slate-800">{KES(preview.totalInterest)}</p></div>
+              <div><p className="text-xs text-slate-500">Total</p><p className="font-bold text-slate-800">{KES(preview.totalAmountDue)}</p></div>
+              <div><p className="text-xs text-slate-500">~/mo</p><p className="font-bold text-slate-800">{KES(preview.monthlyPayment)}</p></div>
+            </div>
+          )}
+          <button type="submit" disabled={busy} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg disabled:opacity-50">{busy ? "Submitting…" : "Submit request"}</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// A member's loan detail — the installment schedule + repayment postings.
+function LoanDetailModal({ loanId, onClose }) {
+  const { data, loading, error } = useFetch(`/welfare/member/loans/${loanId}`);
+  const loan = data?.loan;
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-10 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3"><h3 className="text-lg font-bold text-slate-900">{loan ? loan.loan_code : "Loan"}</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
+        {loading || error || !data ? <Loading error={error} /> : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
+              <span><span className="text-slate-400">Status</span> <Badge value={loan.status} /></span>
+              <span><span className="text-slate-400">Principal</span> {KES(loan.principal)}</span>
+              <span><span className="text-slate-400">Rate</span> {Number(loan.interest_rate)}% {loan.interest_method}</span>
+              <span><span className="text-slate-400">Balance</span> {KES(loan.balance)}</span>
+            </div>
+            {data.schedule?.length > 0 && (
+              <div className="overflow-x-auto">
+                <p className="text-sm font-semibold text-slate-700 mb-1">Repayment schedule</p>
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 text-slate-500 uppercase"><tr><th className="text-left px-2 py-1">#</th><th className="text-left px-2 py-1">Due</th><th className="text-right px-2 py-1">Amount</th><th className="text-right px-2 py-1">Paid</th><th className="text-left px-2 py-1">Status</th></tr></thead>
+                  <tbody>
+                    {data.schedule.map((s) => (
+                      <tr key={s.payment_number} className="border-t border-slate-100">
+                        <td className="px-2 py-1">{s.payment_number}</td><td className="px-2 py-1">{fmt(s.due_date)}</td>
+                        <td className="px-2 py-1 text-right">{KES(s.amount_due)}</td><td className="px-2 py-1 text-right">{KES(s.amount_paid)}</td>
+                        <td className="px-2 py-1"><Badge value={s.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {data.payments?.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">Payments</p>
+                <div className="space-y-1">
+                  {data.payments.map((p, i) => <div key={i} className="flex justify-between text-xs text-slate-600"><span>{fmt(p.txn_date)} · {p.type.replace(/_/g, " ")}</span><span className="text-emerald-700">{KES(p.amount)}</span></div>)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

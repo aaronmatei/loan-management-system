@@ -13,6 +13,7 @@ import WelfareExpensesPanel from "../../components/WelfareExpensesPanel";
 import WelfareMpesaPanel from "../../components/WelfareMpesaPanel";
 import WelfareSmsPanel from "../../components/WelfareSmsPanel";
 import MemberLoanProductsPanel from "../../components/MemberLoanProductsPanel";
+import WelfareLoansPanel from "../../components/WelfareLoansPanel";
 import PermissionGate from "../../components/PermissionGate";
 
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -48,6 +49,10 @@ export function WelfareEventsPage() {
   // Benefit contributions (Quarterly, emergencies) — collect into a pool that
   // pays out to a member beneficiary.
   return <Page title="Events & Emergencies"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" /></Page>;
+}
+export function WelfareLoansPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Loans"><WelfareLoansPanel welfareId={welfareId} /></Page>;
 }
 export function WelfarePenaltiesPage() {
   const { welfareId } = useWelfare();

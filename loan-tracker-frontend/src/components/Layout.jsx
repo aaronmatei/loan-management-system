@@ -155,6 +155,7 @@ const WELFARE_STANDALONE = [
   { path: "/welfare/members", label: "Members", icon: Users, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/contributions", label: "Contributions", icon: Coins, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/events", label: "Events & Emergencies", icon: HeartHandshake, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/loans", label: "Loans", icon: HandCoins, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/penalties", label: "Penalties", icon: AlertTriangle, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view" },
