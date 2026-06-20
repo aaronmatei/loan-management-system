@@ -3396,7 +3396,37 @@ CREATE INDEX idx_member_pool_member ON public.member_pool_transactions(member_id
 CREATE INDEX idx_member_pool_welfare ON public.member_pool_transactions(welfare_id, id);
 
 --
--- Member loans funded by the member pool (migration 056).
+-- Member loan products (migration 089).
+--
+
+CREATE TABLE public.member_loan_products (
+  id                   serial PRIMARY KEY,
+  tenant_id            integer NOT NULL,
+  welfare_id           integer NOT NULL,
+  name                 varchar(80) NOT NULL,
+  description          text,
+  annual_interest_rate numeric(6,2) NOT NULL CHECK (annual_interest_rate >= 0),
+  interest_method      varchar(20) NOT NULL DEFAULT 'flat'
+                         CHECK (interest_method IN ('flat', 'reducing')),
+  processing_fee_rate  numeric(5,2) NOT NULL DEFAULT 0
+                         CHECK (processing_fee_rate >= 0 AND processing_fee_rate <= 100),
+  min_amount           numeric(15,2) NOT NULL CHECK (min_amount > 0),
+  max_amount           numeric(15,2) NOT NULL CHECK (max_amount >= min_amount),
+  min_duration_months  integer NOT NULL CHECK (min_duration_months > 0),
+  max_duration_months  integer NOT NULL CHECK (max_duration_months >= min_duration_months),
+  late_fee             numeric(14,2) NOT NULL DEFAULT 0 CHECK (late_fee >= 0),
+  penalty_rate         numeric(6,3) NOT NULL DEFAULT 0 CHECK (penalty_rate >= 0),
+  active               boolean NOT NULL DEFAULT true,
+  created_by           integer,
+  created_at           timestamp NOT NULL DEFAULT NOW(),
+  updated_at           timestamp NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX member_loan_products_welfare_name_active_unique
+  ON public.member_loan_products (welfare_id, lower((name)::text)) WHERE active;
+CREATE INDEX idx_member_loan_products_welfare ON public.member_loan_products (welfare_id);
+
+--
+-- Member loans funded by the member pool (migration 056; parity cols 090).
 --
 
 CREATE TABLE public.member_loans (
@@ -3416,10 +3446,110 @@ CREATE TABLE public.member_loans (
   notes            text,
   created_by       integer,
   created_at       timestamp NOT NULL DEFAULT NOW(),
-  updated_at       timestamp NOT NULL DEFAULT NOW()
+  updated_at       timestamp NOT NULL DEFAULT NOW(),
+  -- migration 090 (lender parity)
+  product_id          integer REFERENCES public.member_loan_products(id) ON DELETE SET NULL,
+  welfare_id          integer,
+  interest_method     varchar(20) NOT NULL DEFAULT 'flat',
+  processing_fee_rate numeric(5,2) NOT NULL DEFAULT 0,
+  processing_fee      numeric(14,2) NOT NULL DEFAULT 0,
+  net_disbursed       numeric(14,2),
+  late_fee            numeric(14,2) NOT NULL DEFAULT 0,
+  penalty_rate        numeric(6,3) NOT NULL DEFAULT 0,
+  purpose             text,
+  start_date          date,
+  end_date            date,
+  reviewed_by         integer,
+  reviewed_at         timestamp,
+  approved_by         integer,
+  approved_at         timestamp,
+  rejected_by         integer,
+  rejected_at         timestamp,
+  rejection_reason    text,
+  disbursed_by        integer,
+  counter_principal   numeric(14,2),
+  counter_rate        numeric(6,3),
+  counter_duration_months integer,
+  counter_notes       text
 );
 CREATE INDEX idx_member_loans_member ON public.member_loans(member_id);
 CREATE INDEX idx_member_loans_tenant ON public.member_loans(tenant_id, status);
+CREATE INDEX idx_member_loans_welfare ON public.member_loans(welfare_id, status);
+
+--
+-- Member loan installment schedules (migration 091).
+--
+
+CREATE TABLE public.member_loan_schedules (
+  id                       serial PRIMARY KEY,
+  tenant_id                integer NOT NULL,
+  member_loan_id           integer NOT NULL REFERENCES public.member_loans(id) ON DELETE CASCADE,
+  payment_number           integer NOT NULL,
+  due_date                 date NOT NULL,
+  amount_due               numeric(14,2) NOT NULL,
+  amount_paid              numeric(14,2) NOT NULL DEFAULT 0,
+  interest_portion         numeric(14,2) NOT NULL DEFAULT 0,
+  principal_portion        numeric(14,2) NOT NULL DEFAULT 0,
+  balance_after            numeric(14,2) NOT NULL DEFAULT 0,
+  interest_paid            numeric(14,2) NOT NULL DEFAULT 0,
+  penalty_paid             numeric(14,2) NOT NULL DEFAULT 0,
+  late_fee_charged         numeric(14,2) NOT NULL DEFAULT 0,
+  penalty_interest_charged numeric(14,2) NOT NULL DEFAULT 0,
+  actual_payment_date      date,
+  days_late                integer NOT NULL DEFAULT 0,
+  status                   varchar(20) NOT NULL DEFAULT 'pending',
+  created_at               timestamp NOT NULL DEFAULT NOW(),
+  updated_at               timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (member_loan_id, payment_number)
+);
+CREATE INDEX idx_member_loan_schedules_loan ON public.member_loan_schedules(member_loan_id);
+
+--
+-- Member loan collateral (migration 092).
+--
+
+CREATE TABLE public.member_loan_collateral (
+  id               serial PRIMARY KEY,
+  tenant_id        integer NOT NULL,
+  member_loan_id   integer NOT NULL REFERENCES public.member_loans(id) ON DELETE CASCADE,
+  category         varchar(60),
+  description      text NOT NULL,
+  serial_number    varchar(120),
+  condition        varchar(40),
+  appraised_value  numeric NOT NULL,
+  ltv_percent      numeric NOT NULL DEFAULT 50,
+  storage_location varchar(120),
+  photos           jsonb,
+  status           varchar(20) NOT NULL DEFAULT 'held',
+  sale_amount      numeric,
+  sale_date        date,
+  returned_at      timestamp,
+  forfeited_at     timestamp,
+  created_by       integer,
+  created_at       timestamp NOT NULL DEFAULT NOW(),
+  updated_at       timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_member_loan_collateral_loan ON public.member_loan_collateral(member_loan_id);
+
+--
+-- Member loan guarantors (migration 093).
+--
+
+CREATE TABLE public.member_loan_guarantors (
+  id                  serial PRIMARY KEY,
+  tenant_id           integer NOT NULL,
+  member_loan_id      integer NOT NULL REFERENCES public.member_loans(id) ON DELETE CASCADE,
+  guarantor_member_id integer REFERENCES public.members(id) ON DELETE SET NULL,
+  guarantor_name      varchar(120),
+  guarantor_phone     varchar(30),
+  guarantor_id_number varchar(40),
+  guaranteed_amount   numeric(14,2),
+  status              varchar(20) NOT NULL DEFAULT 'active',
+  created_by          integer,
+  created_at          timestamp NOT NULL DEFAULT NOW(),
+  updated_at          timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_member_loan_guarantors_loan ON public.member_loan_guarantors(member_loan_id);
 
 CREATE TABLE public.member_loan_requests (
   id              serial PRIMARY KEY,
@@ -3430,10 +3560,13 @@ CREATE TABLE public.member_loan_requests (
   duration_months integer NOT NULL DEFAULT 1,
   interest_rate   numeric(6,3),
   purpose         text,
-  status          varchar(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  status          varchar(20) NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','approved','rejected','counter_offered')),
   reviewed_by     integer,
   decision_notes  text,
   issued_loan_id  integer REFERENCES public.member_loans(id) ON DELETE SET NULL,
+  product_id      integer REFERENCES public.member_loan_products(id) ON DELETE SET NULL,
+  interest_method varchar(20) NOT NULL DEFAULT 'flat',
   created_at      timestamp NOT NULL DEFAULT now(),
   decided_at      timestamp
 );

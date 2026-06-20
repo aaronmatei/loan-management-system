@@ -12,6 +12,7 @@ import WelfareDividendsPanel from "../../components/WelfareDividendsPanel";
 import WelfareExpensesPanel from "../../components/WelfareExpensesPanel";
 import WelfareMpesaPanel from "../../components/WelfareMpesaPanel";
 import WelfareSmsPanel from "../../components/WelfareSmsPanel";
+import MemberLoanProductsPanel from "../../components/MemberLoanProductsPanel";
 import PermissionGate from "../../components/PermissionGate";
 
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -199,6 +200,7 @@ export function WelfareSettingsPage() {
           </PermissionGate>
         )}
       </div>
+      <MemberLoanProductsPanel welfareId={welfareId} />
       <NonMemberLendingCard />
     </Page>
   );
