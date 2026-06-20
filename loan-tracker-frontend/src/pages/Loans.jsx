@@ -40,6 +40,7 @@ function Loans() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [duesPrompt, setDuesPrompt] = useState(null); // {error, dues:{defaulted,overdue}} when a client has dues/defaults
   const [poolStatus, setPoolStatus] = useState(null);
   const [clientCreditProfile, setClientCreditProfile] = useState(null);
 
@@ -404,8 +405,8 @@ function Loans() {
     };
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, acknowledgeDues = false) => {
+    if (e?.preventDefault) e.preventDefault();
 
     if (!formData.client_id) {
       setError("Please select a client");
@@ -434,6 +435,8 @@ function Loans() {
       }
       const submitData = {
         ...formData,
+        // Lender confirmed they want to lend despite the client's dues/defaults.
+        acknowledge_dues: acknowledgeDues,
         late_payment_fee: formData.late_fee_enabled
           ? parseFloat(formData.late_payment_fee) || 0
           : 0,
@@ -540,7 +543,12 @@ function Loans() {
       // New loans are applications now — take the user to the queue.
       navigate("/applications");
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to submit application");
+      // Dues/defaults are a soft warning — show Cancel/Proceed instead of a hard error.
+      if (err.response?.status === 409 && err.response.data?.requires_confirmation) {
+        setDuesPrompt(err.response.data);
+      } else {
+        setError(err.response?.data?.error || "Failed to submit application");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -2787,6 +2795,30 @@ function Loans() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dues/defaults are a warning, not a wall — let the lender decide. */}
+      {duesPrompt && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDuesPrompt(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center"><AlertTriangle size={20} className="text-amber-600" /></div>
+              <h3 className="text-lg font-bold text-slate-900">Heads up — this client has dues</h3>
+            </div>
+            <p className="text-sm text-slate-600 mb-1">{duesPrompt.error}</p>
+            <p className="text-sm text-slate-500 mb-5">Lending is still your call. Cancel to hold off, or proceed to issue the loan anyway.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDuesPrompt(null)} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={() => { setDuesPrompt(null); handleSubmit(null, true); }}
+                disabled={submitting}
+                className="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50"
+              >
+                {submitting ? "Submitting…" : "Proceed anyway"}
+              </button>
+            </div>
           </div>
         </div>
       )}

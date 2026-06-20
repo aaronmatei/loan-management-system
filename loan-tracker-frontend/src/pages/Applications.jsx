@@ -131,6 +131,18 @@ function Applications() {
       alert("Loan approved! Ready for disbursement.");
       fetchData();
     } catch (err) {
+      // Dues/defaults are a warning, not a wall — confirm and proceed.
+      if (err.response?.status === 409 && err.response.data?.requires_confirmation) {
+        if (!window.confirm(`${err.response.data.error}\n\nApprove anyway?`)) return;
+        try {
+          await api.post(`/loans/${loan.id}/approve`, { acknowledge_dues: true });
+          alert("Loan approved! Ready for disbursement.");
+          fetchData();
+        } catch (e2) {
+          alert("Failed: " + (e2.response?.data?.error || e2.message));
+        }
+        return;
+      }
       alert("Failed: " + (err.response?.data?.error || err.message));
     }
   };
@@ -428,7 +440,21 @@ function Applications() {
       setShowDisburseModal(false);
       fetchData();
     } catch (err) {
-      alert("Failed: " + (err.response?.data?.error || err.message));
+      // Dues/defaults are a warning, not a wall — confirm and proceed.
+      if (err.response?.status === 409 && err.response.data?.requires_confirmation) {
+        if (window.confirm(`${err.response.data.error}\n\nDisburse anyway?`)) {
+          try {
+            await api.post(`/loans/${selectedLoan.id}/disburse`, { ...payload, acknowledge_dues: true });
+            alert("Loan disbursed successfully! Now active for repayment.");
+            setShowDisburseModal(false);
+            fetchData();
+          } catch (e2) {
+            alert("Failed: " + (e2.response?.data?.error || e2.message));
+          }
+        }
+      } else {
+        alert("Failed: " + (err.response?.data?.error || err.message));
+      }
     } finally {
       setSubmitting(false);
     }

@@ -455,24 +455,26 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
     );
     const overdueCount = parseInt(overdueCheck.rows[0].overdue_count, 10);
 
-    if (defaultedLoans > 0) {
-      return res.status(400).json({
-        error: "Client has defaulted loans. Cannot issue new loan.",
-        blocker: "defaulted_loans",
-      });
-    }
-
-    if (overdueCount > 0) {
-      return res.status(400).json({
-        error: `Client has ${overdueCount} overdue payment(s). Must clear before new loan.`,
-        blocker: "overdue_payments",
-      });
-    }
-
+    // The 3-active-loan cap stays a hard block.
     if (activeLoans >= 3) {
       return res.status(400).json({
         error: "Client has reached maximum of 3 active loans.",
         blocker: "max_active_loans",
+      });
+    }
+
+    // Dues / defaults are now a WARNING, not a wall: notify the lender and let
+    // them decide. The client re-submits with acknowledge_dues:true to proceed.
+    const acknowledgeDues = req.body.acknowledge_dues === true || req.body.acknowledge_dues === "true";
+    if (!acknowledgeDues && (defaultedLoans > 0 || overdueCount > 0)) {
+      const parts = [];
+      if (defaultedLoans > 0) parts.push(`${defaultedLoans} defaulted loan${defaultedLoans > 1 ? "s" : ""}`);
+      if (overdueCount > 0) parts.push(`${overdueCount} overdue payment${overdueCount > 1 ? "s" : ""}`);
+      return res.status(409).json({
+        error: `This client has ${parts.join(" and ")}.`,
+        blocker: "client_has_dues",
+        requires_confirmation: true,
+        dues: { defaulted: defaultedLoans, overdue: overdueCount },
       });
     }
 
@@ -1105,16 +1107,21 @@ router.post(
       const apStanding = await getLoanStanding(loan.client_id, loan.tenant_id, {
         excludeLoanId: loan.id,
       });
-      if (apStanding.defaulted > 0) {
-        return res.status(400).json({
-          error: "Client has a defaulted loan. Resolve it before approving a new one.",
-          blocker: "defaulted_loans",
-        });
-      }
+      // The 3-active cap stays a hard block.
       if (apStanding.active >= 3) {
         return res.status(400).json({
           error: "Client already has 3 active loans — the maximum allowed.",
           blocker: "max_active_loans",
+        });
+      }
+      // A defaulted loan is now a confirmable warning, not a wall.
+      const apAck = req.body.acknowledge_dues === true || req.body.acknowledge_dues === "true";
+      if (!apAck && apStanding.defaulted > 0) {
+        return res.status(409).json({
+          error: `This client has ${apStanding.defaulted} defaulted loan${apStanding.defaulted > 1 ? "s" : ""}.`,
+          blocker: "client_has_dues",
+          requires_confirmation: true,
+          dues: { defaulted: apStanding.defaulted, overdue: 0 },
         });
       }
 
@@ -1761,16 +1768,21 @@ router.post(
       const dbStanding = await getLoanStanding(loan.client_id, loan.tenant_id, {
         excludeLoanId: loan.id,
       });
-      if (dbStanding.defaulted > 0) {
-        return res.status(400).json({
-          error: "Client has a defaulted loan. Resolve it before disbursing a new one.",
-          blocker: "defaulted_loans",
-        });
-      }
+      // The 3-active cap stays a hard block.
       if (dbStanding.active >= 3) {
         return res.status(400).json({
           error: "Client already has 3 active loans — the maximum allowed.",
           blocker: "max_active_loans",
+        });
+      }
+      // A defaulted loan is a confirmable warning, not a wall.
+      const dbAck = req.body?.acknowledge_dues === true || req.body?.acknowledge_dues === "true";
+      if (!dbAck && dbStanding.defaulted > 0) {
+        return res.status(409).json({
+          error: `This client has ${dbStanding.defaulted} defaulted loan${dbStanding.defaulted > 1 ? "s" : ""}.`,
+          blocker: "client_has_dues",
+          requires_confirmation: true,
+          dues: { defaulted: dbStanding.defaulted, overdue: 0 },
         });
       }
 
