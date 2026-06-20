@@ -12,7 +12,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { validateAgainstPackage } from "../utils/loanMath.js";
-import { createMemberLoanApplication, disburseMemberLoan } from "../services/memberLoanService.js";
+import { createMemberLoanApplication, disburseMemberLoan, recordMemberLoanPayment } from "../services/memberLoanService.js";
 import { poolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
@@ -335,6 +335,23 @@ router.post("/:loanId/disburse", authorize("admin", "manager", "loan_officer"), 
     if (e.status) return res.status(e.status).json({ error: e.message });
     logger.error("member loan disburse error:", e);
     res.status(500).json({ error: "Failed to disburse loan" });
+  }
+});
+
+// POST /loans/:loanId/payments — record a repayment (allocation in the service).
+router.post("/:loanId/payments", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const amount = req.body?.amount != null && req.body.amount !== "" ? parseFloat(req.body.amount) : null;
+    if (amount == null) return res.status(400).json({ error: "Amount is required" });
+    const r = await recordMemberLoanPayment({ welfare: req.welfare, loan, amount, paymentDate: req.body?.txn_date, method: req.body?.method || "manual", userId: req.user.id });
+    await logAudit({ user: req.user, action: "member_loan_repayment", entityType: "member_loan", entityId: loan.id, entityCode: loan.loan_code, description: `Repayment KES ${amount} on ${loan.loan_code}${r.completed ? " (cleared)" : ""}`, req });
+    res.json({ success: true, completed: r.completed, allocation: r.allocation, pool_balance: r.pool_balance, data: r.loan });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("member loan payment error:", e);
+    res.status(500).json({ error: "Failed to record payment" });
   }
 });
 

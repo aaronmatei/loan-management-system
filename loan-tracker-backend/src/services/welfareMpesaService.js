@@ -6,6 +6,7 @@ import { query } from "../config/database.js";
 import * as mpesa from "./mpesaService.js";
 import { postEventsPool } from "./welfareEventsService.js";
 import { postBenefitPool } from "./welfareBenefitPoolService.js";
+import { recordMemberLoanPayment } from "./memberLoanService.js";
 import logger from "../config/logger.js";
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -115,15 +116,16 @@ export async function allocateWelfarePayment(tx, cb = {}) {
     }
   } else if (tx.target_type === "member_loan") {
     const l = (await query(`SELECT * FROM member_loans WHERE id = $1`, [tx.target_id])).rows[0];
-    if (l && l.status !== "completed") {
-      const amt = Math.min(paid, round2(parseFloat(l.total_amount_due) - parseFloat(l.amount_paid)));
-      if (amt > 0) {
-        const newPaid = round2(parseFloat(l.amount_paid) + amt);
-        const completed = newPaid >= parseFloat(l.total_amount_due);
-        await query(`UPDATE member_loans SET amount_paid=$2, status=$3, updated_at=NOW() WHERE id=$1`, [l.id, newPaid, completed ? "completed" : l.status === "defaulted" ? "active" : l.status]);
-        await postPool(tx, "loan_repayment", amt, `Loan repayment via M-Pesa (${tx.mpesa_receipt_number || "STK"})`);
-        applied = true;
-      }
+    if (l && ["active", "defaulted"].includes(l.status)) {
+      // Single allocation path: penalty → interest → principal, posting the
+      // split to the pool. cap:true so an STK over-payment applies what's owed
+      // instead of rejecting.
+      const r = await recordMemberLoanPayment({
+        welfare: { id: tx.welfare_id, tenant_id: tx.tenant_id }, loan: l, amount: paid,
+        paymentDate: tx.txn_date, method: "mpesa", reference: tx.mpesa_receipt_number, userId: tx.initiated_by_user_id, cap: true,
+      });
+      const a = r.allocation;
+      if (a.penalty + a.interest + a.principal > 0) applied = true;
     }
   } else if (tx.target_type === "penalty_assessment") {
     const a = (await query(`SELECT * FROM penalty_assessments WHERE id = $1`, [tx.target_id])).rows[0];

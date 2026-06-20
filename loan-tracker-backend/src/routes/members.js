@@ -19,6 +19,7 @@ import {
   round2, SAVINGS_TYPES, poolBalance, memberSavings,
   postPool, issueMemberLoan, recordWithdrawal,
 } from "../services/welfarePoolService.js";
+import { recordMemberLoanPayment } from "../services/memberLoanService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -476,32 +477,18 @@ router.post("/:id/loans/:loanId/payments", authorize("admin", "manager", "loan_o
     if (!member) return res.status(404).json({ error: "Member not found" });
     const loan = await loadMemberLoan(member.id, req.params.loanId);
     if (!loan) return res.status(404).json({ error: "Member loan not found" });
-    if (loan.status === "completed") return res.status(400).json({ error: "Loan already fully paid" });
 
-    const outstanding = round2(parseFloat(loan.total_amount_due) - parseFloat(loan.amount_paid));
-    const amt = req.body?.amount != null && req.body.amount !== "" ? parseFloat(req.body.amount) : outstanding;
-    if (!(amt > 0)) return res.status(400).json({ error: "Amount must be positive" });
-    if (amt > outstanding) return res.status(400).json({ error: `Loan only owes KES ${outstanding.toLocaleString()}` });
-
-    const newPaid = round2(parseFloat(loan.amount_paid) + amt);
-    const completed = newPaid >= parseFloat(loan.total_amount_due);
-    await query(
-      `UPDATE member_loans SET amount_paid = $2, status = $3, updated_at = NOW() WHERE id = $1`,
-      [loan.id, newPaid, completed ? "completed" : loan.status === "defaulted" ? "active" : loan.status],
-    );
-
-    const poolTxn = await postPool({
-      welfare: req.welfare, memberId: member.id, type: "loan_repayment",
-      amount: amt, direction: 1, loanId: loan.id,
-      description: `Repayment on ${loan.loan_code}`, userId: req.user.id,
-    });
+    const amt = req.body?.amount != null && req.body.amount !== "" ? parseFloat(req.body.amount) : round2(parseFloat(loan.total_amount_due) - parseFloat(loan.amount_paid));
+    // Single allocation path: penalty → interest → principal, posting to the
+    // pool (principal restores it, interest + penalty are profit).
+    const r = await recordMemberLoanPayment({ welfare: req.welfare, loan, amount: amt, paymentDate: req.body?.txn_date, method: "manual", userId: req.user.id });
 
     await logAudit({
       user: req.user, action: "member_loan_repayment", entityType: "member_loan",
       entityId: loan.id, entityCode: loan.loan_code,
-      description: `Repayment KES ${amt} on ${loan.loan_code}${completed ? " (cleared)" : ""}`, req,
+      description: `Repayment KES ${amt} on ${loan.loan_code}${r.completed ? " (cleared)" : ""}`, req,
     });
-    res.json({ success: true, completed, pool_balance: Number(poolTxn.balance_after), outstanding: round2(parseFloat(loan.total_amount_due) - newPaid) });
+    res.json({ success: true, completed: r.completed, pool_balance: r.pool_balance, outstanding: round2(parseFloat(r.loan.total_amount_due) - parseFloat(r.loan.amount_paid)), allocation: r.allocation });
   } catch (e) {
     logger.error("member loan payment error:", e);
     res.status(500).json({ error: "Failed to record repayment" });

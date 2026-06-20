@@ -8,7 +8,10 @@
 // recordMemberLoanPayment (phase 3).
 import { query } from "../config/database.js";
 import { computeLoanTotals } from "../utils/loanMath.js";
+import { computeInstallmentPenalty } from "../utils/penalty.js";
 import { postPool, poolBalance, round2 } from "./welfarePoolService.js";
+
+const n2 = (v) => parseFloat(v) || 0;
 
 // MBL-00001 … sequential per tenant (matches the legacy quick-issue code).
 export async function nextMemberLoanCode(tenantId) {
@@ -109,4 +112,200 @@ export async function disburseMemberLoan({ welfare, loan, startDate, disbursemen
     });
   }
   return { loan: updated, poolTxn };
+}
+
+// Re-amortize a reducing-balance member loan after a principal knockdown: walk
+// the paid/waived rows to derive the current principal, then recompute every
+// unpaid row off that lower balance (holding the original EMI), zeroing tail
+// rows once principal hits zero. Ported from the lender
+// recomputeReducingBalanceSchedule, against the member tables. NOTE: member
+// loans store an ANNUAL rate, so monthlyRate = annual / 100 / 12.
+async function recomputeReducingMemberSchedule(loanId) {
+  const loan = (await query(`SELECT * FROM member_loans WHERE id=$1`, [loanId])).rows[0];
+  if (!loan || loan.interest_method !== "reducing") return;
+  const monthlyRate = n2(loan.interest_rate) / 100 / 12;
+  const originalPrincipal = n2(loan.principal);
+  const months = parseInt(loan.duration_months, 10);
+  const r = monthlyRate;
+  const plannedEMI = r > 0
+    ? round2((originalPrincipal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1))
+    : round2(originalPrincipal / months);
+
+  const rows = (await query(`SELECT * FROM member_loan_schedules WHERE member_loan_id=$1 ORDER BY payment_number`, [loanId])).rows;
+  if (!rows.length) return;
+
+  let balance = originalPrincipal, firstUnpaid = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.status === "paid" || row.status === "waived") {
+      balance = round2(balance - n2(row.principal_portion));
+      if (balance < 0) balance = 0;
+      await query(`UPDATE member_loan_schedules SET balance_after=$1, updated_at=NOW() WHERE id=$2`, [balance, row.id]);
+    } else { firstUnpaid = i; break; }
+  }
+  if (firstUnpaid !== -1) {
+    for (let i = firstUnpaid; i < rows.length; i++) {
+      const row = rows[i];
+      if (balance <= 0.005) {
+        await query(`UPDATE member_loan_schedules SET amount_due=0, interest_portion=0, principal_portion=0, balance_after=0, status='paid', amount_paid=0, actual_payment_date=COALESCE(actual_payment_date,CURRENT_DATE), updated_at=NOW() WHERE id=$1`, [row.id]);
+        continue;
+      }
+      const interest = round2(balance * monthlyRate);
+      let principal = round2(plannedEMI - interest);
+      let amountDue = plannedEMI, balanceAfter;
+      if (principal >= balance) { principal = balance; amountDue = round2(interest + principal); balanceAfter = 0; }
+      else balanceAfter = round2(balance - principal);
+      await query(`UPDATE member_loan_schedules SET amount_due=$1, interest_portion=$2, principal_portion=$3, balance_after=$4, updated_at=NOW() WHERE id=$5`, [amountDue, interest, principal, balanceAfter, row.id]);
+      balance = balanceAfter;
+    }
+  }
+  await query(
+    `UPDATE member_loans l SET total_amount_due=COALESCE(t.total_due,l.total_amount_due),
+        total_interest=COALESCE(t.total_int,l.total_interest), updated_at=NOW()
+       FROM (SELECT SUM(amount_due) AS total_due, SUM(interest_portion) AS total_int
+               FROM member_loan_schedules WHERE member_loan_id=$1) t
+      WHERE l.id=$1`,
+    [loanId],
+  );
+}
+
+// Record a repayment on a member loan. Allocates penalty → interest → principal
+// (oldest overdue first), posting to the pool: principal RESTORES the pool,
+// interest + penalty GROW it as group profit (member savings untouched).
+// Reducing loans knock principal down with early excess and re-amortize. Bullet
+// (legacy, schedule-less) loans split by the loan's interest ratio. Overpayment
+// is rejected (no refund queue). Throws Error{status:400} on bad input.
+// The single allocation path shared by the admin route, the M-Pesa callback and
+// the portal.
+export async function recordMemberLoanPayment({ welfare, loan, amount, paymentDate, method, reference, userId, cap = false }) {
+  if (!["active", "defaulted"].includes(loan.status)) {
+    throw Object.assign(new Error(`Can't record payment on a ${loan.status} loan`), { status: 400 });
+  }
+  let pay = round2(parseFloat(amount));
+  if (!(pay > 0)) throw Object.assign(new Error("Amount must be positive"), { status: 400 });
+  const txnDate = paymentDate || new Date().toISOString().split("T")[0];
+  const isReducing = loan.interest_method === "reducing";
+  const lateFee = n2(loan.late_fee), penaltyRate = n2(loan.penalty_rate);
+
+  const schedRows = (await query(`SELECT * FROM member_loan_schedules WHERE member_loan_id=$1 ORDER BY payment_number`, [loan.id])).rows;
+
+  // Outstanding penalty across overdue rows (or charged-but-unpaid snapshots).
+  const penaltyRows = [];
+  for (const s of schedRows) {
+    const bal = round2(n2(s.amount_due) - n2(s.amount_paid));
+    const overdue = (s.status === "overdue" || (s.status === "pending" && new Date(s.due_date) < new Date(txnDate))) && bal > 0.005;
+    const chargedUnpaid = round2(n2(s.late_fee_charged) + n2(s.penalty_interest_charged) - n2(s.penalty_paid)) > 0.005;
+    if (!overdue && !chargedUnpaid) continue;
+    const daysLate = Math.max(0, Math.round((new Date(txnDate) - new Date(s.due_date)) / 86400000));
+    const p = computeInstallmentPenalty({ balance: Math.max(0, bal), daysLate, lateFee, penaltyRate });
+    const live = n2(p.penalty_total);
+    const snap = round2(n2(s.late_fee_charged) + n2(s.penalty_interest_charged));
+    const total = bal > 0.005 ? live : Math.max(live, snap);
+    const outstanding = Math.max(0, round2(total - n2(s.penalty_paid)));
+    if (outstanding > 0) penaltyRows.push({ id: s.id, outstanding, lateFee: n2(p.late_fee), penaltyInterest: n2(p.penalty_interest) });
+  }
+  const totalPenalty = round2(penaltyRows.reduce((a, r) => a + r.outstanding, 0));
+
+  const currentBalance = round2(n2(loan.total_amount_due) - n2(loan.amount_paid));
+  const effectiveOwed = round2(currentBalance + totalPenalty);
+  if (pay > effectiveOwed + 0.01) {
+    // cap:true (M-Pesa over-payment via STK) applies only what's owed rather
+    // than rejecting; admin/explicit callers get a 400 so they can correct.
+    if (cap) pay = effectiveOwed;
+    else throw Object.assign(new Error(`Loan only owes KES ${effectiveOwed.toLocaleString()} (incl. penalties)`), { status: 400 });
+  }
+  if (pay <= 0) return { loan, completed: loan.status === "completed", allocation: { penalty: 0, interest: 0, principal: 0 }, pool_balance: await poolBalance(welfare.id) };
+
+  // 1) Penalty first, oldest overdue first.
+  let penaltyAllocated = 0, toPenalty = Math.min(pay, totalPenalty);
+  for (const r of penaltyRows) {
+    if (toPenalty <= 0.005) break;
+    const apply = round2(Math.min(toPenalty, r.outstanding));
+    if (apply > 0) {
+      await query(
+        `UPDATE member_loan_schedules SET penalty_paid=COALESCE(penalty_paid,0)+$1,
+            late_fee_charged=GREATEST(COALESCE(late_fee_charged,0),$2),
+            penalty_interest_charged=GREATEST(COALESCE(penalty_interest_charged,0),$3), updated_at=NOW()
+          WHERE id=$4`,
+        [apply, r.lateFee, r.penaltyInterest, r.id],
+      );
+      penaltyAllocated = round2(penaltyAllocated + apply);
+      toPenalty = round2(toPenalty - apply);
+    }
+  }
+
+  // 2) The rest reduces the schedule — interest then principal per row.
+  let remaining = round2(pay - penaltyAllocated);
+  let interestAllocated = 0, principalAllocated = 0;
+
+  if (schedRows.length === 0) {
+    // Bullet (legacy) loan: split by the loan's interest ratio.
+    const totalDue = n2(loan.total_amount_due), totalInt = n2(loan.total_interest);
+    interestAllocated = round2(remaining * (totalDue > 0 ? totalInt / totalDue : 0));
+    principalAllocated = round2(remaining - interestAllocated);
+    remaining = 0;
+  } else {
+    const rows = (await query(`SELECT * FROM member_loan_schedules WHERE member_loan_id=$1 AND status IN ('pending','overdue') ORDER BY payment_number`, [loan.id])).rows;
+    for (const row of rows) {
+      if (remaining <= 0.005) break;
+      const intPortion = n2(row.interest_portion), prinPortion = n2(row.principal_portion);
+      const intPaid = n2(row.interest_paid), amtPaid = n2(row.amount_paid);
+      const prinPaid = round2(amtPaid - intPaid);
+      const intApply = round2(Math.min(remaining, Math.max(0, round2(intPortion - intPaid))));
+      remaining = round2(remaining - intApply);
+      const prinApply = round2(Math.min(remaining, Math.max(0, round2(prinPortion - prinPaid))));
+      remaining = round2(remaining - prinApply);
+      let newIntPaid = round2(intPaid + intApply);
+      let newAmtPaid = round2(amtPaid + intApply + prinApply);
+      let newPrinPortion = prinPortion;
+      interestAllocated = round2(interestAllocated + intApply);
+      principalAllocated = round2(principalAllocated + prinApply);
+      const amountDue = n2(row.amount_due);
+      // Reducing prepay: once the row's EMI is settled, extra cash knocks down
+      // principal (capped at the remaining loan principal); re-amort follows.
+      if (isReducing && remaining > 0.005 && newAmtPaid >= amountDue - 0.005) {
+        const room = parseFloat((await query(
+          `SELECT GREATEST(0, l.principal
+              - COALESCE((SELECT SUM(principal_portion) FROM member_loan_schedules
+                           WHERE member_loan_id=$1 AND status IN ('paid','waived') AND id<>$2),0)
+              - $3) AS room
+             FROM member_loans l WHERE l.id=$1`,
+          [loan.id, row.id, prinPortion],
+        )).rows[0]?.room || 0);
+        const knock = round2(Math.min(remaining, room));
+        if (knock > 0) {
+          newPrinPortion = round2(prinPortion + knock);
+          newAmtPaid = round2(newAmtPaid + knock);
+          principalAllocated = round2(principalAllocated + knock);
+          remaining = round2(remaining - knock);
+        }
+      }
+      const fullyPaid = newAmtPaid >= amountDue - 0.005;
+      await query(
+        `UPDATE member_loan_schedules SET amount_paid=$1, interest_paid=$2, principal_portion=$3,
+            status=$4, actual_payment_date=COALESCE(actual_payment_date,$5::date), updated_at=NOW()
+          WHERE id=$6`,
+        [newAmtPaid, newIntPaid, newPrinPortion, fullyPaid ? "paid" : row.status, txnDate, row.id],
+      );
+    }
+    if (isReducing) await recomputeReducingMemberSchedule(loan.id);
+  }
+
+  // 3) Post to the pool: principal restores it, interest + penalty are profit.
+  let last = null;
+  if (principalAllocated > 0.005) last = await postPool({ welfare, memberId: loan.member_id, type: "loan_repayment", amount: principalAllocated, direction: 1, loanId: loan.id, txnDate, description: `Principal on ${loan.loan_code}`, userId });
+  if (interestAllocated > 0.005) last = await postPool({ welfare, memberId: loan.member_id, type: "loan_interest", amount: interestAllocated, direction: 1, loanId: loan.id, txnDate, description: `Interest on ${loan.loan_code}`, userId });
+  if (penaltyAllocated > 0.005) last = await postPool({ welfare, memberId: loan.member_id, type: "loan_penalty", amount: penaltyAllocated, direction: 1, loanId: loan.id, txnDate, description: `Penalty on ${loan.loan_code}`, userId });
+
+  // 4) Update the loan (amount_paid excludes penalty; complete when cleared).
+  const newAmountPaid = round2(n2(loan.amount_paid) + interestAllocated + principalAllocated);
+  const totalDueNow = n2((await query(`SELECT total_amount_due FROM member_loans WHERE id=$1`, [loan.id])).rows[0].total_amount_due);
+  const completed = newAmountPaid >= totalDueNow - 0.005;
+  const updated = (await query(
+    `UPDATE member_loans SET amount_paid=$1, status=$2, updated_at=NOW() WHERE id=$3 RETURNING *`,
+    [newAmountPaid, completed ? "completed" : (loan.status === "defaulted" ? "active" : loan.status), loan.id],
+  )).rows[0];
+
+  const poolAfter = last ? Number(last.balance_after) : await poolBalance(welfare.id);
+  return { loan: updated, completed, allocation: { penalty: penaltyAllocated, interest: interestAllocated, principal: principalAllocated }, pool_balance: poolAfter };
 }

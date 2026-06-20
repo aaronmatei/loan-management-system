@@ -159,18 +159,16 @@ export async function calculateTenantInterest(tenantId, year, month) {
 
   let result;
   if (kind === "welfare") {
+    // Member-loan repayments post the interest slice as its own 'loan_interest'
+    // ledger row (principal lands as 'loan_repayment'), so the interest earned
+    // in a period is exactly the sum of those rows — no ratio estimate needed.
     result = await query(
-      `SELECT
-         COALESCE(SUM(
-           p.amount * (ml.total_interest / NULLIF(ml.total_amount_due, 0))
-         ), 0) AS interest_earned,
-         COUNT(*)::int AS payment_count
-       FROM member_pool_transactions p
-       JOIN member_loans ml ON ml.id = p.member_loan_id
-       WHERE p.tenant_id = $1
-         AND p.type = 'loan_repayment'
-         AND p.txn_date >= $2
-         AND p.txn_date <= $3`,
+      `SELECT COALESCE(SUM(p.amount), 0) AS interest_earned, COUNT(*)::int AS payment_count
+         FROM member_pool_transactions p
+        WHERE p.tenant_id = $1
+          AND p.type = 'loan_interest'
+          AND p.txn_date >= $2
+          AND p.txn_date <= $3`,
       [tenantId, startDate, endDate],
     );
   } else {
