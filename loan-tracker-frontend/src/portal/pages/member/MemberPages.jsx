@@ -268,6 +268,20 @@ export function MemberDashboard() {
   );
 }
 
+// A read-only "what's happening in the chama" section: fetches a group endpoint
+// and renders a labelled table. Lets members view group activity without any
+// admin controls.
+function GroupSection({ title, path, head, render, empty, pick }) {
+  const { data, loading, error } = useFetch(path);
+  const rows = pick ? (pick(data) || []) : (data || []);
+  return (
+    <div className="mt-8">
+      <h3 className="text-sm font-bold text-slate-700 mb-2">{title}</h3>
+      {loading || error || !data ? <Loading error={error} /> : <Table head={head} rows={rows} render={render} empty={empty} />}
+    </div>
+  );
+}
+
 function Table({ head, rows, render, empty }) {
   if (rows.length === 0) return <Empty>{empty}</Empty>;
   return (
@@ -336,6 +350,21 @@ export function MemberContributions() {
           )}
         />
       )}
+      <GroupSection
+        title="All contribution cycles (whole chama)"
+        path="/welfare/member/group-cycles"
+        head={["Cycle", "Due", "Collected / Expected", "Paid", "Status"]}
+        empty="No cycles this year."
+        render={(c, i) => (
+          <tr key={i}>
+            <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
+            <td className="px-4 py-3 text-slate-600">{fmt(c.due_date)}</td>
+            <td className="px-4 py-3">{KES(c.collected)} / {KES(c.expected)}</td>
+            <td className="px-4 py-3">{c.paid_count}/{c.member_count}</td>
+            <td className="px-4 py-3"><Badge value={c.status} /></td>
+          </tr>
+        )}
+      />
     </Shell>
   );
 }
@@ -414,6 +443,21 @@ export function MemberLoans() {
           { key: "event_date", label: "Event date", fmt },
           { key: "reason", label: "Reason" },
         ]}
+      />
+      <GroupSection
+        title="All chama loans (whole chama)"
+        path="/welfare/member/group-loans"
+        head={["Member", "Loan", "Principal", "Balance", "Status"]}
+        empty="No loans disbursed yet."
+        render={(l, i) => (
+          <tr key={i}>
+            <td className="px-4 py-3 text-slate-800">{l.first_name} {l.last_name}</td>
+            <td className="px-4 py-3 font-mono text-xs text-slate-500">{l.loan_code}</td>
+            <td className="px-4 py-3">{KES(l.principal)}</td>
+            <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
+            <td className="px-4 py-3"><Badge value={l.status} /></td>
+          </tr>
+        )}
       />
     </Shell>
   );
@@ -547,6 +591,20 @@ export function MemberGroup() {
           )}
         />
       )}
+      <GroupSection
+        title="Expenses (chama spending)"
+        path="/welfare/member/group-expenses"
+        pick={(d) => d.expenses}
+        head={["Date", "Description", "Amount"]}
+        empty="No expenses recorded."
+        render={(e, i) => (
+          <tr key={i}>
+            <td className="px-4 py-3 text-slate-700">{fmt(e.txn_date)}</td>
+            <td className="px-4 py-3 text-slate-600">{e.description}</td>
+            <td className="px-4 py-3 font-semibold text-rose-600">{KES(e.amount)}</td>
+          </tr>
+        )}
+      />
     </Shell>
   );
 }
@@ -557,14 +615,15 @@ export function MemberMeetings() {
     <Shell title="Meetings" icon={CalendarCheck}>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
-          head={["Date", "Location", "Meeting", "My attendance"]}
+          head={["Date", "Meeting", "Location", "Present", "My attendance"]}
           rows={data}
           empty="No meetings recorded."
           render={(m) => (
             <tr key={m.id}>
               <td className="px-4 py-3 text-slate-700">{fmt(m.meeting_date)}</td>
-              <td className="px-4 py-3 text-slate-600">{m.location || "—"}</td>
-              <td className="px-4 py-3"><Badge value={m.status} /></td>
+              <td className="px-4 py-3 text-slate-800">{m.title || <Badge value={m.status} />}</td>
+              <td className="px-4 py-3 text-slate-600">{m.location || "Home"}</td>
+              <td className="px-4 py-3 text-slate-700">{m.present_count ?? 0} present</td>
               <td className="px-4 py-3">{m.my_attendance ? <Badge value={m.my_attendance} /> : <span className="text-slate-400">—</span>}</td>
             </tr>
           )}

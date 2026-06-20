@@ -115,6 +115,16 @@ describe("member portal read API", () => {
     expect(grp.status).toBe(200);
     expect(grp.body.data).toHaveLength(1);
     expect(Number(grp.body.data[0].savings)).toBe(5000);
+
+    // ...plus read-only group activity (loans / expenses / cycles).
+    for (const p of ["group-loans", "group-cycles"]) {
+      const r = await request(app).get(`/api/welfare/member/${p}`).set("Authorization", tok);
+      expect(r.status).toBe(200);
+      expect(Array.isArray(r.body.data)).toBe(true);
+    }
+    const exp = await request(app).get("/api/welfare/member/group-expenses").set("Authorization", tok);
+    expect(exp.status).toBe(200);
+    expect(Array.isArray(exp.body.data.expenses)).toBe(true);
   });
 
   it("projects the member's dividend share from the surplus", async () => {

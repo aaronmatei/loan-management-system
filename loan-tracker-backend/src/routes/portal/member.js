@@ -160,6 +160,52 @@ router.get("/group-members", async (req, res) => {
   }
 });
 
+// Read-only group activity so a member can see "what's happening" — every loan,
+// expense and contribution cycle in the chama. Privileged writes stay admin-only.
+router.get("/group-loans", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT l.loan_code, l.principal, l.status, GREATEST(l.total_amount_due - l.amount_paid, 0) AS balance,
+              l.disbursed_at, m.first_name, m.last_name
+         FROM member_loans l JOIN members m ON m.id = l.member_id
+        WHERE l.welfare_id = $1 AND l.status IN ('active','defaulted','completed')
+        ORDER BY l.created_at DESC LIMIT 200`,
+      [req.welfareId],
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) { logger.error("member group-loans error:", e); res.status(500).json({ error: "Failed to load loans" }); }
+});
+
+router.get("/group-expenses", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT amount, txn_date, description FROM member_pool_transactions
+        WHERE welfare_id = $1 AND type = 'expense' ORDER BY txn_date DESC, id DESC LIMIT 100`,
+      [req.welfareId],
+    );
+    const total = (await query(`SELECT COALESCE(SUM(amount),0) t FROM member_pool_transactions WHERE welfare_id=$1 AND type='expense'`, [req.welfareId])).rows[0].t;
+    res.json({ success: true, data: { expenses: r.rows, total: round2(total) } });
+  } catch (e) { logger.error("member group-expenses error:", e); res.status(500).json({ error: "Failed to load expenses" }); }
+});
+
+router.get("/group-cycles", async (req, res) => {
+  try {
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    const r = await query(
+      `SELECT c.name, c.frequency, c.due_date, c.status, c.pool_key,
+              (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id)::int AS member_count,
+              (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id AND s.status='paid')::int AS paid_count,
+              (SELECT COALESCE(SUM(s.amount_due),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) AS expected,
+              (SELECT COALESCE(SUM(s.amount_paid),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) AS collected
+         FROM contribution_cycles c
+        WHERE c.welfare_id=$1 AND EXTRACT(YEAR FROM c.due_date)=$2
+        ORDER BY c.due_date DESC, c.id DESC`,
+      [req.welfareId, year],
+    );
+    res.json({ success: true, data: r.rows.map((c) => ({ ...c, expected: Number(c.expected), collected: Number(c.collected) })) });
+  } catch (e) { logger.error("member group-cycles error:", e); res.status(500).json({ error: "Failed to load cycles" }); }
+});
+
 // GET /charts — the group dashboard charts (read-only).
 router.get("/charts", async (req, res) => {
   try {
@@ -280,8 +326,9 @@ router.get("/penalties", async (req, res) => {
 router.get("/meetings", async (req, res) => {
   try {
     const r = await query(
-      `SELECT gm.id, gm.meeting_date, gm.location, gm.agenda, gm.status,
-              ma.status AS my_attendance
+      `SELECT gm.id, gm.title, gm.meeting_date, gm.location, gm.agenda, gm.status,
+              ma.status AS my_attendance,
+              (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id AND a.status IN ('present','late'))::int AS present_count
          FROM group_meetings gm
          LEFT JOIN member_attendance ma ON ma.meeting_id = gm.id AND ma.member_id = $1
         WHERE gm.group_id = $2
