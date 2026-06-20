@@ -35,6 +35,7 @@ import CustomerLoanDetails from "./portal/pages/LoanDetails";
 import { PortalPledges, PortalPledgeDetail, PortalPawnRequests } from "./portal/pages/Pledges";
 import {
   MemberDashboard,
+  MemberGroup,
   MemberSavings,
   MemberContributions,
   MemberLoans,
@@ -583,6 +584,7 @@ function App() {
                 the borrower portal. */}
             <Route path="/welfare/member" element={<PortalProtectedRoute><MemberDashboard /></PortalProtectedRoute>} />
             <Route path="/welfare/member/savings" element={<PortalProtectedRoute><MemberSavings /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/members" element={<PortalProtectedRoute><MemberGroup /></PortalProtectedRoute>} />
             <Route path="/welfare/member/contributions" element={<PortalProtectedRoute><MemberContributions /></PortalProtectedRoute>} />
             <Route path="/welfare/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
             <Route path="/welfare/member/meetings" element={<PortalProtectedRoute><MemberMeetings /></PortalProtectedRoute>} />

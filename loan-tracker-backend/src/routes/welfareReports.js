@@ -128,7 +128,7 @@ export async function buildSummary(welfare) {
 }
 
 // Per-member statement rows (shared by JSON + CSV/PDF export).
-async function buildMemberRows(welfare, includeInactive) {
+export async function buildMemberRows(welfare, includeInactive) {
   return (await query(
     `SELECT m.id, m.member_no, m.first_name, m.last_name, m.phone_number, m.status,
             COALESCE((SELECT SUM(direction*amount) FROM member_pool_transactions p WHERE p.member_id=m.id AND p.type IN ${SAVINGS_TYPES}),0) AS savings,

@@ -524,6 +524,33 @@ function LoanDetailModal({ loanId, onClose }) {
   );
 }
 
+// Every member's standing — the same Reports table the admin sees (read-only).
+export function MemberGroup() {
+  const { data, loading, error } = useFetch("/welfare/member/group-members");
+  return (
+    <Shell title="Members" icon={Coins}>
+      {loading || error || !data ? <Loading error={error} /> : (
+        <Table
+          head={["Member", "Savings", "Contributions", "Dividends", "Loan bal", "Penalty bal", "Attendance"]}
+          rows={data}
+          empty="No members yet."
+          render={(m) => (
+            <tr key={m.member_id}>
+              <td className="px-4 py-3 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span></td>
+              <td className="px-4 py-3">{KES(m.savings)}</td>
+              <td className="px-4 py-3">{KES(m.contributions)}</td>
+              <td className="px-4 py-3">{KES(m.dividends)}</td>
+              <td className="px-4 py-3">{KES(m.loan_outstanding)}</td>
+              <td className="px-4 py-3">{KES(m.penalty_outstanding)}</td>
+              <td className="px-4 py-3">{m.attendance_pct == null ? "—" : `${m.attendance_pct}%`}</td>
+            </tr>
+          )}
+        />
+      )}
+    </Shell>
+  );
+}
+
 export function MemberMeetings() {
   const { data, loading, error } = useFetch("/welfare/member/meetings");
   return (

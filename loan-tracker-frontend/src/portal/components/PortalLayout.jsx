@@ -18,6 +18,7 @@ import {
   Gift,
   AlertTriangle,
   HeartHandshake,
+  Users,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 import PortalNotificationBell from "./PortalNotificationBell";
@@ -51,6 +52,7 @@ const PAWN_ITEMS = [
 const WELFARE_MENU = [
   { path: "/welfare/member", label: "Dashboard", icon: PiggyBank, variant: "emerald", exact: true },
   { path: "/welfare/member/savings", label: "My Savings", icon: PiggyBank, variant: "teal" },
+  { path: "/welfare/member/members", label: "Members", icon: Users, variant: "sky" },
   { path: "/welfare/member/contributions", label: "Contributions", icon: Coins, variant: "ocean" },
   { path: "/welfare/member/loans", label: "Requests", icon: ClipboardList, variant: "indigo" },
   { path: "/welfare/member/meetings", label: "Meetings", icon: CalendarCheck, variant: "amber" },

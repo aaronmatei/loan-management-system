@@ -9,7 +9,7 @@ import { verifyCustomer } from "../../middleware/customerAuth.js";
 import { poolBalance, memberSavings, round2, SAVINGS_TYPES } from "../../services/welfarePoolService.js";
 import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
-import { buildSummary, buildCharts } from "../welfareReports.js";
+import { buildSummary, buildCharts, buildMemberRows } from "../welfareReports.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -145,6 +145,18 @@ router.get("/dashboard", async (req, res) => {
   } catch (e) {
     logger.error("member dashboard error:", e);
     res.status(500).json({ error: "Failed to load dashboard" });
+  }
+});
+
+// GET /group-members — every member's standing (savings, contributions,
+// dividends, loan + penalty balances, attendance), as on the admin Reports page.
+router.get("/group-members", async (req, res) => {
+  try {
+    const welfare = { id: req.welfareId, tenant_id: req.member.tenant_id, name: req.member.welfare_name };
+    res.json({ success: true, data: await buildMemberRows(welfare, req.query.include === "all") });
+  } catch (e) {
+    logger.error("member group-members error:", e);
+    res.status(500).json({ error: "Failed to load members" });
   }
 });
 

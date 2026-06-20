@@ -109,6 +109,12 @@ describe("member portal read API", () => {
     const charts = await request(app).get("/api/welfare/member/charts").set("Authorization", tok);
     expect(charts.status).toBe(200);
     expect(Array.isArray(charts.body.data.pool_growth)).toBe(true);
+
+    // ...and every member's standing (the admin Reports table).
+    const grp = await request(app).get("/api/welfare/member/group-members").set("Authorization", tok);
+    expect(grp.status).toBe(200);
+    expect(grp.body.data).toHaveLength(1);
+    expect(Number(grp.body.data[0].savings)).toBe(5000);
   });
 
   it("projects the member's dividend share from the surplus", async () => {
