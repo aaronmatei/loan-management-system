@@ -11,6 +11,9 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
+import { validateAgainstPackage } from "../utils/loanMath.js";
+import { createMemberLoanApplication, disburseMemberLoan } from "../services/memberLoanService.js";
+import { poolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -177,6 +180,161 @@ router.delete("/products/:id", authorize("admin"), async (req, res) => {
   } catch (e) {
     logger.error("member loan product archive error:", e);
     res.status(500).json({ error: "Failed to archive loan product" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Loan applications + lifecycle. Status machine:
+//   pending → under_review → approved → active → completed
+//   (pending|under_review) → rejected ;  active → defaulted
+// Funds move only at /disburse. Repayment allocation arrives in phase 3.
+// ─────────────────────────────────────────────────────────────
+
+const loadLoan = (welfareId, loanId) =>
+  query(`SELECT * FROM member_loans WHERE id=$1 AND welfare_id=$2`, [loanId, welfareId]).then((r) => r.rows[0] || null);
+
+// GET /loans — list (optional ?status= and ?member_id=).
+router.get("/", async (req, res) => {
+  try {
+    const params = [req.welfare.id];
+    let where = "l.welfare_id = $1";
+    if (req.query.status) { params.push(req.query.status); where += ` AND l.status = $${params.length}`; }
+    if (req.query.member_id) { params.push(req.query.member_id); where += ` AND l.member_id = $${params.length}`; }
+    const r = await query(
+      `SELECT l.*, m.first_name, m.last_name, m.member_no,
+              GREATEST(l.total_amount_due - l.amount_paid, 0) AS balance
+         FROM member_loans l JOIN members m ON m.id = l.member_id
+        WHERE ${where}
+        ORDER BY l.created_at DESC, l.id DESC`,
+      params,
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error("member loans list error:", e);
+    res.status(500).json({ error: "Failed to load loans" });
+  }
+});
+
+// GET /loans/:loanId — loan + schedule + pool ledger.
+router.get("/:loanId", async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    const member = (await query(`SELECT id, first_name, last_name, member_no, phone_number FROM members WHERE id=$1`, [loan.member_id])).rows[0];
+    const schedule = (await query(`SELECT * FROM member_loan_schedules WHERE member_loan_id=$1 ORDER BY payment_number`, [loan.id])).rows;
+    const ledger = (await query(
+      `SELECT id, type, amount, direction, balance_after, txn_date, description, created_at
+         FROM member_pool_transactions WHERE member_loan_id=$1 ORDER BY id`, [loan.id],
+    )).rows;
+    res.json({ success: true, data: { loan: { ...loan, balance: Math.max(Number(loan.total_amount_due) - Number(loan.amount_paid), 0) }, member, schedule, ledger } });
+  } catch (e) {
+    logger.error("member loan detail error:", e);
+    res.status(500).json({ error: "Failed to load loan" });
+  }
+});
+
+// POST /loans — create an application (status 'pending').
+router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const member = (await query(`SELECT * FROM members WHERE id=$1 AND welfare_id=$2`, [b.member_id, req.welfare.id])).rows[0];
+    if (!member) return res.status(404).json({ error: "Member not found" });
+    if (member.status !== "active") return res.status(400).json({ error: "Member is not active" });
+    const principal = parseFloat(b.principal);
+    if (!(principal > 0)) return res.status(400).json({ error: "Principal must be positive" });
+    const months = parseInt(b.duration_months, 10) || 0;
+    if (months < 1) return res.status(400).json({ error: "Duration must be at least 1 month" });
+
+    let product = null, rate, method, feeRate, lateFee, penaltyRate;
+    if (b.product_id) {
+      product = (await query(`SELECT * FROM member_loan_products WHERE id=$1 AND welfare_id=$2 AND active`, [b.product_id, req.welfare.id])).rows[0];
+      if (!product) return res.status(400).json({ error: "Loan product not found" });
+      const err = validateAgainstPackage(product, principal, months);
+      if (err) return res.status(400).json({ error: err });
+      rate = parseFloat(product.annual_interest_rate);
+      method = product.interest_method;
+      feeRate = parseFloat(product.processing_fee_rate);
+      lateFee = parseFloat(product.late_fee);
+      penaltyRate = parseFloat(product.penalty_rate);
+    } else {
+      rate = b.interest_rate != null && b.interest_rate !== "" ? parseFloat(b.interest_rate) : 0;
+      if (!(rate >= 0)) return res.status(400).json({ error: "Interest rate can't be negative" });
+      method = (b.interest_method || "flat").toLowerCase();
+      if (!["flat", "reducing"].includes(method)) return res.status(400).json({ error: "Invalid interest method" });
+      feeRate = b.processing_fee_rate ? parseFloat(b.processing_fee_rate) : 0;
+      lateFee = b.late_fee ? parseFloat(b.late_fee) : 0;
+      penaltyRate = b.penalty_rate ? parseFloat(b.penalty_rate) : 0;
+    }
+
+    const loan = await createMemberLoanApplication({
+      welfare: req.welfare, member, product, principal, rate, months, method,
+      processingFeeRate: feeRate, lateFee, penaltyRate, purpose: b.purpose, notes: b.notes, userId: req.user.id,
+    });
+    await logAudit({ user: req.user, action: "member_loan_applied", entityType: "member_loan", entityId: loan.id, entityCode: loan.loan_code, description: `Loan application ${loan.loan_code}: KES ${principal} for ${member.first_name} ${member.last_name}`, req });
+    res.status(201).json({ success: true, data: loan });
+  } catch (e) {
+    logger.error("member loan application error:", e);
+    res.status(500).json({ error: "Failed to create loan application" });
+  }
+});
+
+// Simple status transitions. `from` lists the statuses the action is valid from.
+function transition({ action, from, set, role = ["admin", "manager"] }) {
+  return [authorize(...role), async (req, res) => {
+    try {
+      const loan = await loadLoan(req.welfare.id, req.params.loanId);
+      if (!loan) return res.status(404).json({ error: "Loan not found" });
+      if (!from.includes(loan.status)) return res.status(400).json({ error: `Can't ${action} a ${loan.status} loan` });
+      const patch = set(req);
+      const cols = Object.keys(patch);
+      const r = await query(
+        `UPDATE member_loans SET ${cols.map((c, i) => `${c}=$${i + 2}`).join(", ")}, updated_at=NOW() WHERE id=$1 RETURNING *`,
+        [loan.id, ...cols.map((c) => patch[c])],
+      );
+      await logAudit({ user: req.user, action: `member_loan_${action}`, entityType: "member_loan", entityId: loan.id, entityCode: loan.loan_code, description: `Loan ${loan.loan_code} ${action}`, req });
+      res.json({ success: true, data: r.rows[0] });
+    } catch (e) {
+      logger.error(`member loan ${action} error:`, e);
+      res.status(500).json({ error: `Failed to ${action} loan` });
+    }
+  }];
+}
+
+router.post("/:loanId/review", ...transition({ action: "review", from: ["pending"], role: ["admin", "manager", "loan_officer"], set: (req) => ({ status: "under_review", reviewed_by: req.user.id, reviewed_at: new Date() }) }));
+router.post("/:loanId/reject", ...transition({ action: "reject", from: ["pending", "under_review"], set: (req) => ({ status: "rejected", rejected_by: req.user.id, rejected_at: new Date(), rejection_reason: req.body?.reason || req.body?.notes || null }) }));
+router.post("/:loanId/default", ...transition({ action: "default", from: ["active"], set: () => ({ status: "defaulted" }) }));
+
+// Approve stamps approved_by/at, so it's spelled out rather than using the
+// generic transition helper.
+router.post("/:loanId/approve", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    if (!["pending", "under_review"].includes(loan.status)) return res.status(400).json({ error: `Can't approve a ${loan.status} loan` });
+    const r = await query(`UPDATE member_loans SET status='approved', approved_by=$2, approved_at=NOW(), updated_at=NOW() WHERE id=$1 RETURNING *`, [loan.id, req.user.id]);
+    await logAudit({ user: req.user, action: "member_loan_approved", entityType: "member_loan", entityId: loan.id, entityCode: loan.loan_code, description: `Loan ${loan.loan_code} approved`, req });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("member loan approve error:", e);
+    res.status(500).json({ error: "Failed to approve loan" });
+  }
+});
+
+// POST /loans/:loanId/disburse — build schedule, debit pool, set active.
+router.post("/:loanId/disburse", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const loan = await loadLoan(req.welfare.id, req.params.loanId);
+    if (!loan) return res.status(404).json({ error: "Loan not found" });
+    if (loan.status !== "approved") return res.status(400).json({ error: `Can only disburse an approved loan (this one is ${loan.status})` });
+    const { loan: active, poolTxn } = await disburseMemberLoan({
+      welfare: req.welfare, loan, startDate: req.body?.start_date, disbursementDate: req.body?.disbursement_date, userId: req.user.id,
+    });
+    await logAudit({ user: req.user, action: "member_loan_disbursed", entityType: "member_loan", entityId: loan.id, entityCode: loan.loan_code, description: `Loan ${loan.loan_code} disbursed: KES ${active.principal}`, req });
+    res.json({ success: true, data: active, pool_balance: Number(poolTxn.balance_after) });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    logger.error("member loan disburse error:", e);
+    res.status(500).json({ error: "Failed to disburse loan" });
   }
 });
 
