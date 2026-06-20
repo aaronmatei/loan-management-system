@@ -6,7 +6,7 @@
 import express from "express";
 import { query } from "../../config/database.js";
 import { verifyCustomer } from "../../middleware/customerAuth.js";
-import { poolBalance, memberSavings, round2 } from "../../services/welfarePoolService.js";
+import { poolBalance, memberSavings, round2, SAVINGS_TYPES } from "../../services/welfarePoolService.js";
 import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import logger from "../../config/logger.js";
@@ -272,6 +272,34 @@ router.get("/dividends", async (req, res) => {
   } catch (e) {
     logger.error("member dividends error:", e);
     res.status(500).json({ error: "Failed to load dividends" });
+  }
+});
+
+// GET /dividends-projection — if a share-out ran today, the member's estimated
+// share on each basis. Surplus = pool above members' total savings principal.
+router.get("/dividends-projection", async (req, res) => {
+  try {
+    const m = req.member;
+    const [pool, mine, agg] = await Promise.all([
+      poolBalance(req.welfareId),
+      memberSavings(m.id),
+      query(
+        `SELECT COUNT(*)::int AS members,
+                COALESCE(SUM((SELECT COALESCE(SUM(direction*amount),0) FROM member_pool_transactions p
+                               WHERE p.member_id = mm.id AND p.type IN ${SAVINGS_TYPES})),0) AS total_savings
+           FROM members mm WHERE mm.welfare_id = $1 AND mm.status = 'active'`,
+        [req.welfareId],
+      ),
+    ]);
+    const totalSavings = parseFloat(agg.rows[0].total_savings) || 0;
+    const members = agg.rows[0].members || 0;
+    const surplus = round2(pool - totalSavings);
+    const equal = surplus > 0 && members > 0 ? round2(surplus / members) : 0;
+    const bySavings = surplus > 0 && totalSavings > 0 && mine > 0 ? round2((surplus * mine) / totalSavings) : 0;
+    res.json({ success: true, data: { surplus: Math.max(surplus, 0), my_savings: round2(mine), active_members: members, projected: { equal, savings: bySavings } } });
+  } catch (e) {
+    logger.error("member dividends projection error:", e);
+    res.status(500).json({ error: "Failed to project dividends" });
   }
 });
 

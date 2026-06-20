@@ -545,8 +545,16 @@ export function MemberMeetings() {
 
 export function MemberDividends() {
   const { data, loading, error } = useFetch("/welfare/member/dividends");
+  const { data: proj } = useFetch("/welfare/member/dividends-projection");
   return (
     <Shell title="Dividends" icon={Gift}>
+      {proj && proj.surplus > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5">
+          <p className="font-semibold text-emerald-900">If a share-out ran today</p>
+          <p className="text-sm text-emerald-800 mt-0.5">Distributable surplus is <strong>{KES(proj.surplus)}</strong>. Your estimated share: <strong>{KES(proj.projected.savings)}</strong> by savings, or <strong>{KES(proj.projected.equal)}</strong> split equally.</p>
+          <p className="text-xs text-emerald-700/70 mt-1">An estimate — the committee decides if and when to share out, and on which basis.</p>
+        </div>
+      )}
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
           head={["Date", "Basis", "My share"]}
@@ -567,8 +575,18 @@ export function MemberDividends() {
 
 export function MemberEvents() {
   const { data, loading, error, reload } = useFetch("/welfare/member/events");
+  const events = data?.events || [];
+  const beneficiaryOf = events.filter((e) => e.is_beneficiary).length;
+  const owed = events.reduce((a, e) => a + Math.max(Number(e.amount_due) - Number(e.amount_paid), 0), 0);
   return (
     <Shell title="Events" icon={HeartHandshake}>
+      {!loading && !error && data && events.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4 text-xs">
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">Contributing to <strong className="text-slate-800">{events.length}</strong></span>
+          {beneficiaryOf > 0 && <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">Beneficiary of <strong className="text-emerald-700">{beneficiaryOf}</strong></span>}
+          {owed > 0 && <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5">You owe <strong className="text-rose-600">{KES(owed)}</strong></span>}
+        </div>
+      )}
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
           head={["Event", "Amount", "My share", "Paid", "Status", ""]}

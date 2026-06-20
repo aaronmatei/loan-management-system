@@ -94,6 +94,23 @@ describe("member portal read API", () => {
     expect(pdf.body.slice(0, 5).toString()).toBe("%PDF-");
   });
 
+  it("projects the member's dividend share from the surplus", async () => {
+    const { tenant, admin, welfare } = await welfareSetup();
+    const m = await makeMember(admin, welfare.id, { phone: "0795200501", id: "DVP1" });
+    await invite(admin, welfare.id, m.id);
+    await request(app).post(`/api/welfares/${welfare.id}/members/${m.id}/contributions`).set("Authorization", auth(admin)).send({ amount: 10000 });
+    // A paid penalty grows the pool above savings → distributable surplus.
+    const pen = (await request(app).post(`/api/welfares/${welfare.id}/penalties`).set("Authorization", auth(admin)).send({ member_id: m.id, amount: 500 })).body.data;
+    await request(app).post(`/api/welfares/${welfare.id}/penalties/${pen.id}/pay`).set("Authorization", auth(admin)).send({});
+
+    const tok = customerToken(await pcIdByPhone("+254795200501"), tenant.id);
+    const p = await request(app).get("/api/welfare/member/dividends-projection").set("Authorization", tok);
+    expect(p.status).toBe(200);
+    expect(p.body.data.surplus).toBe(500);
+    expect(p.body.data.projected.equal).toBe(500); // sole active member
+    expect(p.body.data.projected.savings).toBe(500);
+  });
+
   it("isolates members — one member can't see another's loans", async () => {
     const { tenant, admin, welfare } = await welfareSetup();
     const a = await makeMember(admin, welfare.id, { phone: "0795200201", id: "ISOA" });
