@@ -273,7 +273,8 @@ export function MemberDashboard() {
 // admin controls.
 function GroupSection({ title, path, head, render, empty, pick }) {
   const { data, loading, error } = useFetch(path);
-  const rows = pick ? (pick(data) || []) : (data || []);
+  // Guard pick() behind `data` — it's null on the first (loading) render.
+  const rows = data ? (pick ? (pick(data) || []) : data) : [];
   return (
     <div className="mt-8">
       <h3 className="text-sm font-bold text-slate-700 mb-2">{title}</h3>
