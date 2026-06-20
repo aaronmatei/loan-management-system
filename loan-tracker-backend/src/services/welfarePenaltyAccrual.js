@@ -5,6 +5,7 @@
 // "assess late" endpoint and the daily cron.
 import { query } from "../config/database.js";
 import { computePenaltyAmount } from "../utils/penaltyEngine.js";
+import { computeInstallmentPenalty } from "../utils/penalty.js";
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -134,6 +135,45 @@ export async function accrueEventSharePenalties(tenantId) {
   return { assessed, overdue: shares.length };
 }
 
+// Member-loan overdue accrual. Unlike contributions/events (which write
+// penalty_assessments), loan penalties live ON the schedule row — the lender
+// model — so the payment allocator can charge them live (penalty → interest →
+// principal). Here we flip past-due, unpaid installments to 'overdue' and
+// snapshot the accruing late_fee / penalty_interest (via the shared
+// computeInstallmentPenalty), never reducing an already-recorded charge.
+export async function accrueMemberLoanPenalties(tenantId) {
+  const rows = (
+    await query(
+      `SELECT s.id, s.amount_due, s.amount_paid, (CURRENT_DATE - s.due_date) AS days_late,
+              l.late_fee, l.penalty_rate
+         FROM member_loan_schedules s
+         JOIN member_loans l ON l.id = s.member_loan_id
+        WHERE s.tenant_id = $1 AND l.status = 'active'
+          AND s.status IN ('pending','overdue') AND s.due_date < CURRENT_DATE
+          AND s.amount_due > s.amount_paid
+          AND (COALESCE(l.late_fee,0) > 0 OR COALESCE(l.penalty_rate,0) > 0)`,
+      [tenantId],
+    )
+  ).rows;
+
+  let overdue = 0;
+  for (const s of rows) {
+    const daysLate = parseInt(s.days_late, 10) || 0;
+    if (daysLate <= 0) continue;
+    const balance = round2(parseFloat(s.amount_due) - parseFloat(s.amount_paid));
+    const p = computeInstallmentPenalty({ balance, daysLate, lateFee: parseFloat(s.late_fee) || 0, penaltyRate: parseFloat(s.penalty_rate) || 0 });
+    await query(
+      `UPDATE member_loan_schedules SET status='overdue', days_late=$2,
+          late_fee_charged=GREATEST(COALESCE(late_fee_charged,0),$3),
+          penalty_interest_charged=GREATEST(COALESCE(penalty_interest_charged,0),$4), updated_at=NOW()
+        WHERE id=$1`,
+      [s.id, daysLate, round2(parseFloat(p.late_fee) || 0), round2(parseFloat(p.penalty_interest) || 0)],
+    );
+    overdue += 1;
+  }
+  return { overdue };
+}
+
 // Run for every active welfare tenant (the daily cron's entry point).
 export async function accrueAllWelfarePenalties() {
   const tenants = (
@@ -144,6 +184,7 @@ export async function accrueAllWelfarePenalties() {
     try {
       const r = await accrueContributionPenalties(t.id);
       const e = await accrueEventSharePenalties(t.id);
+      await accrueMemberLoanPenalties(t.id);
       assessed += r.assessed + e.assessed;
     } catch {
       /* one chama failing shouldn't stop the rest */
