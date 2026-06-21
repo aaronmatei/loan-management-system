@@ -12,7 +12,7 @@ import {
   PENALTY_CALC_TYPES,
 } from "../utils/penaltyEngine.js";
 import { notifyPenalty } from "../services/welfareSmsService.js";
-import { poolBalance } from "../services/welfarePoolService.js";
+import { postPool } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -300,22 +300,17 @@ router.post("/penalties/:id/pay", authorize("admin", "manager", "loan_officer"),
     const status = newPaid >= parseFloat(a.amount) ? "paid" : "outstanding";
     await query(`UPDATE penalty_assessments SET paid_amount=$2, status=$3 WHERE id=$1`, [a.id, newPaid, status]);
 
-    // Penalty income grows the pool (not the member's savings).
-    const prev = await poolBalance(req.welfare.id);
-    await query(
-      `INSERT INTO member_pool_transactions
-         (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, description, created_by)
-       VALUES ($1,$2,$3,'penalty',$4,1,$5,$6,$7)`,
-      [
-        req.welfare.tenant_id, req.welfare.id, a.member_id, amt, round2(prev + amt),
-        `Penalty payment (assessment #${a.id})`, req.user.id,
-      ],
-    );
+    // Penalty income grows the pool (not the member's savings) — through the
+    // atomic, race-safe pool writer.
+    const poolTx = await postPool({
+      welfare: req.welfare, memberId: a.member_id, type: "penalty", amount: amt, direction: 1,
+      description: `Penalty payment (assessment #${a.id})`, userId: req.user.id,
+    });
     await logAudit({
       user: req.user, action: "penalty_paid", entityType: "penalty_assessment",
       entityId: a.id, description: `Penalty payment KES ${amt}`, req,
     });
-    res.json({ success: true, status, pool_balance: round2(prev + amt), outstanding: round2(parseFloat(a.amount) - newPaid) });
+    res.json({ success: true, status, pool_balance: Number(poolTx.balance_after), outstanding: round2(parseFloat(a.amount) - newPaid) });
   } catch (e) {
     logger.error("penalty pay error:", e);
     res.status(500).json({ error: "Failed to record penalty payment" });

@@ -11,7 +11,7 @@ import { accrueContributionPenalties } from "../services/welfarePenaltyAccrual.j
 import { notifyContributionReceipt } from "../services/welfareSmsService.js";
 import { getPlan, listActivePlans, getPlanById, createPlan, editPlan, ensureCurrentCycle, ensureCurrentCycles, ensureYearCycles, periodFor, periodsForYear } from "../services/contributionPlanService.js";
 import { poolKeyForPlan, benefitPoolBalance, postBenefitPool, recordPayout, poolPayouts } from "../services/welfareBenefitPoolService.js";
-import { poolBalance as savingsPoolBalance } from "../services/welfarePoolService.js";
+import { poolBalance as savingsPoolBalance, postPool } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -451,14 +451,8 @@ router.post(
         const led = await postBenefitPool({ welfare: req.welfare, poolKey: s.pool_key, memberId: s.member_id, type: "contribution", cycleId: s.cycle_id, amount: amt, direction: 1, description: `Contribution — ${s.cycle_name}`, userId: req.user.id });
         poolAfter = Number(led.balance_after);
       } else {
-        const prev = await savingsPoolBalance(req.welfare.id);
-        poolAfter = round2(prev + amt);
-        await query(
-          `INSERT INTO member_pool_transactions
-             (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, description, created_by)
-           VALUES ($1,$2,$3,'contribution',$4,1,$5,$6,$7)`,
-          [req.welfare.tenant_id, req.welfare.id, s.member_id, amt, poolAfter, `Contribution (cycle #${s.cycle_id})`, req.user.id],
-        );
+        const tx = await postPool({ welfare: req.welfare, memberId: s.member_id, type: "contribution", amount: amt, direction: 1, description: `Contribution (cycle #${s.cycle_id})`, userId: req.user.id });
+        poolAfter = Number(tx.balance_after);
       }
       // Best-effort receipt SMS (no-op when SMS is disabled).
       notifyContributionReceipt({ welfare: req.welfare, memberId: s.member_id, amount: amt, sentBy: req.user.id });
