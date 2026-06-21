@@ -11,6 +11,8 @@
     "test:coverage": "vitest run --coverage",
     "test:db:setup": "psql -d loan_tracker_test -f tests/setup/schema.sql",
     "migrate": "node migrations/init.js",
+    "migrate:status": "node migrations/init.js --status",
+    "migrate:baseline": "node migrations/init.js --baseline",
     "seed": "node seed.js"
   },
   "keywords": [],
