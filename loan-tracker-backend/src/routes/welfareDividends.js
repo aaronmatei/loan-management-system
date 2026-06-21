@@ -9,6 +9,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { notifyDividend } from "../services/welfareSmsService.js";
+import { poolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -28,11 +29,6 @@ router.use(async (req, res, next) => {
     res.status(500).json({ error: "Failed to resolve welfare" });
   }
 });
-
-async function poolBalance(welfareId) {
-  const r = await query(`SELECT balance_after FROM member_pool_transactions WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`, [welfareId]);
-  return r.rows.length ? parseFloat(r.rows[0].balance_after) : 0;
-}
 
 // Active members with their savings principal (excludes dividends).
 async function activeMembersWithSavings(welfareId) {

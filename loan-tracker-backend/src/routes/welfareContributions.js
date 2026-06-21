@@ -31,14 +31,6 @@ router.use(async (req, res, next) => {
   }
 });
 
-async function poolBalance(welfareId) {
-  const r = await query(
-    `SELECT balance_after FROM member_pool_transactions WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
-    [welfareId],
-  );
-  return r.rows.length ? parseFloat(r.rows[0].balance_after) : 0;
-}
-
 // ── named contributions (plans) ────────────────────────────────────────────
 // A welfare runs SEVERAL named contributions at once (e.g. "Monthly" and
 // "Quarterly"). Each is its own plan and auto-opens its own cycles; the list
@@ -459,7 +451,7 @@ router.post(
         const led = await postBenefitPool({ welfare: req.welfare, poolKey: s.pool_key, memberId: s.member_id, type: "contribution", cycleId: s.cycle_id, amount: amt, direction: 1, description: `Contribution — ${s.cycle_name}`, userId: req.user.id });
         poolAfter = Number(led.balance_after);
       } else {
-        const prev = await poolBalance(req.welfare.id);
+        const prev = await savingsPoolBalance(req.welfare.id);
         poolAfter = round2(prev + amt);
         await query(
           `INSERT INTO member_pool_transactions

@@ -12,6 +12,7 @@ import {
   PENALTY_CALC_TYPES,
 } from "../utils/penaltyEngine.js";
 import { notifyPenalty } from "../services/welfareSmsService.js";
+import { poolBalance } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -39,15 +40,6 @@ router.use(async (req, res, next) => {
 async function loadMember(welfareId, id) {
   const r = await query(`SELECT * FROM members WHERE id = $1 AND welfare_id = $2`, [id, welfareId]);
   return r.rows[0] || null;
-}
-
-async function poolBalance(welfareId) {
-  const r = await query(
-    `SELECT balance_after FROM member_pool_transactions
-      WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
-    [welfareId],
-  );
-  return r.rows.length ? parseFloat(r.rows[0].balance_after) : 0;
 }
 
 // ---------------- SETTINGS ----------------
