@@ -3295,6 +3295,8 @@ CREATE TABLE public.group_meetings (
   penalty_rule_id integer, -- migration 087
   fine_late    numeric, -- migration 088
   fine_absent  numeric, -- migration 088
+  start_time   time, -- migration 099
+  grace_minutes integer NOT NULL DEFAULT 0, -- migration 099
   notes        text,
   status       varchar(20) NOT NULL DEFAULT 'scheduled',
   created_by   integer,
@@ -3870,6 +3872,8 @@ CREATE TABLE public.member_attendance (
   meeting_id  integer NOT NULL REFERENCES public.group_meetings(id) ON DELETE CASCADE,
   member_id   integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
   status      varchar(20) NOT NULL DEFAULT 'present',
+  arrival_time time, -- migration 099
+  apology     boolean NOT NULL DEFAULT false, -- migration 099
   created_at  timestamp NOT NULL DEFAULT NOW(),
   updated_at  timestamp NOT NULL DEFAULT NOW(),
   UNIQUE (meeting_id, member_id)

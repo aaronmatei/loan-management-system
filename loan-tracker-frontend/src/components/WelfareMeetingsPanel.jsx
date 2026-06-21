@@ -10,6 +10,13 @@ const ATT = [
   { v: "absent", label: "Absent", cls: "bg-red-100 text-red-800" },
 ];
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
+const hhmm = (t) => (t ? String(t).slice(0, 5) : "");
+const toMin = (t) => { if (!t) return null; const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
+// Client preview of the status the server will derive from arrival vs start+grace.
+const deriveStatus = (arrival, apology, meeting) => {
+  if (arrival) { const s = toMin(meeting.start_time); if (s == null) return "present"; return toMin(arrival) > s + (Number(meeting.grace_minutes) || 0) ? "late" : "present"; }
+  return apology ? "excused" : "absent";
+};
 
 // Welfare meetings + member attendance. Absent/late statuses auto-apply the
 // chama's attendance penalties.
@@ -79,7 +86,7 @@ export default function WelfareMeetingsPanel({ welfareId }) {
                 {meetings.map((m) => (
                   <tr key={m.id} onClick={() => setAttend(m)} className="border-t border-slate-100 hover:bg-indigo-50/50 cursor-pointer">
                     <td className="px-4 py-2 font-semibold text-slate-800">{m.title || <span className="text-slate-400 font-normal">—</span>}</td>
-                    <td className="px-4 py-2 text-slate-700">{fmt(m.meeting_date)}</td>
+                    <td className="px-4 py-2 text-slate-700">{fmt(m.meeting_date)}{m.start_time ? ` · ${hhmm(m.start_time)}` : ""}</td>
                     <td className="px-4 py-2 text-slate-600">{m.location || "Home"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
                     <td className="px-4 py-2 text-right text-slate-700">{Number(m.present_count)}</td>
@@ -181,7 +188,7 @@ function Stat({ label, value, tone = "text-slate-800" }) {
 }
 
 function NewMeetingModal({ welfareId, onClose, onCreated }) {
-  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], location: "", agenda: "", fine_late: "", fine_absent: "" });
+  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], start_time: "", grace_minutes: "", location: "", agenda: "", fine_late: "", fine_absent: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -201,6 +208,11 @@ function NewMeetingModal({ welfareId, onClose, onCreated }) {
         {error && <Err msg={error} />}
         <div><label className={lbl}>Name</label><input value={form.title} onChange={set("title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} /></div>
         <div><label className={lbl}>Date</label><input type="date" value={form.meeting_date} onChange={set("meeting_date")} className={fld} /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Start time</label><input type="time" value={form.start_time} onChange={set("start_time")} className={fld} /></div>
+          <div><label className={lbl}>Grace (min)</label><input type="number" min="0" value={form.grace_minutes} onChange={set("grace_minutes")} placeholder="e.g. 15" className={fld} /></div>
+        </div>
+        <p className="-mt-2 text-xs text-slate-400">Members arriving after the start time + grace are marked late automatically.</p>
         <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} className={fld} /></div>
         <div><label className={lbl}>Agenda</label><textarea value={form.agenda} onChange={set("agenda")} rows="2" className={fld} /></div>
         <div>
@@ -230,16 +242,20 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
     try {
       const r = await api.get(`/welfares/${welfareId}/meetings/${row.id}`);
       setData(r.data.data);
-      setRoster((r.data.data.roster || []).map((m) => ({ ...m, status: m.attendance_status || "present" })));
+      setRoster((r.data.data.roster || []).map((m) => ({ ...m, arrival_time: hhmm(m.arrival_time), apology: !!m.apology })));
     } catch { /* */ } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, [welfareId, row.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const setStatus = (memberId, status) => setRoster((r) => r.map((m) => (m.member_id === memberId ? { ...m, status } : m)));
+  // Setting an arrival time means they showed up, so an apology no longer applies.
+  const setArrival = (memberId, arrival_time) => setRoster((r) => r.map((m) => (m.member_id === memberId ? { ...m, arrival_time, apology: arrival_time ? false : m.apology } : m)));
+  const setApology = (memberId, apology) => setRoster((r) => r.map((m) => (m.member_id === memberId ? { ...m, apology } : m)));
   const save = async () => {
     setBusy(true); setError("");
     try {
-      await api.post(`/welfares/${welfareId}/meetings/${row.id}/attendance`, { records: roster.map((m) => ({ member_id: m.member_id, status: m.status })) });
+      await api.post(`/welfares/${welfareId}/meetings/${row.id}/attendance`, {
+        records: roster.map((m) => ({ member_id: m.member_id, arrival_time: m.arrival_time || null, apology: !!m.apology })),
+      });
       await load(); onSaved?.();
       setBusy(false);
     } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
@@ -257,6 +273,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
       {error && <div className="mb-3"><Err msg={error} /></div>}
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 mb-4">
         <span><span className="text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
+        {m.start_time && <span><span className="text-slate-400">Start</span> {hhmm(m.start_time)}{m.grace_minutes ? ` (+${m.grace_minutes}m grace)` : ""}</span>}
         <span><span className="text-slate-400">Location</span> {m.location || "Home"}</span>
         <span><span className="text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
       </div>
@@ -275,25 +292,31 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
       {loading ? <p className="text-sm text-slate-500">Loading roster…</p> : roster.length === 0 ? (
         <p className="text-sm text-slate-500">No active members.</p>
       ) : (
-        <div className="space-y-2 max-h-72 overflow-y-auto">
-          {roster.map((mem) => (
-            <div key={mem.member_id} className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-800">{mem.first_name} {mem.last_name}</span>
-              {recorded ? (
-                (() => { const a = ATT.find((x) => x.v === mem.status) || ATT[0]; return <span className={`px-2 py-1 rounded text-xs font-semibold ${a.cls}`}>{a.label}</span>; })()
-              ) : (
-                <div className="flex gap-1">
-                  {ATT.map((a) => (
-                    <button key={a.v} type="button" onClick={() => setStatus(mem.member_id, a.v)}
-                      className={`px-2 py-1 rounded text-xs font-semibold ${mem.status === a.v ? a.cls : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
-                      {a.label}
-                    </button>
-                  ))}
+        <>
+          <p className="text-xs text-slate-400 mb-2">Enter each member's arrival time. Anyone past {m.start_time ? `${hhmm(m.start_time)} + ${m.grace_minutes || 0} min grace` : "the start time"} is marked late; leave blank for a no-show, and tick <em>apology</em> to excuse them from the fine.</p>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {roster.map((mem) => {
+              const st = recorded ? mem.attendance_status : deriveStatus(mem.arrival_time, mem.apology, m);
+              const badge = ATT.find((x) => x.v === st) || ATT[0];
+              return (
+                <div key={mem.member_id} className="flex items-center gap-3">
+                  <span className="flex-1 text-sm text-slate-800 truncate">{mem.first_name} {mem.last_name}</span>
+                  {recorded ? (
+                    <span className="text-xs text-slate-500 tabular-nums w-12 text-right">{hhmm(mem.arrival_time) || "—"}</span>
+                  ) : (
+                    <>
+                      <input type="time" value={mem.arrival_time || ""} onChange={(e) => setArrival(mem.member_id, e.target.value)} className="px-2 py-1 border border-slate-200 rounded text-sm" />
+                      <label className="text-xs text-slate-500 inline-flex items-center gap-1 select-none">
+                        <input type="checkbox" checked={!!mem.apology} disabled={!!mem.arrival_time} onChange={(e) => setApology(mem.member_id, e.target.checked)} /> apology
+                      </label>
+                    </>
+                  )}
+                  <span className={`px-2 py-1 rounded text-xs font-semibold w-16 text-center shrink-0 ${badge.cls}`}>{badge.label}</span>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
       <PermissionGate role={["admin", "manager", "loan_officer"]}>
         <div className="flex justify-end items-center gap-3 pt-3">

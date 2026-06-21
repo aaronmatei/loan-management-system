@@ -15,6 +15,29 @@ router.use(verifyToken);
 const ATTENDANCE = ["present", "late", "absent", "excused"];
 const TRIGGER_FOR = { absent: "attendance_absent", late: "attendance_late" };
 
+// "HH:MM[:SS]" → minutes since midnight (null for blank).
+const toMinutes = (t) => {
+  if (!t || !String(t).trim()) return null;
+  const [h, m] = String(t).split(":").map(Number);
+  return h * 60 + (m || 0);
+};
+
+// Derive a member's attendance status from the recorded arrival time against the
+// meeting's start + grace. No arrival → absent, unless an apology was logged
+// (excused). An explicit `status` (legacy/manual callers) is honoured when no
+// arrival time is given.
+function deriveStatus(rec, meeting) {
+  const arrival = rec.arrival_time && String(rec.arrival_time).trim() ? rec.arrival_time : null;
+  if (arrival) {
+    const a = toMinutes(arrival), s = toMinutes(meeting.start_time);
+    if (s == null) return "present"; // no scheduled start → can't be late
+    return a > s + (Number(meeting.grace_minutes) || 0) ? "late" : "present";
+  }
+  const apology = rec.apology === true || rec.apology === "true";
+  if (!apology && ATTENDANCE.includes(rec.status)) return rec.status; // explicit status, back-compat
+  return apology ? "excused" : "absent";
+}
+
 router.use(async (req, res, next) => {
   try {
     const tc = tenantClause(req, 1, "tenant_id");
@@ -77,13 +100,15 @@ router.get("/meetings", async (req, res) => {
 // POST /meetings
 router.post("/meetings", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
-    const { meeting_date, location, agenda, title, fine_late, fine_absent } = req.body || {};
+    const { meeting_date, location, agenda, title, fine_late, fine_absent, start_time, grace_minutes } = req.body || {};
     if (!meeting_date) return res.status(400).json({ error: "Meeting date is required" });
     const num = (v) => (v === "" || v == null ? null : parseFloat(v));
+    const startTime = start_time && String(start_time).trim() ? start_time : null;
+    const grace = Math.max(0, parseInt(grace_minutes, 10) || 0);
     const r = await query(
-      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, fine_late, fine_absent, created_by)
-       VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9) RETURNING *`,
-      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, num(fine_late), num(fine_absent), req.user.id],
+      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, fine_late, fine_absent, start_time, grace_minutes, created_by)
+       VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, num(fine_late), num(fine_absent), startTime, grace, req.user.id],
     );
     await logAudit({
       user: req.user, action: "welfare_meeting_created", entityType: "group",
@@ -104,7 +129,7 @@ router.get("/meetings/:meetingId", async (req, res) => {
     if (!m) return res.status(404).json({ error: "Meeting not found" });
     const roster = await query(
       `SELECT mem.id AS member_id, mem.first_name, mem.last_name, mem.member_no,
-              a.status AS attendance_status
+              a.status AS attendance_status, a.arrival_time, a.apology
          FROM members mem
          LEFT JOIN member_attendance a ON a.meeting_id = $2 AND a.member_id = mem.id
         WHERE mem.welfare_id = $1 AND mem.status = 'active'
@@ -149,12 +174,14 @@ router.post(
 
       for (const rec of records) {
         if (!rec.member_id) continue;
-        const status = ATTENDANCE.includes(rec.status) ? rec.status : "present";
+        const status = deriveStatus(rec, m);
+        const arrival = rec.arrival_time && String(rec.arrival_time).trim() ? rec.arrival_time : null;
+        const apology = rec.apology === true || rec.apology === "true";
         await query(
-          `INSERT INTO member_attendance (tenant_id, welfare_id, meeting_id, member_id, status)
-           VALUES ($1,$2,$3,$4,$5)
-           ON CONFLICT (meeting_id, member_id) DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()`,
-          [req.welfare.tenant_id, req.welfare.id, m.id, rec.member_id, status],
+          `INSERT INTO member_attendance (tenant_id, welfare_id, meeting_id, member_id, status, arrival_time, apology)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)
+           ON CONFLICT (meeting_id, member_id) DO UPDATE SET status = EXCLUDED.status, arrival_time = EXCLUDED.arrival_time, apology = EXCLUDED.apology, updated_at = NOW()`,
+          [req.welfare.tenant_id, req.welfare.id, m.id, rec.member_id, status, arrival, apology],
         );
         await assessAttendance(req.welfare, m.id, rec.member_id, status, fines, req.user.id);
       }
