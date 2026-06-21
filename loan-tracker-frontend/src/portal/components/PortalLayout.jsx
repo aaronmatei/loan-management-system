@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import Logo, { LogoMark } from "../../components/Logo";
+import { LogoMark } from "../../components/Logo";
 import {
   LayoutDashboard,
   Layers,
@@ -52,7 +52,7 @@ const PAWN_ITEMS = [
 // (not a borrower), so the menu swaps to their member desk — but keeps "Borrow
 // from a lender" so they can still take loans from lenders with this account.
 const WELFARE_MENU = [
-  { path: "/welfare/member", label: "Dashboard", icon: PiggyBank, variant: "emerald", exact: true },
+  { path: "/welfare/member", label: "Dashboard", icon: LayoutDashboard, variant: "emerald", exact: true },
   { path: "/welfare/member/savings", label: "My Savings", icon: PiggyBank, variant: "teal" },
   { path: "/welfare/member/members", label: "Members", icon: Users, variant: "sky" },
   { path: "/welfare/member/contributions", label: "Contributions", icon: Coins, variant: "ocean" },
@@ -96,14 +96,19 @@ function PortalLayout({ children }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [customer, setCustomer] = useState({});
+  const [tenant, setTenant] = useState(null);
 
   useEffect(() => {
     try {
       setCustomer(JSON.parse(localStorage.getItem("portal_customer") || "{}"));
+      setTenant(JSON.parse(localStorage.getItem("portal_current_tenant") || "null"));
     } catch {
       /* ignore malformed storage */
     }
-  }, []);
+  }, [location.pathname]);
+
+  // A welfare member sees their chama's name; borrowers see the platform portal.
+  const portalLabel = tenant?.kind === "welfare" && tenant.business_name ? `${tenant.business_name} Portal` : "Client Portal";
 
   // Close the mobile drawer on navigation.
   useEffect(() => setSidebarOpen(false), [location.pathname]);
@@ -157,7 +162,7 @@ function PortalLayout({ children }) {
                 <span className="text-navy-900">Lender</span>
                 <span className="text-ocean-600">Fest</span>
               </span>
-              <p className="text-slate-500 text-xs">Client Portal</p>
+              <p className="text-slate-500 text-xs">{portalLabel}</p>
             </div>
           </div>
           <button
@@ -179,13 +184,13 @@ function PortalLayout({ children }) {
                   <Link to={item.path} className={linkClass(active)}>
                     {active ? (
                       <span
-                        className="flex items-center justify-center rounded-xl bg-white/20 shrink-0"
-                        style={{ width: 32, height: 32 }}
+                        className="flex items-center justify-center rounded-lg bg-white/20 shrink-0"
+                        style={{ width: 26, height: 26 }}
                       >
-                        <Icon size={16} color="#fff" strokeWidth={2.2} />
+                        <Icon size={14} color="#fff" strokeWidth={2.2} />
                       </span>
                     ) : (
-                      <IconTile icon={Icon} variant={item.variant} size={32} />
+                      <IconTile icon={Icon} variant={item.variant} size={26} />
                     )}
                     <span className="flex-1 text-sm">{item.label}</span>
                   </Link>
@@ -249,7 +254,6 @@ function PortalLayout({ children }) {
                   />
                 </svg>
               </button>
-              <Logo markClassName="h-6 w-6" textClassName="text-lg" />
             </div>
             <PortalNotificationBell />
           </div>
