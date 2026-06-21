@@ -224,13 +224,13 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
         <div><label className={lbl}>Name</label><input value={form.title} onChange={set("title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} /></div>
+        <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} className={fld} /></div>
         <div><label className={lbl}>Date</label><input type="date" value={form.meeting_date} onChange={set("meeting_date")} className={fld} /></div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className={lbl}>Start time</label><input type="time" value={form.start_time} onChange={set("start_time")} className={fld} /></div>
           <div><label className={lbl}>Grace (min)</label><input type="number" min="0" value={form.grace_minutes} onChange={set("grace_minutes")} placeholder="e.g. 15" className={fld} /></div>
         </div>
         <p className="-mt-2 text-xs text-slate-400">Members arriving after the start time + grace are marked late automatically.</p>
-        <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} className={fld} /></div>
         <div><label className={lbl}>Agenda</label><textarea value={form.agenda} onChange={set("agenda")} rows="2" className={fld} /></div>
         <div>
           <p className="text-sm font-semibold text-slate-700 mb-1">Attendance fines</p>
