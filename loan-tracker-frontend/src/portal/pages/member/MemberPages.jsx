@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
@@ -12,6 +12,7 @@ import Spinner from "../../../components/Spinner";
 import { computeLoanTotals } from "../../../utils/loanMath";
 import WelfareDashboardPanel from "../../../components/WelfareDashboardPanel";
 import OfficerBadge from "../../../components/OfficerBadge";
+import WelfareDocumentsPanel from "../../../components/WelfareDocumentsPanel";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -673,6 +674,14 @@ export function MemberDividends() {
           )}
         />
       )}
+    </Shell>
+  );
+}
+
+export function MemberDocuments() {
+  return (
+    <Shell title="Documents" icon={FileText}>
+      <WelfareDocumentsPanel client={portalApi} path="/welfare/member/documents" />
     </Shell>
   );
 }

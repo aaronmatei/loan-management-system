@@ -11,6 +11,7 @@ import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import { buildSummary, buildCharts, buildMemberRows } from "../welfareReports.js";
 import { gateLoanWrites } from "../../services/welfareLoanFlag.js";
+import { VISIBILITIES, runDocUpload, storeDocFile, isCloudinaryConfigured, isOfficer, cleanCategory } from "../../services/welfareDocumentService.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -188,6 +189,59 @@ router.get("/group-expenses", async (req, res) => {
     const total = (await query(`SELECT COALESCE(SUM(amount),0) t FROM member_pool_transactions WHERE welfare_id=$1 AND type='expense'`, [req.welfareId])).rows[0].t;
     res.json({ success: true, data: { expenses: r.rows, total: round2(total) } });
   } catch (e) { logger.error("member group-expenses error:", e); res.status(500).json({ error: "Failed to load expenses" }); }
+});
+
+// Documents — shared welfare files. Officers see officer-only docs too; every
+// active member can upload (your choice). An uploader (or any officer) can
+// delete what they posted.
+router.get("/documents", async (req, res) => {
+  try {
+    const officer = isOfficer(req.member.role);
+    const r = await query(
+      `SELECT id, title, category, visibility, file_url, file_name, mime, size_bytes,
+              uploaded_by_member, uploaded_by_name, created_at
+         FROM welfare_documents
+        WHERE welfare_id = $1 ${officer ? "" : "AND visibility = 'members'"}
+        ORDER BY created_at DESC`,
+      [req.welfareId],
+    );
+    res.json({ success: true, data: { documents: r.rows, is_officer: officer, my_member_id: req.member.id } });
+  } catch (e) { logger.error("member documents list error:", e); res.status(500).json({ error: "Failed to load documents" }); }
+});
+
+router.post("/documents", runDocUpload, async (req, res) => {
+  try {
+    if (!isCloudinaryConfigured()) return res.status(503).json({ error: "File storage is not configured yet." });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    const title = String(req.body?.title || "").trim();
+    if (!title) return res.status(400).json({ error: "Title is required" });
+    // Only officers may post officer-only documents; members always share with the group.
+    const visibility = isOfficer(req.member.role) && VISIBILITIES.includes(req.body?.visibility) ? req.body.visibility : "members";
+    const url = await storeDocFile(req.file, req.welfareId);
+    const r = await query(
+      `INSERT INTO welfare_documents
+         (tenant_id, welfare_id, title, category, visibility, file_url, file_name, mime, size_bytes, uploaded_by_member, uploaded_by_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [
+        req.member.tenant_id, req.welfareId, title, cleanCategory(req.body?.category), visibility,
+        url, req.file.originalname?.slice(0, 200) || null, req.file.mimetype, req.file.size,
+        req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim(),
+      ],
+    );
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) { logger.error("member document upload error:", e); res.status(500).json({ error: "Failed to upload document" }); }
+});
+
+router.delete("/documents/:id", async (req, res) => {
+  try {
+    const doc = (await query(`SELECT * FROM welfare_documents WHERE id = $1 AND welfare_id = $2`, [req.params.id, req.welfareId])).rows[0];
+    if (!doc) return res.status(404).json({ error: "Document not found" });
+    if (doc.uploaded_by_member !== req.member.id && !isOfficer(req.member.role)) {
+      return res.status(403).json({ error: "Only the uploader or an officer can delete this." });
+    }
+    await query(`DELETE FROM welfare_documents WHERE id = $1`, [doc.id]);
+    res.json({ success: true });
+  } catch (e) { logger.error("member document delete error:", e); res.status(500).json({ error: "Failed to delete document" }); }
 });
 
 router.get("/group-cycles", async (req, res) => {

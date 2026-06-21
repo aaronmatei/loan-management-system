@@ -3368,6 +3368,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_members_one_treasurer_per_welfare
 CREATE UNIQUE INDEX IF NOT EXISTS idx_members_one_secretary_per_welfare
   ON public.members(welfare_id) WHERE role = 'secretary' AND status = 'active';
 
+CREATE TABLE public.welfare_documents ( -- migration 097
+  id                 serial PRIMARY KEY,
+  tenant_id          integer NOT NULL,
+  welfare_id         integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  title              varchar(160) NOT NULL,
+  category           varchar(20) NOT NULL DEFAULT 'other',
+  visibility         varchar(20) NOT NULL DEFAULT 'members',
+  file_url           text NOT NULL,
+  file_name          varchar(200),
+  mime               varchar(100),
+  size_bytes         integer,
+  meeting_id         integer,
+  uploaded_by_member integer REFERENCES public.members(id) ON DELETE SET NULL,
+  uploaded_by_user   integer,
+  uploaded_by_name   varchar(120),
+  created_at         timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_welfare_documents_welfare ON public.welfare_documents(welfare_id, created_at DESC);
+
 CREATE TABLE public.member_pool_transactions (
   id             serial PRIMARY KEY,
   tenant_id      integer NOT NULL,

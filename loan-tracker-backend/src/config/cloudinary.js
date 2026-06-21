@@ -30,15 +30,17 @@ if (CLOUDINARY_URL) {
 
 export const isCloudinaryConfigured = () => configured;
 
-// Upload an in-memory image buffer; resolves to the secure HTTPS URL.
-export const uploadBuffer = (buffer, { folder, publicId } = {}) =>
+// Upload an in-memory buffer; resolves to the upload result (incl. secure_url).
+// resourceType defaults to "image" (KYC photos); pass "auto" for documents so
+// PDFs and other non-image files store as raw and remain downloadable.
+export const uploadBuffer = (buffer, { folder, publicId, resourceType = "image" } = {}) =>
   new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder,
         public_id: publicId,
         overwrite: true,
-        resource_type: "image",
+        resource_type: resourceType,
       },
       (err, result) => (err ? reject(err) : resolve(result)),
     );

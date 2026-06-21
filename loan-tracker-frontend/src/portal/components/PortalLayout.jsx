@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   HeartHandshake,
   Users,
+  FileText,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 import PortalNotificationBell from "./PortalNotificationBell";
@@ -56,6 +57,7 @@ const WELFARE_MENU = [
   { path: "/welfare/member/contributions", label: "Contributions", icon: Coins, variant: "ocean" },
   { path: "/welfare/member/loans", label: "Requests", icon: ClipboardList, variant: "indigo" },
   { path: "/welfare/member/meetings", label: "Meetings", icon: CalendarCheck, variant: "amber" },
+  { path: "/welfare/member/documents", label: "Documents", icon: FileText, variant: "teal" },
   { path: "/welfare/member/dividends", label: "Dividends", icon: Gift, variant: "emerald" },
   { path: "/welfare/member/events", label: "Events", icon: HeartHandshake, variant: "ocean" },
   { path: "/welfare/member/penalties", label: "Penalties", icon: AlertTriangle, variant: "rose" },
