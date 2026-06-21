@@ -11,6 +11,7 @@ import PortalLayout from "../../components/PortalLayout";
 import Spinner from "../../../components/Spinner";
 import { computeLoanTotals } from "../../../utils/loanMath";
 import WelfareDashboardPanel from "../../../components/WelfareDashboardPanel";
+import OfficerBadge from "../../../components/OfficerBadge";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -211,7 +212,7 @@ export function MemberDashboard() {
     <Shell title="My Chama" icon={PiggyBank}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
-          <p className="text-slate-500 -mt-3 mb-5">{data.welfare?.name}</p>
+          <p className="text-slate-500 -mt-3 mb-5">{data.welfare?.name} <OfficerBadge role={data.member?.role} className="ml-1 align-middle" /></p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <Stat label="My savings" value={KES(data.savings_balance)} tone="text-emerald-700" />
             {data.welfare?.loans_enabled && <Stat label="Loan balance" value={KES(data.loans?.outstanding)} tone={data.loans?.outstanding > 0 ? "text-ocean-700" : "text-slate-900"} />}
@@ -593,7 +594,7 @@ export function MemberGroup() {
           empty="No members yet."
           render={(m) => (
             <tr key={m.member_id}>
-              <td className="px-4 py-3 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span></td>
+              <td className="px-4 py-3 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" /></td>
               <td className="px-4 py-3">{KES(m.savings)}</td>
               <td className="px-4 py-3">{KES(m.contributions)}</td>
               <td className="px-4 py-3">{KES(m.dividends)}</td>

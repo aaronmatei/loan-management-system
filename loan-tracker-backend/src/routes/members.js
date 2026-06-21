@@ -8,7 +8,7 @@
 // contribution/withdrawal/dividend rows. Member loans (loan_disbursed /
 // loan_repayment) draw the pool down and restore it.
 import express from "express";
-import { query } from "../config/database.js";
+import { query, withTransaction } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
@@ -296,6 +296,43 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
   } catch (e) {
     logger.error("welfare member update error:", e);
     res.status(500).json({ error: "Failed to update member" });
+  }
+});
+
+// PUT /:id/role — set/clear a member's officer role. Officers are normally
+// elected via the decisions/voting feature, but admin/manager can assign
+// directly (bootstrap before any election, or a manual fix). Assigning an
+// officer role demotes any current holder of that role in the same welfare to
+// 'member', so the one-per-welfare rule holds without a constraint error.
+const OFFICER_ROLES = ["chair", "treasurer", "secretary"];
+const MEMBER_ROLES = ["member", ...OFFICER_ROLES];
+router.put("/:id/role", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const member = await loadMember(req.welfare.id, req.params.id);
+    if (!member) return res.status(404).json({ error: "Member not found" });
+    const role = String(req.body?.role || "").toLowerCase();
+    if (!MEMBER_ROLES.includes(role)) return res.status(400).json({ error: `Role must be one of: ${MEMBER_ROLES.join(", ")}` });
+
+    const updated = await withTransaction(async (client) => {
+      if (OFFICER_ROLES.includes(role)) {
+        await client.query(
+          `UPDATE members SET role = 'member', updated_at = NOW()
+             WHERE welfare_id = $1 AND role = $2 AND status = 'active' AND id <> $3`,
+          [req.welfare.id, role, member.id],
+        );
+      }
+      const r = await client.query(`UPDATE members SET role = $2, updated_at = NOW() WHERE id = $1 RETURNING *`, [member.id, role]);
+      return r.rows[0];
+    });
+    await logAudit({
+      user: req.user, action: "member_role_changed", entityType: "member",
+      entityId: member.id, entityCode: member.member_no,
+      description: `Role of ${member.first_name} ${member.last_name} set to ${role}`, req,
+    });
+    res.json({ success: true, data: updated });
+  } catch (e) {
+    logger.error("welfare member role error:", e);
+    res.status(500).json({ error: "Failed to update role" });
   }
 });
 

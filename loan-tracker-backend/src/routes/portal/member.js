@@ -102,7 +102,7 @@ router.get("/overview", async (req, res) => {
         member: {
           id: m.id, member_no: m.member_no, first_name: m.first_name, last_name: m.last_name,
           phone_number: m.phone_number, status: m.status, monthly_contribution: m.monthly_contribution,
-          joined_at: m.joined_at,
+          joined_at: m.joined_at, role: m.role || "member",
         },
         welfare: { id: req.welfareId, name: m.welfare_name, pool_balance: round2(pool), loans_enabled: loansEnabled },
         savings_balance: round2(savings),

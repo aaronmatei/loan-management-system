@@ -6,6 +6,7 @@ import { downloadFile } from "../utils/bulkExport";
 import { useWelfare } from "../context/WelfareContext";
 import PermissionGate from "../components/PermissionGate";
 import MemberLoansPanel from "../components/MemberLoansPanel";
+import OfficerBadge from "../components/OfficerBadge";
 import Spinner from "../components/Spinner";
 
 const TYPE_LABEL = {
@@ -35,6 +36,17 @@ export default function MemberDetail() {
   const [inviting, setInviting] = useState(false);
 
   const base = `/welfares/${welfareId}/members`;
+
+  // Officers are normally elected via decisions, but an admin can set a role
+  // directly here. Assigning an officer role auto-demotes the prior holder.
+  const changeRole = async (role) => {
+    try {
+      await api.put(`${base}/${memberId}/role`, { role });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to set role");
+    }
+  };
 
   const inviteToPortal = async () => {
     setInviting(true);
@@ -112,7 +124,7 @@ export default function MemberDetail() {
 
       <div className="bg-white rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><PiggyBank className="text-emerald-600" /> {member.first_name} {member.last_name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><PiggyBank className="text-emerald-600" /> {member.first_name} {member.last_name} <OfficerBadge role={member.role} /></h1>
           <p className="text-sm text-gray-500 mt-1">
             <span className="font-mono">{member.member_no}</span>
             {member.phone_number && <> · {member.phone_number}</>}
@@ -140,6 +152,15 @@ export default function MemberDetail() {
             <PermissionGate role={["admin", "manager"]}>
               <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
               <button onClick={inviteToPortal} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="px-4 py-2 bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50"><Smartphone size={16} /> {inviting ? "Sending…" : portalLinked ? "Portal access ✓ — resend" : "Invite to portal"}</button>
+              <label className="inline-flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-700" title="Officers are normally elected; set directly here if needed.">
+                Role
+                <select value={member.role || "member"} onChange={(e) => changeRole(e.target.value)} className="bg-transparent outline-none cursor-pointer">
+                  <option value="member">Member</option>
+                  <option value="chair">Chair</option>
+                  <option value="treasurer">Treasurer</option>
+                  <option value="secretary">Secretary</option>
+                </select>
+              </label>
               <button onClick={exitMember} disabled={exiting} className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 ml-auto"><LogOut size={16} /> {exiting ? "Processing…" : "Exit member"}</button>
             </PermissionGate>
           </div>

@@ -3356,10 +3356,17 @@ CREATE TABLE public.members (
   monthly_contribution numeric,
   joined_at            date NOT NULL DEFAULT CURRENT_DATE,
   notes                text,
+  role                 varchar(20) NOT NULL DEFAULT 'member', -- migration 096 (member|chair|treasurer|secretary)
   created_by           integer,
   created_at           timestamp NOT NULL DEFAULT NOW(),
   updated_at           timestamp NOT NULL DEFAULT NOW()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_one_chair_per_welfare
+  ON public.members(welfare_id) WHERE role = 'chair' AND status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_one_treasurer_per_welfare
+  ON public.members(welfare_id) WHERE role = 'treasurer' AND status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_one_secretary_per_welfare
+  ON public.members(welfare_id) WHERE role = 'secretary' AND status = 'active';
 
 CREATE TABLE public.member_pool_transactions (
   id             serial PRIMARY KEY,

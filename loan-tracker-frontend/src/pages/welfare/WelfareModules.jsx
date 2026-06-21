@@ -5,6 +5,7 @@ import { useWelfare } from "../../context/WelfareContext";
 import { downloadFile } from "../../utils/bulkExport";
 import api from "../../services/api";
 import WelfareDashboardPanel from "../../components/WelfareDashboardPanel";
+import OfficerBadge from "../../components/OfficerBadge";
 import WelfareMembersPanel from "../../components/WelfareMembersPanel";
 import WelfareContributionsPanel from "../../components/WelfareContributionsPanel";
 import WelfarePenaltiesPanel from "../../components/WelfarePenaltiesPanel";
@@ -128,7 +129,7 @@ export function WelfareReportsPage() {
                 <tbody>
                   {rows.map((m) => (
                     <tr key={m.member_id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span>{m.status === "inactive" && <span className="ml-1 text-xs text-slate-400">(exited)</span>}</td>
+                      <td className="px-3 py-2 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" />{m.status === "inactive" && <span className="ml-1 text-xs text-slate-400">(exited)</span>}</td>
                       <td className="px-3 py-2 text-right">{money(m.savings)}</td>
                       <td className="px-3 py-2 text-right">{money(m.contributions)}</td>
                       <td className="px-3 py-2 text-right">{money(m.dividends)}</td>

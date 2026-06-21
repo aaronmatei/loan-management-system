@@ -130,7 +130,7 @@ export async function buildSummary(welfare) {
 // Per-member statement rows (shared by JSON + CSV/PDF export).
 export async function buildMemberRows(welfare, includeInactive) {
   return (await query(
-    `SELECT m.id, m.member_no, m.first_name, m.last_name, m.phone_number, m.status,
+    `SELECT m.id, m.member_no, m.first_name, m.last_name, m.phone_number, m.status, m.role,
             COALESCE((SELECT SUM(direction*amount) FROM member_pool_transactions p WHERE p.member_id=m.id AND p.type IN ${SAVINGS_TYPES}),0) AS savings,
             COALESCE((SELECT SUM(amount) FROM member_pool_transactions p WHERE p.member_id=m.id AND p.type='contribution'),0) AS contributions,
             COALESCE((SELECT SUM(amount) FROM member_pool_transactions p WHERE p.member_id=m.id AND p.type='dividend'),0) AS dividends,
@@ -144,7 +144,7 @@ export async function buildMemberRows(welfare, includeInactive) {
     [welfare.id],
   )).rows.map((m) => ({
     member_id: m.id, member_no: m.member_no, name: `${m.first_name} ${m.last_name}`,
-    phone: m.phone_number, status: m.status,
+    phone: m.phone_number, status: m.status, role: m.role || "member",
     savings: num(m.savings), contributions: num(m.contributions), dividends: num(m.dividends),
     loan_outstanding: num(m.loan_outstanding), penalty_outstanding: num(m.penalty_outstanding),
     meetings_attended: m.meetings_attended, meetings_recorded: m.meetings_recorded,
