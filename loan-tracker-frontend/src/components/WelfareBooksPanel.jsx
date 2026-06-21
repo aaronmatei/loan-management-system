@@ -26,14 +26,17 @@ const Row = ({ label, value, bold, indent, tone }) => (
   </div>
 );
 
-export default function WelfareBooksPanel({ welfareId }) {
+// `client`/`path` let the member portal point this at its own token + endpoint;
+// the admin app uses the default api client + a welfare reports path.
+export default function WelfareBooksPanel({ welfareId, client = api, path }) {
+  const url = path || `/welfares/${welfareId}/reports/books`;
   const [b, setB] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get(`/welfares/${welfareId}/reports/books`).then((r) => setB(r.data.data)).catch((e) => setError(e.response?.data?.error || "Failed to load books")).finally(() => setLoading(false));
-  }, [welfareId]);
+    client.get(url).then((r) => setB(r.data.data)).catch((e) => setError(e.response?.data?.error || "Failed to load books")).finally(() => setLoading(false));
+  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Building the books…" /></div>;
   if (error) return <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg flex items-center gap-2"><AlertTriangle size={16} /> {error}</div>;

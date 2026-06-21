@@ -44,6 +44,7 @@ import {
   MemberEvents,
   MemberDocuments,
   MemberDecisions,
+  MemberBooks,
   MemberPenalties,
 } from "./portal/pages/member/MemberPages";
 import CustomerProfile from "./portal/pages/Profile";
@@ -600,6 +601,7 @@ function App() {
             <Route path="/welfare/member/meetings" element={<PortalProtectedRoute><MemberMeetings /></PortalProtectedRoute>} />
             <Route path="/welfare/member/documents" element={<PortalProtectedRoute><MemberDocuments /></PortalProtectedRoute>} />
             <Route path="/welfare/member/decisions" element={<PortalProtectedRoute><MemberDecisions /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/books" element={<PortalProtectedRoute><MemberBooks /></PortalProtectedRoute>} />
             <Route path="/welfare/member/dividends" element={<PortalProtectedRoute><MemberDividends /></PortalProtectedRoute>} />
             <Route path="/welfare/member/events" element={<PortalProtectedRoute><MemberEvents /></PortalProtectedRoute>} />
             <Route path="/welfare/member/penalties" element={<PortalProtectedRoute><MemberPenalties /></PortalProtectedRoute>} />

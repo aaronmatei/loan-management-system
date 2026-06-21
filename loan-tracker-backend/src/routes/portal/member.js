@@ -10,6 +10,7 @@ import { poolBalance, memberSavings, round2, SAVINGS_TYPES } from "../../service
 import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import { buildSummary, buildCharts, buildMemberRows } from "../welfareReports.js";
+import { computeWelfareBooks } from "../../services/welfareBooksService.js";
 import { gateLoanWrites } from "../../services/welfareLoanFlag.js";
 import { VISIBILITIES, runDocUpload, storeDocFile, isCloudinaryConfigured, isOfficer, cleanCategory } from "../../services/welfareDocumentService.js";
 import { VOTES, decorate, resolveIfDue, finalize, closeOutcome, resolveElectionTarget, electionTitle } from "../../services/welfareDecisionService.js";
@@ -149,6 +150,17 @@ router.get("/dashboard", async (req, res) => {
   } catch (e) {
     logger.error("member dashboard error:", e);
     res.status(500).json({ error: "Failed to load dashboard" });
+  }
+});
+
+// GET /books — the welfare's Books of Accounts, same statements the admin sees
+// (members are equal owners). Read-only.
+router.get("/books", async (req, res) => {
+  try {
+    res.json({ success: true, data: await computeWelfareBooks(req.welfareId) });
+  } catch (e) {
+    logger.error("member books error:", e);
+    res.status(500).json({ error: "Failed to load books of accounts" });
   }
 });
 

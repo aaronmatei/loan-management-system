@@ -21,6 +21,7 @@ import {
   Users,
   FileText,
   Vote,
+  BookOpen,
 } from "lucide-react";
 import IconTile from "../../components/IconTile";
 import PortalNotificationBell from "./PortalNotificationBell";
@@ -60,6 +61,7 @@ const WELFARE_MENU = [
   { path: "/welfare/member/meetings", label: "Meetings", icon: CalendarCheck, variant: "amber" },
   { path: "/welfare/member/documents", label: "Documents", icon: FileText, variant: "teal" },
   { path: "/welfare/member/decisions", label: "Decisions", icon: Vote, variant: "indigo" },
+  { path: "/welfare/member/books", label: "Books of Accounts", icon: BookOpen, variant: "ocean" },
   { path: "/welfare/member/dividends", label: "Dividends", icon: Gift, variant: "emerald" },
   { path: "/welfare/member/events", label: "Events", icon: HeartHandshake, variant: "ocean" },
   { path: "/welfare/member/penalties", label: "Penalties", icon: AlertTriangle, variant: "rose" },
