@@ -5,7 +5,7 @@
 // computed one way, so keep these here rather than duplicating per route.
 // (Phase D will add the write helpers — issueMemberLoan / recordWithdrawal — so
 // the admin and approval paths post to the pool identically.)
-import { query } from "../config/database.js";
+import { query, withTransaction } from "../config/database.js";
 
 export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -38,19 +38,29 @@ export async function memberSavings(memberId) {
 // ONLY place balance_after is computed — every contribution/withdrawal/loan
 // movement goes through here.
 export async function postPool({ welfare, memberId, type, amount, direction, loanId, txnDate, description, userId }) {
-  const prev = await poolBalance(welfare.id);
-  const balanceAfter = round2(prev + direction * amount);
-  const r = await query(
-    `INSERT INTO member_pool_transactions
-       (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, member_loan_id, txn_date, description, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
-     RETURNING *`,
-    [
-      welfare.tenant_id, welfare.id, memberId || null, type, amount, direction,
-      balanceAfter, loanId || null, txnDate || null, description || null, userId || null,
-    ],
-  );
-  return r.rows[0];
+  // Atomic + serialized per welfare: the advisory lock blocks any concurrent
+  // post for this pool until this transaction commits, so two simultaneous
+  // movements can't read the same prior balance and clobber balance_after.
+  return withTransaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`welfare-pool-${welfare.id}`]);
+    const prevRow = await client.query(
+      `SELECT balance_after FROM member_pool_transactions WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
+      [welfare.id],
+    );
+    const prev = prevRow.rows.length ? parseFloat(prevRow.rows[0].balance_after) : 0;
+    const balanceAfter = round2(prev + direction * amount);
+    const r = await client.query(
+      `INSERT INTO member_pool_transactions
+         (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, member_loan_id, txn_date, description, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
+       RETURNING *`,
+      [
+        welfare.tenant_id, welfare.id, memberId || null, type, amount, direction,
+        balanceAfter, loanId || null, txnDate || null, description || null, userId || null,
+      ],
+    );
+    return r.rows[0];
+  });
 }
 
 // Issue a loan from the welfare pool to a member (flat interest, single bullet).

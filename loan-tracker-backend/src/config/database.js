@@ -68,4 +68,23 @@ export async function query(text, params) {
   }
 }
 
+// Run `fn` inside a single DB transaction on a dedicated client. `fn(client)`
+// must issue ALL its writes on the passed client. Commits on success, rolls
+// back on any throw — the one place multi-statement money operations become
+// atomic. Use with `pg_advisory_xact_lock` for serialized running balances.
+export async function withTransaction(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch { /* connection already broken */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export default pool;

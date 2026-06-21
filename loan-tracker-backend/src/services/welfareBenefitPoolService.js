@@ -5,7 +5,7 @@
 //   'savings'      → NOT here; that's the savings pool (monthly).
 //   'plan-<id>'    → a recurring benefit plan (e.g. Quarterly).
 //   'oneoff'       → the shared pool for all one-off emergencies.
-import { query } from "../config/database.js";
+import { query, withTransaction } from "../config/database.js";
 
 export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -25,16 +25,25 @@ export async function benefitPoolBalance(welfareId, poolKey) {
 // Append a benefit-pool ledger row, carrying the running balance forward. The
 // ONLY place balance_after is computed for benefit pools.
 export async function postBenefitPool({ welfare, poolKey, memberId, type, cycleId, meetingId, amount, direction, txnDate, description, userId }) {
-  const prev = await benefitPoolBalance(welfare.id, poolKey);
-  const balanceAfter = round2(prev + direction * amount);
-  const r = await query(
-    `INSERT INTO benefit_pool_ledger
-       (tenant_id, welfare_id, pool_key, member_id, type, cycle_id, meeting_id, amount, direction, balance_after, txn_date, description, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11::date, CURRENT_DATE),$12,$13)
-     RETURNING *`,
-    [welfare.tenant_id, welfare.id, poolKey, memberId || null, type, cycleId || null, meetingId || null, amount, direction, balanceAfter, txnDate || null, description || null, userId || null],
-  );
-  return r.rows[0];
+  // Atomic + serialized per (welfare, pool_key) so concurrent posts to the same
+  // benefit pool can't race on balance_after.
+  return withTransaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`welfare-benefit-${welfare.id}-${poolKey}`]);
+    const prevRow = await client.query(
+      `SELECT balance_after FROM benefit_pool_ledger WHERE welfare_id = $1 AND pool_key = $2 ORDER BY id DESC LIMIT 1`,
+      [welfare.id, poolKey],
+    );
+    const prev = prevRow.rows.length ? parseFloat(prevRow.rows[0].balance_after) : 0;
+    const balanceAfter = round2(prev + direction * amount);
+    const r = await client.query(
+      `INSERT INTO benefit_pool_ledger
+         (tenant_id, welfare_id, pool_key, member_id, type, cycle_id, meeting_id, amount, direction, balance_after, txn_date, description, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11::date, CURRENT_DATE),$12,$13)
+       RETURNING *`,
+      [welfare.tenant_id, welfare.id, poolKey, memberId || null, type, cycleId || null, meetingId || null, amount, direction, balanceAfter, txnDate || null, description || null, userId || null],
+    );
+    return r.rows[0];
+  });
 }
 
 // Disburse a lump sum from a benefit pool to a member beneficiary. May be linked

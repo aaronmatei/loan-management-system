@@ -10,7 +10,7 @@
 //             across ALL active members (incl. the beneficiary); members pay in;
 //             payoutEvent disburses once the pool reaches N.
 // (Phase 2 adds the 'bridge' mode: borrow the shortfall from the savings pool.)
-import { query } from "../config/database.js";
+import { query, withTransaction } from "../config/database.js";
 import { round2, poolBalance, postPool, memberSavings } from "./welfarePoolService.js";
 
 const httpErr = (status, message) => Object.assign(new Error(message), { status });
@@ -28,16 +28,24 @@ export async function eventsPoolBalance(welfareId) {
 // Append a row to the events-pool ledger, carrying the running balance forward.
 // The ONLY place welfare_event_ledger.balance_after is computed.
 export async function postEventsPool({ welfare, eventId, memberId, type, amount, direction, txnDate, description, userId }) {
-  const prev = await eventsPoolBalance(welfare.id);
-  const balanceAfter = round2(prev + direction * amount);
-  const r = await query(
-    `INSERT INTO welfare_event_ledger
-       (tenant_id, welfare_id, event_id, member_id, type, amount, direction, balance_after, txn_date, description, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
-     RETURNING *`,
-    [welfare.tenant_id, welfare.id, eventId || null, memberId || null, type, amount, direction, balanceAfter, txnDate || null, description || null, userId || null],
-  );
-  return r.rows[0];
+  // Atomic + serialized per welfare events pool.
+  return withTransaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`welfare-events-${welfare.id}`]);
+    const prevRow = await client.query(
+      `SELECT balance_after FROM welfare_event_ledger WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
+      [welfare.id],
+    );
+    const prev = prevRow.rows.length ? parseFloat(prevRow.rows[0].balance_after) : 0;
+    const balanceAfter = round2(prev + direction * amount);
+    const r = await client.query(
+      `INSERT INTO welfare_event_ledger
+         (tenant_id, welfare_id, event_id, member_id, type, amount, direction, balance_after, txn_date, description, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
+       RETURNING *`,
+      [welfare.tenant_id, welfare.id, eventId || null, memberId || null, type, amount, direction, balanceAfter, txnDate || null, description || null, userId || null],
+    );
+    return r.rows[0];
+  });
 }
 
 // Split a total into `count` equal cent-accurate shares that sum to it exactly.

@@ -6,6 +6,7 @@ import { query } from "../config/database.js";
 import * as mpesa from "./mpesaService.js";
 import { postEventsPool } from "./welfareEventsService.js";
 import { postBenefitPool } from "./welfareBenefitPoolService.js";
+import { postPool as postSavingsPool } from "./welfarePoolService.js";
 import { recordMemberLoanPayment } from "./memberLoanService.js";
 import logger from "../config/logger.js";
 
@@ -64,22 +65,15 @@ export async function initiateWelfareSTK({
   };
 }
 
-async function poolBalance(welfareId) {
-  const r = await query(
-    `SELECT balance_after FROM member_pool_transactions WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
-    [welfareId],
-  );
-  return r.rows.length ? parseFloat(r.rows[0].balance_after) : 0;
-}
-
+// M-Pesa receipts are always pool INCOME (direction +1). Delegate to the single
+// canonical, atomic, race-safe savings-pool writer instead of duplicating the
+// ledger insert here (this used to hardcode the balance math independently).
 async function postPool(tx, type, amount, description) {
-  const prev = await poolBalance(tx.welfare_id);
-  await query(
-    `INSERT INTO member_pool_transactions
-       (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, description, created_by)
-     VALUES ($1,$2,$3,$4,$5,1,$6,$7,$8)`,
-    [tx.tenant_id, tx.welfare_id, tx.member_id, type, amount, round2(prev + amount), description, tx.initiated_by_user_id || null],
-  );
+  await postSavingsPool({
+    welfare: { id: tx.welfare_id, tenant_id: tx.tenant_id },
+    memberId: tx.member_id, type, amount, direction: 1,
+    description, userId: tx.initiated_by_user_id || null,
+  });
 }
 
 // Apply a successful welfare M-Pesa transaction. `cb` is the parsed callback
