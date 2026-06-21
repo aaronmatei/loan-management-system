@@ -89,18 +89,24 @@ export async function disburseMemberLoan({ welfare, loan, startDate, disbursemen
       [userId || null, disbDate, effectiveStart, endObj.toISOString().split("T")[0], netDisbursed, loan.id],
     )).rows[0];
 
+    // One multi-row INSERT for the whole schedule (was N round-trips). $1 is the
+    // shared tenant_id; each row contributes 7 params.
     const anchor = new Date(effectiveStart);
+    const schedValues = [], schedParams = [welfare.tenant_id];
     for (let i = 1; i <= months; i++) {
       const due = new Date(anchor);
       due.setMonth(due.getMonth() + (i - 1));
       const row = schedule[i - 1];
-      await client.query(
-        `INSERT INTO member_loan_schedules
-           (tenant_id, member_loan_id, payment_number, due_date, amount_due, interest_portion, principal_portion, balance_after, status)
-         VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,'pending')`,
-        [welfare.tenant_id, loan.id, i, due.toISOString().split("T")[0], row.amountDue.toFixed(2), row.interestPortion.toFixed(2), row.principalPortion.toFixed(2), row.balanceAfter.toFixed(2)],
-      );
+      const b = schedParams.length;
+      schedParams.push(loan.id, i, due.toISOString().split("T")[0], row.amountDue.toFixed(2), row.interestPortion.toFixed(2), row.principalPortion.toFixed(2), row.balanceAfter.toFixed(2));
+      schedValues.push(`($1,$${b + 1},$${b + 2},$${b + 3}::date,$${b + 4},$${b + 5},$${b + 6},$${b + 7},'pending')`);
     }
+    await client.query(
+      `INSERT INTO member_loan_schedules
+         (tenant_id, member_loan_id, payment_number, due_date, amount_due, interest_portion, principal_portion, balance_after, status)
+       VALUES ${schedValues.join(",")}`,
+      schedParams,
+    );
 
     // Pool: −principal (cash out), +processing fee (income retained).
     let poolTxn = await postPool({

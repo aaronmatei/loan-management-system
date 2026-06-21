@@ -1502,34 +1502,27 @@ async function performDisburse(req, loan, opts) {
     months,
     method: loan.interest_method || "flat",
   });
+  // Persist the amortization breakdown (interest/principal/balance per
+  // installment) as ONE multi-row INSERT rather than N round-trips. For flat
+  // loans the portions are constant; for reducing they're the declining-
+  // interest, rising-principal snapshot. $1 is the shared tenant_id; each row
+  // contributes 7 params.
   const scheduleAnchor = new Date(effectiveStart);
+  const schedValues = [], schedParams = [loan.tenant_id];
   for (let i = 1; i <= months; i++) {
     const dueDate = new Date(scheduleAnchor);
     dueDate.setMonth(dueDate.getMonth() + (i - 1));
     const row = schedule[i - 1];
-    // Persist the amortization breakdown alongside amount_due so the
-    // schedule grid can show "Interest / Principal / Balance After"
-    // per installment. For flat loans these come out as constants;
-    // for reducing they're the declining-interest, rising-principal
-    // amortization snapshot.
-    await query(
-      `INSERT INTO payment_schedules (
-        tenant_id, loan_id, payment_number, due_date,
-        amount_due, interest_portion, principal_portion, balance_after,
-        status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
-      [
-        loan.tenant_id,
-        loan.id,
-        i,
-        dueDate.toISOString().split("T")[0],
-        row.amountDue.toFixed(2),
-        row.interestPortion.toFixed(2),
-        row.principalPortion.toFixed(2),
-        row.balanceAfter.toFixed(2),
-      ],
-    );
+    const b = schedParams.length;
+    schedParams.push(loan.id, i, dueDate.toISOString().split("T")[0], row.amountDue.toFixed(2), row.interestPortion.toFixed(2), row.principalPortion.toFixed(2), row.balanceAfter.toFixed(2));
+    schedValues.push(`($1,$${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},'pending')`);
   }
+  await query(
+    `INSERT INTO payment_schedules
+       (tenant_id, loan_id, payment_number, due_date, amount_due, interest_portion, principal_portion, balance_after, status)
+     VALUES ${schedValues.join(",")}`,
+    schedParams,
+  );
 
   // Capital pool — debit principal, credit processing fee as income.
   const principal = parseFloat(loan.principal_amount);
