@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote, LayoutDashboard,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
@@ -211,10 +211,9 @@ export function MemberDashboard() {
     } catch { /* */ }
   };
   return (
-    <Shell title="My Chama" icon={PiggyBank}>
+    <Shell icon={LayoutDashboard} title={<>My {data?.welfare?.name ? `${data.welfare.name} ` : ""}Dashboard <OfficerBadge role={data?.member?.role} className="ml-1 align-middle" /></>}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
-          <p className="text-slate-500 -mt-3 mb-5">{data.welfare?.name} <OfficerBadge role={data.member?.role} className="ml-1 align-middle" /></p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <Stat label="My savings" value={KES(data.savings_balance)} tone="text-emerald-700" />
             {data.welfare?.loans_enabled && <Stat label="Loan balance" value={KES(data.loans?.outstanding)} tone={data.loans?.outstanding > 0 ? "text-ocean-700" : "text-slate-900"} />}
