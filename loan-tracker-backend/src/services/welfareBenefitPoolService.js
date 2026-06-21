@@ -6,8 +6,9 @@
 //   'plan-<id>'    → a recurring benefit plan (e.g. Quarterly).
 //   'oneoff'       → the shared pool for all one-off emergencies.
 import { query, withTransaction } from "../config/database.js";
+import { round2 } from "../utils/round2.js";
 
-export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+export { round2 }; // re-exported for the modules that import it from here
 
 // The pool a plan's cycles collect into.
 export function poolKeyForPlan(plan) {

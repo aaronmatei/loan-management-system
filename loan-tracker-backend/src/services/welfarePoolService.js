@@ -6,8 +6,9 @@
 // (Phase D will add the write helpers — issueMemberLoan / recordWithdrawal — so
 // the admin and approval paths post to the pool identically.)
 import { query, withTransaction } from "../config/database.js";
+import { round2 } from "../utils/round2.js";
 
-export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+export { round2 }; // re-exported for the modules that import it from here
 
 // Savings principal = contributions net of withdrawals/adjustments. Dividends
 // are profit PAID OUT of the pool (migration 063), not savings, so excluded.

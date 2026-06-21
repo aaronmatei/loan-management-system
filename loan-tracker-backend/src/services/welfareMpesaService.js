@@ -10,7 +10,7 @@ import { postPool as postSavingsPool } from "./welfarePoolService.js";
 import { recordMemberLoanPayment } from "./memberLoanService.js";
 import logger from "../config/logger.js";
 
-const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+import { round2 } from "../utils/round2.js";
 
 // Push a Daraja STK and record the pending welfare transaction. Shared by the
 // admin M-Pesa routes (routes/welfareMpesa.js) and the member self-service

@@ -16,7 +16,7 @@ import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
 router.use(verifyToken);
-const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+import { round2 } from "../utils/round2.js";
 
 router.use(async (req, res, next) => {
   try {

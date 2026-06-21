@@ -7,7 +7,7 @@ import { query } from "../config/database.js";
 import { computePenaltyAmount } from "../utils/penaltyEngine.js";
 import { computeInstallmentPenalty } from "../utils/penalty.js";
 
-const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+import { round2 } from "../utils/round2.js";
 
 export async function accrueContributionPenalties(tenantId) {
   const settingsGrace = (
