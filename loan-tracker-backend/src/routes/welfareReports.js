@@ -8,6 +8,7 @@ import { verifyToken } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { buildWelfareStatementPdf, buildMemberStatementPdf } from "../utils/welfarePdf.js";
 import { benefitPoolBalance } from "../services/welfareBenefitPoolService.js";
+import { computeWelfareBooks } from "../services/welfareBooksService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -25,6 +26,16 @@ router.use(async (req, res, next) => {
   } catch (e) {
     logger.error("welfare resolve (reports) error:", e);
     res.status(500).json({ error: "Failed to resolve welfare" });
+  }
+});
+
+// GET /reports/books — the welfare's Books of Accounts (derived statements).
+router.get("/reports/books", async (req, res) => {
+  try {
+    res.json({ success: true, data: await computeWelfareBooks(req.welfare.id) });
+  } catch (e) {
+    logger.error("welfare books error:", e);
+    res.status(500).json({ error: "Failed to build books of accounts" });
   }
 });
 

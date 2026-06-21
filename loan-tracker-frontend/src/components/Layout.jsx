@@ -168,6 +168,7 @@ const WELFARE_STANDALONE = [
   { path: "/welfare/mpesa", label: "M-Pesa", icon: Smartphone, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/sms", label: "SMS", icon: MessageSquare, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/books", label: "Books of Accounts", icon: BookOpen, variant: "ocean", permission: "loans:view" },
 ];
 const WELFARE_GROUPS = [
   {
