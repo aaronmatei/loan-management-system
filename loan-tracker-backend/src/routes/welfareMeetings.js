@@ -122,6 +122,36 @@ router.post("/meetings", authorize("admin", "manager", "loan_officer"), async (r
   }
 });
 
+// PUT /meetings/:meetingId — edit a meeting's details. Attendance already
+// recorded is NOT re-derived (statuses were snapshotted when marked).
+router.put("/meetings/:meetingId", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const existing = await loadMeeting(req.welfare.id, req.params.meetingId);
+    if (!existing) return res.status(404).json({ error: "Meeting not found" });
+    const { meeting_date, location, agenda, title, fine_late, fine_absent, start_time, grace_minutes } = req.body || {};
+    if (!meeting_date) return res.status(400).json({ error: "Meeting date is required" });
+    const num = (v) => (v === "" || v == null ? null : parseFloat(v));
+    const startTime = start_time && String(start_time).trim() ? start_time : null;
+    const grace = Math.max(0, parseInt(grace_minutes, 10) || 0);
+    const r = await query(
+      `UPDATE group_meetings
+          SET title=$2, meeting_date=$3::date, location=$4, agenda=$5,
+              fine_late=$6, fine_absent=$7, start_time=$8, grace_minutes=$9, updated_at=NOW()
+        WHERE id=$1 RETURNING *`,
+      [existing.id, title || null, meeting_date, location || null, agenda || null, num(fine_late), num(fine_absent), startTime, grace],
+    );
+    await logAudit({
+      user: req.user, action: "welfare_meeting_updated", entityType: "group",
+      entityId: req.welfare.id, entityCode: req.welfare.group_code,
+      description: `Updated meeting${title ? ` "${title}"` : ""}`, req,
+    });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("welfare meeting update error:", e);
+    res.status(500).json({ error: "Failed to update meeting" });
+  }
+});
+
 // GET /meetings/:meetingId — meeting + roster (active members + their status).
 router.get("/meetings/:meetingId", async (req, res) => {
   try {

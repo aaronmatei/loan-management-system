@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check } from "lucide-react";
+import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check, Pencil } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 
@@ -25,6 +25,7 @@ export default function WelfareMeetingsPanel({ welfareId }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [attend, setAttend] = useState(null);
 
   const load = async () => {
@@ -90,7 +91,12 @@ export default function WelfareMeetingsPanel({ welfareId }) {
                     <td className="px-4 py-2 text-slate-600">{m.location || "Home"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
                     <td className="px-4 py-2 text-right text-slate-700">{Number(m.present_count)}</td>
-                    <td className="px-4 py-2 text-right text-indigo-500"><ChevronRight size={16} className="inline" /></td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">
+                      <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                        <button onClick={(e) => { e.stopPropagation(); setEditing(m); }} className="text-slate-400 hover:text-indigo-600 mr-2 align-middle" title="Edit meeting"><Pencil size={15} className="inline" /></button>
+                      </PermissionGate>
+                      <ChevronRight size={16} className="inline text-indigo-500" />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -99,7 +105,8 @@ export default function WelfareMeetingsPanel({ welfareId }) {
         )}
       </div>
 
-      {showNew && <NewMeetingModal welfareId={welfareId} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); load(); }} />}
+      {showNew && <MeetingModal welfareId={welfareId} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load(); }} />}
+      {editing && <MeetingModal welfareId={welfareId} meeting={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       {attend && <AttendanceModal welfareId={welfareId} meeting={attend} onClose={() => setAttend(null)} onSaved={() => { setAttend(null); load(); }} />}
     </div>
   );
@@ -187,8 +194,15 @@ function Stat({ label, value, tone = "text-slate-800" }) {
   );
 }
 
-function NewMeetingModal({ welfareId, onClose, onCreated }) {
-  const [form, setForm] = useState({ title: "", meeting_date: new Date().toISOString().split("T")[0], start_time: "", grace_minutes: "", location: "", agenda: "", fine_late: "", fine_absent: "" });
+const toDateInput = (d) => { if (!d) return ""; const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
+
+function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
+  const editing = !!meeting;
+  const [form, setForm] = useState(
+    editing
+      ? { title: meeting.title || "", meeting_date: toDateInput(meeting.meeting_date), start_time: hhmm(meeting.start_time), grace_minutes: meeting.grace_minutes ?? "", location: meeting.location || "", agenda: meeting.agenda || "", fine_late: meeting.fine_late ?? "", fine_absent: meeting.fine_absent ?? "" }
+      : { title: "", meeting_date: new Date().toISOString().split("T")[0], start_time: "", grace_minutes: "", location: "", agenda: "", fine_late: "", fine_absent: "" },
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -197,13 +211,16 @@ function NewMeetingModal({ welfareId, onClose, onCreated }) {
     setError("");
     if (!form.meeting_date) return setError("Pick a date.");
     setBusy(true);
-    try { await api.post(`/welfares/${welfareId}/meetings`, form); onCreated(); }
-    catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
+    try {
+      if (editing) await api.put(`/welfares/${welfareId}/meetings/${meeting.id}`, form);
+      else await api.post(`/welfares/${welfareId}/meetings`, form);
+      onSaved();
+    } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
   };
   const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
   const lbl = "block text-sm font-semibold text-gray-700 mb-1";
   return (
-    <Shell title="Schedule meeting" onClose={onClose}>
+    <Shell title={editing ? "Edit meeting" : "Schedule meeting"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
         <div><label className={lbl}>Name</label><input value={form.title} onChange={set("title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} /></div>
@@ -223,7 +240,7 @@ function NewMeetingModal({ welfareId, onClose, onCreated }) {
           </div>
           <p className="text-xs text-slate-400 mt-1">Charged automatically when you mark a member late or absent.</p>
         </div>
-        <Actions busy={busy} onClose={onClose} label="Schedule" />
+        <Actions busy={busy} onClose={onClose} label={editing ? "Save changes" : "Schedule"} />
       </form>
     </Shell>
   );

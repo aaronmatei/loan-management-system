@@ -68,3 +68,22 @@ describe("meeting arrival times → auto attendance", () => {
     expect(roster.find((r) => r.member_id === a.id).attendance_status).toBe("present");
   });
 });
+
+describe("editing a meeting (PUT)", () => {
+  it("updates a meeting's details and 404s for a missing one", async () => {
+    const { admin, w } = await setup();
+    const mtg = (await request(app).post(`/api/welfares/${w.id}/meetings`).set("Authorization", auth(admin))
+      .send({ title: "Old", meeting_date: "2026-06-27", start_time: "10:00", grace_minutes: 15 })).body.data;
+
+    const upd = await request(app).put(`/api/welfares/${w.id}/meetings/${mtg.id}`).set("Authorization", auth(admin))
+      .send({ title: "New name", meeting_date: "2026-07-01", start_time: "09:30", grace_minutes: 10, location: "Hall", fine_late: 300 });
+    expect(upd.status).toBe(200);
+    expect(upd.body.data.title).toBe("New name");
+    expect(upd.body.data.start_time).toMatch(/^09:30/);
+    expect(upd.body.data.grace_minutes).toBe(10);
+    expect(upd.body.data.location).toBe("Hall");
+    expect(Number(upd.body.data.fine_late)).toBe(300);
+
+    expect((await request(app).put(`/api/welfares/${w.id}/meetings/999999`).set("Authorization", auth(admin)).send({ meeting_date: "2026-07-01" })).status).toBe(404);
+  });
+});
