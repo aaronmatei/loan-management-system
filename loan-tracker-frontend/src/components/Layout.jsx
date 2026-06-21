@@ -36,6 +36,7 @@ import {
   Handshake,
   AlertOctagon,
   Scale,
+  BookOpen,
   SlidersHorizontal,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -107,6 +108,7 @@ const navGroups = [
     variant: "indigo",
     items: [
       { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
+      { path: "/books", label: "Books of Accounts", icon: BookOpen, permission: "reports:view" },
       { path: "/analytics", label: "Analytics", icon: TrendingUp, permission: "dashboard:view" },
       { path: "/reconciliation", label: "Reconciliation", icon: Scale, permission: "reports:view" },
     ],

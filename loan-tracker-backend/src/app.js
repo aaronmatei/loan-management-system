@@ -29,6 +29,7 @@ import paymentRoutes from "./routes/payments.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import overdueRoutes from "./routes/overdue.js";
 import capitalRoutes from "./routes/capital.js";
+import booksRoutes from "./routes/books.js";
 import underwritingRoutes from "./routes/underwriting.js";
 import pawnRoutes from "./routes/pawn.js";
 import vehicleSecurityRoutes from "./routes/vehicleSecurity.js";
@@ -187,6 +188,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/overdue", overdueRoutes);
 app.use("/api/capital", capitalRoutes);
+app.use("/api/books", booksRoutes); // lender books of accounts (derived statements)
 app.use("/api/underwriting", underwritingRoutes);
 app.use("/api/pawn", pawnRoutes);
 app.use("/api/loans", vehicleSecurityRoutes); // logbook vehicle security (dual-mount)
