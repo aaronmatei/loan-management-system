@@ -12,6 +12,7 @@ import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import { buildSummary, buildCharts, buildMemberRows } from "../welfareReports.js";
 import { gateLoanWrites } from "../../services/welfareLoanFlag.js";
 import { VISIBILITIES, runDocUpload, storeDocFile, isCloudinaryConfigured, isOfficer, cleanCategory } from "../../services/welfareDocumentService.js";
+import { VOTES, decorate, resolveIfDue, finalize, closeOutcome } from "../../services/welfareDecisionService.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -243,6 +244,91 @@ router.delete("/documents/:id", async (req, res) => {
     res.json({ success: true });
   } catch (e) { logger.error("member document delete error:", e); res.status(500).json({ error: "Failed to delete document" }); }
 });
+
+// Decisions / voting — governance motions the group votes on. Any active member
+// can propose; everyone votes once; the proposer or an officer can close/cancel.
+const myVotesMap = async (memberId, decisionIds) => {
+  if (!decisionIds.length) return {};
+  const r = await query(`SELECT decision_id, vote FROM welfare_decision_votes WHERE member_id = $1 AND decision_id = ANY($2)`, [memberId, decisionIds]);
+  return Object.fromEntries(r.rows.map((x) => [x.decision_id, x.vote]));
+};
+const loadDecision = (welfareId, id) =>
+  query(`SELECT * FROM welfare_decisions WHERE id = $1 AND welfare_id = $2`, [id, welfareId]).then((r) => r.rows[0] || null);
+
+router.get("/decisions", async (req, res) => {
+  try {
+    const rows = (await query(`SELECT * FROM welfare_decisions WHERE welfare_id = $1 ORDER BY created_at DESC`, [req.welfareId])).rows;
+    const resolved = [];
+    for (const d of rows) resolved.push(await resolveIfDue(d));
+    const mine = await myVotesMap(req.member.id, resolved.map((d) => d.id));
+    const out = [];
+    for (const d of resolved) out.push({ ...(await decorate(d)), my_vote: mine[d.id] || null });
+    res.json({ success: true, data: { decisions: out, is_officer: isOfficer(req.member.role), my_member_id: req.member.id } });
+  } catch (e) { logger.error("member decisions list error:", e); res.status(500).json({ error: "Failed to load decisions" }); }
+});
+
+router.get("/decisions/:id", async (req, res) => {
+  try {
+    let d = await loadDecision(req.welfareId, req.params.id);
+    if (!d) return res.status(404).json({ error: "Decision not found" });
+    d = await resolveIfDue(d);
+    const votes = (await query(
+      `SELECT v.vote, v.comment, v.voted_at, m.first_name, m.last_name, m.member_no
+         FROM welfare_decision_votes v JOIN members m ON m.id = v.member_id
+        WHERE v.decision_id = $1 ORDER BY v.voted_at`, [d.id],
+    )).rows;
+    const mine = (await query(`SELECT vote FROM welfare_decision_votes WHERE decision_id=$1 AND member_id=$2`, [d.id, req.member.id])).rows[0]?.vote || null;
+    res.json({ success: true, data: { ...(await decorate(d)), votes, my_vote: mine, is_officer: isOfficer(req.member.role) } });
+  } catch (e) { logger.error("member decision detail error:", e); res.status(500).json({ error: "Failed to load decision" }); }
+});
+
+router.post("/decisions", async (req, res) => {
+  try {
+    const title = String(req.body?.title || "").trim();
+    if (!title) return res.status(400).json({ error: "Title is required" });
+    const quorum = Math.min(100, Math.max(1, parseInt(req.body?.quorum_percent, 10) || 50));
+    const closesAt = req.body?.closes_at ? new Date(req.body.closes_at) : null;
+    if (closesAt && isNaN(closesAt.getTime())) return res.status(400).json({ error: "Invalid closing date" });
+    const r = await query(
+      `INSERT INTO welfare_decisions (tenant_id, welfare_id, type, title, description, quorum_percent, closes_at, opened_by_member, opened_by_name)
+       VALUES ($1,$2,'motion',$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.member.tenant_id, req.welfareId, title, req.body?.description?.trim() || null, quorum, closesAt, req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim()],
+    );
+    res.status(201).json({ success: true, data: await decorate(r.rows[0]) });
+  } catch (e) { logger.error("member decision open error:", e); res.status(500).json({ error: "Failed to open decision" }); }
+});
+
+router.post("/decisions/:id/vote", async (req, res) => {
+  try {
+    const vote = String(req.body?.vote || "").toLowerCase();
+    if (!VOTES.includes(vote)) return res.status(400).json({ error: `Vote must be one of: ${VOTES.join(", ")}` });
+    let d = await loadDecision(req.welfareId, req.params.id);
+    if (!d) return res.status(404).json({ error: "Decision not found" });
+    if (d.status !== "open") return res.status(409).json({ error: "Voting on this decision has closed" });
+    await query(
+      `INSERT INTO welfare_decision_votes (decision_id, member_id, vote, comment) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (decision_id, member_id) DO UPDATE SET vote = EXCLUDED.vote, comment = EXCLUDED.comment, voted_at = NOW()`,
+      [d.id, req.member.id, vote, req.body?.comment?.trim() || null],
+    );
+    d = await resolveIfDue(await loadDecision(req.welfareId, d.id));
+    res.json({ success: true, data: { ...(await decorate(d)), my_vote: vote } });
+  } catch (e) { logger.error("member decision vote error:", e); res.status(500).json({ error: "Failed to record vote" }); }
+});
+
+const closeOrCancel = (outcomeFn) => async (req, res) => {
+  try {
+    const d = await loadDecision(req.welfareId, req.params.id);
+    if (!d) return res.status(404).json({ error: "Decision not found" });
+    if (d.opened_by_member !== req.member.id && !isOfficer(req.member.role)) {
+      return res.status(403).json({ error: "Only the proposer or an officer can do this." });
+    }
+    if (d.status !== "open") return res.status(409).json({ error: "Decision is already resolved" });
+    const updated = await finalize(d, await outcomeFn(d));
+    res.json({ success: true, data: await decorate(updated) });
+  } catch (e) { logger.error("member decision close/cancel error:", e); res.status(500).json({ error: "Failed to update decision" }); }
+};
+router.post("/decisions/:id/close", closeOrCancel((d) => closeOutcome(d)));
+router.post("/decisions/:id/cancel", closeOrCancel(() => "cancelled"));
 
 router.get("/group-cycles", async (req, res) => {
   try {

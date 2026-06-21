@@ -7,6 +7,7 @@ import api from "../../services/api";
 import WelfareDashboardPanel from "../../components/WelfareDashboardPanel";
 import OfficerBadge from "../../components/OfficerBadge";
 import WelfareDocumentsPanel from "../../components/WelfareDocumentsPanel";
+import WelfareDecisionsPanel from "../../components/WelfareDecisionsPanel";
 import WelfareMembersPanel from "../../components/WelfareMembersPanel";
 import WelfareContributionsPanel from "../../components/WelfareContributionsPanel";
 import WelfarePenaltiesPanel from "../../components/WelfarePenaltiesPanel";
@@ -50,6 +51,10 @@ export function WelfareContributionsPage() {
 export function WelfareDocumentsPage() {
   const { welfareId } = useWelfare();
   return <Page title="Documents"><WelfareDocumentsPanel client={api} path={`/welfares/${welfareId}/documents`} admin /></Page>;
+}
+export function WelfareDecisionsPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Decisions"><WelfareDecisionsPanel client={api} path={`/welfares/${welfareId}/decisions`} admin /></Page>;
 }
 export function WelfareEventsPage() {
   const { welfareId } = useWelfare();

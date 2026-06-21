@@ -43,6 +43,7 @@ import {
   MemberDividends,
   MemberEvents,
   MemberDocuments,
+  MemberDecisions,
   MemberPenalties,
 } from "./portal/pages/member/MemberPages";
 import CustomerProfile from "./portal/pages/Profile";
@@ -86,6 +87,7 @@ import {
   WelfareMembersPage,
   WelfareContributionsPage,
   WelfareDocumentsPage,
+  WelfareDecisionsPage,
   WelfareEventsPage,
   WelfareLoansPage,
   WelfarePenaltiesPage,
@@ -447,6 +449,7 @@ function App() {
                 <Route path="penalties" element={<WelfarePenaltiesPage />} />
                 <Route path="meetings" element={<WelfareMeetingsPage />} />
                 <Route path="documents" element={<WelfareDocumentsPage />} />
+                <Route path="decisions" element={<WelfareDecisionsPage />} />
                 <Route path="requests" element={<WelfareRequestsPage />} />
                 <Route path="dividends" element={<WelfareDividendsPage />} />
                 <Route path="expenses" element={<WelfareExpensesPage />} />
@@ -592,6 +595,7 @@ function App() {
             <Route path="/welfare/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
             <Route path="/welfare/member/meetings" element={<PortalProtectedRoute><MemberMeetings /></PortalProtectedRoute>} />
             <Route path="/welfare/member/documents" element={<PortalProtectedRoute><MemberDocuments /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/decisions" element={<PortalProtectedRoute><MemberDecisions /></PortalProtectedRoute>} />
             <Route path="/welfare/member/dividends" element={<PortalProtectedRoute><MemberDividends /></PortalProtectedRoute>} />
             <Route path="/welfare/member/events" element={<PortalProtectedRoute><MemberEvents /></PortalProtectedRoute>} />
             <Route path="/welfare/member/penalties" element={<PortalProtectedRoute><MemberPenalties /></PortalProtectedRoute>} />
