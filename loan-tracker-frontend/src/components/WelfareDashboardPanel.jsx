@@ -17,6 +17,7 @@ export default function WelfareDashboardPanel({
   chartsUrl = `/welfares/${welfareId}/reports/charts`,
   showExports = true,
   showLoans = true,
+  personal = null, // member portal: the caller's own figures, merged into the group cards as a "Mine:" line
 }) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,16 +51,19 @@ export default function WelfareDashboardPanel({
     rose: "bg-rose-50 text-rose-800",
     amber: "bg-amber-50 text-amber-800",
   };
-  const Stat = ({ icon: Icon, label, value, sub, tone = "slate" }) => {
+  const Stat = ({ icon: Icon, label, value, sub, mine, tone = "slate" }) => {
     const [bg, text] = (TONES[tone] || TONES.slate).split(" ");
     return (
       <div className={`${bg} rounded-lg p-3`}>
         <p className="text-xs text-slate-500 flex items-center gap-1"><Icon size={13} /> {label}</p>
         <p className={`font-bold ${text} text-lg leading-tight`}>{value}</p>
         {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+        {mine != null && <p className="text-xs font-semibold text-slate-600 mt-1 border-t border-slate-200/70 pt-1">Mine: {mine}</p>}
       </div>
     );
   };
+  const p = personal;
+  const pct = (v, counts) => (v == null ? null : `${v}%${counts ? ` (${counts.paid ?? counts.attended}/${counts.total ?? counts.recorded})` : ""}`);
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-slate-100 mb-6 overflow-hidden">
@@ -79,21 +83,21 @@ export default function WelfareDashboardPanel({
       <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <Stat icon={Wallet} label="Pool balance" value={money(d.pool.balance)} sub={`Surplus ${money(d.pool.surplus)}`} tone="emerald" />
         <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" />
-        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.outstanding)} sub={`${d.loans.open} open`} tone="indigo" />}
-        <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} tone="rose" />
-        <Stat icon={Wallet} label="Savings" value={money(d.pool.members_savings)} sub={`${money(d.pool.total_contributions)} contributed`} />
+        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.outstanding)} sub={`${d.loans.open} open`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" />}
+        <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} mine={p && p.penalties != null ? money(p.penalties) : undefined} tone="rose" />
+        <Stat icon={Wallet} label="Savings" value={money(d.pool.members_savings)} sub={`${money(d.pool.total_contributions)} contributed`} mine={p && p.savings != null ? money(p.savings) : undefined} />
         <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" />
         <Stat icon={TrendingUp} label="Profit" value={money(d.pool.profit)} sub="pool above member savings" tone={d.pool.profit < 0 ? "rose" : "emerald"} />
         <Stat icon={Receipt} label="Expenses" value={money(d.pool.expenses)} sub="spent from the savings pool" tone="rose" />
         {d.compliance ? (
-          <Stat icon={CalendarCheck} label={`Compliance · ${d.compliance.cycle || "cycle"}`} value={`${d.compliance.paid_pct}%`} sub={`${d.compliance.paid}/${d.compliance.total} paid`} tone="emerald" />
+          <Stat icon={CalendarCheck} label={`Compliance · ${d.compliance.cycle || "cycle"}`} value={`${d.compliance.paid_pct}%`} sub={`${d.compliance.paid}/${d.compliance.total} paid`} mine={p ? pct(p.compliance_pct, p.compliance) : undefined} tone="emerald" />
         ) : (
-          <Stat icon={CalendarCheck} label="Compliance" value="—" sub="no open cycle" />
+          <Stat icon={CalendarCheck} label="Compliance" value="—" sub="no open cycle" mine={p ? pct(p.compliance_pct, p.compliance) : undefined} />
         )}
         {d.attendance ? (
-          <Stat icon={Users} label="Last attendance" value={`${d.attendance.rate_pct}%`} sub={`${d.attendance.attended}/${d.attendance.recorded} present`} tone="sky" />
+          <Stat icon={Users} label="Last attendance" value={`${d.attendance.rate_pct}%`} sub={`${d.attendance.attended}/${d.attendance.recorded} present`} mine={p ? pct(p.attendance_pct, p.attendance) : undefined} tone="sky" />
         ) : (
-          <Stat icon={Users} label="Last attendance" value="—" sub="no meetings yet" />
+          <Stat icon={Users} label="Last attendance" value="—" sub="no meetings yet" mine={p ? pct(p.attendance_pct, p.attendance) : undefined} />
         )}
       </div>
       <WelfareCharts welfareId={welfareId} client={client} url={chartsUrl} />

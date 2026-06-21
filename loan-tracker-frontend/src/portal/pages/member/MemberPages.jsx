@@ -214,22 +214,28 @@ export function MemberDashboard() {
     <Shell icon={LayoutDashboard} title={<>My {data?.welfare?.name ? `${data.welfare.name} ` : ""}Dashboard <OfficerBadge role={data?.member?.role} className="ml-1 align-middle" /></>}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <Stat label="My savings" value={KES(data.savings_balance)} tone="text-emerald-700" />
-            {data.welfare?.loans_enabled && <Stat label="Loan balance" value={KES(data.loans?.outstanding)} tone={data.loans?.outstanding > 0 ? "text-ocean-700" : "text-slate-900"} />}
-            <Stat label="Penalties due" value={KES(data.penalties_outstanding)} tone={data.penalties_outstanding > 0 ? "text-rose-600" : "text-slate-900"} />
-            <Stat label="Chama pool" value={KES(data.welfare?.pool_balance)} />
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 items-stretch">
-            <Stat label={`Compliance${data.compliance ? ` (${data.compliance.paid}/${data.compliance.total})` : ""}`} value={data.compliance_pct == null ? "—" : `${data.compliance_pct}%`} tone={data.compliance_pct != null && data.compliance_pct < 75 ? "text-rose-600" : "text-emerald-700"} />
-            <Stat label={`Attendance${data.attendance ? ` (${data.attendance.attended}/${data.attendance.recorded})` : ""}`} value={data.attendance_pct == null ? "—" : `${data.attendance_pct}%`} tone={data.attendance_pct != null && data.attendance_pct < 75 ? "text-rose-600" : "text-emerald-700"} />
-            <div className="col-span-2 flex items-center justify-end">
-              <button onClick={downloadStatement} className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
-            </div>
+          <div className="flex justify-end mb-4">
+            <button onClick={downloadStatement} className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
           </div>
 
-          {/* The same group dashboard the admin sees — members are equal owners. */}
-          <WelfareDashboardPanel client={portalApi} summaryUrl="/welfare/member/dashboard" chartsUrl="/welfare/member/charts" showExports={false} showLoans={!!data.welfare?.loans_enabled} />
+          {/* The same group dashboard the admin sees — members are equal owners — with
+              the member's own figures merged into each card as a "Mine:" line. */}
+          <WelfareDashboardPanel
+            client={portalApi}
+            summaryUrl="/welfare/member/dashboard"
+            chartsUrl="/welfare/member/charts"
+            showExports={false}
+            showLoans={!!data.welfare?.loans_enabled}
+            personal={{
+              savings: data.savings_balance,
+              penalties: data.penalties_outstanding,
+              loan: data.loans?.outstanding,
+              compliance_pct: data.compliance_pct,
+              compliance: data.compliance,
+              attendance_pct: data.attendance_pct,
+              attendance: data.attendance,
+            }}
+          />
 
           {data.next_contribution && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between">
