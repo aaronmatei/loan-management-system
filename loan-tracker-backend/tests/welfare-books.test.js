@@ -22,7 +22,7 @@ async function setup() {
   const m = (await request(app).post(`/api/welfares/${w.id}/members`).set("Authorization", auth(admin)).send({ first_name: "Asha", last_name: "K", phone_number: "0795800101", id_number: "BKM1" })).body.data;
   return { t, admin, w, m };
 }
-const books = (w, admin) => request(app).get(`/api/welfares/${w.id}/reports/books`).set("Authorization", auth(admin)).then((r) => r.body.data);
+const books = (w, admin, year) => request(app).get(`/api/welfares/${w.id}/reports/books${year ? `?year=${year}` : ""}`).set("Authorization", auth(admin)).then((r) => r.body.data);
 
 describe("welfare books of accounts", () => {
   it("balances and reconciles, with loan interest in the surplus", async () => {
@@ -66,6 +66,25 @@ describe("welfare books of accounts", () => {
     expect(b.balance_sheet.assets.pool_cash).toBeCloseTo(38000, 1);
     expect(b.balance_sheet.assets.total).toBeCloseTo(b.balance_sheet.members_funds.total, 1);
     expect(b.trial_balance.debit_total).toBeCloseTo(b.trial_balance.credit_total, 1);
+  });
+
+  it("scopes performance to the financial year and balances as at year-end", async () => {
+    const { admin, w, m } = await setup();
+    await request(app).post(`/api/welfares/${w.id}/members/${m.id}/contributions`).set("Authorization", auth(admin)).send({ amount: 50000 });
+
+    const all = await books(w, admin);
+    const y2026 = await books(w, admin, 2026); // all activity is in 2026
+    expect(y2026.period.label).toBe("FY 2026");
+    expect(y2026.period.available_years).toContain(2026);
+    expect(y2026.income_expenditure.income.total).toBeCloseTo(all.income_expenditure.income.total, 1);
+    expect(y2026.balance_sheet.assets.total).toBeCloseTo(all.balance_sheet.assets.total, 1);
+
+    // A prior year: no activity → zero performance, position as at that year-end is nil, still balances.
+    const y2025 = await books(w, admin, 2025);
+    expect(y2025.income_expenditure.income.total).toBeCloseTo(0, 1);
+    expect(y2025.receipts_payments.total_receipts).toBeCloseTo(0, 1);
+    expect(y2025.balance_sheet.assets.total).toBeCloseTo(0, 1);
+    expect(y2025.balance_sheet.assets.total).toBeCloseTo(y2025.balance_sheet.members_funds.total, 1);
   });
 
   it("a welfare member sees the same books in the portal", async () => {

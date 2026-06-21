@@ -157,7 +157,7 @@ router.get("/dashboard", async (req, res) => {
 // (members are equal owners). Read-only.
 router.get("/books", async (req, res) => {
   try {
-    res.json({ success: true, data: await computeWelfareBooks(req.welfareId) });
+    res.json({ success: true, data: await computeWelfareBooks(req.welfareId, { year: req.query.year }) });
   } catch (e) {
     logger.error("member books error:", e);
     res.status(500).json({ error: "Failed to load books of accounts" });

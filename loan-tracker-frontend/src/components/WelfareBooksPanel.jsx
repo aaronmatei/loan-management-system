@@ -29,25 +29,46 @@ const Row = ({ label, value, bold, indent, tone }) => (
 // `client`/`path` let the member portal point this at its own token + endpoint;
 // the admin app uses the default api client + a welfare reports path.
 export default function WelfareBooksPanel({ welfareId, client = api, path }) {
-  const url = path || `/welfares/${welfareId}/reports/books`;
+  const base = path || `/welfares/${welfareId}/reports/books`;
+  const [year, setYear] = useState(""); // "" = all time
   const [b, setB] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    setLoading(true);
+    const url = year ? `${base}${base.includes("?") ? "&" : "?"}year=${year}` : base;
     client.get(url).then((r) => setB(r.data.data)).catch((e) => setError(e.response?.data?.error || "Failed to load books")).finally(() => setLoading(false));
-  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [base, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) return <div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Building the books…" /></div>;
-  if (error) return <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg flex items-center gap-2"><AlertTriangle size={16} /> {error}</div>;
+  const STATUS_LABEL = { active: "Active", completed: "Completed", defaulted: "Defaulted", pending: "Pending", rejected: "Rejected" };
+  const yearsList = b?.period?.available_years || [];
+
+  const picker = (
+    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <p className="text-sm text-slate-500">
+        {b?.period?.label || "All time"} ·
+        <span className="text-slate-400"> performance for the period; balance sheet as at period end</span>
+      </p>
+      <select value={year} onChange={(e) => setYear(e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700">
+        <option value="">All time</option>
+        {yearsList.map((y) => <option key={y} value={y}>FY {y}</option>)}
+      </select>
+    </div>
+  );
+
+  if (loading && !b) return <div>{picker}<div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Building the books…" /></div></div>;
+  if (error) return <div>{picker}<div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg flex items-center gap-2"><AlertTriangle size={16} /> {error}</div></div>;
   if (!b) return null;
 
   const rp = b.receipts_payments, ie = b.income_expenditure, bs = b.balance_sheet, tb = b.trial_balance, pf = b.loan_portfolio;
-  const STATUS_LABEL = { active: "Active", completed: "Completed", defaulted: "Defaulted", pending: "Pending", rejected: "Rejected" };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
+    <>
+      {picker}
+      <div className={`grid lg:grid-cols-2 gap-6 ${loading ? "opacity-50" : ""}`}>
       <Card title="Receipts & Payments" note="Cash book of the savings pool">
+        {b.period.year && <Row label="Opening balance b/f" value={KES(rp.opening_balance)} />}
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1 mb-1">Receipts</p>
         {rp.receipts.map((r) => <Row key={r.label} label={r.label} value={KES(r.amount)} indent />)}
         <Row label="Total receipts" value={KES(rp.total_receipts)} bold />
@@ -111,6 +132,7 @@ export default function WelfareBooksPanel({ welfareId, client = api, path }) {
           </div>
         </Card>
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -32,7 +32,7 @@ router.use(async (req, res, next) => {
 // GET /reports/books — the welfare's Books of Accounts (derived statements).
 router.get("/reports/books", async (req, res) => {
   try {
-    res.json({ success: true, data: await computeWelfareBooks(req.welfare.id) });
+    res.json({ success: true, data: await computeWelfareBooks(req.welfare.id, { year: req.query.year }) });
   } catch (e) {
     logger.error("welfare books error:", e);
     res.status(500).json({ error: "Failed to build books of accounts" });
