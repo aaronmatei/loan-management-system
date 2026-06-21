@@ -10,6 +10,7 @@ import { poolBalance, memberSavings, round2, SAVINGS_TYPES } from "../../service
 import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import { buildSummary, buildCharts, buildMemberRows } from "../welfareReports.js";
+import { gateLoanWrites } from "../../services/welfareLoanFlag.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -94,6 +95,7 @@ router.get("/overview", async (req, res) => {
       ),
     ]);
     const at = attend.rows[0], co = comply.rows[0];
+    const loansEnabled = (await query(`SELECT COALESCE(loans_enabled,false) AS le FROM welfare_settings WHERE tenant_id=$1`, [m.tenant_id])).rows[0]?.le || false;
     res.json({
       success: true,
       data: {
@@ -102,7 +104,7 @@ router.get("/overview", async (req, res) => {
           phone_number: m.phone_number, status: m.status, monthly_contribution: m.monthly_contribution,
           joined_at: m.joined_at,
         },
-        welfare: { id: req.welfareId, name: m.welfare_name, pool_balance: round2(pool) },
+        welfare: { id: req.welfareId, name: m.welfare_name, pool_balance: round2(pool), loans_enabled: loansEnabled },
         savings_balance: round2(savings),
         loans: { active: loans.rows[0].active_count, outstanding: round2(loans.rows[0].outstanding) },
         penalties_outstanding: round2(penalties.rows[0].outstanding),
@@ -518,7 +520,7 @@ router.post("/mpesa/event-share", async (req, res) => {
 // Members ASK; a welfare admin approves. No pool effect until approval.
 
 // POST /loan-requests { principal, duration_months, interest_rate?, purpose }
-router.post("/loan-requests", async (req, res) => {
+router.post("/loan-requests", gateLoanWrites, async (req, res) => {
   try {
     if (req.member.status !== "active") return res.status(400).json({ error: "Your membership is not active" });
     const principal = parseFloat(req.body?.principal);

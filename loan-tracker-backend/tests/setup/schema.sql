@@ -3596,6 +3596,7 @@ CREATE TABLE public.welfare_settings (
   contribution_amount      numeric,
   contribution_grace_days  integer NOT NULL DEFAULT 0,
   attendance_grace_minutes integer NOT NULL DEFAULT 0,
+  loans_enabled            boolean NOT NULL DEFAULT false, -- migration 095
   created_at               timestamp NOT NULL DEFAULT NOW(),
   updated_at               timestamp NOT NULL DEFAULT NOW()
 );

@@ -19,7 +19,7 @@ const TYPE_LABEL = {
 
 export default function MemberDetail() {
   const { memberId } = useParams();
-  const { welfareId } = useWelfare();
+  const { welfareId, welfare } = useWelfare();
   const navigate = useNavigate();
   const [member, setMember] = useState(null);
   const [savings, setSavings] = useState(0);
@@ -148,7 +148,7 @@ export default function MemberDetail() {
 
       {activity && (
         <MemberActivity activity={activity} year={year} setYear={setYear} money={money} fmt={fmt}>
-          <MemberLoansPanel welfareId={welfareId} memberId={memberId} poolBalance={poolBalance} onChange={load} />
+          {welfare?.loans_enabled && <MemberLoansPanel welfareId={welfareId} memberId={memberId} poolBalance={poolBalance} onChange={load} />}
         </MemberActivity>
       )}
 

@@ -22,6 +22,7 @@ async function bootstrap(memberNames = ["A", "B"]) {
   const adminAuth = `Bearer ${signup.body.token}`;
   const welfareId = signup.body.welfare_group_id;
   const tenantId = signup.body.user.tenant_id;
+  await request(app).put(`/api/welfares/${welfareId}/settings/loans`).set("Authorization", adminAuth).send({ enabled: true });
   const members = [];
   for (const n of memberNames) {
     const m = (await request(app).post(`/api/welfares/${welfareId}/members`).set("Authorization", adminAuth).send({ first_name: n, last_name: "M" })).body.data;

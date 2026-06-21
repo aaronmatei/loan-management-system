@@ -13,6 +13,7 @@ async function setup() {
   const t = await createTenant();
   const admin = await createUser(t.id, { role: "admin" });
   const w = (await request(app).post("/api/groups").set("Authorization", auth(admin)).send({ name: "Umoja" })).body.data;
+  await request(app).put(`/api/welfares/${w.id}/settings/loans`).set("Authorization", auth(admin)).send({ enabled: true });
   const member = (await request(app).post(`/api/welfares/${w.id}/members`).set("Authorization", auth(admin)).send({ first_name: "Jane", last_name: "Doe", phone_number: "0700000000" })).body.data;
   return { admin, w, member };
 }

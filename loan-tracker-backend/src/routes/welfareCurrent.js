@@ -16,8 +16,11 @@ router.get("/current", async (req, res) => {
     const tid = req.user?.tenant_id;
     if (!tid) return res.status(400).json({ error: "No tenant context" });
     const r = await query(
-      `SELECT id, name, registration_no, status, created_at
-         FROM groups WHERE tenant_id = $1 ORDER BY id ASC LIMIT 1`,
+      `SELECT g.id, g.name, g.registration_no, g.status, g.created_at,
+              COALESCE(ws.loans_enabled, false) AS loans_enabled
+         FROM groups g
+         LEFT JOIN welfare_settings ws ON ws.tenant_id = g.tenant_id
+        WHERE g.tenant_id = $1 ORDER BY g.id ASC LIMIT 1`,
       [tid],
     );
     if (!r.rows.length) {

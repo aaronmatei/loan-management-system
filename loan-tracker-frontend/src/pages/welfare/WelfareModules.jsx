@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { FileDown, FileSpreadsheet, Save } from "lucide-react";
 import { useWelfare } from "../../context/WelfareContext";
 import { downloadFile } from "../../utils/bulkExport";
@@ -33,8 +34,8 @@ function Page({ title, children }) {
 }
 
 export function WelfareDashboardPage() {
-  const { welfareId } = useWelfare();
-  return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} /></Page>;
+  const { welfareId, welfare } = useWelfare();
+  return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} /></Page>;
 }
 export function WelfareMembersPage() {
   const { welfareId } = useWelfare();
@@ -51,7 +52,8 @@ export function WelfareEventsPage() {
   return <Page title="Events & Emergencies"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" /></Page>;
 }
 export function WelfareLoansPage() {
-  const { welfareId } = useWelfare();
+  const { welfareId, welfare } = useWelfare();
+  if (!welfare?.loans_enabled) return <Navigate to="/welfare" replace />; // loans off → no loans page
   return <Page title="Loans"><WelfareLoansPanel welfareId={welfareId} /></Page>;
 }
 export function WelfarePenaltiesPage() {
@@ -147,10 +149,11 @@ export function WelfareReportsPage() {
 
 // Settings — the welfare's contribution defaults + grace periods.
 export function WelfareSettingsPage() {
-  const { welfareId } = useWelfare();
+  const { welfareId, welfare } = useWelfare();
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loansOn, setLoansOn] = useState(!!welfare?.loans_enabled);
 
   useEffect(() => {
     api.get(`/welfares/${welfareId}/settings`).then((r) => {
@@ -205,8 +208,13 @@ export function WelfareSettingsPage() {
           </PermissionGate>
         )}
       </div>
-      <MemberLoanProductsPanel welfareId={welfareId} />
-      <NonMemberLendingCard />
+      <LoansSwitchCard welfareId={welfareId} on={loansOn} onChange={setLoansOn} />
+      {loansOn && (
+        <>
+          <NonMemberLendingCard />
+          <MemberLoanProductsPanel welfareId={welfareId} />
+        </>
+      )}
     </Page>
   );
 }
@@ -215,6 +223,40 @@ export function WelfareSettingsPage() {
 // up to outside borrowers in the customer lender directory (and is addable);
 // when off it stays members-only and stays hidden. Tenant-scoped, so it uses
 // the singular /welfare endpoint rather than /welfares/:id.
+// Master "Loans" switch. Off → all loan UI is hidden (admin + member) and loan
+// writes are refused. On → reveals the lending-scope switch + loan products.
+function LoansSwitchCard({ welfareId, on, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const toggle = async (next) => {
+    setBusy(true);
+    try {
+      await api.put(`/welfares/${welfareId}/settings/loans`, { enabled: next });
+      onChange(next);
+      // Reload so the nav, route guards and member portal all reflect the
+      // change immediately (the welfare context is fetched once at mount).
+      window.location.reload();
+    } catch (err) { alert(err.response?.data?.error || "Failed to save"); setBusy(false); }
+  };
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl mt-6">
+      <h2 className="font-bold text-slate-900 mb-1">Loans</h2>
+      <p className="text-sm text-slate-500 mb-5">
+        Turn the chama's loan feature on or off. When OFF, everything about loans is hidden from
+        admins and members and no new loans can be created. When ON, choose who you lend to below.
+      </p>
+      <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit this.</p>}>
+        <div className="flex items-center gap-3">
+          <button type="button" disabled={busy} onClick={() => toggle(!on)} aria-pressed={on}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50 ${on ? "bg-emerald-600" : "bg-slate-300"}`}>
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+          <span className="text-sm font-semibold text-slate-700">{busy ? "Saving…" : on ? "Loans are ON" : "Loans are OFF"}</span>
+        </div>
+      </PermissionGate>
+    </div>
+  );
+}
+
 function NonMemberLendingCard() {
   const [enabled, setEnabled] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -273,7 +315,7 @@ function NonMemberLendingCard() {
 // admin/manager approves or rejects. Approval runs the same pool logic as the
 // direct issue/withdrawal flows.
 export function WelfareRequestsPage() {
-  const { welfareId } = useWelfare();
+  const { welfareId, welfare } = useWelfare();
   const [loans, setLoans] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [events, setEvents] = useState([]);
@@ -342,11 +384,13 @@ export function WelfareRequestsPage() {
     <Page title="Requests">
       {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
         <div className="space-y-6 max-w-3xl">
-          <div className="bg-white rounded-xl shadow-md border border-slate-100">
-            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Loan requests ({loans.length})</h2></div>
-            {loans.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending loan requests.</p> :
-              loans.map((r) => <Row key={r.id} kind="loans" r={r} amount={r.principal} extra={`${r.duration_months} mo${r.purpose ? ` · ${r.purpose}` : ""}`} />)}
-          </div>
+          {welfare?.loans_enabled && (
+            <div className="bg-white rounded-xl shadow-md border border-slate-100">
+              <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Loan requests ({loans.length})</h2></div>
+              {loans.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending loan requests.</p> :
+                loans.map((r) => <Row key={r.id} kind="loans" r={r} amount={r.principal} extra={`${r.duration_months} mo${r.purpose ? ` · ${r.purpose}` : ""}`} />)}
+            </div>
+          )}
           <div className="bg-white rounded-xl shadow-md border border-slate-100">
             <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Withdrawal requests ({withdrawals.length})</h2></div>
             {withdrawals.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending withdrawal requests.</p> :

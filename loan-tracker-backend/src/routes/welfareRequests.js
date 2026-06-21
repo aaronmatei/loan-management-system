@@ -11,6 +11,7 @@ import { logAudit } from "../services/auditService.js";
 import { issueMemberLoan, recordWithdrawal } from "../services/welfarePoolService.js";
 import { createEvent } from "../services/welfareEventsService.js";
 import { sendWelfareSms } from "../services/welfareSmsService.js";
+import { gateLoanWrites } from "../services/welfareLoanFlag.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -83,7 +84,7 @@ async function loadPending(table, welfareId, id) {
 
 // POST /loans/:id/approve { interest_rate?, duration_months?, notes? } — issue
 // the loan from the pool and mark the request approved.
-router.post("/loans/:id/approve", authorize("admin", "manager"), async (req, res) => {
+router.post("/loans/:id/approve", authorize("admin", "manager"), gateLoanWrites, async (req, res) => {
   try {
     const reqRow = await loadPending("member_loan_requests", req.welfare.id, req.params.id);
     if (!reqRow) return res.status(404).json({ error: "Request not found" });

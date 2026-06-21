@@ -20,6 +20,7 @@ import {
   postPool, issueMemberLoan, recordWithdrawal,
 } from "../services/welfarePoolService.js";
 import { recordMemberLoanPayment } from "../services/memberLoanService.js";
+import { gateLoanWrites } from "../services/welfareLoanFlag.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -439,7 +440,7 @@ router.get("/:id/loans", async (req, res) => {
 });
 
 // POST /:id/loans — issue a loan from the welfare pool.
-router.post("/:id/loans", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+router.post("/:id/loans", authorize("admin", "manager", "loan_officer"), gateLoanWrites, async (req, res) => {
   try {
     const member = await loadMember(req.welfare.id, req.params.id);
     if (!member) return res.status(404).json({ error: "Member not found" });

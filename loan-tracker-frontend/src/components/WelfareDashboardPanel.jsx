@@ -16,6 +16,7 @@ export default function WelfareDashboardPanel({
   summaryUrl = `/welfares/${welfareId}/reports/summary`,
   chartsUrl = `/welfares/${welfareId}/reports/charts`,
   showExports = true,
+  showLoans = true,
 }) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +79,7 @@ export default function WelfareDashboardPanel({
       <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <Stat icon={Wallet} label="Pool balance" value={money(d.pool.balance)} sub={`Surplus ${money(d.pool.surplus)}`} tone="emerald" />
         <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" />
-        <Stat icon={Banknote} label="Out on loan" value={money(d.loans.outstanding)} sub={`${d.loans.open} open`} tone="indigo" />
+        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.outstanding)} sub={`${d.loans.open} open`} tone="indigo" />}
         <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} tone="rose" />
         <Stat icon={Wallet} label="Savings" value={money(d.pool.members_savings)} sub={`${money(d.pool.total_contributions)} contributed`} />
         <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" />

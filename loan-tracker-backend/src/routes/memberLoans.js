@@ -15,6 +15,7 @@ import { validateAgainstPackage } from "../utils/loanMath.js";
 import { createMemberLoanApplication, disburseMemberLoan, recordMemberLoanPayment } from "../services/memberLoanService.js";
 import { poolBalance } from "../services/welfarePoolService.js";
 import { buildMemberLoanStatementPdf } from "../utils/welfarePdf.js";
+import { gateLoanWrites } from "../services/welfareLoanFlag.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -33,6 +34,10 @@ router.use(async (req, res, next) => {
     res.status(500).json({ error: "Failed to resolve welfare" });
   }
 });
+
+// `gateLoanWrites` is applied per-route to NEW-loan paths (create / approve /
+// disburse / product config) — not to repayments or collateral on EXISTING
+// loans, so a welfare can still service its book after turning loans off.
 
 const METHODS = ["flat", "reducing"];
 
@@ -95,7 +100,7 @@ router.get("/products", async (req, res) => {
 });
 
 // POST /loans/products — create.
-router.post("/products", authorize("admin", "manager"), async (req, res) => {
+router.post("/products", authorize("admin", "manager"), gateLoanWrites, async (req, res) => {
   try {
     const err = validateProduct(req.body);
     if (err) return res.status(400).json({ error: err });
@@ -126,7 +131,7 @@ router.post("/products", authorize("admin", "manager"), async (req, res) => {
 });
 
 // PUT /loans/products/:id — edit.
-router.put("/products/:id", authorize("admin", "manager"), async (req, res) => {
+router.put("/products/:id", authorize("admin", "manager"), gateLoanWrites, async (req, res) => {
   try {
     const cur = (await query(`SELECT * FROM member_loan_products WHERE id=$1 AND welfare_id=$2`, [req.params.id, req.welfare.id])).rows[0];
     if (!cur) return res.status(404).json({ error: "Product not found" });
@@ -171,7 +176,7 @@ router.put("/products/:id", authorize("admin", "manager"), async (req, res) => {
 });
 
 // DELETE /loans/products/:id — soft-archive (loans still resolve via FK).
-router.delete("/products/:id", authorize("admin"), async (req, res) => {
+router.delete("/products/:id", authorize("admin"), gateLoanWrites, async (req, res) => {
   try {
     const cur = (await query(`SELECT * FROM member_loan_products WHERE id=$1 AND welfare_id=$2`, [req.params.id, req.welfare.id])).rows[0];
     if (!cur) return res.status(404).json({ error: "Product not found" });
@@ -241,7 +246,7 @@ router.get("/:loanId", async (req, res) => {
 });
 
 // POST /loans — create an application (status 'pending').
-router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+router.post("/", authorize("admin", "manager", "loan_officer"), gateLoanWrites, async (req, res) => {
   try {
     const b = req.body || {};
     const member = (await query(`SELECT * FROM members WHERE id=$1 AND welfare_id=$2`, [b.member_id, req.welfare.id])).rows[0];
@@ -313,7 +318,7 @@ router.post("/:loanId/default", ...transition({ action: "default", from: ["activ
 
 // Approve stamps approved_by/at, so it's spelled out rather than using the
 // generic transition helper.
-router.post("/:loanId/approve", authorize("admin", "manager"), async (req, res) => {
+router.post("/:loanId/approve", authorize("admin", "manager"), gateLoanWrites, async (req, res) => {
   try {
     const loan = await loadLoan(req.welfare.id, req.params.loanId);
     if (!loan) return res.status(404).json({ error: "Loan not found" });
@@ -328,7 +333,7 @@ router.post("/:loanId/approve", authorize("admin", "manager"), async (req, res) 
 });
 
 // POST /loans/:loanId/disburse — build schedule, debit pool, set active.
-router.post("/:loanId/disburse", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+router.post("/:loanId/disburse", authorize("admin", "manager", "loan_officer"), gateLoanWrites, async (req, res) => {
   try {
     const loan = await loadLoan(req.welfare.id, req.params.loanId);
     if (!loan) return res.status(404).json({ error: "Loan not found" });

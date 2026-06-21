@@ -22,6 +22,7 @@ async function welfareWithRepaidLoan(sub, email) {
   const auth = `Bearer ${signup.body.token}`;
   const tenantId = signup.body.user.tenant_id;
   const welfareId = signup.body.welfare_group_id;
+  await request(app).put(`/api/welfares/${welfareId}/settings/loans`).set("Authorization", auth).send({ enabled: true });
 
   const m = (
     await request(app).post(`/api/welfares/${welfareId}/members`).set("Authorization", auth).send({ first_name: "A", last_name: "B" })

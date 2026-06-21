@@ -83,6 +83,25 @@ router.put("/settings", authorize("admin", "manager"), async (req, res) => {
   }
 });
 
+// PUT /settings/loans — the master "Loans" switch. Dedicated so saving the
+// contribution settings never flips it. When off, loan UI is hidden and loan
+// writes are refused (see services/welfareLoanFlag.js).
+router.put("/settings/loans", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const enabled = req.body?.enabled === true || req.body?.enabled === "true";
+    const r = await query(
+      `INSERT INTO welfare_settings (tenant_id, loans_enabled) VALUES ($1,$2)
+         ON CONFLICT (tenant_id) DO UPDATE SET loans_enabled = EXCLUDED.loans_enabled, updated_at = NOW()
+       RETURNING loans_enabled`,
+      [req.welfare.tenant_id, enabled],
+    );
+    res.json({ success: true, data: { loans_enabled: r.rows[0].loans_enabled } });
+  } catch (e) {
+    logger.error("welfare loans toggle error:", e);
+    res.status(500).json({ error: "Failed to update loans setting" });
+  }
+});
+
 // ---------------- PENALTY RULES ----------------
 
 router.get("/penalty-rules", async (req, res) => {

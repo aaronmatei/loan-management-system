@@ -74,7 +74,8 @@ function buildMenu() {
     /* ignore */
   }
   // Welfare member context wins (data is per-welfare, so it follows the
-  // selected tenant rather than the union of all linked tenants).
+  // selected tenant rather than the union of all linked tenants). "Requests"
+  // stays even when loans are off — it's also the event-funds request desk.
   if (cur?.kind === "welfare") return WELFARE_MENU;
   const hasPawn =
     cur?.kind === "pawnbroker" ||

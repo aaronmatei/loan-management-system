@@ -13,6 +13,7 @@ afterAll(closePool);
 
 async function makeWelfare(admin) {
   const r = await request(app).post("/api/groups").set("Authorization", auth(admin)).send({ name: "Umoja Welfare" });
+  await request(app).put(`/api/welfares/${r.body.data.id}/settings/loans`).set("Authorization", auth(admin)).send({ enabled: true });
   return r.body.data;
 }
 async function makeMember(admin, welfareId) {

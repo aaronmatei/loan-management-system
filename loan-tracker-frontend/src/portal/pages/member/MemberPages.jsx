@@ -214,7 +214,7 @@ export function MemberDashboard() {
           <p className="text-slate-500 -mt-3 mb-5">{data.welfare?.name}</p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <Stat label="My savings" value={KES(data.savings_balance)} tone="text-emerald-700" />
-            <Stat label="Loan balance" value={KES(data.loans?.outstanding)} tone={data.loans?.outstanding > 0 ? "text-ocean-700" : "text-slate-900"} />
+            {data.welfare?.loans_enabled && <Stat label="Loan balance" value={KES(data.loans?.outstanding)} tone={data.loans?.outstanding > 0 ? "text-ocean-700" : "text-slate-900"} />}
             <Stat label="Penalties due" value={KES(data.penalties_outstanding)} tone={data.penalties_outstanding > 0 ? "text-rose-600" : "text-slate-900"} />
             <Stat label="Chama pool" value={KES(data.welfare?.pool_balance)} />
           </div>
@@ -227,7 +227,7 @@ export function MemberDashboard() {
           </div>
 
           {/* The same group dashboard the admin sees — members are equal owners. */}
-          <WelfareDashboardPanel client={portalApi} summaryUrl="/welfare/member/dashboard" chartsUrl="/welfare/member/charts" showExports={false} />
+          <WelfareDashboardPanel client={portalApi} summaryUrl="/welfare/member/dashboard" chartsUrl="/welfare/member/charts" showExports={false} showLoans={!!data.welfare?.loans_enabled} />
 
           {data.next_contribution && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between">
@@ -372,6 +372,8 @@ export function MemberContributions() {
 
 export function MemberLoans() {
   const { data, loading, error, reload } = useFetch("/welfare/member/loans");
+  const { data: overview } = useFetch("/welfare/member/overview");
+  const loansOn = !!overview?.welfare?.loans_enabled; // chama Loans switch
   const [modal, setModal] = useState(null); // 'loan' | 'event' | null
   const [reqKey, setReqKey] = useState(0);
   const [openLoan, setOpenLoan] = useState(null);
@@ -382,11 +384,13 @@ export function MemberLoans() {
         <button onClick={() => setModal("event")} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold inline-flex items-center gap-2">
           <HeartHandshake size={16} /> Request event funds
         </button>
-        <button onClick={() => setModal("loan")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2">
-          <Plus size={16} /> Request a loan
-        </button>
+        {loansOn && (
+          <button onClick={() => setModal("loan")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2">
+            <Plus size={16} /> Request a loan
+          </button>
+        )}
       </div>
-      {modal === "loan" && (
+      {loansOn && modal === "loan" && (
         <LoanApplyModal onClose={() => setModal(null)} onDone={() => setReqKey((k) => k + 1)} />
       )}
       {modal === "event" && (
@@ -402,39 +406,43 @@ export function MemberLoans() {
           onDone={() => setReqKey((k) => k + 1)}
         />
       )}
-      {loading || error || !data ? <Loading error={error} /> : (
-        <Table
-          head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
-          rows={data}
-          empty="You have no chama loans."
-          render={(l) => (
-            <tr key={l.id} onClick={() => setOpenLoan(l.id)} className="cursor-pointer hover:bg-slate-50">
-              <td className="px-4 py-3 font-mono text-slate-700">{l.loan_code}</td>
-              <td className="px-4 py-3">{KES(l.principal)}</td>
-              <td className="px-4 py-3">{KES(l.total_amount_due)}</td>
-              <td className="px-4 py-3">{KES(l.amount_paid)}</td>
-              <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
-              <td className="px-4 py-3"><Badge value={l.status} /></td>
-              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                {l.status === "active" && Number(l.balance) > 0 && (
-                  <PayButton kind="loan" targetId={l.id} onDone={reload} />
-                )}
-              </td>
-            </tr>
+      {loansOn && (
+        <>
+          {loading || error || !data ? <Loading error={error} /> : (
+            <Table
+              head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
+              rows={data}
+              empty="You have no chama loans."
+              render={(l) => (
+                <tr key={l.id} onClick={() => setOpenLoan(l.id)} className="cursor-pointer hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono text-slate-700">{l.loan_code}</td>
+                  <td className="px-4 py-3">{KES(l.principal)}</td>
+                  <td className="px-4 py-3">{KES(l.total_amount_due)}</td>
+                  <td className="px-4 py-3">{KES(l.amount_paid)}</td>
+                  <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
+                  <td className="px-4 py-3"><Badge value={l.status} /></td>
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    {l.status === "active" && Number(l.balance) > 0 && (
+                      <PayButton kind="loan" targetId={l.id} onDone={reload} />
+                    )}
+                  </td>
+                </tr>
+              )}
+            />
           )}
-        />
+          {openLoan && <LoanDetailModal loanId={openLoan} onClose={() => setOpenLoan(null)} />}
+          <RequestsList
+            key={`loan-${reqKey}`}
+            title="Loan requests"
+            path="/welfare/member/loan-requests"
+            columns={[
+              { key: "principal", label: "Amount", fmt: KES },
+              { key: "duration_months", label: "Months" },
+              { key: "purpose", label: "Purpose" },
+            ]}
+          />
+        </>
       )}
-      {openLoan && <LoanDetailModal loanId={openLoan} onClose={() => setOpenLoan(null)} />}
-      <RequestsList
-        key={`loan-${reqKey}`}
-        title="Loan requests"
-        path="/welfare/member/loan-requests"
-        columns={[
-          { key: "principal", label: "Amount", fmt: KES },
-          { key: "duration_months", label: "Months" },
-          { key: "purpose", label: "Purpose" },
-        ]}
-      />
       <RequestsList
         key={`event-${reqKey}`}
         title="Event requests"
@@ -445,21 +453,23 @@ export function MemberLoans() {
           { key: "reason", label: "Reason" },
         ]}
       />
-      <GroupSection
-        title="All chama loans (whole chama)"
-        path="/welfare/member/group-loans"
-        head={["Member", "Loan", "Principal", "Balance", "Status"]}
-        empty="No loans disbursed yet."
-        render={(l, i) => (
-          <tr key={i}>
-            <td className="px-4 py-3 text-slate-800">{l.first_name} {l.last_name}</td>
-            <td className="px-4 py-3 font-mono text-xs text-slate-500">{l.loan_code}</td>
-            <td className="px-4 py-3">{KES(l.principal)}</td>
-            <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
-            <td className="px-4 py-3"><Badge value={l.status} /></td>
-          </tr>
-        )}
-      />
+      {loansOn && (
+        <GroupSection
+          title="All chama loans (whole chama)"
+          path="/welfare/member/group-loans"
+          head={["Member", "Loan", "Principal", "Balance", "Status"]}
+          empty="No loans disbursed yet."
+          render={(l, i) => (
+            <tr key={i}>
+              <td className="px-4 py-3 text-slate-800">{l.first_name} {l.last_name}</td>
+              <td className="px-4 py-3 font-mono text-xs text-slate-500">{l.loan_code}</td>
+              <td className="px-4 py-3">{KES(l.principal)}</td>
+              <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
+              <td className="px-4 py-3"><Badge value={l.status} /></td>
+            </tr>
+          )}
+        />
+      )}
     </Shell>
   );
 }
@@ -572,11 +582,13 @@ function LoanDetailModal({ loanId, onClose }) {
 // Every member's standing — the same Reports table the admin sees (read-only).
 export function MemberGroup() {
   const { data, loading, error } = useFetch("/welfare/member/group-members");
+  const { data: overview } = useFetch("/welfare/member/overview");
+  const loansOn = !!overview?.welfare?.loans_enabled; // drop the loan column when off
   return (
     <Shell title="Members" icon={Coins}>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
-          head={["Member", "Savings", "Contributions", "Dividends", "Loan bal", "Penalty bal", "Attendance"]}
+          head={["Member", "Savings", "Contributions", "Dividends", ...(loansOn ? ["Loan bal"] : []), "Penalty bal", "Attendance"]}
           rows={data}
           empty="No members yet."
           render={(m) => (
@@ -585,7 +597,7 @@ export function MemberGroup() {
               <td className="px-4 py-3">{KES(m.savings)}</td>
               <td className="px-4 py-3">{KES(m.contributions)}</td>
               <td className="px-4 py-3">{KES(m.dividends)}</td>
-              <td className="px-4 py-3">{KES(m.loan_outstanding)}</td>
+              {loansOn && <td className="px-4 py-3">{KES(m.loan_outstanding)}</td>}
               <td className="px-4 py-3">{KES(m.penalty_outstanding)}</td>
               <td className="px-4 py-3">{m.attendance_pct == null ? "—" : `${m.attendance_pct}%`}</td>
             </tr>

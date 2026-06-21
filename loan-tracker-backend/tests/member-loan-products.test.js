@@ -15,6 +15,7 @@ async function setup() {
   await query("UPDATE tenants SET kind='welfare' WHERE id=$1", [t.id]);
   const admin = await createUser(t.id, { role: "admin" });
   const w = (await request(app).post("/api/groups").set("Authorization", auth(admin)).send({ name: "Umoja" })).body.data;
+  await request(app).put(`/api/welfares/${w.id}/settings/loans`).set("Authorization", auth(admin)).send({ enabled: true });
   return { t, admin, w };
 }
 

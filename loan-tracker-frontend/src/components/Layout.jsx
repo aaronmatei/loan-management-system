@@ -155,7 +155,7 @@ const WELFARE_STANDALONE = [
   { path: "/welfare/members", label: "Members", icon: Users, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/contributions", label: "Contributions", icon: Coins, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/events", label: "Events & Emergencies", icon: HeartHandshake, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/loans", label: "Loans", icon: HandCoins, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/loans", label: "Loans", icon: HandCoins, variant: "ocean", permission: "loans:view", requiresLoans: true },
   { path: "/welfare/penalties", label: "Penalties", icon: AlertTriangle, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view" },
@@ -193,6 +193,9 @@ function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [overdueCount, setOverdueCount] = useState(0);
   const [pendingWaivers, setPendingWaivers] = useState(0);
+  // Welfare master Loans switch — drives whether the welfare nav shows the Loans
+  // item. Default false so loan UI never flashes for a loans-off welfare.
+  const [welfareLoansOn, setWelfareLoansOn] = useState(false);
 
   // Overdue badge — hits the dedicated /overdue/count endpoint
   // (single COUNT query, ~50ms) rather than /dashboard/summary
@@ -212,6 +215,18 @@ function Layout({ children }) {
     return () => {
       mounted = false;
     };
+  }, [location.pathname]);
+
+  // Welfare tenants: learn whether loans are enabled so the nav can hide the
+  // Loans item. Re-checks on route change so toggling it in Settings takes
+  // effect without a reload.
+  useEffect(() => {
+    let user = null;
+    try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch { /* */ }
+    if (user?.tenant?.kind !== "welfare") return;
+    let mounted = true;
+    api.get("/welfare/current").then((r) => { if (mounted) setWelfareLoansOn(!!r.data.data?.loans_enabled); }).catch(() => {});
+    return () => { mounted = false; };
   }, [location.pathname]);
 
   // Pending-waivers badge — admin only. Tenant-scoped on the backend.
@@ -261,9 +276,9 @@ function Layout({ children }) {
 
   // Role-filtered: drop items the user can't see, and drop empty
   // groups so their headers don't render at all.
-  const visibleStandalone = baseStandalone.filter((it) =>
-    itemVisible(it, user?.role),
-  );
+  const visibleStandalone = baseStandalone
+    .filter((it) => itemVisible(it, user?.role))
+    .filter((it) => !it.requiresLoans || welfareLoansOn); // hide Loans when the switch is off
   const visibleGroups = baseGroups
     .map((g) => ({
       ...g,

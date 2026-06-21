@@ -14,6 +14,7 @@ async function setup() {
   await query("UPDATE tenants SET kind='welfare' WHERE id=$1", [t.id]);
   const admin = await createUser(t.id, { role: "admin" });
   const w = (await request(app).post("/api/groups").set("Authorization", auth(admin)).send({ name: "Umoja" })).body.data;
+  await request(app).put(`/api/welfares/${w.id}/settings/loans`).set("Authorization", auth(admin)).send({ enabled: true });
   const a = (await request(app).post(`/api/welfares/${w.id}/members`).set("Authorization", auth(admin)).send({ first_name: "Asha", last_name: "K", phone_number: "0790000001" })).body.data;
   const b = (await request(app).post(`/api/welfares/${w.id}/members`).set("Authorization", auth(admin)).send({ first_name: "Brian", last_name: "M", phone_number: "0790000002" })).body.data;
   await request(app).post(`/api/welfares/${w.id}/members/${a.id}/contributions`).set("Authorization", auth(admin)).send({ amount: 50000 });
