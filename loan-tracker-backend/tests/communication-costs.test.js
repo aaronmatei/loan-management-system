@@ -60,9 +60,14 @@ describe("communication costs", () => {
       [t.id, loan.id, client.id],
     );
 
-    const today = new Date().toISOString().split("T")[0];
+    // Window of ±1 day around now so the just-inserted rows are always in range
+    // regardless of server/DB timezone or a UTC-midnight boundary (created_at is
+    // DB-local NOW(); a same-day UTC window can miss it across midnight).
+    const ymd = (ms) => new Date(ms).toISOString().split("T")[0];
+    const from = ymd(Date.now() - 86400000);
+    const to = ymd(Date.now() + 86400000);
     const res = await request(app)
-      .get(`/api/platform/billing/communication-costs?from=${today}&to=${today}`)
+      .get(`/api/platform/billing/communication-costs?from=${from}&to=${to}`)
       .set("Authorization", auth(admin));
     expect(res.status).toBe(200);
     const row = res.body.data.tenants.find((x) => x.tenant_id === t.id);
