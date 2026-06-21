@@ -37,30 +37,38 @@ export async function memberSavings(memberId) {
 // Append a row to the pool ledger, carrying the running balance forward. The
 // ONLY place balance_after is computed — every contribution/withdrawal/loan
 // movement goes through here.
-export async function postPool({ welfare, memberId, type, amount, direction, loanId, txnDate, description, userId }) {
-  // Atomic + serialized per welfare: the advisory lock blocks any concurrent
-  // post for this pool until this transaction commits, so two simultaneous
-  // movements can't read the same prior balance and clobber balance_after.
-  return withTransaction(async (client) => {
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`welfare-pool-${welfare.id}`]);
-    const prevRow = await client.query(
-      `SELECT balance_after FROM member_pool_transactions WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
-      [welfare.id],
-    );
-    const prev = prevRow.rows.length ? parseFloat(prevRow.rows[0].balance_after) : 0;
-    const balanceAfter = round2(prev + direction * amount);
-    const r = await client.query(
-      `INSERT INTO member_pool_transactions
-         (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, member_loan_id, txn_date, description, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
-       RETURNING *`,
-      [
-        welfare.tenant_id, welfare.id, memberId || null, type, amount, direction,
-        balanceAfter, loanId || null, txnDate || null, description || null, userId || null,
-      ],
-    );
-    return r.rows[0];
-  });
+// Atomic + serialized per welfare: the advisory lock blocks any concurrent post
+// for this pool until the transaction commits, so two simultaneous movements
+// can't read the same prior balance and clobber balance_after. Runs on the
+// given transaction client.
+async function postPoolTx(client, { welfare, memberId, type, amount, direction, loanId, txnDate, description, userId }) {
+  await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`welfare-pool-${welfare.id}`]);
+  const prevRow = await client.query(
+    `SELECT balance_after FROM member_pool_transactions WHERE welfare_id = $1 ORDER BY id DESC LIMIT 1`,
+    [welfare.id],
+  );
+  const prev = prevRow.rows.length ? parseFloat(prevRow.rows[0].balance_after) : 0;
+  const balanceAfter = round2(prev + direction * amount);
+  const r = await client.query(
+    `INSERT INTO member_pool_transactions
+       (tenant_id, welfare_id, member_id, type, amount, direction, balance_after, member_loan_id, txn_date, description, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10,$11)
+     RETURNING *`,
+    [
+      welfare.tenant_id, welfare.id, memberId || null, type, amount, direction,
+      balanceAfter, loanId || null, txnDate || null, description || null, userId || null,
+    ],
+  );
+  return r.rows[0];
+}
+
+// Post a pool movement. Pass `client` to join a caller's transaction so an
+// entire money operation (disburse / repayment) commits atomically; omit it to
+// run as its own standalone transaction.
+export async function postPool(args) {
+  return args.client
+    ? postPoolTx(args.client, args)
+    : withTransaction((client) => postPoolTx(client, args));
 }
 
 // Issue a loan from the welfare pool to a member (flat interest, single bullet).
