@@ -12,7 +12,7 @@ import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import { buildSummary, buildCharts, buildMemberRows } from "../welfareReports.js";
 import { gateLoanWrites } from "../../services/welfareLoanFlag.js";
 import { VISIBILITIES, runDocUpload, storeDocFile, isCloudinaryConfigured, isOfficer, cleanCategory } from "../../services/welfareDocumentService.js";
-import { VOTES, decorate, resolveIfDue, finalize, closeOutcome } from "../../services/welfareDecisionService.js";
+import { VOTES, decorate, resolveIfDue, finalize, closeOutcome, resolveElectionTarget, electionTitle } from "../../services/welfareDecisionService.js";
 import logger from "../../config/logger.js";
 
 const router = express.Router();
@@ -284,15 +284,24 @@ router.get("/decisions/:id", async (req, res) => {
 
 router.post("/decisions", async (req, res) => {
   try {
-    const title = String(req.body?.title || "").trim();
+    // Only officers may call an officer election; ordinary members propose motions.
+    const isElection = req.body?.type === "election" && isOfficer(req.member.role);
+    let title = String(req.body?.title || "").trim();
+    let targetMemberId = null, targetRole = null;
+    if (isElection) {
+      const t = await resolveElectionTarget(req.welfareId, req.body?.target_member_id, req.body?.target_role);
+      if (t.error) return res.status(400).json({ error: t.error });
+      targetMemberId = t.member.id; targetRole = t.role;
+      if (!title) title = electionTitle(t.member, t.role);
+    }
     if (!title) return res.status(400).json({ error: "Title is required" });
     const quorum = Math.min(100, Math.max(1, parseInt(req.body?.quorum_percent, 10) || 50));
     const closesAt = req.body?.closes_at ? new Date(req.body.closes_at) : null;
     if (closesAt && isNaN(closesAt.getTime())) return res.status(400).json({ error: "Invalid closing date" });
     const r = await query(
-      `INSERT INTO welfare_decisions (tenant_id, welfare_id, type, title, description, quorum_percent, closes_at, opened_by_member, opened_by_name)
-       VALUES ($1,$2,'motion',$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [req.member.tenant_id, req.welfareId, title, req.body?.description?.trim() || null, quorum, closesAt, req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim()],
+      `INSERT INTO welfare_decisions (tenant_id, welfare_id, type, title, description, quorum_percent, closes_at, target_member_id, target_role, opened_by_member, opened_by_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [req.member.tenant_id, req.welfareId, isElection ? "election" : "motion", title, req.body?.description?.trim() || null, quorum, closesAt, targetMemberId, targetRole, req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim()],
     );
     res.status(201).json({ success: true, data: await decorate(r.rows[0]) });
   } catch (e) { logger.error("member decision open error:", e); res.status(500).json({ error: "Failed to open decision" }); }

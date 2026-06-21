@@ -690,7 +690,7 @@ export function MemberDocuments() {
 export function MemberDecisions() {
   return (
     <Shell title="Decisions" icon={Vote}>
-      <WelfareDecisionsPanel client={portalApi} path="/welfare/member/decisions" />
+      <WelfareDecisionsPanel client={portalApi} path="/welfare/member/decisions" membersPath="/welfare/member/group-members" />
     </Shell>
   );
 }

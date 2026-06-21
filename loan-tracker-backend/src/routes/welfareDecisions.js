@@ -8,7 +8,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
-import { decorate, resolveIfDue, finalize, closeOutcome } from "../services/welfareDecisionService.js";
+import { decorate, resolveIfDue, finalize, closeOutcome, resolveElectionTarget, electionTitle } from "../services/welfareDecisionService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -62,21 +62,33 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST /decisions — open a governance motion.
+// POST /decisions — open a governance motion, or an officer election
+// (type: 'election' + target_member_id + target_role). A passed election
+// assigns the officer role automatically.
 router.post("/", authorize("admin", "manager"), async (req, res) => {
   try {
-    const title = String(req.body?.title || "").trim();
+    const isElection = req.body?.type === "election";
+    let title = String(req.body?.title || "").trim();
+    let targetMemberId = null;
+    let targetRole = null;
+    if (isElection) {
+      const t = await resolveElectionTarget(req.welfare.id, req.body?.target_member_id, req.body?.target_role);
+      if (t.error) return res.status(400).json({ error: t.error });
+      targetMemberId = t.member.id;
+      targetRole = t.role;
+      if (!title) title = electionTitle(t.member, t.role);
+    }
     if (!title) return res.status(400).json({ error: "Title is required" });
     const quorum = Math.min(100, Math.max(1, parseInt(req.body?.quorum_percent, 10) || 50));
     const closesAt = req.body?.closes_at ? new Date(req.body.closes_at) : null;
     if (closesAt && isNaN(closesAt.getTime())) return res.status(400).json({ error: "Invalid closing date" });
     const r = await query(
-      `INSERT INTO welfare_decisions (tenant_id, welfare_id, type, title, description, quorum_percent, closes_at, opened_by_user, opened_by_name)
-       VALUES ($1,$2,'motion',$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [req.welfare.tenant_id, req.welfare.id, title, req.body?.description?.trim() || null, quorum, closesAt,
-        req.user.id, `${req.user.first_name || ""} ${req.user.last_name || ""}`.trim() || req.user.email || "Staff"],
+      `INSERT INTO welfare_decisions (tenant_id, welfare_id, type, title, description, quorum_percent, closes_at, target_member_id, target_role, opened_by_user, opened_by_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [req.welfare.tenant_id, req.welfare.id, isElection ? "election" : "motion", title, req.body?.description?.trim() || null, quorum, closesAt,
+        targetMemberId, targetRole, req.user.id, `${req.user.first_name || ""} ${req.user.last_name || ""}`.trim() || req.user.email || "Staff"],
     );
-    await logAudit({ user: req.user, action: "created", entityType: "welfare_decision", entityId: r.rows[0].id, entityCode: title, description: `Opened motion: ${title}`, req });
+    await logAudit({ user: req.user, action: "created", entityType: "welfare_decision", entityId: r.rows[0].id, entityCode: title, description: `Opened ${isElection ? "election" : "motion"}: ${title}`, req });
     res.status(201).json({ success: true, data: await decorate(r.rows[0]) });
   } catch (e) {
     logger.error("welfare decision open error:", e);

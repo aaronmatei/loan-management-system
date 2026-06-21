@@ -20,14 +20,16 @@ const VOTE_BTN = {
   abstain: { Icon: MinusCircle, active: "bg-slate-500 text-white border-slate-500" },
 };
 
-export default function WelfareDecisionsPanel({ client, path, admin = false }) {
+export default function WelfareDecisionsPanel({ client, path, membersPath, admin = false }) {
   const [decisions, setDecisions] = useState([]);
   const [isOfficer, setIsOfficer] = useState(false);
   const [myId, setMyId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ title: "", description: "", quorum_percent: 50, closes_at: "" });
+  const [form, setForm] = useState({ type: "motion", title: "", description: "", quorum_percent: 50, closes_at: "", target_member_id: "", target_role: "chair" });
+  const [members, setMembers] = useState([]);
   const [busy, setBusy] = useState(false);
+  const canElect = admin || isOfficer;
 
   const load = async () => {
     setLoading(true);
@@ -41,18 +43,34 @@ export default function WelfareDecisionsPanel({ client, path, admin = false }) {
   };
   useEffect(() => { load(); }, [path]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const loadMembers = async () => {
+    if (!membersPath || members.length) return;
+    try {
+      const data = (await client.get(membersPath)).data?.data;
+      setMembers(Array.isArray(data) ? data : []);
+    } catch { /* ignore */ }
+  };
+  const setType = (type) => {
+    setForm({ ...form, type });
+    if (type === "election") loadMembers();
+  };
+
   const propose = async (e) => {
     e.preventDefault();
-    if (!form.title.trim()) { alert("Give the motion a title."); return; }
+    const election = form.type === "election";
+    if (!election && !form.title.trim()) { alert("Give the motion a title."); return; }
+    if (election && !form.target_member_id) { alert("Choose the member to elect."); return; }
     setBusy(true);
     try {
-      await client.post(path, {
-        title: form.title.trim(), description: form.description.trim() || undefined,
+      const body = {
+        title: form.title.trim() || undefined, description: form.description.trim() || undefined,
         quorum_percent: Number(form.quorum_percent) || 50, closes_at: form.closes_at || undefined,
-      });
-      setForm({ title: "", description: "", quorum_percent: 50, closes_at: "" });
+      };
+      if (election) { body.type = "election"; body.target_member_id = Number(form.target_member_id); body.target_role = form.target_role; }
+      await client.post(path, body);
+      setForm({ type: "motion", title: "", description: "", quorum_percent: 50, closes_at: "", target_member_id: "", target_role: "chair" });
       load();
-    } catch (e2) { alert(e2.response?.data?.error || "Failed to open the motion"); }
+    } catch (e2) { alert(e2.response?.data?.error || "Failed to open the decision"); }
     finally { setBusy(false); }
   };
 
@@ -66,10 +84,38 @@ export default function WelfareDecisionsPanel({ client, path, admin = false }) {
   return (
     <div className="space-y-6 max-w-3xl">
       <form onSubmit={propose} className="bg-white rounded-xl shadow-md border border-slate-100 p-5">
-        <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2"><Plus size={18} className="text-emerald-600" /> Propose a motion</h2>
-        <p className="text-sm text-slate-500 mb-4">Put a decision to the group — a rule change, a purchase, electing an officer. It passes when approvals reach the quorum.</p>
+        <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2"><Plus size={18} className="text-emerald-600" /> Propose a decision</h2>
+        <p className="text-sm text-slate-500 mb-4">Put a decision to the group — a rule change, a purchase, or electing an officer. It passes when approvals reach the quorum.</p>
+        {canElect && (
+          <div className="inline-flex rounded-lg border border-slate-200 p-0.5 mb-3 text-sm font-semibold">
+            <button type="button" onClick={() => setType("motion")} className={`px-3 py-1.5 rounded-md ${form.type === "motion" ? "bg-emerald-600 text-white" : "text-slate-600"}`}>Motion</button>
+            <button type="button" onClick={() => setType("election")} className={`px-3 py-1.5 rounded-md ${form.type === "election" ? "bg-emerald-600 text-white" : "text-slate-600"}`}>Officer election</button>
+          </div>
+        )}
         <div className="grid sm:grid-cols-2 gap-3">
-          <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="What are we deciding?" className="px-3 py-2 rounded-lg border border-slate-200 sm:col-span-2" />
+          {form.type === "election" ? (
+            <>
+              <label className="text-sm text-slate-600 sm:col-span-1">Candidate
+                <select value={form.target_member_id} onChange={(e) => setForm({ ...form, target_member_id: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200">
+                  <option value="">Choose a member…</option>
+                  {members.map((m) => {
+                    const id = m.member_id ?? m.id;
+                    const name = m.name || `${m.first_name || ""} ${m.last_name || ""}`.trim();
+                    return <option key={id} value={id}>{name}</option>;
+                  })}
+                </select>
+              </label>
+              <label className="text-sm text-slate-600 sm:col-span-1">Role
+                <select value={form.target_role} onChange={(e) => setForm({ ...form, target_role: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200">
+                  <option value="chair">Chair</option>
+                  <option value="treasurer">Treasurer</option>
+                  <option value="secretary">Secretary</option>
+                </select>
+              </label>
+            </>
+          ) : (
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="What are we deciding?" className="px-3 py-2 rounded-lg border border-slate-200 sm:col-span-2" />
+          )}
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Details (optional)" rows={2} className="px-3 py-2 rounded-lg border border-slate-200 sm:col-span-2" />
           <label className="text-sm text-slate-600">Quorum %
             <input type="number" min={1} max={100} value={form.quorum_percent} onChange={(e) => setForm({ ...form, quorum_percent: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200" />
@@ -78,7 +124,7 @@ export default function WelfareDecisionsPanel({ client, path, admin = false }) {
             <input type="date" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200" />
           </label>
         </div>
-        <button type="submit" disabled={busy} className="mt-4 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50 inline-flex items-center gap-2"><Gavel size={16} /> {busy ? "Opening…" : "Open motion"}</button>
+        <button type="submit" disabled={busy} className="mt-4 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50 inline-flex items-center gap-2"><Gavel size={16} /> {busy ? "Opening…" : form.type === "election" ? "Open election" : "Open motion"}</button>
       </form>
 
       {loading ? <div className="p-8"><Spinner centered label="Loading decisions…" /></div>
@@ -91,7 +137,10 @@ export default function WelfareDecisionsPanel({ client, path, admin = false }) {
             <div key={d.id} className="bg-white rounded-xl shadow-md border border-slate-100 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="font-bold text-slate-900 flex items-center gap-2"><Vote size={16} className="text-slate-400" /> {d.title}</h3>
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                    <Vote size={16} className="text-slate-400" /> {d.title}
+                    {d.type === "election" && <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 capitalize">election · {d.target_role}</span>}
+                  </h3>
                   {d.description && <p className="text-sm text-slate-500 mt-1">{d.description}</p>}
                   <p className="text-xs text-slate-400 mt-1">by {d.opened_by_name || "—"}{d.closes_at ? ` · closes ${fmtDate(d.closes_at)}` : ""}</p>
                 </div>

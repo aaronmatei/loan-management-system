@@ -54,7 +54,7 @@ export function WelfareDocumentsPage() {
 }
 export function WelfareDecisionsPage() {
   const { welfareId } = useWelfare();
-  return <Page title="Decisions"><WelfareDecisionsPanel client={api} path={`/welfares/${welfareId}/decisions`} admin /></Page>;
+  return <Page title="Decisions"><WelfareDecisionsPanel client={api} path={`/welfares/${welfareId}/decisions`} membersPath={`/welfares/${welfareId}/members`} admin /></Page>;
 }
 export function WelfareEventsPage() {
   const { welfareId } = useWelfare();

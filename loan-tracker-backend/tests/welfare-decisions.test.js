@@ -93,3 +93,38 @@ describe("welfare decisions / voting", () => {
     expect(list.body.data.decisions[0].my_vote).toBe("abstain");
   });
 });
+
+describe("welfare officer elections (Phase 4)", () => {
+  it("a passed election assigns the officer role and demotes the prior holder", async () => {
+    const { admin, w, mk } = await freshSetup();
+    const a = await mk("Asha", "0795600401", "ELC1");
+    const b = await mk("Brian", "0795600402", "ELC2");
+    // Asha is the sitting chair; the election should hand the role to Brian.
+    await request(app).put(`/api/welfares/${w.id}/members/${a.id}/role`).set("Authorization", auth(admin)).send({ role: "chair" });
+
+    const open = await request(app).post(`/api/welfares/${w.id}/decisions`).set("Authorization", auth(admin))
+      .send({ type: "election", target_member_id: b.id, target_role: "chair", quorum_percent: 50 });
+    expect(open.status).toBe(201);
+    expect(open.body.data.type).toBe("election");
+    expect(open.body.data.title).toMatch(/Elect Brian K as chair/);
+    const id = open.body.data.id;
+
+    // 2 members, 50% quorum → 1 approval passes it.
+    const voted = await vote(a.tok, id, "approve");
+    expect(voted.body.data.status).toBe("passed");
+
+    const roles = (await query("SELECT id, role FROM members WHERE welfare_id=$1", [w.id])).rows;
+    expect(roles.find((r) => r.id === b.id).role).toBe("chair");   // elected
+    expect(roles.find((r) => r.id === a.id).role).toBe("member");  // demoted
+  });
+
+  it("an ordinary member cannot start an officer election (downgraded to a motion)", async () => {
+    const { w, mk } = await freshSetup();
+    const a = await mk("Asha", "0795600501", "ELC3");
+    const b = await mk("Brian", "0795600502", "ELC4");
+    const open = await request(app).post("/api/welfare/member/decisions").set("Authorization", a.tok)
+      .send({ type: "election", target_member_id: b.id, target_role: "chair", title: "Sneaky election" });
+    expect(open.status).toBe(201);
+    expect(open.body.data.type).toBe("motion"); // not allowed → plain motion
+  });
+});

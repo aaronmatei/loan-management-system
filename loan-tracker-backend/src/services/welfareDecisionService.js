@@ -70,6 +70,16 @@ export async function finalize(decision, outcome) {
   return updated || (await query(`SELECT * FROM welfare_decisions WHERE id = $1`, [decision.id])).rows[0];
 }
 
+// Validate an election's candidate + role. Returns { member, role } or { error }.
+export async function resolveElectionTarget(welfareId, targetMemberId, targetRole) {
+  const role = (targetRole || "").toLowerCase();
+  if (!OFFICER_ROLES.includes(role)) return { error: "Choose an officer role (chair, treasurer or secretary)" };
+  const m = (await query(`SELECT id, first_name, last_name FROM members WHERE id = $1 AND welfare_id = $2 AND status = 'active'`, [targetMemberId, welfareId])).rows[0];
+  if (!m) return { error: "Choose an active member to elect" };
+  return { member: m, role };
+}
+export const electionTitle = (member, role) => `Elect ${member.first_name} ${member.last_name} as ${role}`;
+
 // Outcome a manual close would produce given the current tally.
 export async function closeOutcome(decision) {
   const t = await tally(decision.id);
