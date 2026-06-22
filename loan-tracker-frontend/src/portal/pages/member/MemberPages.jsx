@@ -183,9 +183,11 @@ function RequestModal({ title, fields, url, onClose, onDone }) {
 }
 
 // A member's own request history (loan / withdrawal / event).
+// Collapsed by default: the table only appears after clicking the heading.
 function RequestsList({ path, columns, title = "My requests", kind, onOpenLoan }) {
   const { data, loading } = useFetch(path);
   const [open, setOpen] = useState(null);
+  const [show, setShow] = useState(false);
   if (loading || !data || data.length === 0) return null;
   // An approved loan request opens the issued loan (with its repayment history);
   // anything else opens the read-only request detail.
@@ -195,18 +197,23 @@ function RequestsList({ path, columns, title = "My requests", kind, onOpenLoan }
   };
   return (
     <div className="mt-6">
-      <h2 className="font-bold text-slate-900 mb-2">{title}</h2>
-      <Table
-        head={[...columns.map((c) => c.label), "Status"]}
-        rows={data}
-        empty=""
-        render={(r) => (
-          <tr key={r.id} onClick={() => handle(r)} className="cursor-pointer hover:bg-slate-50">
-            {columns.map((c) => <td key={c.key} className="px-4 py-3 text-slate-700">{c.fmt ? c.fmt(r[c.key]) : r[c.key] || "—"}</td>)}
-            <td className="px-4 py-3"><Badge value={r.status} /></td>
-          </tr>
-        )}
-      />
+      <button type="button" onClick={() => setShow((s) => !s)} className="flex items-center gap-1.5 font-bold text-slate-900 mb-2 hover:text-slate-700">
+        <ChevronRight size={18} className={`transition-transform ${show ? "rotate-90" : ""}`} />
+        {title} <span className="font-normal text-slate-400">({data.length})</span>
+      </button>
+      {show && (
+        <Table
+          head={[...columns.map((c) => c.label), "Status"]}
+          rows={data}
+          empty=""
+          render={(r) => (
+            <tr key={r.id} onClick={() => handle(r)} className="cursor-pointer hover:bg-slate-50">
+              {columns.map((c) => <td key={c.key} className="px-4 py-3 text-slate-700">{c.fmt ? c.fmt(r[c.key]) : r[c.key] || "—"}</td>)}
+              <td className="px-4 py-3"><Badge value={r.status} /></td>
+            </tr>
+          )}
+        />
+      )}
       {open && <RequestDetailModal request={open} columns={columns} kind={kind} onClose={() => setOpen(null)} />}
     </div>
   );
@@ -409,6 +416,7 @@ export function MemberContributions() {
 }
 
 export function MemberLoans() {
+  const { data, loading, error, reload } = useFetch("/welfare/member/loans");
   const { data: overview } = useFetch("/welfare/member/overview");
   const loansOn = !!overview?.welfare?.loans_enabled; // chama Loans switch
   const [modal, setModal] = useState(null); // 'loan' | 'event' | null
@@ -444,19 +452,45 @@ export function MemberLoans() {
         />
       )}
       {loansOn && (
-        <RequestsList
-          key={`loan-${reqKey}`}
-          title="Loan requests"
-          kind="loan"
-          path="/welfare/member/loan-requests"
-          columns={[
-            { key: "principal", label: "Amount", fmt: KES },
-            { key: "duration_months", label: "Months" },
-            { key: "purpose", label: "Purpose" },
-          ]}
-          // An approved request opens the real loan (schedule + repayments + Pay).
-          onOpenLoan={setOpenLoan}
-        />
+        <>
+          <h2 className="font-bold text-slate-900 mb-2">Approved loans</h2>
+          {loading || error || !data ? <Loading error={error} /> : (
+            <Table
+              head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
+              rows={data}
+              empty="You have no chama loans."
+              render={(l) => (
+                <tr key={l.id} onClick={() => setOpenLoan(l.id)} className="cursor-pointer hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono text-slate-700">{l.loan_code}</td>
+                  <td className="px-4 py-3">{KES(l.principal)}</td>
+                  <td className="px-4 py-3">{KES(l.total_amount_due)}</td>
+                  <td className="px-4 py-3">{KES(l.amount_paid)}</td>
+                  <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
+                  <td className="px-4 py-3"><Badge value={l.status} /></td>
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    {l.status === "active" && Number(l.balance) > 0 && (
+                      <PayButton kind="loan" targetId={l.id} onDone={reload} />
+                    )}
+                  </td>
+                </tr>
+              )}
+            />
+          )}
+          {/* Collapsed by default — click the heading to reveal the table. */}
+          <RequestsList
+            key={`loan-${reqKey}`}
+            title="Loan requests"
+            kind="loan"
+            path="/welfare/member/loan-requests"
+            columns={[
+              { key: "principal", label: "Amount", fmt: KES },
+              { key: "duration_months", label: "Months" },
+              { key: "purpose", label: "Purpose" },
+            ]}
+            // An approved request opens the real loan (schedule + repayments + Pay).
+            onOpenLoan={setOpenLoan}
+          />
+        </>
       )}
       <RequestsList
         key={`event-${reqKey}`}
