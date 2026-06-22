@@ -177,6 +177,19 @@ describe("member portal read API", () => {
     expect(ov.body.data.plan.name).toBe("Monthly");
   });
 
+  it("a member views a meeting's attendance roster", async () => {
+    const { tenant, admin, welfare } = await welfareSetup();
+    const m = await makeMember(admin, welfare.id, { phone: "0795200801", id: "MTG1" });
+    await invite(admin, welfare.id, m.id);
+    const mtg = (await request(app).post(`/api/welfares/${welfare.id}/meetings`).set("Authorization", auth(admin)).send({ title: "AGM", meeting_date: "2026-06-27" })).body.data;
+    await request(app).post(`/api/welfares/${welfare.id}/meetings/${mtg.id}/attendance`).set("Authorization", auth(admin)).send({ records: [{ member_id: m.id, arrival_time: "10:00" }] });
+    const tok = customerToken(await pcIdByPhone("+254795200801"), tenant.id);
+
+    const r = await request(app).get(`/api/welfare/member/meetings/${mtg.id}`).set("Authorization", tok);
+    expect(r.status).toBe(200);
+    expect(r.body.data.roster.find((x) => x.member_id === m.id).attendance_status).toBe("present");
+  });
+
   it("403s a borrower (non-member) hitting member routes", async () => {
     const { admin, welfare } = await welfareSetup();
     const m = await makeMember(admin, welfare.id, { phone: "0795200311", id: "BRW1" });

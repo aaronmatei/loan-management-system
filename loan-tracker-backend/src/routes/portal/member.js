@@ -178,6 +178,25 @@ router.get("/contrib/cycles/:cycleId", async (req, res) => {
   } catch (e) { logger.error("member contrib cycle error:", e); res.status(500).json({ error: "Failed to load cycle" }); }
 });
 
+// GET /meetings/:meetingId — a meeting's attendance roster (all members,
+// present/late/absent/excused + arrival), the same as the admin sees. Read-only.
+router.get("/meetings/:meetingId", async (req, res) => {
+  try {
+    const m = (await query(`SELECT * FROM group_meetings WHERE id=$1 AND group_id=$2`, [req.params.meetingId, req.welfareId])).rows[0];
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    const roster = (await query(
+      `SELECT mem.id AS member_id, mem.first_name, mem.last_name, mem.member_no,
+              a.status AS attendance_status, a.arrival_time, a.apology
+         FROM members mem
+         LEFT JOIN member_attendance a ON a.meeting_id=$2 AND a.member_id=mem.id
+        WHERE mem.welfare_id=$1 AND mem.status='active'
+        ORDER BY mem.first_name`,
+      [req.welfareId, m.id],
+    )).rows;
+    res.json({ success: true, data: { meeting: m, roster } });
+  } catch (e) { logger.error("member meeting detail error:", e); res.status(500).json({ error: "Failed to load meeting" }); }
+});
+
 // GET /books — the welfare's Books of Accounts, same statements the admin sees
 // (members are equal owners). Read-only.
 router.get("/books", async (req, res) => {

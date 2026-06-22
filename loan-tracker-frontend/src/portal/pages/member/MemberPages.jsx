@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote, LayoutDashboard, BookOpen, Users,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote, LayoutDashboard, BookOpen, Users, ChevronRight,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
@@ -338,32 +338,25 @@ export function MemberSavings() {
 
 export function MemberContributions() {
   const { data, loading, error, reload } = useFetch("/welfare/member/contributions");
+  const due = (data || []).filter((c) => ["pending", "partial", "overdue"].includes(c.status));
   return (
     <Shell title="Contributions" icon={Coins}>
-      <h2 className="font-bold text-slate-900 mb-2">My contributions</h2>
-      {loading || error || !data ? <Loading error={error} /> : (
-        <Table
-          head={["Cycle", "Due date", "Expected", "Paid", "Status", ""]}
-          rows={data}
-          empty="No contribution cycles yet."
-          render={(c) => (
-            <tr key={c.id}>
-              <td className="px-4 py-3 font-medium text-slate-800">{c.cycle_name}</td>
-              <td className="px-4 py-3 text-slate-600">{fmt(c.due_date)}</td>
-              <td className="px-4 py-3">{KES(c.amount_due)}</td>
-              <td className="px-4 py-3">{KES(c.amount_paid)}</td>
-              <td className="px-4 py-3"><Badge value={c.status} /></td>
-              <td className="px-4 py-3 text-right">
-                {["pending", "partial", "overdue"].includes(c.status) && (
-                  <PayButton kind="contribution" targetId={c.id} onDone={reload} />
-                )}
-              </td>
-            </tr>
-          )}
-        />
+      {/* Quick pay for the member's own outstanding dues. */}
+      {!loading && due.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+          <p className="font-semibold text-amber-900 mb-2">Pay your contributions</p>
+          <div className="space-y-2">
+            {due.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-amber-900">{c.cycle_name} <span className="text-amber-700">· due {fmt(c.due_date)} · {KES(Number(c.amount_due) - Number(c.amount_paid))} left</span></span>
+                <PayButton kind="contribution" targetId={c.id} onDone={reload} />
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-      {/* The full chama view, same as the admin sees — read-only. */}
-      <h2 className="font-bold text-slate-900 mt-8 mb-2">All contributions</h2>
+      {/* The full chama view, same as the admin sees (read-only) — click a
+          contribution to see yours and every member's. */}
       <WelfareContributionsPanel client={portalApi} basePath="/welfare/member/contrib" readOnly kind="savings" />
     </Shell>
   );
@@ -632,25 +625,62 @@ export function MemberGroup() {
 
 export function MemberMeetings() {
   const { data, loading, error } = useFetch("/welfare/member/meetings");
+  const [open, setOpen] = useState(null); // meeting id to view attendance for
   return (
     <Shell title="Meetings" icon={CalendarCheck}>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
-          head={["Date", "Meeting", "Location", "Present", "My attendance"]}
+          head={["Date", "Meeting", "Location", "Present", "My attendance", ""]}
           rows={data}
           empty="No meetings recorded."
           render={(m) => (
-            <tr key={m.id}>
+            <tr key={m.id} onClick={() => setOpen(m.id)} className="cursor-pointer hover:bg-slate-50">
               <td className="px-4 py-3 text-slate-700">{fmt(m.meeting_date)}</td>
               <td className="px-4 py-3 text-slate-800">{m.title || <Badge value={m.status} />}</td>
               <td className="px-4 py-3 text-slate-600">{m.location || "Home"}</td>
               <td className="px-4 py-3 text-slate-700">{m.present_count ?? 0} present</td>
               <td className="px-4 py-3">{m.my_attendance ? <Badge value={m.my_attendance} /> : <span className="text-slate-400">—</span>}</td>
+              <td className="px-4 py-3 text-right text-indigo-400"><ChevronRight size={16} className="inline" /></td>
             </tr>
           )}
         />
       )}
+      {open && <MeetingAttendanceModal meetingId={open} onClose={() => setOpen(null)} />}
     </Shell>
+  );
+}
+
+const ATT_CLS = { present: "bg-emerald-100 text-emerald-800", late: "bg-amber-100 text-amber-800", excused: "bg-sky-100 text-sky-800", absent: "bg-red-100 text-red-800" };
+function MeetingAttendanceModal({ meetingId, onClose }) {
+  const { data, loading } = useFetch(`/welfare/member/meetings/${meetingId}`);
+  const m = data?.meeting;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900">{m?.title || "Meeting"} — attendance</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+        </div>
+        <div className="p-5">
+          {loading || !data ? <Spinner centered label="Loading…" /> : (
+            <>
+              <p className="text-sm text-slate-500 mb-3">{fmt(m.meeting_date)}{m.start_time ? ` · ${String(m.start_time).slice(0, 5)}${m.grace_minutes ? ` (+${m.grace_minutes}m grace)` : ""}` : ""} · {m.location || "Home"}</p>
+              <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+                {data.roster.map((r) => (
+                  <div key={r.member_id} className="flex items-center justify-between text-sm py-1.5">
+                    <span className="text-slate-800">{r.first_name} {r.last_name} <span className="text-slate-400 font-mono text-xs">{r.member_no}</span></span>
+                    <span className="flex items-center gap-2">
+                      {r.arrival_time && <span className="text-xs text-slate-400 tabular-nums">{String(r.arrival_time).slice(0, 5)}</span>}
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ATT_CLS[r.attendance_status] || "bg-slate-100 text-slate-500"}`}>{r.attendance_status || "—"}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -709,48 +739,34 @@ export function MemberBooks() {
 }
 
 export function MemberEvents() {
-  const { data, loading, error, reload } = useFetch("/welfare/member/events");
+  const { data, loading, reload } = useFetch("/welfare/member/events");
   const events = data?.events || [];
   const beneficiaryOf = events.filter((e) => e.is_beneficiary).length;
-  const owed = events.reduce((a, e) => a + Math.max(Number(e.amount_due) - Number(e.amount_paid), 0), 0);
+  const due = events.filter((e) => Number(e.amount_due) - Number(e.amount_paid) > 0.001 && ["pending", "partial", "overdue"].includes(e.status));
   return (
-    <Shell title="Events" icon={HeartHandshake}>
-      {!loading && !error && data && events.length > 0 && (
+    <Shell title="Events & Emergencies" icon={HeartHandshake}>
+      {!loading && data && (events.length > 0 || beneficiaryOf > 0) && (
         <div className="flex flex-wrap gap-2 mb-4 text-xs">
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">Contributing to <strong className="text-slate-800">{events.length}</strong></span>
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">You contribute to <strong className="text-slate-800">{events.length}</strong></span>
           {beneficiaryOf > 0 && <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">Beneficiary of <strong className="text-emerald-700">{beneficiaryOf}</strong></span>}
-          {owed > 0 && <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5">You owe <strong className="text-rose-600">{KES(owed)}</strong></span>}
         </div>
       )}
-      {loading || error || !data ? <Loading error={error} /> : (
-        <Table
-          head={["Event", "Amount", "My share", "Paid", "Status", ""]}
-          rows={data.events}
-          empty="No events yet."
-          render={(e) => {
-            const outstanding = Number(e.amount_due) - Number(e.amount_paid);
-            return (
-              <tr key={e.share_id}>
-                <td className="px-4 py-3 font-medium text-slate-800">
-                  {e.title}
-                  {e.is_beneficiary && <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">beneficiary</span>}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{KES(e.amount)}</td>
-                <td className="px-4 py-3">{KES(e.amount_due)}</td>
-                <td className="px-4 py-3">{KES(e.amount_paid)}</td>
-                <td className="px-4 py-3"><Badge value={e.status} /></td>
-                <td className="px-4 py-3 text-right">
-                  {outstanding > 0.001 && ["pending", "partial", "overdue"].includes(e.status) && (
-                    <PayButton kind="event" targetId={e.share_id} onDone={reload} />
-                  )}
-                </td>
-              </tr>
-            );
-          }}
-        />
+      {/* Quick pay for the member's own outstanding event shares. */}
+      {!loading && due.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+          <p className="font-semibold text-amber-900 mb-2">Pay your event shares</p>
+          <div className="space-y-2">
+            {due.map((e) => (
+              <div key={e.share_id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-amber-900">{e.title} <span className="text-amber-700">· {KES(Number(e.amount_due) - Number(e.amount_paid))} left</span></span>
+                <PayButton kind="event" targetId={e.share_id} onDone={reload} />
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-      {/* The full events & emergencies view, same as the admin sees — read-only. */}
-      <h2 className="font-bold text-slate-900 mt-8 mb-2">All events &amp; emergencies</h2>
+      {/* The full events & emergencies view, same as the admin sees (read-only) —
+          click one to see yours and every member's contribution + payouts. */}
       <WelfareContributionsPanel client={portalApi} basePath="/welfare/member/contrib" readOnly kind="benefit" />
     </Shell>
   );
