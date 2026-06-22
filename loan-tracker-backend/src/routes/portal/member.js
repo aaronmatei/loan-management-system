@@ -452,7 +452,7 @@ router.get("/contributions", async (req, res) => {
   try {
     const r = await query(
       `SELECT cs.id, cs.amount_due, cs.amount_paid, cs.due_date, cs.status,
-              cc.id AS cycle_id, cc.name AS cycle_name, cc.frequency, cc.period_start
+              cc.id AS cycle_id, cc.name AS cycle_name, cc.frequency, cc.period_start, cc.pool_key
          FROM contribution_schedules cs
          JOIN contribution_cycles cc ON cc.id = cs.cycle_id
         WHERE cs.member_id = $1

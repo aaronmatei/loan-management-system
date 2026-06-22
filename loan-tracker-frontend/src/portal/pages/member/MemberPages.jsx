@@ -338,10 +338,13 @@ export function MemberSavings() {
 
 export function MemberContributions() {
   const { data, loading, error, reload } = useFetch("/welfare/member/contributions");
-  const due = (data || []).filter((c) => ["pending", "partial", "overdue"].includes(c.status));
+  // Only monthly SAVINGS contributions belong here — event/emergency (benefit
+  // pool) dues live on the Events & Emergencies page.
+  const isSavings = (c) => !c.pool_key || c.pool_key === "savings";
+  const due = (data || []).filter((c) => isSavings(c) && ["pending", "partial", "overdue"].includes(c.status));
   return (
     <Shell title="Contributions" icon={Coins}>
-      {/* Quick pay for the member's own outstanding dues. */}
+      {/* Quick pay for the member's own outstanding savings dues. */}
       {!loading && due.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
           <p className="font-semibold text-amber-900 mb-2">Pay your contributions</p>
@@ -739,25 +742,35 @@ export function MemberBooks() {
 }
 
 export function MemberEvents() {
-  const { data, loading, reload } = useFetch("/welfare/member/events");
+  const { data, loading, reload } = useFetch("/welfare/member/events"); // ad-hoc events pool (welfare_event_shares)
+  const { data: contribs, reload: reloadContribs } = useFetch("/welfare/member/contributions");
   const events = data?.events || [];
   const beneficiaryOf = events.filter((e) => e.is_beneficiary).length;
-  const due = events.filter((e) => Number(e.amount_due) - Number(e.amount_paid) > 0.001 && ["pending", "partial", "overdue"].includes(e.status));
+  const payable = (s) => ["pending", "partial", "overdue"].includes(s.status);
+  // Outstanding benefit contribution dues (event/emergency plans) + ad-hoc shares.
+  const benefitDue = (contribs || []).filter((c) => c.pool_key && c.pool_key !== "savings" && payable(c));
+  const shareDue = events.filter((e) => Number(e.amount_due) - Number(e.amount_paid) > 0.001 && payable(e));
+  const hasDue = benefitDue.length + shareDue.length > 0;
   return (
     <Shell title="Events & Emergencies" icon={HeartHandshake}>
-      {!loading && data && (events.length > 0 || beneficiaryOf > 0) && (
+      {beneficiaryOf > 0 && (
         <div className="flex flex-wrap gap-2 mb-4 text-xs">
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">You contribute to <strong className="text-slate-800">{events.length}</strong></span>
-          {beneficiaryOf > 0 && <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">Beneficiary of <strong className="text-emerald-700">{beneficiaryOf}</strong></span>}
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">Beneficiary of <strong className="text-emerald-700">{beneficiaryOf}</strong></span>
         </div>
       )}
-      {/* Quick pay for the member's own outstanding event shares. */}
-      {!loading && due.length > 0 && (
+      {/* Quick pay for the member's own outstanding event & emergency dues. */}
+      {!loading && hasDue && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
-          <p className="font-semibold text-amber-900 mb-2">Pay your event shares</p>
+          <p className="font-semibold text-amber-900 mb-2">Pay your event &amp; emergency shares</p>
           <div className="space-y-2">
-            {due.map((e) => (
-              <div key={e.share_id} className="flex items-center justify-between gap-3 text-sm">
+            {benefitDue.map((c) => (
+              <div key={`c${c.id}`} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-amber-900">{c.cycle_name} <span className="text-amber-700">· due {fmt(c.due_date)} · {KES(Number(c.amount_due) - Number(c.amount_paid))} left</span></span>
+                <PayButton kind="contribution" targetId={c.id} onDone={reloadContribs} />
+              </div>
+            ))}
+            {shareDue.map((e) => (
+              <div key={`e${e.share_id}`} className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-amber-900">{e.title} <span className="text-amber-700">· {KES(Number(e.amount_due) - Number(e.amount_paid))} left</span></span>
                 <PayButton kind="event" targetId={e.share_id} onDone={reload} />
               </div>
