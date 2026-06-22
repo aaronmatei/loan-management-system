@@ -3409,6 +3409,20 @@ CREATE TABLE public.welfare_decisions ( -- migration 098
 );
 CREATE INDEX IF NOT EXISTS idx_welfare_decisions_welfare ON public.welfare_decisions(welfare_id, created_at DESC);
 
+CREATE TABLE public.welfare_investments ( -- migration 100
+  id              serial PRIMARY KEY,
+  tenant_id       integer NOT NULL,
+  welfare_id      integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  name            varchar(120) NOT NULL,
+  amount_invested numeric(15,2) NOT NULL DEFAULT 0,
+  current_balance numeric(15,2) NOT NULL DEFAULT 0,
+  notes           text,
+  created_by      integer,
+  created_at      timestamp NOT NULL DEFAULT NOW(),
+  updated_at      timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_welfare_investments_welfare ON public.welfare_investments(welfare_id);
+
 CREATE TABLE public.welfare_decision_votes ( -- migration 098
   id          serial PRIMARY KEY,
   decision_id integer NOT NULL REFERENCES public.welfare_decisions(id) ON DELETE CASCADE,

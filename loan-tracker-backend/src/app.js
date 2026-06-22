@@ -42,6 +42,7 @@ import welfareRequestRoutes from "./routes/welfareRequests.js";
 import welfareEventRoutes from "./routes/welfareEvents.js";
 import welfarePenaltyRoutes from "./routes/welfarePenalties.js";
 import welfareDocumentRoutes from "./routes/welfareDocuments.js";
+import welfareInvestmentRoutes from "./routes/welfareInvestments.js";
 import welfareDecisionRoutes from "./routes/welfareDecisions.js";
 import welfareContributionRoutes from "./routes/welfareContributions.js";
 import welfareMeetingRoutes from "./routes/welfareMeetings.js";
@@ -201,6 +202,7 @@ app.use("/api/welfares/:welfareId/members", memberRoutes); // welfare members + 
 app.use("/api/welfares/:welfareId/loans", memberLoanRoutes); // member loan products + (later) applications/schedules
 app.use("/api/welfares/:welfareId/requests", welfareRequestRoutes); // member loan/withdrawal request review
 app.use("/api/welfares/:welfareId/documents", welfareDocumentRoutes); // shared welfare documents (minutes, statements, etc.)
+app.use("/api/welfares/:welfareId/investments", welfareInvestmentRoutes); // welfare investments (MMF etc.)
 app.use("/api/welfares/:welfareId/decisions", welfareDecisionRoutes); // governance decisions / voting
 app.use("/api/welfares/:welfareId", welfareEventRoutes); // ad-hoc member events + separate events pool
 app.use("/api/welfares/:welfareId", welfarePenaltyRoutes); // welfare settings + penalty engine

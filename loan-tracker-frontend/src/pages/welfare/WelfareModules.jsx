@@ -39,7 +39,7 @@ function Page({ title, children }) {
 
 export function WelfareDashboardPage() {
   const { welfareId, welfare } = useWelfare();
-  return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} /></Page>;
+  return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} manage /></Page>;
 }
 export function WelfareMembersPage() {
   const { welfareId } = useWelfare();
