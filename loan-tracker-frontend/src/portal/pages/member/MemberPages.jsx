@@ -460,24 +460,30 @@ export function MemberLoans() {
 // before they submit. Collateral is optional.
 function LoanApplyModal({ onClose, onDone }) {
   const { data: products } = useFetch("/welfare/member/loan-products");
+  const { data: policy } = useFetch("/welfare/member/loan-policy");
   const [form, setForm] = useState({ product_id: "", principal: "", duration_months: "", purpose: "", coll_description: "", coll_value: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
+  const hasProducts = (products || []).length > 0;
   // Pre-select the first package so the repayment summary appears right away.
   useEffect(() => {
-    if (products && products.length && !form.product_id) setForm((s) => ({ ...s, product_id: String(products[0].id) }));
+    if (hasProducts && !form.product_id) setForm((s) => ({ ...s, product_id: String(products[0].id) }));
   }, [products]); // eslint-disable-line react-hooks/exhaustive-deps
   const product = (products || []).find((p) => String(p.id) === String(form.product_id));
-  const feeRate = product ? Number(product.processing_fee_rate) || 0 : 0;
+  // Terms come from the chosen package, or — when the chama has no packages —
+  // from its default loan policy (a "standard loan, no package").
+  const terms = product
+    ? { rate: Number(product.annual_interest_rate), method: product.interest_method, feeRate: Number(product.processing_fee_rate) || 0 }
+    : { rate: policy?.annual_interest_rate != null ? Number(policy.annual_interest_rate) : 0, method: policy?.interest_method || "flat", feeRate: Number(policy?.processing_fee_rate) || 0 };
 
-  // Auto-calculated loan summary from the chosen package + amount + duration.
+  // Auto-calculated loan summary from the terms + amount + duration.
   const preview = (() => {
     const principal = Number(form.principal), months = Number(form.duration_months);
-    if (!product || !(principal > 0) || !(months > 0)) return null;
+    if (!(terms.rate > 0) || !(principal > 0) || !(months > 0)) return null;
     let totals;
-    try { totals = computeLoanTotals({ principal, annualRatePct: Number(product.annual_interest_rate), months, method: product.interest_method }); } catch { return null; }
-    const processingFee = Math.round(principal * (feeRate / 100) * 100) / 100;
+    try { totals = computeLoanTotals({ principal, annualRatePct: terms.rate, months, method: terms.method }); } catch { return null; }
+    const processingFee = Math.round(principal * (terms.feeRate / 100) * 100) / 100;
     return { ...totals, processingFee, netDisburse: Math.round((principal - processingFee) * 100) / 100 };
   })();
 
@@ -486,7 +492,9 @@ function LoanApplyModal({ onClose, onDone }) {
     if (form.coll_description.trim() && !(Number(form.coll_value) > 0)) return setErr("Enter the collateral's value (or clear its description).");
     setBusy(true); setErr("");
     try {
-      const body = { product_id: form.product_id || undefined, principal: form.principal, duration_months: form.duration_months, purpose: form.purpose };
+      const body = { principal: form.principal, duration_months: form.duration_months, purpose: form.purpose };
+      if (product) body.product_id = form.product_id;
+      else if (terms.rate > 0) { body.interest_rate = terms.rate; body.interest_method = terms.method; }
       if (form.coll_description.trim()) { body.collateral_description = form.coll_description.trim(); body.collateral_value = form.coll_value; }
       await portalApi.post("/welfare/member/loan-requests", body);
       onDone(); onClose();
@@ -502,16 +510,19 @@ function LoanApplyModal({ onClose, onDone }) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-900">Request Loan</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
         {err && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm mb-3">{err}</div>}
-        {(products || []).length === 0 ? (
-          <p className="text-sm text-slate-500">No loan packages are available yet. Please check with your chama admin.</p>
-        ) : (
         <form onSubmit={submit} className="space-y-3">
-          <div><label className={lbl}>Loan package</label>
-            <select value={form.product_id} onChange={set("product_id")} className={fld}>
-              {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% p.a. ({(Number(p.annual_interest_rate) / 12).toFixed(2)}%/mo) {p.interest_method}</option>)}
-            </select>
-            {product && <p className="text-xs text-slate-400 mt-1">KES {Number(product.min_amount).toLocaleString()}–{Number(product.max_amount).toLocaleString()} · {product.min_duration_months}–{product.max_duration_months} mo{feeRate > 0 ? ` · ${feeRate}% processing fee` : ""}</p>}
-          </div>
+          {hasProducts ? (
+            <div><label className={lbl}>Loan package</label>
+              <select value={form.product_id} onChange={set("product_id")} className={fld}>
+                {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% p.a. ({(Number(p.annual_interest_rate) / 12).toFixed(2)}%/mo) {p.interest_method}</option>)}
+              </select>
+              {product && <p className="text-xs text-slate-400 mt-1">KES {Number(product.min_amount).toLocaleString()}–{Number(product.max_amount).toLocaleString()} · {product.min_duration_months}–{product.max_duration_months} mo{terms.feeRate > 0 ? ` · ${terms.feeRate}% processing fee` : ""}</p>}
+            </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600">
+              Standard loan (no package){terms.rate > 0 ? <> · {terms.rate}% p.a. ({(terms.rate / 12).toFixed(2)}%/mo) {terms.method}{terms.feeRate > 0 ? ` · ${terms.feeRate}% fee` : ""}</> : " · terms set by your chama admin on approval"}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <div><label className={lbl}>Amount (KES)</label><input type="number" value={form.principal} onChange={set("principal")} placeholder="e.g. 20000" className={fld} /></div>
             <div><label className={lbl}>Duration (months)</label><input type="number" value={form.duration_months} onChange={set("duration_months")} placeholder="e.g. 6" className={fld} /></div>
@@ -538,7 +549,6 @@ function LoanApplyModal({ onClose, onDone }) {
           )}
           <button type="submit" disabled={busy} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg disabled:opacity-50">{busy ? "Submitting…" : "Submit request"}</button>
         </form>
-        )}
       </div>
     </div>
   );

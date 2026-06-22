@@ -787,6 +787,22 @@ router.get("/loan-products", async (req, res) => {
   }
 });
 
+// GET /loan-policy — the chama's default loan terms, used for a "standard loan
+// (no package)" when no products are configured. Numbers, with safe defaults.
+router.get("/loan-policy", async (req, res) => {
+  try {
+    const s = (await query(`SELECT default_loan_interest_rate, default_loan_interest_method, default_loan_processing_fee_rate FROM welfare_settings WHERE tenant_id = $1`, [req.member.tenant_id])).rows[0] || {};
+    res.json({ success: true, data: {
+      annual_interest_rate: s.default_loan_interest_rate != null ? Number(s.default_loan_interest_rate) : null,
+      interest_method: s.default_loan_interest_method || "flat",
+      processing_fee_rate: s.default_loan_processing_fee_rate != null ? Number(s.default_loan_processing_fee_rate) : 0,
+    } });
+  } catch (e) {
+    logger.error("member loan-policy error:", e);
+    res.status(500).json({ error: "Failed to load loan policy" });
+  }
+});
+
 // GET /loan-requests — this member's loan requests.
 router.get("/loan-requests", async (req, res) => {
   try {

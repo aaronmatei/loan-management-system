@@ -92,6 +92,23 @@ describe("member portal requests + admin approval", () => {
     expect(Number(coll[0].appraised_value)).toBe(300000);
   });
 
+  it("exposes the chama loan policy so a member can request a default (no-package) loan", async () => {
+    const { admin, welfare, tok } = await setup();
+    await request(app).put(`/api/welfares/${welfare.id}/settings/loan-policy`).set("Authorization", auth(admin))
+      .send({ default_loan_interest_rate: 24, default_loan_interest_method: "flat" });
+    const pol = await request(app).get("/api/welfare/member/loan-policy").set("Authorization", tok);
+    expect(pol.status).toBe(200);
+    expect(Number(pol.body.data.annual_interest_rate)).toBe(24);
+    expect(pol.body.data.interest_method).toBe("flat");
+
+    // No package: the member requests on the chama's default policy terms.
+    const r = await request(app).post("/api/welfare/member/loan-requests").set("Authorization", tok)
+      .send({ principal: 10000, duration_months: 5, purpose: "Standard", interest_rate: 24, interest_method: "flat" });
+    expect(r.status).toBe(201);
+    expect(Number(r.body.data.interest_rate)).toBe(24);
+    expect(r.body.data.product_id).toBeNull();
+  });
+
   it("rejects a withdrawal request over the member's savings at submit time", async () => {
     const { tok } = await setup(10000);
     const res = await request(app)
