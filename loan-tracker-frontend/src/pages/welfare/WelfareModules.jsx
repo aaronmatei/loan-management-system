@@ -428,12 +428,20 @@ export function WelfareRequestsPage() {
   };
   useEffect(() => { load(); }, [welfareId]);
 
-  const act = async (kind, id, action) => {
+  const act = async (kind, r, action) => {
+    const id = r.id;
     let body = {};
     if (kind === "loans" && action === "approve") {
-      const rate = window.prompt("Interest rate % (annual, flat) for this loan:", "12");
-      if (rate === null) return;
-      body.interest_rate = rate;
+      // The rate was captured when the member applied — use it. Only ask as a
+      // fallback if the request somehow carries no rate (e.g. a no-package
+      // request when the chama had set no default policy).
+      if (r.interest_rate != null && r.interest_rate !== "") {
+        body.interest_rate = r.interest_rate;
+      } else {
+        const rate = window.prompt("This request has no interest rate. Enter one % (annual) to approve:", "12");
+        if (rate === null) return;
+        body.interest_rate = rate;
+      }
     }
     if (action === "reject") {
       const notes = window.prompt("Reason (optional):", "");
@@ -459,8 +467,8 @@ export function WelfareRequestsPage() {
       </div>
       <PermissionGate role={["admin", "manager"]}>
         <div className="flex gap-2">
-          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r.id, "approve")} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">Approve</button>
-          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r.id, "reject")} className="px-3 py-1.5 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold disabled:opacity-50">Reject</button>
+          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "approve")} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">Approve</button>
+          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "reject")} className="px-3 py-1.5 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold disabled:opacity-50">Reject</button>
         </div>
       </PermissionGate>
     </div>
@@ -474,7 +482,12 @@ export function WelfareRequestsPage() {
             <div className="bg-white rounded-xl shadow-md border border-slate-100">
               <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Loan requests ({loans.length})</h2></div>
               {loans.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending loan requests.</p> :
-                loans.map((r) => <Row key={r.id} kind="loans" r={r} amount={r.principal} extra={`${r.duration_months} mo${r.purpose ? ` · ${r.purpose}` : ""}`} />)}
+                loans.map((r) => <Row key={r.id} kind="loans" r={r} amount={r.principal} extra={[
+                  `${r.duration_months} mo`,
+                  r.interest_rate != null && r.interest_rate !== "" ? `${Number(r.interest_rate)}% p.a. (${(Number(r.interest_rate) / 12).toFixed(2)}%/mo) ${r.interest_method || "flat"}` : "rate set on approval",
+                  r.purpose || null,
+                  r.collateral_description ? `collateral: ${r.collateral_description}` : null,
+                ].filter(Boolean).join(" · ")} />)}
             </div>
           )}
           <div className="bg-white rounded-xl shadow-md border border-slate-100">
