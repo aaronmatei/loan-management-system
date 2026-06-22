@@ -54,7 +54,6 @@ const PAWN_ITEMS = [
 // from a lender" so they can still take loans from lenders with this account.
 const WELFARE_MENU = [
   { path: "/welfare/member", label: "Dashboard", icon: LayoutDashboard, variant: "emerald", exact: true },
-  { path: "/welfare/member/savings", label: "My Savings", icon: PiggyBank, variant: "teal" },
   { path: "/welfare/member/members", label: "Members", icon: Users, variant: "sky" },
   { path: "/welfare/member/contributions", label: "Contributions", icon: Coins, variant: "ocean" },
   { path: "/welfare/member/loans", label: "Requests", icon: ClipboardList, variant: "indigo" },

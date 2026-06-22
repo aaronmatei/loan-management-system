@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote, LayoutDashboard, BookOpen,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote, LayoutDashboard, BookOpen, Users,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
@@ -592,9 +592,18 @@ function LoanDetailModal({ loanId, onClose }) {
 export function MemberGroup() {
   const { data, loading, error } = useFetch("/welfare/member/group-members");
   const { data: overview } = useFetch("/welfare/member/overview");
+  const { data: summary } = useFetch("/welfare/member/dashboard");
   const loansOn = !!overview?.welfare?.loans_enabled; // drop the loan column when off
   return (
-    <Shell title="Members" icon={Coins}>
+    <Shell title="Members" icon={Users}>
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <Stat label="Pool balance" value={KES(summary.pool?.balance)} tone="text-emerald-700" />
+          <Stat label="Contributions" value={KES(summary.pool?.total_contributions)} />
+          {loansOn && <Stat label="Out on loan" value={KES(summary.loans?.outstanding)} />}
+          <Stat label="Members" value={summary.members?.active ?? "—"} />
+        </div>
+      )}
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
           head={["Member", "Savings", "Contributions", "Dividends", ...(loansOn ? ["Loan bal"] : []), "Penalty bal", "Attendance"]}

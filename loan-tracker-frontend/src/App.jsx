@@ -36,7 +36,6 @@ import { PortalPledges, PortalPledgeDetail, PortalPawnRequests } from "./portal/
 import {
   MemberDashboard,
   MemberGroup,
-  MemberSavings,
   MemberContributions,
   MemberLoans,
   MemberMeetings,
@@ -594,7 +593,8 @@ function App() {
                 /welfare/member/* (the member's own front door), distinct from
                 the borrower portal. */}
             <Route path="/welfare/member" element={<PortalProtectedRoute><MemberDashboard /></PortalProtectedRoute>} />
-            <Route path="/welfare/member/savings" element={<PortalProtectedRoute><MemberSavings /></PortalProtectedRoute>} />
+            {/* My Savings folded into the dashboard; redirect old links. */}
+            <Route path="/welfare/member/savings" element={<Navigate to="/welfare/member" replace />} />
             <Route path="/welfare/member/members" element={<PortalProtectedRoute><MemberGroup /></PortalProtectedRoute>} />
             <Route path="/welfare/member/contributions" element={<PortalProtectedRoute><MemberContributions /></PortalProtectedRoute>} />
             <Route path="/welfare/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
