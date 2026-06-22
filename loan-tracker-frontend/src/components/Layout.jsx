@@ -162,7 +162,7 @@ const WELFARE_STANDALONE = [
   { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/documents", label: "Documents", icon: FileText, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/decisions", label: "Decisions", icon: Gavel, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view" },
+  { path: "/welfare/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view", badgeKey: "welfareRequests" },
   { path: "/welfare/dividends", label: "Dividends", icon: Gift, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/expenses", label: "Expenses", icon: Receipt, variant: "ocean", permission: "loans:view" },
   { path: "/welfare/mpesa", label: "M-Pesa", icon: Smartphone, variant: "ocean", permission: "loans:view" },
@@ -201,6 +201,7 @@ function Layout({ children }) {
   // Welfare master Loans switch — drives whether the welfare nav shows the Loans
   // item. Default false so loan UI never flashes for a loans-off welfare.
   const [welfareLoansOn, setWelfareLoansOn] = useState(false);
+  const [welfareRequests, setWelfareRequests] = useState(0); // pending requests needing attention
 
   // Overdue badge — hits the dedicated /overdue/count endpoint
   // (single COUNT query, ~50ms) rather than /dashboard/summary
@@ -230,7 +231,7 @@ function Layout({ children }) {
     try { user = JSON.parse(localStorage.getItem("user") || "null"); } catch { /* */ }
     if (user?.tenant?.kind !== "welfare") return;
     let mounted = true;
-    api.get("/welfare/current").then((r) => { if (mounted) setWelfareLoansOn(!!r.data.data?.loans_enabled); }).catch(() => {});
+    api.get("/welfare/current").then((r) => { if (!mounted) return; setWelfareLoansOn(!!r.data.data?.loans_enabled); setWelfareRequests(r.data.data?.pending_requests || 0); }).catch(() => {});
     return () => { mounted = false; };
   }, [location.pathname]);
 
@@ -367,7 +368,9 @@ function Layout({ children }) {
         ? overdueCount
         : item.badgeKey === "pendingWaivers"
           ? pendingWaivers
-          : item.badge ?? 0;
+          : item.badgeKey === "welfareRequests"
+            ? welfareRequests
+            : item.badge ?? 0;
     const Icon = item.icon;
     return (
       <li key={item.path}>

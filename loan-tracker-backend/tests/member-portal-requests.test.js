@@ -92,6 +92,14 @@ describe("member portal requests + admin approval", () => {
     expect(Number(coll[0].appraised_value)).toBe(300000);
   });
 
+  it("counts pending requests on /welfare/current for the admin nav badge", async () => {
+    const { admin, tok } = await setup();
+    const current = () => request(app).get("/api/welfare/current").set("Authorization", auth(admin)).then((r) => r.body.data.pending_requests);
+    expect(await current()).toBe(0);
+    await request(app).post("/api/welfare/member/loan-requests").set("Authorization", tok).send({ principal: 5000, duration_months: 3, purpose: "x" });
+    expect(await current()).toBe(1);
+  });
+
   it("exposes the chama loan policy so a member can request a default (no-package) loan", async () => {
     const { admin, welfare, tok } = await setup();
     await request(app).put(`/api/welfares/${welfare.id}/settings/loan-policy`).set("Authorization", auth(admin))

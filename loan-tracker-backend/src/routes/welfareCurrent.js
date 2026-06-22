@@ -17,7 +17,11 @@ router.get("/current", async (req, res) => {
     if (!tid) return res.status(400).json({ error: "No tenant context" });
     const r = await query(
       `SELECT g.id, g.name, g.registration_no, g.status, g.created_at,
-              COALESCE(ws.loans_enabled, false) AS loans_enabled
+              COALESCE(ws.loans_enabled, false) AS loans_enabled,
+              ( COALESCE((SELECT COUNT(*) FROM member_loan_requests      WHERE welfare_id = g.id AND status = 'pending'), 0)
+              + COALESCE((SELECT COUNT(*) FROM member_withdrawal_requests WHERE welfare_id = g.id AND status = 'pending'), 0)
+              + COALESCE((SELECT COUNT(*) FROM member_event_requests      WHERE welfare_id = g.id AND status = 'pending'), 0)
+              )::int AS pending_requests
          FROM groups g
          LEFT JOIN welfare_settings ws ON ws.tenant_id = g.tenant_id
         WHERE g.tenant_id = $1 ORDER BY g.id ASC LIMIT 1`,
