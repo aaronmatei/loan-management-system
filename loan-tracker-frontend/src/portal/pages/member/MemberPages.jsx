@@ -418,11 +418,19 @@ export function MemberContributions() {
 export function MemberLoans() {
   const { data, loading, error, reload } = useFetch("/welfare/member/loans");
   const { data: overview } = useFetch("/welfare/member/overview");
+  const { data: eventReqs } = useFetch("/welfare/member/event-requests");
   const loansOn = !!overview?.welfare?.loans_enabled; // chama Loans switch
   const [modal, setModal] = useState(null); // 'loan' | 'event' | null
   const [reqKey, setReqKey] = useState(0);
   const [openLoan, setOpenLoan] = useState(null);
+  const [openEvent, setOpenEvent] = useState(null);
   const today = new Date().toISOString().slice(0, 10);
+  const eventColumns = [
+    { key: "amount", label: "Amount", fmt: KES },
+    { key: "event_date", label: "Event date", fmt },
+    { key: "reason", label: "Reason" },
+  ];
+  const approvedEvents = (eventReqs || []).filter((e) => e.status === "approved");
   return (
     <Shell title="Requests" icon={ClipboardList}>
       <div className="flex flex-wrap justify-end gap-2 -mt-2 mb-4">
@@ -492,18 +500,29 @@ export function MemberLoans() {
           />
         </>
       )}
+      <h2 className="font-bold text-slate-900 mb-2 mt-6">Approved events</h2>
+      <Table
+        head={["Amount", "Event date", "Reason", "Status"]}
+        rows={approvedEvents}
+        empty="No approved events yet."
+        render={(e) => (
+          <tr key={e.id} onClick={() => setOpenEvent(e)} className="cursor-pointer hover:bg-slate-50">
+            <td className="px-4 py-3">{KES(e.amount)}</td>
+            <td className="px-4 py-3">{fmt(e.event_date)}</td>
+            <td className="px-4 py-3 text-slate-700">{e.reason || "—"}</td>
+            <td className="px-4 py-3"><Badge value={e.status} /></td>
+          </tr>
+        )}
+      />
       <RequestsList
         key={`event-${reqKey}`}
         title="Event requests"
         kind="event"
         path="/welfare/member/event-requests"
-        columns={[
-          { key: "amount", label: "Amount", fmt: KES },
-          { key: "event_date", label: "Event date", fmt },
-          { key: "reason", label: "Reason" },
-        ]}
+        columns={eventColumns}
       />
       {openLoan && <LoanDetailModal loanId={openLoan} onClose={() => setOpenLoan(null)} />}
+      {openEvent && <RequestDetailModal request={openEvent} columns={eventColumns} kind="event" onClose={() => setOpenEvent(null)} />}
       {/* Loans are private — a member sees only their own; no group loan list. */}
     </Shell>
   );
