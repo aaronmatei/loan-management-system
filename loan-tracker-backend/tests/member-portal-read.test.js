@@ -161,6 +161,22 @@ describe("member portal read API", () => {
     expect(Number(ovB.body.data.savings_balance)).toBe(0);
   });
 
+  it("a member reads the chama's contributions, plan overview and cycle (read-only)", async () => {
+    const { tenant, admin, welfare } = await welfareSetup();
+    const m = await makeMember(admin, welfare.id, { phone: "0795200701", id: "CON1" });
+    await invite(admin, welfare.id, m.id);
+    const plan = (await request(app).post(`/api/welfares/${welfare.id}/contribution-plans`).set("Authorization", auth(admin)).send({ name: "Monthly", amount: 1000, frequency: "monthly", due_day: 10 })).body.data;
+    const tok = customerToken(await pcIdByPhone("+254795200701"), tenant.id);
+
+    const list = await request(app).get("/api/welfare/member/contrib/contribution-plans").set("Authorization", tok);
+    expect(list.status).toBe(200);
+    expect(list.body.data.plans.some((p) => p.name === "Monthly")).toBe(true);
+
+    const ov = await request(app).get(`/api/welfare/member/contrib/contribution-plans/${plan.id}/overview`).set("Authorization", tok);
+    expect(ov.status).toBe(200);
+    expect(ov.body.data.plan.name).toBe("Monthly");
+  });
+
   it("403s a borrower (non-member) hitting member routes", async () => {
     const { admin, welfare } = await welfareSetup();
     const m = await makeMember(admin, welfare.id, { phone: "0795200311", id: "BRW1" });

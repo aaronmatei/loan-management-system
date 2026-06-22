@@ -15,6 +15,7 @@ import OfficerBadge from "../../../components/OfficerBadge";
 import WelfareDocumentsPanel from "../../../components/WelfareDocumentsPanel";
 import WelfareDecisionsPanel from "../../../components/WelfareDecisionsPanel";
 import WelfareBooksPanel from "../../../components/WelfareBooksPanel";
+import WelfareContributionsPanel from "../../../components/WelfareContributionsPanel";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -339,6 +340,7 @@ export function MemberContributions() {
   const { data, loading, error, reload } = useFetch("/welfare/member/contributions");
   return (
     <Shell title="Contributions" icon={Coins}>
+      <h2 className="font-bold text-slate-900 mb-2">My contributions</h2>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
           head={["Cycle", "Due date", "Expected", "Paid", "Status", ""]}
@@ -360,21 +362,9 @@ export function MemberContributions() {
           )}
         />
       )}
-      <GroupSection
-        title="All contribution cycles (whole chama)"
-        path="/welfare/member/group-cycles"
-        head={["Cycle", "Due", "Collected / Expected", "Paid", "Status"]}
-        empty="No cycles this year."
-        render={(c, i) => (
-          <tr key={i}>
-            <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
-            <td className="px-4 py-3 text-slate-600">{fmt(c.due_date)}</td>
-            <td className="px-4 py-3">{KES(c.collected)} / {KES(c.expected)}</td>
-            <td className="px-4 py-3">{c.paid_count}/{c.member_count}</td>
-            <td className="px-4 py-3"><Badge value={c.status} /></td>
-          </tr>
-        )}
-      />
+      {/* The full chama view, same as the admin sees — read-only. */}
+      <h2 className="font-bold text-slate-900 mt-8 mb-2">All contributions</h2>
+      <WelfareContributionsPanel client={portalApi} basePath="/welfare/member/contrib" readOnly kind="savings" />
     </Shell>
   );
 }
@@ -759,6 +749,9 @@ export function MemberEvents() {
           }}
         />
       )}
+      {/* The full events & emergencies view, same as the admin sees — read-only. */}
+      <h2 className="font-bold text-slate-900 mt-8 mb-2">All events &amp; emergencies</h2>
+      <WelfareContributionsPanel client={portalApi} basePath="/welfare/member/contrib" readOnly kind="benefit" />
     </Shell>
   );
 }

@@ -43,40 +43,47 @@ const planBody = (b) => ({
 
 router.get("/contribution-plans", async (req, res) => {
   try {
-    try { await ensureCurrentCycles(req.welfare); } catch { /* non-fatal */ }
-    const today = new Date().toISOString().slice(0, 10);
-    const plans = await listActivePlans(req.welfare.id);
-    const memberCount = (await query(`SELECT COUNT(*)::int n FROM members WHERE welfare_id=$1 AND status='active'`, [req.welfare.id])).rows[0].n;
-    const rollup = `(SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id)::int member_count,
-        (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id AND s.status='paid')::int paid_count,
-        (SELECT COALESCE(SUM(s.amount_due),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) expected,
-        (SELECT COALESCE(SUM(s.amount_paid),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) collected`;
-    const out = [];
-    for (const p of plans) {
-      const cur = periodFor(p, new Date());
-      const c = (await query(`SELECT c.*, ${rollup} FROM contribution_cycles c WHERE c.plan_id=$1 AND c.period_key=$2 LIMIT 1`, [p.id, cur.period_key])).rows[0];
-      const ytd = (await query(`SELECT COALESCE(SUM(s.amount_paid),0) v FROM contribution_schedules s JOIN contribution_cycles c ON c.id=s.cycle_id WHERE c.plan_id=$1 AND EXTRACT(YEAR FROM c.due_date)=EXTRACT(YEAR FROM CURRENT_DATE)`, [p.id])).rows[0].v;
-      const poolKey = poolKeyForPlan(p);
-      const poolBalance = p.pool_kind === "benefit" ? await benefitPoolBalance(req.welfare.id, poolKey) : await savingsPoolBalance(req.welfare.id);
-      out.push({
-        ...p, ytd_collected: Number(ytd), pool_key: poolKey, pool_balance: poolBalance,
-        current: c
-          ? { cycle_id: c.id, name: c.name, due_date: new Date(c.due_date).toISOString().slice(0, 10), status: c.status, member_count: c.member_count, paid_count: c.paid_count, expected: Number(c.expected), collected: Number(c.collected) }
-          : { cycle_id: null, name: cur.name, due_date: cur.due_date, status: cur.due_date > today ? "upcoming" : "unopened", member_count: memberCount, paid_count: 0, expected: Number(p.amount) * memberCount, collected: 0 },
-      });
-    }
-    const oneoffPoolBalance = await benefitPoolBalance(req.welfare.id, "oneoff");
-    const oneoffs = (await query(
-      `SELECT c.id, c.name, c.due_date, c.status, c.pool_key, c.amount, c.beneficiary_member_id, m.first_name AS ben_first, m.last_name AS ben_last, ${rollup}
-         FROM contribution_cycles c LEFT JOIN members m ON m.id=c.beneficiary_member_id
-        WHERE c.welfare_id=$1 AND c.plan_id IS NULL ORDER BY c.due_date DESC`, [req.welfare.id]))
-      .rows.map((c) => ({ ...c, due_date: new Date(c.due_date).toISOString().slice(0, 10), expected: Number(c.expected), collected: Number(c.collected), pool_balance: c.pool_key === "oneoff" ? oneoffPoolBalance : null }));
-    res.json({ success: true, data: { plans: out, oneoffs, oneoff_pool_balance: oneoffPoolBalance } });
+    res.json({ success: true, data: await loadContributionsView(req.welfare) });
   } catch (e) {
     logger.error("contribution-plans list error:", e);
     res.status(500).json({ error: "Failed to load contributions" });
   }
 });
+
+// The Contributions/Events list view (plans + one-offs + pool balances). Shared
+// by the admin route and the read-only member portal. `ensure` auto-opens the
+// current cycles (admin); the portal passes false so a read never creates rows.
+export async function loadContributionsView(welfare, { ensure = true } = {}) {
+  if (ensure) { try { await ensureCurrentCycles(welfare); } catch { /* non-fatal */ } }
+  const today = new Date().toISOString().slice(0, 10);
+  const plans = await listActivePlans(welfare.id);
+  const memberCount = (await query(`SELECT COUNT(*)::int n FROM members WHERE welfare_id=$1 AND status='active'`, [welfare.id])).rows[0].n;
+  const rollup = `(SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id)::int member_count,
+      (SELECT COUNT(*) FROM contribution_schedules s WHERE s.cycle_id=c.id AND s.status='paid')::int paid_count,
+      (SELECT COALESCE(SUM(s.amount_due),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) expected,
+      (SELECT COALESCE(SUM(s.amount_paid),0) FROM contribution_schedules s WHERE s.cycle_id=c.id) collected`;
+  const out = [];
+  for (const p of plans) {
+    const cur = periodFor(p, new Date());
+    const c = (await query(`SELECT c.*, ${rollup} FROM contribution_cycles c WHERE c.plan_id=$1 AND c.period_key=$2 LIMIT 1`, [p.id, cur.period_key])).rows[0];
+    const ytd = (await query(`SELECT COALESCE(SUM(s.amount_paid),0) v FROM contribution_schedules s JOIN contribution_cycles c ON c.id=s.cycle_id WHERE c.plan_id=$1 AND EXTRACT(YEAR FROM c.due_date)=EXTRACT(YEAR FROM CURRENT_DATE)`, [p.id])).rows[0].v;
+    const poolKey = poolKeyForPlan(p);
+    const poolBalance = p.pool_kind === "benefit" ? await benefitPoolBalance(welfare.id, poolKey) : await savingsPoolBalance(welfare.id);
+    out.push({
+      ...p, ytd_collected: Number(ytd), pool_key: poolKey, pool_balance: poolBalance,
+      current: c
+        ? { cycle_id: c.id, name: c.name, due_date: new Date(c.due_date).toISOString().slice(0, 10), status: c.status, member_count: c.member_count, paid_count: c.paid_count, expected: Number(c.expected), collected: Number(c.collected) }
+        : { cycle_id: null, name: cur.name, due_date: cur.due_date, status: cur.due_date > today ? "upcoming" : "unopened", member_count: memberCount, paid_count: 0, expected: Number(p.amount) * memberCount, collected: 0 },
+    });
+  }
+  const oneoffPoolBalance = await benefitPoolBalance(welfare.id, "oneoff");
+  const oneoffs = (await query(
+    `SELECT c.id, c.name, c.due_date, c.status, c.pool_key, c.amount, c.beneficiary_member_id, m.first_name AS ben_first, m.last_name AS ben_last, ${rollup}
+       FROM contribution_cycles c LEFT JOIN members m ON m.id=c.beneficiary_member_id
+      WHERE c.welfare_id=$1 AND c.plan_id IS NULL ORDER BY c.due_date DESC`, [welfare.id]))
+    .rows.map((c) => ({ ...c, due_date: new Date(c.due_date).toISOString().slice(0, 10), expected: Number(c.expected), collected: Number(c.collected), pool_balance: c.pool_key === "oneoff" ? oneoffPoolBalance : null }));
+  return { plans: out, oneoffs, oneoff_pool_balance: oneoffPoolBalance };
+}
 
 router.post("/contribution-plans", authorize("admin", "manager"), async (req, res) => {
   try {
@@ -341,29 +348,51 @@ async function buildPlanOverview(welfare, plan, year) {
 // GET /contribution-plans/:planId/overview?year= — one contribution's year matrix.
 router.get("/contribution-plans/:planId/overview", async (req, res) => {
   try {
-    const plan = await getPlanById(req.welfare.id, req.params.planId);
-    if (!plan) return res.status(404).json({ error: "Contribution not found" });
-    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
-    // Quarterly: open every quarter of the year so members can prepay the whole
-    // year at once; other frequencies just open the current period.
-    try {
-      if (plan.frequency === "quarterly") await ensureYearCycles(req.welfare, plan, year);
-      else await ensureCurrentCycle({ welfare: req.welfare, plan });
-    } catch { /* non-fatal */ }
-    res.json({ success: true, data: await buildPlanOverview(req.welfare, plan, year) });
+    const data = await loadPlanOverview(req.welfare, req.params.planId, parseInt(req.query.year, 10) || new Date().getFullYear());
+    if (!data) return res.status(404).json({ error: "Contribution not found" });
+    res.json({ success: true, data });
   } catch (e) {
     logger.error("contribution overview error:", e);
     res.status(500).json({ error: "Failed to load overview" });
   }
 });
 
+// A plan's year overview (period matrix + per-member grid + pool/payouts).
+// Shared with the read-only portal, which passes ensure:false.
+export async function loadPlanOverview(welfare, planId, year, { ensure = true } = {}) {
+  const plan = await getPlanById(welfare.id, planId);
+  if (!plan) return null;
+  if (ensure) {
+    // Quarterly: open every quarter so members can prepay the year; others just
+    // open the current period.
+    try {
+      if (plan.frequency === "quarterly") await ensureYearCycles(welfare, plan, year);
+      else await ensureCurrentCycle({ welfare, plan });
+    } catch { /* non-fatal */ }
+  }
+  return buildPlanOverview(welfare, plan, year);
+}
+
 // GET /cycles/:cycleId — cycle + schedules.
 router.get("/cycles/:cycleId", async (req, res) => {
   try {
-    const c = (await query(`SELECT * FROM contribution_cycles WHERE id = $1 AND welfare_id = $2`, [req.params.cycleId, req.welfare.id])).rows[0];
-    if (!c) return res.status(404).json({ error: "Cycle not found" });
+    const data = await loadCycleDetail(req.welfare, req.params.cycleId);
+    if (!data) return res.status(404).json({ error: "Cycle not found" });
+    res.json({ success: true, data });
+  } catch (e) {
+    logger.error("cycle get error:", e);
+    res.status(500).json({ error: "Failed to load cycle" });
+  }
+});
+
+// A cycle + its per-member schedules (with timeliness + fines). Shared with the
+// read-only portal.
+export async function loadCycleDetail(welfare, cycleId) {
+  const c = (await query(`SELECT * FROM contribution_cycles WHERE id = $1 AND welfare_id = $2`, [cycleId, welfare.id])).rows[0];
+  if (!c) return null;
+  {
     // Grace: the cycle's own, else the welfare default.
-    const settingsGrace = (await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id = $1`, [req.welfare.tenant_id])).rows[0]?.contribution_grace_days || 0;
+    const settingsGrace = (await query(`SELECT contribution_grace_days FROM welfare_settings WHERE tenant_id = $1`, [welfare.tenant_id])).rows[0]?.contribution_grace_days || 0;
     const grace = c.grace_days != null ? c.grace_days : settingsGrace;
     // days_overdue: how late an UNPAID/partial member is now (0 if within grace
     // or paid). paid_on_time / paid_late_days: timeliness for those who've paid.
@@ -390,12 +419,9 @@ router.get("/cycles/:cycleId", async (req, res) => {
     const received = Number((await query(`SELECT COALESCE(SUM(amount),0) v FROM benefit_pool_ledger WHERE cycle_id=$1 AND type='payout'`, [c.id])).rows[0].v);
     const collected = schedules.rows.reduce((a, s) => a + Number(s.amount_paid), 0);
     const deficit = Math.max(0, Math.round((received - collected) * 100) / 100);
-    res.json({ success: true, data: { cycle: { ...c, effective_grace: grace, received, collected, deficit }, schedules: schedules.rows } });
-  } catch (e) {
-    logger.error("cycle get error:", e);
-    res.status(500).json({ error: "Failed to load cycle" });
+    return { cycle: { ...c, effective_grace: grace, received, collected, deficit }, schedules: schedules.rows };
   }
-});
+}
 
 // POST /cycles/:cycleId/close
 router.post("/cycles/:cycleId/close", authorize("admin", "manager"), async (req, res) => {

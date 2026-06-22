@@ -11,6 +11,7 @@ import { initiateWelfareSTK } from "../../services/welfareMpesaService.js";
 import { buildMemberStatementPdf } from "../../utils/welfarePdf.js";
 import { buildSummary, buildCharts, buildMemberRows } from "../welfareReports.js";
 import { computeWelfareBooks } from "../../services/welfareBooksService.js";
+import { loadContributionsView, loadPlanOverview, loadCycleDetail } from "../welfareContributions.js";
 import { gateLoanWrites } from "../../services/welfareLoanFlag.js";
 import { VISIBILITIES, runDocUpload, storeDocFile, isCloudinaryConfigured, isOfficer, cleanCategory } from "../../services/welfareDocumentService.js";
 import { VOTES, decorate, resolveIfDue, finalize, closeOutcome, resolveElectionTarget, electionTitle } from "../../services/welfareDecisionService.js";
@@ -151,6 +152,30 @@ router.get("/dashboard", async (req, res) => {
     logger.error("member dashboard error:", e);
     res.status(500).json({ error: "Failed to load dashboard" });
   }
+});
+
+// Read-only Contributions & Events views — the SAME plan list, drill-in overview
+// and per-cycle schedules the admin sees (members are equal owners). ensure:false
+// so a member's read never auto-opens cycles.
+// Sub-paths mirror the admin routes so the shared panel differs only by base.
+const portalWelfare = (req) => ({ id: req.welfareId, tenant_id: req.member.tenant_id });
+router.get("/contrib/contribution-plans", async (req, res) => {
+  try { res.json({ success: true, data: await loadContributionsView(portalWelfare(req), { ensure: false }) }); }
+  catch (e) { logger.error("member contrib plans error:", e); res.status(500).json({ error: "Failed to load contributions" }); }
+});
+router.get("/contrib/contribution-plans/:planId/overview", async (req, res) => {
+  try {
+    const data = await loadPlanOverview(portalWelfare(req), req.params.planId, parseInt(req.query.year, 10) || new Date().getFullYear(), { ensure: false });
+    if (!data) return res.status(404).json({ error: "Contribution not found" });
+    res.json({ success: true, data });
+  } catch (e) { logger.error("member contrib overview error:", e); res.status(500).json({ error: "Failed to load overview" }); }
+});
+router.get("/contrib/cycles/:cycleId", async (req, res) => {
+  try {
+    const data = await loadCycleDetail(portalWelfare(req), req.params.cycleId);
+    if (!data) return res.status(404).json({ error: "Cycle not found" });
+    res.json({ success: true, data });
+  } catch (e) { logger.error("member contrib cycle error:", e); res.status(500).json({ error: "Failed to load cycle" }); }
 });
 
 // GET /books — the welfare's Books of Accounts, same statements the admin sees

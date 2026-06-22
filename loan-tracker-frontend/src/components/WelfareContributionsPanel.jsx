@@ -21,7 +21,10 @@ const FINE_TYPES = [
 //   kind="benefit"  → "Events & Emergencies": contributions with a member
 //                     beneficiary (Quarterly dowry, one-off emergencies).
 // Click one to drill into its pool + per-member activity. Welfare accounts only.
-export default function WelfareContributionsPanel({ welfareId, kind = "savings" }) {
+// `client`/`basePath`/`readOnly` let the read-only member portal reuse this whole
+// view against its own token + endpoints (members are equal owners). Admin keeps
+// the defaults (api + /welfares/:id, writes enabled).
+export default function WelfareContributionsPanel({ welfareId, kind = "savings", client = api, readOnly = false, basePath = `/welfares/${welfareId}` }) {
   const benefit = kind === "benefit";
   const [list, setList] = useState(null); // { plans, oneoffs }
   const [members, setMembers] = useState([]);
@@ -32,13 +35,14 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
 
   const load = async () => {
     setLoading(true);
-    try { const r = await api.get(`/welfares/${welfareId}/contribution-plans`); setList(r.data.data); }
+    try { const r = await client.get(`${basePath}/contribution-plans`); setList(r.data.data); }
     catch { /* non-fatal */ } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [welfareId]);
-  useEffect(() => { api.get(`/welfares/${welfareId}/members`).then((r) => setMembers((r.data.data || []).filter((m) => m.status === "active"))).catch(() => {}); }, [welfareId]);
+  useEffect(() => { load(); }, [basePath]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The members list is only needed for the write modals (create/pay).
+  useEffect(() => { if (readOnly) return; api.get(`/welfares/${welfareId}/members`).then((r) => setMembers((r.data.data || []).filter((m) => m.status === "active"))).catch(() => {}); }, [welfareId, readOnly]);
 
-  if (selected) return <ContributionDetail welfareId={welfareId} plan={selected} members={members} kind={kind} onBack={() => { setSelected(null); load(); }} />;
+  if (selected) return <ContributionDetail client={client} basePath={basePath} readOnly={readOnly} welfareId={welfareId} plan={selected} members={members} kind={kind} onBack={() => { setSelected(null); load(); }} />;
 
   // This page only shows its kind: benefit pools here, savings pools on Contributions.
   const isBenefitOneoff = (c) => c.pool_key && c.pool_key !== "savings";
@@ -54,7 +58,7 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
         <h2 className="font-bold text-slate-900 flex items-center gap-2">
           <CalendarClock size={18} className="text-sky-600" /> {benefit ? "Events & Emergencies" : "Contributions"}
         </h2>
-        {!benefit && (
+        {!benefit && !readOnly && (
           <PermissionGate role={["admin", "manager"]}>
             <button onClick={() => setCreator({ mode: "new" })} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
               <Plus size={15} /> New contribution
@@ -67,11 +71,11 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
         {loading ? <p className="text-sm text-slate-500">Loading…</p> : benefit ? (
           <div className="space-y-6">
             <BenefitSection title="Events" subtitle="Recurring benefit pools — members contribute, the pool pays a lump sum to each (e.g. Quarterly dowry)."
-              pool={plans.length ? eventsPool : null} poolLabel={plans.length > 1 ? "Pools total" : "Pool"}
+              pool={plans.length ? eventsPool : null} poolLabel={plans.length > 1 ? "Pools total" : "Pool"} readOnly={readOnly}
               addLabel="New event" onAdd={() => setCreator({ mode: "new", create: "event" })} empty="No events yet.">
               {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
             </BenefitSection>
-            <BenefitSection title="Emergencies" subtitle="One-off collections that pay out to a member in need." pool={emergPool} poolLabel="Pool"
+            <BenefitSection title="Emergencies" subtitle="One-off collections that pay out to a member in need." pool={emergPool} poolLabel="Pool" readOnly={readOnly}
               addLabel="New emergency" onAdd={() => setCreator({ mode: "new", create: "emergency" })} empty="No emergencies yet.">
               {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date, pool_key: c.pool_key, beneficiary_member_id: c.beneficiary_member_id, ben_first: c.ben_first, ben_last: c.ben_last, amount: c.amount, pool_balance: c.pool_balance })} />)}
             </BenefitSection>
@@ -86,17 +90,17 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings" 
         )}
       </div>
 
-      {creator && (
+      {creator && !readOnly && (
         <ContributionModal welfareId={welfareId} plan={creator.plan} mode={creator.mode} members={members} kind={kind} createKind={creator.create}
           onClose={() => setCreator(null)} onSaved={() => { setCreator(null); load(); }} />
       )}
-      {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} members={members} onClose={() => setOpenCycle(null)} onChange={load} />}
+      {openCycle && openCycle.id && <SchedulesModal client={client} basePath={basePath} readOnly={readOnly} welfareId={welfareId} cycle={openCycle} members={members} onClose={() => setOpenCycle(null)} onChange={load} />}
     </div>
   );
 }
 
 // A labelled group on the Events & Emergencies page, with its own "add" button.
-function BenefitSection({ title, subtitle, pool, poolLabel = "Pool", addLabel, onAdd, empty, children }) {
+function BenefitSection({ title, subtitle, pool, poolLabel = "Pool", addLabel, onAdd, empty, readOnly, children }) {
   const has = React.Children.toArray(children).length > 0;
   return (
     <div>
@@ -107,9 +111,11 @@ function BenefitSection({ title, subtitle, pool, poolLabel = "Pool", addLabel, o
           </h3>
           <p className="text-xs text-slate-400">{subtitle}</p>
         </div>
-        <PermissionGate role={["admin", "manager"]}>
-          <button onClick={onAdd} className="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> {addLabel}</button>
-        </PermissionGate>
+        {!readOnly && (
+          <PermissionGate role={["admin", "manager"]}>
+            <button onClick={onAdd} className="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> {addLabel}</button>
+          </PermissionGate>
+        )}
       </div>
       {has ? <div className="space-y-3">{children}</div> : <p className="text-sm text-slate-400 py-3">{empty}</p>}
     </div>
@@ -166,7 +172,7 @@ const PoolBadge = ({ kind }) => kind === "benefit"
 
 // One contribution's pool page: pool balance + (for benefit) payouts, plus the
 // year matrix (by-period / by-member), edit, assess-late.
-function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind = "savings", onBack }) {
+function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind = "savings", onBack, client = api, basePath = `/welfares/${welfareId}`, readOnly = false }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -180,14 +186,14 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
 
   const load = async () => {
     setLoading(true);
-    try { const r = await api.get(`/welfares/${welfareId}/contribution-plans/${initialPlan.id}/overview?year=${year}`); setData(r.data.data); }
+    try { const r = await client.get(`${basePath}/contribution-plans/${initialPlan.id}/overview?year=${year}`); setData(r.data.data); }
     catch { /* non-fatal */ } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const assessLate = async () => {
     setBusy(true);
-    try { const r = await api.post(`/welfares/${welfareId}/cycles/0/assess-late`, {}); alert(`${r.data.assessed} new late-contribution penalt${r.data.assessed === 1 ? "y" : "ies"} assessed.`); load(); }
+    try { const r = await client.post(`${basePath}/cycles/0/assess-late`, {}); alert(`${r.data.assessed} new late-contribution penalt${r.data.assessed === 1 ? "y" : "ies"} assessed.`); load(); }
     catch (e) { alert(e.response?.data?.error || "Failed"); } finally { setBusy(false); }
   };
   const tabCls = (on) => `px-3 py-1 text-sm font-semibold rounded-lg ${on ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`;
@@ -197,13 +203,15 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
     <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
         <button onClick={onBack} className="text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ChevronLeft size={16} /> {kind === "benefit" ? "All events & emergencies" : "All contributions"}</button>
-        <PermissionGate role={["admin", "manager"]}>
-          <div className="flex gap-2">
-            {isBenefit && <button onClick={() => setPaying(true)} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><ArrowDownToLine size={14} /> Pay a beneficiary</button>}
-            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">Assess late</button>
-            <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg">Edit</button>
-          </div>
-        </PermissionGate>
+        {!readOnly && (
+          <PermissionGate role={["admin", "manager"]}>
+            <div className="flex gap-2">
+              {isBenefit && <button onClick={() => setPaying(true)} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><ArrowDownToLine size={14} /> Pay a beneficiary</button>}
+              <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+              <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg">Edit</button>
+            </div>
+          </PermissionGate>
+        )}
       </div>
 
       <div className="px-5 py-3 border-b border-sky-100">
@@ -270,7 +278,7 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
           excludeIds={(pool?.payouts || []).map((p) => p.beneficiary_id)}
           onClose={() => setPaying(false)} onSaved={() => { setPaying(false); load(); }} />
       )}
-      {openCycle && openCycle.id && <SchedulesModal welfareId={welfareId} cycle={openCycle} members={members} onClose={() => setOpenCycle(null)} onChange={load} />}
+      {openCycle && openCycle.id && <SchedulesModal client={client} basePath={basePath} readOnly={readOnly} welfareId={welfareId} cycle={openCycle} members={members} onClose={() => setOpenCycle(null)} onChange={load} />}
     </div>
   );
 }
@@ -597,7 +605,7 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
   );
 }
 
-function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
+function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange, client = api, basePath = `/welfares/${welfareId}`, readOnly = false }) {
   const [schedules, setSchedules] = useState([]);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -607,15 +615,15 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
 
   const load = async () => {
     try {
-      const r = await api.get(`/welfares/${welfareId}/cycles/${cycle.id}`);
+      const r = await client.get(`${basePath}/cycles/${cycle.id}`);
       setSchedules(r.data.data.schedules || []);
       setDetail(r.data.data.cycle || null);
     } catch {/* */} finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [cycle.id]);
+  useEffect(() => { load(); }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const assessLate = async () => {
     setBusy(true);
-    try { const r = await api.post(`/welfares/${welfareId}/cycles/0/assess-late`, {}); alert(`${r.data.assessed} new late fine${r.data.assessed === 1 ? "" : "s"} assessed.`); load(); onChange?.(); }
+    try { const r = await client.post(`${basePath}/cycles/0/assess-late`, {}); alert(`${r.data.assessed} new late fine${r.data.assessed === 1 ? "" : "s"} assessed.`); load(); onChange?.(); }
     catch (e) { alert(e.response?.data?.error || "Failed"); } finally { setBusy(false); }
   };
 
@@ -635,9 +643,11 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
       )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="text-slate-500">Late fine: {detail?.fine_calc_type ? <span className="font-semibold text-slate-700">{fineSummary(detail)}</span> : "none"}</span>
-        <PermissionGate role={["admin", "manager"]}>
-          <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-lg disabled:opacity-50">Assess late</button>
-        </PermissionGate>
+        {!readOnly && (
+          <PermissionGate role={["admin", "manager"]}>
+            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+          </PermissionGate>
+        )}
       </div>
       {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
         <div className="overflow-x-auto">
@@ -663,7 +673,7 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange }) {
                   <td className="px-3 py-2">{timeliness(s)}</td>
                   <td className="px-3 py-2 text-right font-semibold">{Number(s.fine) > 0 ? <span className={Number(s.fine_outstanding) > 0 ? "text-rose-600" : "text-slate-500"}>{money(s.fine)}</span> : <span className="text-slate-300">—</span>}</td>
                   <td className="px-3 py-2 text-right">
-                    {s.status !== "paid" && (
+                    {s.status !== "paid" && !readOnly && (
                       <PermissionGate role={["admin", "manager", "loan_officer"]}>
                         <button onClick={() => setPayFor(s)} className="text-emerald-600 hover:text-emerald-800 inline-flex items-center gap-1 text-sm font-semibold"><Coins size={14} /> Pay</button>
                       </PermissionGate>
