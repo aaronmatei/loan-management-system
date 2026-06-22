@@ -183,8 +183,9 @@ function RequestModal({ title, fields, url, onClose, onDone }) {
 }
 
 // A member's own request history (loan / withdrawal / event).
-function RequestsList({ path, columns, title = "My requests" }) {
+function RequestsList({ path, columns, title = "My requests", kind }) {
   const { data, loading } = useFetch(path);
+  const [open, setOpen] = useState(null);
   if (loading || !data || data.length === 0) return null;
   return (
     <div className="mt-6">
@@ -194,12 +195,46 @@ function RequestsList({ path, columns, title = "My requests" }) {
         rows={data}
         empty=""
         render={(r) => (
-          <tr key={r.id}>
+          <tr key={r.id} onClick={() => setOpen(r)} className="cursor-pointer hover:bg-slate-50">
             {columns.map((c) => <td key={c.key} className="px-4 py-3 text-slate-700">{c.fmt ? c.fmt(r[c.key]) : r[c.key] || "—"}</td>)}
             <td className="px-4 py-3"><Badge value={r.status} /></td>
           </tr>
         )}
       />
+      {open && <RequestDetailModal request={open} columns={columns} kind={kind} onClose={() => setOpen(null)} />}
+    </div>
+  );
+}
+
+// Read-only detail for one loan / event request, shown when its row is clicked.
+function RequestDetailModal({ request: r, columns, kind, onClose }) {
+  const dt = (v) => (v ? new Date(v).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" }) : null);
+  const Item = ({ label, value }) => (value == null || value === "" ? null : (
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-100 last:border-0 text-sm">
+      <span className="text-slate-500 shrink-0">{label}</span><span className="font-semibold text-slate-800 text-right">{value}</span>
+    </div>
+  ));
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-slate-900">{kind === "loan" ? "Loan request" : kind === "event" ? "Event request" : "Request"}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+        </div>
+        <div className="mb-3"><Badge value={r.status} /></div>
+        <div>
+          {columns.map((c) => <Item key={c.key} label={c.label} value={c.fmt ? c.fmt(r[c.key]) : (r[c.key] || "—")} />)}
+          {kind === "loan" && r.interest_rate != null && r.interest_rate !== "" && (
+            <Item label="Interest rate" value={`${Number(r.interest_rate)}% p.a. (${(Number(r.interest_rate) / 12).toFixed(2)}%/mo) ${r.interest_method || "flat"}`} />
+          )}
+          {kind === "loan" && r.collateral_description && (
+            <Item label="Collateral" value={`${r.collateral_description}${r.collateral_value ? ` · ${KES(r.collateral_value)}` : ""}`} />
+          )}
+          <Item label="Submitted" value={dt(r.created_at)} />
+          <Item label="Decided" value={dt(r.decided_at)} />
+          {r.decision_notes && <Item label="Notes" value={r.decision_notes} />}
+        </div>
+      </div>
     </div>
   );
 }
@@ -405,6 +440,7 @@ export function MemberLoans() {
       )}
       {loansOn && (
         <>
+          <h2 className="font-bold text-slate-900 mb-2">Approved loans</h2>
           {loading || error || !data ? <Loading error={error} /> : (
             <Table
               head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
@@ -431,6 +467,7 @@ export function MemberLoans() {
           <RequestsList
             key={`loan-${reqKey}`}
             title="Loan requests"
+            kind="loan"
             path="/welfare/member/loan-requests"
             columns={[
               { key: "principal", label: "Amount", fmt: KES },
@@ -443,6 +480,7 @@ export function MemberLoans() {
       <RequestsList
         key={`event-${reqKey}`}
         title="Event requests"
+        kind="event"
         path="/welfare/member/event-requests"
         columns={[
           { key: "amount", label: "Amount", fmt: KES },
