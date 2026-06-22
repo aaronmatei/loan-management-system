@@ -3416,12 +3416,28 @@ CREATE TABLE public.welfare_investments ( -- migration 100
   name            varchar(120) NOT NULL,
   amount_invested numeric(15,2) NOT NULL DEFAULT 0,
   current_balance numeric(15,2) NOT NULL DEFAULT 0,
+  interest_earned numeric(15,2) NOT NULL DEFAULT 0, -- migration 101
+  withdrawn       numeric(15,2) NOT NULL DEFAULT 0, -- migration 101
   notes           text,
   created_by      integer,
   created_at      timestamp NOT NULL DEFAULT NOW(),
   updated_at      timestamp NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_welfare_investments_welfare ON public.welfare_investments(welfare_id);
+
+CREATE TABLE public.welfare_investment_transactions ( -- migration 101
+  id            serial PRIMARY KEY,
+  tenant_id     integer NOT NULL,
+  investment_id integer NOT NULL REFERENCES public.welfare_investments(id) ON DELETE CASCADE,
+  type          varchar(20) NOT NULL,
+  amount        numeric(15,2) NOT NULL,
+  balance_after numeric(15,2) NOT NULL,
+  note          text,
+  txn_date      date NOT NULL DEFAULT CURRENT_DATE,
+  created_by    integer,
+  created_at    timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_welfare_investment_txns ON public.welfare_investment_transactions(investment_id, id);
 
 CREATE TABLE public.welfare_decision_votes ( -- migration 098
   id          serial PRIMARY KEY,

@@ -85,9 +85,11 @@ export async function buildSummary(welfare) {
 
     const dividends = (await query(`SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS runs FROM dividend_distributions WHERE welfare_id=$1`, [wid])).rows[0];
 
-    // Investments (e.g. MMF): income = current balance − amount invested.
+    // Investments (e.g. MMF): income = total interest earned (independent of
+    // withdrawals — a withdrawal isn't a loss).
     const investments = (await query(
-      `SELECT COALESCE(SUM(amount_invested),0) AS invested, COALESCE(SUM(current_balance),0) AS current, COUNT(*)::int AS count
+      `SELECT COALESCE(SUM(amount_invested),0) AS invested, COALESCE(SUM(current_balance),0) AS current,
+              COALESCE(SUM(interest_earned),0) AS income, COALESCE(SUM(withdrawn),0) AS withdrawn, COUNT(*)::int AS count
          FROM welfare_investments WHERE welfare_id=$1`, [wid])).rows[0];
 
     // Latest open MONTHLY cycle's contribution compliance.
@@ -137,7 +139,7 @@ export async function buildSummary(welfare) {
       penalties: { assessed: num(penalties.assessed), outstanding: num(penalties.outstanding), collected: num(penalties.collected) },
       loans: { open: loans.open_count, disbursed: num(loans.disbursed), repaid: num(loans.repaid), outstanding: num(loans.outstanding) },
       dividends: { total: num(dividends.total), runs: dividends.runs },
-      investments: { invested: num(investments.invested), current: num(investments.current), income: Math.round((num(investments.current) - num(investments.invested)) * 100) / 100, count: investments.count },
+      investments: { invested: num(investments.invested), current: num(investments.current), income: num(investments.income), withdrawn: num(investments.withdrawn), count: investments.count },
       compliance,
       attendance,
       sms_sent: sms.n,

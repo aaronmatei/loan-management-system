@@ -229,6 +229,7 @@ export function MemberDashboard() {
             chartsUrl="/welfare/member/charts"
             showExports={false}
             showLoans={!!data.welfare?.loans_enabled}
+            linkBase="/welfare/member"
             personal={{
               savings: data.savings_balance,
               penalties: data.penalties_outstanding,
