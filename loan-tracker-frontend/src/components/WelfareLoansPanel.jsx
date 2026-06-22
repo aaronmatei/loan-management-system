@@ -103,9 +103,11 @@ export default function WelfareLoansPanel({ welfareId }) {
 
 function ApplyModal({ welfareId, members, products, policy, onClose, onSaved }) {
   // A custom loan (no product) starts from the chama's loan policy defaults.
+  const round4 = (n) => Math.round(n * 10000) / 10000;
   const [form, setForm] = useState({
     member_id: "", product_id: "",
     interest_rate: policy?.default_loan_interest_rate ?? "",
+    interest_rate_monthly: policy?.default_loan_interest_rate ? round4(policy.default_loan_interest_rate / 12) : "", // display companion, synced
     interest_method: policy?.default_loan_interest_method || "flat",
     late_fee: policy?.default_loan_late_fee ? Number(policy.default_loan_late_fee) || "" : "",
     penalty_rate: policy?.default_loan_penalty_rate ? Number(policy.default_loan_penalty_rate) || "" : "",
@@ -114,6 +116,9 @@ function ApplyModal({ welfareId, members, products, policy, onClose, onSaved }) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // Keep annual ⇄ monthly in sync; whichever the admin types is kept exactly.
+  const onAnnualRate = (v) => setForm((f) => ({ ...f, interest_rate: v, interest_rate_monthly: v === "" ? "" : round4(parseFloat(v) / 12) }));
+  const onMonthlyRate = (v) => setForm((f) => ({ ...f, interest_rate_monthly: v, interest_rate: v === "" ? "" : round4(parseFloat(v) * 12) }));
   const product = products.find((p) => String(p.id) === String(form.product_id));
   const rate = product ? Number(product.annual_interest_rate) : Number(form.interest_rate) || 0;
   const method = product ? product.interest_method : form.interest_method;
@@ -171,7 +176,8 @@ function ApplyModal({ welfareId, members, products, policy, onClose, onSaved }) 
             </select>
           </div>
           {!form.product_id && <>
-            <div><label className={lbl}>Rate (% p.a.)</label><input type="number" min="0" step="0.01" value={form.interest_rate} onChange={set("interest_rate")} className={fld} />{rate > 0 && <p className="text-xs text-slate-400 mt-1">≈ {monthlyRate}% per month</p>}</div>
+            <div><label className={lbl}>Annual rate (%)</label><input type="number" min="0" step="0.01" value={form.interest_rate} onChange={(e) => onAnnualRate(e.target.value)} className={fld} /></div>
+            <div><label className={lbl}>Monthly rate (%)</label><input type="number" min="0" step="0.01" value={form.interest_rate_monthly} onChange={(e) => onMonthlyRate(e.target.value)} className={fld} /></div>
             <div><label className={lbl}>Method</label><select value={form.interest_method} onChange={set("interest_method")} className={fld}><option value="flat">Flat</option><option value="reducing">Reducing balance</option></select></div>
             <div><label className={lbl}>Late fee (KES)</label><input type="number" min="0" value={form.late_fee} onChange={set("late_fee")} placeholder="0" className={fld} /></div>
             <div><label className={lbl}>Penalty rate (%/mo)</label><input type="number" min="0" step="0.001" value={form.penalty_rate} onChange={set("penalty_rate")} placeholder="0" className={fld} /></div>
