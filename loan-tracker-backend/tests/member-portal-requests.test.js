@@ -62,6 +62,11 @@ describe("member portal requests + admin approval", () => {
     expect(row.issued_loan_id).toBe(approve.body.data.loan.id);
     const loans = await request(app).get("/api/welfare/member/loans").set("Authorization", tok);
     expect(loans.body.data).toHaveLength(1);
+
+    // ...and the admin can see it in the welfare loans list (it carries
+    // welfare_id, so the welfare-scoped query returns it).
+    const adminLoans = await request(app).get(`/api/welfares/${welfare.id}/loans`).set("Authorization", auth(admin));
+    expect(adminLoans.body.data.some((l) => l.id === approve.body.data.loan.id)).toBe(true);
   });
 
   it("captures custom rate/method + collateral on a request and attaches it to the issued loan", async () => {

@@ -93,10 +93,10 @@ export async function issueMemberLoan({ welfare, member, principal, rate, months
 
   const loanRes = await query(
     `INSERT INTO member_loans
-       (tenant_id, member_id, loan_code, principal, interest_rate, duration_months,
+       (tenant_id, welfare_id, member_id, loan_code, principal, interest_rate, duration_months,
         total_interest, total_amount_due, status, disbursed_at, due_date, notes, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',NOW(),$9::date,$10,$11) RETURNING *`,
-    [welfare.tenant_id, member.id, loanCode, principal, rate, months, interest, totalDue, dueISO, notes || null, userId || null],
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active',NOW(),$10::date,$11,$12) RETURNING *`,
+    [welfare.tenant_id, welfare.id, member.id, loanCode, principal, rate, months, interest, totalDue, dueISO, notes || null, userId || null],
   );
   const loan = loanRes.rows[0];
   const poolTxn = await postPool({
