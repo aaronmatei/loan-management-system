@@ -501,7 +501,7 @@ function LoanApplyModal({ onClose, onDone }) {
             <div><label className={lbl}>Loan product</label>
               <select value={form.product_id} onChange={set("product_id")} className={fld}>
                 <option value="">No product (standard request)</option>
-                {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% {p.interest_method}</option>)}
+                {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% p.a. ({(Number(p.annual_interest_rate) / 12).toFixed(2)}%/mo) {p.interest_method}</option>)}
               </select>
               {product && <p className="text-xs text-slate-400 mt-1">KES {Number(product.min_amount).toLocaleString()}–{Number(product.max_amount).toLocaleString()} · {product.min_duration_months}–{product.max_duration_months} mo</p>}
             </div>
@@ -553,7 +553,7 @@ function LoanDetailModal({ loanId, onClose }) {
             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
               <span><span className="text-slate-400">Status</span> <Badge value={loan.status} /></span>
               <span><span className="text-slate-400">Principal</span> {KES(loan.principal)}</span>
-              <span><span className="text-slate-400">Rate</span> {Number(loan.interest_rate)}% {loan.interest_method}</span>
+              <span><span className="text-slate-400">Rate</span> {Number(loan.interest_rate)}% p.a. · {(Number(loan.interest_rate) / 12).toFixed(2)}%/mo {loan.interest_method}</span>
               <span><span className="text-slate-400">Balance</span> {KES(loan.balance)}</span>
             </div>
             {data.schedule?.length > 0 && (

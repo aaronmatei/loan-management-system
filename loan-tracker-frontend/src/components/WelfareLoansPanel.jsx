@@ -172,7 +172,7 @@ function ApplyModal({ welfareId, members, products, policy, onClose, onSaved }) 
           <div><label className={lbl}>Product</label>
             <select value={form.product_id} onChange={set("product_id")} className={fld}>
               <option value="">Custom (no product)</option>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% {p.interest_method}</option>)}
+              {products.map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% p.a. ({(Number(p.annual_interest_rate) / 12).toFixed(2)}%/mo) {p.interest_method}</option>)}
             </select>
           </div>
           {!form.product_id && <>
@@ -264,7 +264,7 @@ function LoanDetailModal({ welfareId, loanId, members = [], onClose, onChanged }
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
             <span><span className="text-slate-400">Status</span> <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[loan.status] || STATUS.pending}`}>{loan.status.replace("_", " ")}</span></span>
             <span><span className="text-slate-400">Principal</span> {money(loan.principal)}</span>
-            <span><span className="text-slate-400">Rate</span> {Number(loan.interest_rate)}% {loan.interest_method}</span>
+            <span><span className="text-slate-400">Rate</span> {Number(loan.interest_rate)}% p.a. · {(Number(loan.interest_rate) / 12).toFixed(2)}%/mo {loan.interest_method}</span>
             <span><span className="text-slate-400">Balance</span> {money(loan.balance)}</span>
             {loan.due_date && <span><span className="text-slate-400">Ends</span> {fmt(loan.end_date || loan.due_date)}</span>}
           </div>

@@ -194,7 +194,7 @@ function IssueLoanModal({ base, poolBalance, onClose, onDone }) {
         {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
         <div className="grid grid-cols-3 gap-3">
           <div><label className={lbl}>Principal</label><input type="number" value={form.principal} onChange={set("principal")} className={fld} autoFocus /></div>
-          <div><label className={lbl}>Rate % p.a.</label><input type="number" value={form.interest_rate} onChange={set("interest_rate")} className={fld} /></div>
+          <div><label className={lbl}>Rate % p.a.</label><input type="number" value={form.interest_rate} onChange={set("interest_rate")} className={fld} />{rate > 0 && <p className="text-xs text-slate-400 mt-1">≈ {(rate / 12).toFixed(2)}%/mo</p>}</div>
           <div><label className={lbl}>Months</label><input type="number" min="1" value={form.duration_months} onChange={set("duration_months")} className={fld} /></div>
         </div>
         {principal > 0 && (

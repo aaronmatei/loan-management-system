@@ -46,7 +46,7 @@ export default function MemberLoanProductsPanel({ welfareId }) {
             <div key={p.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${p.active ? "border-slate-200" : "border-slate-100 bg-slate-50 opacity-70"}`}>
               <div className="min-w-0">
                 <p className="font-semibold text-slate-800 truncate">{p.name}{!p.active && <span className="ml-2 text-xs text-slate-400">archived</span>}</p>
-                <p className="text-xs text-slate-500">{pct(p.annual_interest_rate)} p.a. · {p.interest_method} · {money(p.min_amount)}–{money(p.max_amount)} · {p.min_duration_months}–{p.max_duration_months} mo · late {money(p.late_fee)} + {pct(p.penalty_rate)}{Number(p.loan_count) > 0 ? ` · ${p.loan_count} loan(s)` : ""}</p>
+                <p className="text-xs text-slate-500">{pct(p.annual_interest_rate)} p.a. ({(Number(p.annual_interest_rate) / 12).toFixed(2)}%/mo) · {p.interest_method} · {money(p.min_amount)}–{money(p.max_amount)} · {p.min_duration_months}–{p.max_duration_months} mo · late {money(p.late_fee)} + {pct(p.penalty_rate)}{Number(p.loan_count) > 0 ? ` · ${p.loan_count} loan(s)` : ""}</p>
               </div>
               {p.active && (
                 <PermissionGate role={["admin", "manager"]}>
@@ -68,8 +68,11 @@ export default function MemberLoanProductsPanel({ welfareId }) {
 
 function ProductModal({ welfareId, product, onClose, onSaved }) {
   const init = product || { name: "", annual_interest_rate: "", interest_method: "flat", processing_fee_rate: "", min_amount: "", max_amount: "", min_duration_months: 1, max_duration_months: 12, late_fee: "", penalty_rate: "" };
+  const round4 = (n) => Math.round(n * 10000) / 10000;
   const [form, setForm] = useState({
-    name: init.name || "", annual_interest_rate: init.annual_interest_rate ?? "", interest_method: init.interest_method || "flat",
+    name: init.name || "", annual_interest_rate: init.annual_interest_rate ?? "",
+    annual_interest_rate_monthly: init.annual_interest_rate ? round4(init.annual_interest_rate / 12) : "", // synced companion
+    interest_method: init.interest_method || "flat",
     processing_fee_rate: init.processing_fee_rate ?? "", min_amount: init.min_amount ?? "", max_amount: init.max_amount ?? "",
     min_duration_months: init.min_duration_months ?? 1, max_duration_months: init.max_duration_months ?? 12,
     late_fee: init.late_fee ?? "", penalty_rate: init.penalty_rate ?? "",
@@ -77,6 +80,9 @@ function ProductModal({ welfareId, product, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // Keep annual ⇄ monthly in sync (annual = monthly × 12).
+  const onAnnual = (v) => setForm((f) => ({ ...f, annual_interest_rate: v, annual_interest_rate_monthly: v === "" ? "" : round4(parseFloat(v) / 12) }));
+  const onMonthly = (v) => setForm((f) => ({ ...f, annual_interest_rate_monthly: v, annual_interest_rate: v === "" ? "" : round4(parseFloat(v) * 12) }));
 
   const submit = async (e) => {
     e.preventDefault();
@@ -103,8 +109,9 @@ function ProductModal({ welfareId, product, onClose, onSaved }) {
         <form onSubmit={submit} className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
           <div><label className={lbl}>Name</label><input value={form.name} onChange={set("name")} placeholder="e.g. Emergency 12%" className={fld} /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={lbl}>Interest rate (% p.a.)</label><input type="number" min="0" step="0.01" value={form.annual_interest_rate} onChange={set("annual_interest_rate")} className={fld} /></div>
+          <div className="grid grid-cols-3 gap-3">
+            <div><label className={lbl}>Annual rate (%)</label><input type="number" min="0" step="0.01" value={form.annual_interest_rate} onChange={(e) => onAnnual(e.target.value)} className={fld} /></div>
+            <div><label className={lbl}>Monthly rate (%)</label><input type="number" min="0" step="0.01" value={form.annual_interest_rate_monthly} onChange={(e) => onMonthly(e.target.value)} className={fld} /></div>
             <div>
               <label className={lbl}>Method</label>
               <select value={form.interest_method} onChange={set("interest_method")} className={fld}>
