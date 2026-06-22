@@ -16,6 +16,7 @@ import WelfareDocumentsPanel from "../../../components/WelfareDocumentsPanel";
 import WelfareDecisionsPanel from "../../../components/WelfareDecisionsPanel";
 import WelfareBooksPanel from "../../../components/WelfareBooksPanel";
 import WelfareContributionsPanel from "../../../components/WelfareContributionsPanel";
+import WelfareMeetingsPanel from "../../../components/WelfareMeetingsPanel";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -618,63 +619,12 @@ export function MemberGroup() {
 }
 
 export function MemberMeetings() {
-  const { data, loading, error } = useFetch("/welfare/member/meetings");
-  const [open, setOpen] = useState(null); // meeting id to view attendance for
+  // The full admin Meetings & Attendance view, read-only — click a meeting to
+  // see the whole roster (everyone's present/late/absent + arrival).
   return (
-    <Shell title="Meetings" icon={CalendarCheck}>
-      {loading || error || !data ? <Loading error={error} /> : (
-        <Table
-          head={["Date", "Meeting", "Location", "Present", "My attendance", ""]}
-          rows={data}
-          empty="No meetings recorded."
-          render={(m) => (
-            <tr key={m.id} onClick={() => setOpen(m.id)} className="cursor-pointer hover:bg-slate-50">
-              <td className="px-4 py-3 text-slate-700">{fmt(m.meeting_date)}</td>
-              <td className="px-4 py-3 text-slate-800">{m.title || <Badge value={m.status} />}</td>
-              <td className="px-4 py-3 text-slate-600">{m.location || "Home"}</td>
-              <td className="px-4 py-3 text-slate-700">{m.present_count ?? 0} present</td>
-              <td className="px-4 py-3">{m.my_attendance ? <Badge value={m.my_attendance} /> : <span className="text-slate-400">—</span>}</td>
-              <td className="px-4 py-3 text-right text-indigo-400"><ChevronRight size={16} className="inline" /></td>
-            </tr>
-          )}
-        />
-      )}
-      {open && <MeetingAttendanceModal meetingId={open} onClose={() => setOpen(null)} />}
+    <Shell title="Meetings & Attendance" icon={CalendarCheck}>
+      <WelfareMeetingsPanel client={portalApi} basePath="/welfare/member" readOnly />
     </Shell>
-  );
-}
-
-const ATT_CLS = { present: "bg-emerald-100 text-emerald-800", late: "bg-amber-100 text-amber-800", excused: "bg-sky-100 text-sky-800", absent: "bg-red-100 text-red-800" };
-function MeetingAttendanceModal({ meetingId, onClose }) {
-  const { data, loading } = useFetch(`/welfare/member/meetings/${meetingId}`);
-  const m = data?.meeting;
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{m?.title || "Meeting"} — attendance</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
-        </div>
-        <div className="p-5">
-          {loading || !data ? <Spinner centered label="Loading…" /> : (
-            <>
-              <p className="text-sm text-slate-500 mb-3">{fmt(m.meeting_date)}{m.start_time ? ` · ${String(m.start_time).slice(0, 5)}${m.grace_minutes ? ` (+${m.grace_minutes}m grace)` : ""}` : ""} · {m.location || "Home"}</p>
-              <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
-                {data.roster.map((r) => (
-                  <div key={r.member_id} className="flex items-center justify-between text-sm py-1.5">
-                    <span className="text-slate-800">{r.first_name} {r.last_name} <span className="text-slate-400 font-mono text-xs">{r.member_no}</span></span>
-                    <span className="flex items-center gap-2">
-                      {r.arrival_time && <span className="text-xs text-slate-400 tabular-nums">{String(r.arrival_time).slice(0, 5)}</span>}
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ATT_CLS[r.attendance_status] || "bg-slate-100 text-slate-500"}`}>{r.attendance_status || "—"}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 

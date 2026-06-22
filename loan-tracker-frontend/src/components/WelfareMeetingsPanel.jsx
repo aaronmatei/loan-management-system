@@ -20,7 +20,9 @@ const deriveStatus = (arrival, apology, meeting) => {
 
 // Welfare meetings + member attendance. Absent/late statuses auto-apply the
 // chama's attendance penalties.
-export default function WelfareMeetingsPanel({ welfareId }) {
+// `client`/`basePath`/`readOnly` let the member portal reuse this whole view
+// read-only (members are equal owners). Admin keeps the defaults.
+export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly = false, basePath = `/welfares/${welfareId}` }) {
   const [meetings, setMeetings] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,8 +33,8 @@ export default function WelfareMeetingsPanel({ welfareId }) {
   const load = async () => {
     try {
       const [m, s] = await Promise.all([
-        api.get(`/welfares/${welfareId}/meetings`),
-        api.get(`/welfares/${welfareId}/attendance-summary`),
+        client.get(`${basePath}/meetings`),
+        client.get(`${basePath}/attendance-summary`),
       ]);
       setMeetings(m.data.data || []);
       setSummary(s.data.data || null);
@@ -44,7 +46,7 @@ export default function WelfareMeetingsPanel({ welfareId }) {
   };
   useEffect(() => {
     load();
-  }, [welfareId]);
+  }, [basePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fmt = (d) => new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" });
   const STATUS = { scheduled: "bg-slate-100 text-slate-700", held: "bg-emerald-100 text-emerald-800", cancelled: "bg-red-100 text-red-700" };
@@ -55,11 +57,13 @@ export default function WelfareMeetingsPanel({ welfareId }) {
         <h2 className="font-bold text-slate-900 flex items-center gap-2">
           <CalendarDays size={18} className="text-indigo-600" /> Meetings &amp; Attendance
         </h2>
-        <PermissionGate role={["admin", "manager", "loan_officer"]}>
-          <button onClick={() => setShowNew(true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
-            <Plus size={15} /> Schedule
-          </button>
-        </PermissionGate>
+        {!readOnly && (
+          <PermissionGate role={["admin", "manager", "loan_officer"]}>
+            <button onClick={() => setShowNew(true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
+              <Plus size={15} /> Schedule
+            </button>
+          </PermissionGate>
+        )}
       </div>
 
       <div className="p-5">
@@ -92,9 +96,11 @@ export default function WelfareMeetingsPanel({ welfareId }) {
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
                     <td className="px-4 py-2 text-right text-slate-700">{Number(m.present_count)}</td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
-                      <PermissionGate role={["admin", "manager", "loan_officer"]}>
-                        <button onClick={(e) => { e.stopPropagation(); setEditing(m); }} className="text-slate-400 hover:text-indigo-600 mr-2 align-middle" title="Edit meeting"><Pencil size={15} className="inline" /></button>
-                      </PermissionGate>
+                      {!readOnly && (
+                        <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                          <button onClick={(e) => { e.stopPropagation(); setEditing(m); }} className="text-slate-400 hover:text-indigo-600 mr-2 align-middle" title="Edit meeting"><Pencil size={15} className="inline" /></button>
+                        </PermissionGate>
+                      )}
                       <ChevronRight size={16} className="inline text-indigo-500" />
                     </td>
                   </tr>
@@ -105,9 +111,9 @@ export default function WelfareMeetingsPanel({ welfareId }) {
         )}
       </div>
 
-      {showNew && <MeetingModal welfareId={welfareId} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load(); }} />}
-      {editing && <MeetingModal welfareId={welfareId} meeting={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
-      {attend && <AttendanceModal welfareId={welfareId} meeting={attend} onClose={() => setAttend(null)} onSaved={() => { setAttend(null); load(); }} />}
+      {showNew && !readOnly && <MeetingModal welfareId={welfareId} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load(); }} />}
+      {editing && !readOnly && <MeetingModal welfareId={welfareId} meeting={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+      {attend && <AttendanceModal client={client} basePath={basePath} readOnly={readOnly} welfareId={welfareId} meeting={attend} onClose={() => setAttend(null)} onSaved={() => { setAttend(null); load(); }} />}
     </div>
   );
 }
@@ -248,7 +254,7 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
 
 // A meeting's full detail: info + the attendance roster (markable) + the fines it
 // raised + any pool payout handed out at it.
-function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
+function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = api, basePath = `/welfares/${welfareId}`, readOnly = false }) {
   const [data, setData] = useState(null);
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -257,7 +263,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
 
   const load = async () => {
     try {
-      const r = await api.get(`/welfares/${welfareId}/meetings/${row.id}`);
+      const r = await client.get(`${basePath}/meetings/${row.id}`);
       setData(r.data.data);
       setRoster((r.data.data.roster || []).map((m) => ({ ...m, arrival_time: hhmm(m.arrival_time), apology: !!m.apology })));
     } catch { /* */ } finally { setLoading(false); }
@@ -270,7 +276,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
   const save = async () => {
     setBusy(true); setError("");
     try {
-      await api.post(`/welfares/${welfareId}/meetings/${row.id}/attendance`, {
+      await client.post(`${basePath}/meetings/${row.id}/attendance`, {
         records: roster.map((m) => ({ member_id: m.member_id, arrival_time: m.arrival_time || null, apology: !!m.apology })),
       });
       await load(); onSaved?.();
@@ -282,8 +288,10 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
   const fmtD = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
   const FT = { attendance_late: "Late", attendance_absent: "Absent", contribution_late: "Contribution late" };
   // Attendance is recorded ONCE: if any member already has a saved status, the
-  // roster is locked (read-only) and there's no second Save.
+  // roster is locked (read-only) and there's no second Save. The member portal
+  // (readOnly) is always view-only.
   const recorded = roster.some((mem) => mem.attendance_status);
+  const editable = !readOnly && !recorded;
 
   return (
     <Shell title={m.title || "Meeting"} onClose={onClose} wide>
@@ -310,15 +318,15 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
         <p className="text-sm text-slate-500">No active members.</p>
       ) : (
         <>
-          <p className="text-xs text-slate-400 mb-2">Enter each member's arrival time. Anyone past {m.start_time ? `${hhmm(m.start_time)} + ${m.grace_minutes || 0} min grace` : "the start time"} is marked late; leave blank for a no-show, and tick <em>apology</em> to excuse them from the fine.</p>
+          {editable && <p className="text-xs text-slate-400 mb-2">Enter each member's arrival time. Anyone past {m.start_time ? `${hhmm(m.start_time)} + ${m.grace_minutes || 0} min grace` : "the start time"} is marked late; leave blank for a no-show, and tick <em>apology</em> to excuse them from the fine.</p>}
           <div className="space-y-2 max-h-72 overflow-y-auto">
             {roster.map((mem) => {
-              const st = recorded ? mem.attendance_status : deriveStatus(mem.arrival_time, mem.apology, m);
-              const badge = ATT.find((x) => x.v === st) || ATT[0];
+              const st = editable ? deriveStatus(mem.arrival_time, mem.apology, m) : mem.attendance_status;
+              const badge = ATT.find((x) => x.v === st) || { v: "none", label: "—", cls: "bg-slate-100 text-slate-500" };
               return (
                 <div key={mem.member_id} className="flex items-center gap-3">
                   <span className="flex-1 text-sm text-slate-800 truncate">{mem.first_name} {mem.last_name}</span>
-                  {recorded ? (
+                  {!editable ? (
                     <span className="text-xs text-slate-500 tabular-nums w-12 text-right">{hhmm(mem.arrival_time) || "—"}</span>
                   ) : (
                     <>
@@ -335,15 +343,17 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved }) {
           </div>
         </>
       )}
-      <PermissionGate role={["admin", "manager", "loan_officer"]}>
-        <div className="flex justify-end items-center gap-3 pt-3">
-          {recorded ? (
-            <span className="text-sm font-semibold text-emerald-700 inline-flex items-center gap-1.5"><Check size={16} /> Attendance recorded</span>
-          ) : (
-            <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
-          )}
-        </div>
-      </PermissionGate>
+      {!readOnly && (
+        <PermissionGate role={["admin", "manager", "loan_officer"]}>
+          <div className="flex justify-end items-center gap-3 pt-3">
+            {recorded ? (
+              <span className="text-sm font-semibold text-emerald-700 inline-flex items-center gap-1.5"><Check size={16} /> Attendance recorded</span>
+            ) : (
+              <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
+            )}
+          </div>
+        </PermissionGate>
+      )}
 
       {data?.fines?.length > 0 && (
         <div className="mt-4 pt-3 border-t border-slate-100">

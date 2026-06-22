@@ -533,9 +533,10 @@ router.get("/penalties", async (req, res) => {
 router.get("/meetings", async (req, res) => {
   try {
     const r = await query(
-      `SELECT gm.id, gm.title, gm.meeting_date, gm.location, gm.agenda, gm.status,
+      `SELECT gm.id, gm.title, gm.meeting_date, gm.location, gm.agenda, gm.status, gm.start_time, gm.grace_minutes,
               ma.status AS my_attendance,
-              (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id AND a.status IN ('present','late'))::int AS present_count
+              (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id AND a.status IN ('present','late'))::int AS present_count,
+              (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id)::int AS recorded_count
          FROM group_meetings gm
          LEFT JOIN member_attendance ma ON ma.meeting_id = gm.id AND ma.member_id = $1
         WHERE gm.group_id = $2
@@ -547,6 +548,26 @@ router.get("/meetings", async (req, res) => {
     logger.error("member meetings error:", e);
     res.status(500).json({ error: "Failed to load meetings" });
   }
+});
+
+// GET /attendance-summary — group attendance stats (same as admin), read-only.
+router.get("/attendance-summary", async (req, res) => {
+  try {
+    const held = (await query(`SELECT COUNT(*)::int AS n FROM group_meetings WHERE group_id=$1 AND status='held'`, [req.welfareId])).rows[0].n;
+    const rows = await query(
+      `SELECT mem.id AS member_id, mem.first_name, mem.last_name,
+              COUNT(a.id) FILTER (WHERE a.status IN ('present','late'))::int AS attended,
+              COUNT(a.id) FILTER (WHERE a.status = 'absent')::int AS absent
+         FROM members mem
+         LEFT JOIN member_attendance a ON a.member_id = mem.id
+         LEFT JOIN group_meetings m ON m.id = a.meeting_id AND m.group_id = $1 AND m.status = 'held'
+        WHERE mem.welfare_id = $1 AND mem.status = 'active'
+        GROUP BY mem.id, mem.first_name, mem.last_name
+        ORDER BY attended DESC`,
+      [req.welfareId],
+    );
+    res.json({ success: true, data: { held_meetings: held, members: rows.rows.map((m) => ({ ...m, rate: held ? Math.round((m.attended / held) * 100) : null })) } });
+  } catch (e) { logger.error("member attendance summary error:", e); res.status(500).json({ error: "Failed to load attendance summary" }); }
 });
 
 // GET /dividends — share-outs the member received.
