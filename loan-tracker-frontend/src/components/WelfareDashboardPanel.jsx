@@ -88,9 +88,12 @@ export default function WelfareDashboardPanel({
         <Stat icon={Wallet} label="Pool balance" value={money(d.pool.balance)} sub={`Surplus ${money(d.pool.surplus)}`} tone="emerald" />
         <Stat icon={Wallet} label="Savings" value={money(d.pool.members_savings)} sub={`${money(d.pool.total_contributions)} contributed`} mine={p && p.savings != null ? money(p.savings) : undefined} />
         {d.investments && (
-          <Stat icon={TrendingUp} label="Investments" value={money(d.investments.current)}
-            sub={`Income ${money(d.investments.income)} · invested ${money(d.investments.invested)}`}
-            tone={d.investments.income < 0 ? "rose" : "emerald"} />
+          <div className="bg-emerald-50 rounded-lg p-3">
+            <p className="text-xs text-slate-500 flex items-center gap-1"><TrendingUp size={13} /> Investments</p>
+            <p className={`font-bold text-lg leading-tight ${d.investments.income < 0 ? "text-rose-700" : "text-emerald-700"}`}>{money(d.investments.income)} <span className="text-xs font-normal text-slate-400">income</span></p>
+            <p className="text-xs text-slate-500 mt-0.5">Invested {money(d.investments.invested)}</p>
+            <p className="text-xs text-slate-500">Current balance {money(d.investments.current)}</p>
+          </div>
         )}
         <Stat icon={TrendingUp} label="Profit" value={money(d.pool.profit)} sub="pool above member savings" tone={d.pool.profit < 0 ? "rose" : "emerald"} />
         <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" />
