@@ -183,10 +183,16 @@ function RequestModal({ title, fields, url, onClose, onDone }) {
 }
 
 // A member's own request history (loan / withdrawal / event).
-function RequestsList({ path, columns, title = "My requests", kind }) {
+function RequestsList({ path, columns, title = "My requests", kind, onOpenLoan }) {
   const { data, loading } = useFetch(path);
   const [open, setOpen] = useState(null);
   if (loading || !data || data.length === 0) return null;
+  // An approved loan request opens the issued loan (with its repayment history);
+  // anything else opens the read-only request detail.
+  const handle = (r) => {
+    if (onOpenLoan && r.status === "approved" && r.issued_loan_id) onOpenLoan(r.issued_loan_id);
+    else setOpen(r);
+  };
   return (
     <div className="mt-6">
       <h2 className="font-bold text-slate-900 mb-2">{title}</h2>
@@ -195,7 +201,7 @@ function RequestsList({ path, columns, title = "My requests", kind }) {
         rows={data}
         empty=""
         render={(r) => (
-          <tr key={r.id} onClick={() => setOpen(r)} className="cursor-pointer hover:bg-slate-50">
+          <tr key={r.id} onClick={() => handle(r)} className="cursor-pointer hover:bg-slate-50">
             {columns.map((c) => <td key={c.key} className="px-4 py-3 text-slate-700">{c.fmt ? c.fmt(r[c.key]) : r[c.key] || "—"}</td>)}
             <td className="px-4 py-3"><Badge value={r.status} /></td>
           </tr>
@@ -403,7 +409,6 @@ export function MemberContributions() {
 }
 
 export function MemberLoans() {
-  const { data, loading, error, reload } = useFetch("/welfare/member/loans");
   const { data: overview } = useFetch("/welfare/member/overview");
   const loansOn = !!overview?.welfare?.loans_enabled; // chama Loans switch
   const [modal, setModal] = useState(null); // 'loan' | 'event' | null
@@ -439,43 +444,19 @@ export function MemberLoans() {
         />
       )}
       {loansOn && (
-        <>
-          <h2 className="font-bold text-slate-900 mb-2">Approved loans</h2>
-          {loading || error || !data ? <Loading error={error} /> : (
-            <Table
-              head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
-              rows={data}
-              empty="You have no chama loans."
-              render={(l) => (
-                <tr key={l.id} onClick={() => setOpenLoan(l.id)} className="cursor-pointer hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono text-slate-700">{l.loan_code}</td>
-                  <td className="px-4 py-3">{KES(l.principal)}</td>
-                  <td className="px-4 py-3">{KES(l.total_amount_due)}</td>
-                  <td className="px-4 py-3">{KES(l.amount_paid)}</td>
-                  <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
-                  <td className="px-4 py-3"><Badge value={l.status} /></td>
-                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    {l.status === "active" && Number(l.balance) > 0 && (
-                      <PayButton kind="loan" targetId={l.id} onDone={reload} />
-                    )}
-                  </td>
-                </tr>
-              )}
-            />
-          )}
-          {openLoan && <LoanDetailModal loanId={openLoan} onClose={() => setOpenLoan(null)} />}
-          <RequestsList
-            key={`loan-${reqKey}`}
-            title="Loan requests"
-            kind="loan"
-            path="/welfare/member/loan-requests"
-            columns={[
-              { key: "principal", label: "Amount", fmt: KES },
-              { key: "duration_months", label: "Months" },
-              { key: "purpose", label: "Purpose" },
-            ]}
-          />
-        </>
+        <RequestsList
+          key={`loan-${reqKey}`}
+          title="Loan requests"
+          kind="loan"
+          path="/welfare/member/loan-requests"
+          columns={[
+            { key: "principal", label: "Amount", fmt: KES },
+            { key: "duration_months", label: "Months" },
+            { key: "purpose", label: "Purpose" },
+          ]}
+          // An approved request opens the real loan (schedule + repayments + Pay).
+          onOpenLoan={setOpenLoan}
+        />
       )}
       <RequestsList
         key={`event-${reqKey}`}
@@ -488,6 +469,7 @@ export function MemberLoans() {
           { key: "reason", label: "Reason" },
         ]}
       />
+      {openLoan && <LoanDetailModal loanId={openLoan} onClose={() => setOpenLoan(null)} />}
       {/* Loans are private — a member sees only their own; no group loan list. */}
     </Shell>
   );
@@ -594,12 +576,18 @@ function LoanApplyModal({ onClose, onDone }) {
 
 // A member's loan detail — the installment schedule + repayment postings.
 function LoanDetailModal({ loanId, onClose }) {
-  const { data, loading, error } = useFetch(`/welfare/member/loans/${loanId}`);
+  const { data, loading, error, reload } = useFetch(`/welfare/member/loans/${loanId}`);
   const loan = data?.loan;
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-10 p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3"><h3 className="text-lg font-bold text-slate-900">{loan ? loan.loan_code : "Loan"}</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-slate-900">{loan ? loan.loan_code : "Loan"}</h3>
+          <div className="flex items-center gap-2">
+            {loan && loan.status === "active" && Number(loan.balance) > 0 && <PayButton kind="loan" targetId={loan.id} onDone={reload} />}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+          </div>
+        </div>
         {loading || error || !data ? <Loading error={error} /> : (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">

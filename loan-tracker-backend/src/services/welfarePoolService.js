@@ -7,6 +7,7 @@
 // the admin and approval paths post to the pool identically.)
 import { query, withTransaction } from "../config/database.js";
 import { round2 } from "../utils/round2.js";
+import { computeLoanTotals } from "../utils/loanMath.js";
 
 export { round2 }; // re-exported for the modules that import it from here
 
@@ -75,7 +76,7 @@ export async function postPool(args) {
 // Issue a loan from the welfare pool to a member (flat interest, single bullet).
 // Shared by the admin issue endpoint and the member loan-request approval.
 // Throws Error{status:400} if the pool can't cover the principal.
-export async function issueMemberLoan({ welfare, member, principal, rate, months, notes, userId }) {
+export async function issueMemberLoan({ welfare, member, principal, rate, months, notes, userId, method = "flat" }) {
   const pool = await poolBalance(welfare.id);
   if (principal > pool) {
     throw Object.assign(
@@ -83,27 +84,52 @@ export async function issueMemberLoan({ welfare, member, principal, rate, months
       { status: 400 },
     );
   }
-  const interest = round2(principal * (rate / 100) * (months / 12));
-  const totalDue = round2(principal + interest);
+  // Same loan math + amortization the admin disburse path uses, so the loan
+  // gets a real installment schedule (its repayment history) — not just a row.
+  const { totalInterest, totalAmountDue, schedule } = computeLoanTotals({ principal, annualRatePct: rate, months, method });
   const countRes = await query(`SELECT COUNT(*)::int AS n FROM member_loans WHERE tenant_id = $1`, [welfare.tenant_id]);
   const loanCode = `MBL-${String(countRes.rows[0].n + 1).padStart(5, "0")}`;
-  const due = new Date();
-  due.setMonth(due.getMonth() + months);
-  const dueISO = due.toISOString().split("T")[0];
+  const disbISO = new Date().toISOString().split("T")[0];
+  const startObj = new Date(disbISO);
+  startObj.setMonth(startObj.getMonth() + 1); // first installment a month after disbursement
+  const startISO = startObj.toISOString().split("T")[0];
+  const endObj = new Date(startISO);
+  endObj.setMonth(endObj.getMonth() + months - 1);
+  const endISO = endObj.toISOString().split("T")[0];
 
-  const loanRes = await query(
-    `INSERT INTO member_loans
-       (tenant_id, welfare_id, member_id, loan_code, principal, interest_rate, duration_months,
-        total_interest, total_amount_due, status, disbursed_at, due_date, notes, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active',NOW(),$10::date,$11,$12) RETURNING *`,
-    [welfare.tenant_id, welfare.id, member.id, loanCode, principal, rate, months, interest, totalDue, dueISO, notes || null, userId || null],
-  );
-  const loan = loanRes.rows[0];
-  const poolTxn = await postPool({
-    welfare, memberId: member.id, type: "loan_disbursed", amount: principal, direction: -1,
-    loanId: loan.id, description: `Loan ${loanCode} to ${member.first_name} ${member.last_name}`, userId,
+  return withTransaction(async (client) => {
+    const loan = (await client.query(
+      `INSERT INTO member_loans
+         (tenant_id, welfare_id, member_id, loan_code, principal, interest_rate, interest_method, duration_months,
+          total_interest, total_amount_due, net_disbursed, status, disbursed_at, start_date, end_date, due_date, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$5,'active',NOW(),$11::date,$12::date,$12::date,$13,$14) RETURNING *`,
+      [welfare.tenant_id, welfare.id, member.id, loanCode, principal, rate, method, months, round2(totalInterest), round2(totalAmountDue), startISO, endISO, notes || null, userId || null],
+    )).rows[0];
+
+    // Installment schedule (mirrors disburseMemberLoan's multi-row insert).
+    const anchor = new Date(startISO);
+    const vals = [], params = [welfare.tenant_id];
+    for (let i = 1; i <= months; i++) {
+      const due = new Date(anchor);
+      due.setMonth(due.getMonth() + (i - 1));
+      const row = schedule[i - 1];
+      const b = params.length;
+      params.push(loan.id, i, due.toISOString().split("T")[0], row.amountDue.toFixed(2), row.interestPortion.toFixed(2), row.principalPortion.toFixed(2), row.balanceAfter.toFixed(2));
+      vals.push(`($1,$${b + 1},$${b + 2},$${b + 3}::date,$${b + 4},$${b + 5},$${b + 6},$${b + 7},'pending')`);
+    }
+    await client.query(
+      `INSERT INTO member_loan_schedules
+         (tenant_id, member_loan_id, payment_number, due_date, amount_due, interest_portion, principal_portion, balance_after, status)
+       VALUES ${vals.join(",")}`,
+      params,
+    );
+
+    const poolTxn = await postPool({
+      client, welfare, memberId: member.id, type: "loan_disbursed", amount: principal, direction: -1,
+      loanId: loan.id, description: `Loan ${loanCode} to ${member.first_name} ${member.last_name}`, userId,
+    });
+    return { loan, poolTxn };
   });
-  return { loan, poolTxn };
 }
 
 // Pay a member's savings out of the pool. Validates amount > 0, within savings,

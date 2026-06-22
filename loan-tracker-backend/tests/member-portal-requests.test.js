@@ -67,6 +67,11 @@ describe("member portal requests + admin approval", () => {
     // welfare_id, so the welfare-scoped query returns it).
     const adminLoans = await request(app).get(`/api/welfares/${welfare.id}/loans`).set("Authorization", auth(admin));
     expect(adminLoans.body.data.some((l) => l.id === approve.body.data.loan.id)).toBe(true);
+
+    // The issued loan has a real installment schedule (its repayment history),
+    // one row per month — not an empty detail.
+    const detail = await request(app).get(`/api/welfare/member/loans/${approve.body.data.loan.id}`).set("Authorization", tok);
+    expect(detail.body.data.schedule).toHaveLength(6);
   });
 
   it("captures custom rate/method + collateral on a request and attaches it to the issued loan", async () => {

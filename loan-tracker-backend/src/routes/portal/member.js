@@ -808,7 +808,7 @@ router.get("/loan-requests", async (req, res) => {
   try {
     const r = await query(
       `SELECT id, principal, duration_months, interest_rate, interest_method, purpose, status,
-              collateral_description, collateral_value, decision_notes, created_at, decided_at
+              collateral_description, collateral_value, decision_notes, issued_loan_id, created_at, decided_at
          FROM member_loan_requests WHERE member_id = $1 ORDER BY id DESC`,
       [req.member.id],
     );
