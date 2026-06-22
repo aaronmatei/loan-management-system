@@ -222,19 +222,8 @@ router.get("/group-members", async (req, res) => {
 
 // Read-only group activity so a member can see "what's happening" — every loan,
 // expense and contribution cycle in the chama. Privileged writes stay admin-only.
-router.get("/group-loans", async (req, res) => {
-  try {
-    const r = await query(
-      `SELECT l.loan_code, l.principal, l.status, GREATEST(l.total_amount_due - l.amount_paid, 0) AS balance,
-              l.disbursed_at, m.first_name, m.last_name
-         FROM member_loans l JOIN members m ON m.id = l.member_id
-        WHERE l.welfare_id = $1 AND l.status IN ('active','defaulted','completed')
-        ORDER BY l.created_at DESC LIMIT 200`,
-      [req.welfareId],
-    );
-    res.json({ success: true, data: r.rows });
-  } catch (e) { logger.error("member group-loans error:", e); res.status(500).json({ error: "Failed to load loans" }); }
-});
+// Loans are private — a member sees only their own (GET /loans); there is no
+// group-wide loan list in the portal.
 
 router.get("/group-expenses", async (req, res) => {
   try {

@@ -449,23 +449,7 @@ export function MemberLoans() {
           { key: "reason", label: "Reason" },
         ]}
       />
-      {loansOn && (
-        <GroupSection
-          title="All chama loans (whole chama)"
-          path="/welfare/member/group-loans"
-          head={["Member", "Loan", "Principal", "Balance", "Status"]}
-          empty="No loans disbursed yet."
-          render={(l, i) => (
-            <tr key={i}>
-              <td className="px-4 py-3 text-slate-800">{l.first_name} {l.last_name}</td>
-              <td className="px-4 py-3 font-mono text-xs text-slate-500">{l.loan_code}</td>
-              <td className="px-4 py-3">{KES(l.principal)}</td>
-              <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
-              <td className="px-4 py-3"><Badge value={l.status} /></td>
-            </tr>
-          )}
-        />
-      )}
+      {/* Loans are private — a member sees only their own; no group loan list. */}
     </Shell>
   );
 }
@@ -578,13 +562,11 @@ function LoanDetailModal({ loanId, onClose }) {
 // Every member's standing — the same Reports table the admin sees (read-only).
 export function MemberGroup() {
   const { data, loading, error } = useFetch("/welfare/member/group-members");
-  const { data: overview } = useFetch("/welfare/member/overview");
-  const loansOn = !!overview?.welfare?.loans_enabled; // drop the loan column when off
   return (
     <Shell title="Members" icon={Users}>
       {loading || error || !data ? <Loading error={error} /> : (
         <Table
-          head={["Member", "Savings", "Contributions", "Dividends", ...(loansOn ? ["Loan bal"] : []), "Penalty bal", "Attendance"]}
+          head={["Member", "Savings", "Contributions", "Dividends", "Penalty bal", "Attendance"]}
           rows={data}
           empty="No members yet."
           render={(m) => (
@@ -593,7 +575,6 @@ export function MemberGroup() {
               <td className="px-4 py-3">{KES(m.savings)}</td>
               <td className="px-4 py-3">{KES(m.contributions)}</td>
               <td className="px-4 py-3">{KES(m.dividends)}</td>
-              {loansOn && <td className="px-4 py-3">{KES(m.loan_outstanding)}</td>}
               <td className="px-4 py-3">{KES(m.penalty_outstanding)}</td>
               <td className="px-4 py-3">{m.attendance_pct == null ? "—" : `${m.attendance_pct}%`}</td>
             </tr>

@@ -117,12 +117,12 @@ describe("member portal read API", () => {
     expect(grp.body.data).toHaveLength(1);
     expect(Number(grp.body.data[0].savings)).toBe(5000);
 
-    // ...plus read-only group activity (loans / expenses / cycles).
-    for (const p of ["group-loans", "group-cycles"]) {
-      const r = await request(app).get(`/api/welfare/member/${p}`).set("Authorization", tok);
-      expect(r.status).toBe(200);
-      expect(Array.isArray(r.body.data)).toBe(true);
-    }
+    // ...plus read-only group activity (cycles / expenses). Loans are private:
+    // the group-loans endpoint was removed (a member sees only their own loans).
+    expect((await request(app).get("/api/welfare/member/group-loans").set("Authorization", tok)).status).not.toBe(200);
+    const cyc = await request(app).get("/api/welfare/member/group-cycles").set("Authorization", tok);
+    expect(cyc.status).toBe(200);
+    expect(Array.isArray(cyc.body.data)).toBe(true);
     const exp = await request(app).get("/api/welfare/member/group-expenses").set("Authorization", tok);
     expect(exp.status).toBe(200);
     expect(Array.isArray(exp.body.data.expenses)).toBe(true);
