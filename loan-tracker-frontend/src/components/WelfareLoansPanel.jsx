@@ -99,31 +99,43 @@ export default function WelfareLoansPanel({ welfareId }) {
 }
 
 function ApplyModal({ welfareId, members, products, onClose, onSaved }) {
-  const [form, setForm] = useState({ member_id: "", product_id: "", interest_rate: "", interest_method: "flat", late_fee: "", penalty_rate: "", principal: "", duration_months: 6, purpose: "" });
+  const [form, setForm] = useState({ member_id: "", product_id: "", interest_rate: "", interest_method: "flat", late_fee: "", penalty_rate: "", principal: "", duration_months: 6, purpose: "", coll_description: "", coll_value: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const product = products.find((p) => String(p.id) === String(form.product_id));
   const rate = product ? Number(product.annual_interest_rate) : Number(form.interest_rate) || 0;
   const method = product ? product.interest_method : form.interest_method;
+  const monthlyRate = Math.round((rate / 12) * 100) / 100;
+  const feeRate = product ? Number(product.processing_fee_rate) || 0 : 0; // custom loans carry no processing fee
 
-  const preview = useMemo(() => {
+  // Live loan figures — what the member gets and what they repay.
+  const calc = useMemo(() => {
     const principal = Number(form.principal), months = Number(form.duration_months);
     if (!(principal > 0) || !(months > 0)) return null;
-    try { return computeLoanTotals({ principal, annualRatePct: rate, months, method }); } catch { return null; }
-  }, [form.principal, form.duration_months, rate, method]);
+    let totals;
+    try { totals = computeLoanTotals({ principal, annualRatePct: rate, months, method }); } catch { return null; }
+    const processingFee = Math.round(principal * (feeRate / 100) * 100) / 100;
+    return { ...totals, principal, processingFee, netDisburse: Math.round((principal - processingFee) * 100) / 100 };
+  }, [form.principal, form.duration_months, rate, method, feeRate]);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     if (!form.member_id) return setError("Pick a member.");
     if (!(Number(form.principal) > 0)) return setError("Enter a principal.");
+    if (form.coll_description.trim() && !(Number(form.coll_value) > 0)) return setError("Enter the collateral's value (or clear its description).");
     setBusy(true);
     try {
       const body = { member_id: form.member_id, principal: form.principal, duration_months: form.duration_months, purpose: form.purpose };
       if (form.product_id) body.product_id = form.product_id;
       else Object.assign(body, { interest_rate: form.interest_rate, interest_method: form.interest_method, late_fee: form.late_fee, penalty_rate: form.penalty_rate });
-      await api.post(`/welfares/${welfareId}/loans`, body);
+      const r = await api.post(`/welfares/${welfareId}/loans`, body);
+      // Optionally attach a first collateral item; more can be added on the loan's details.
+      const loanId = r.data?.data?.id;
+      if (loanId && form.coll_description.trim()) {
+        try { await api.post(`/welfares/${welfareId}/loans/${loanId}/collateral`, { description: form.coll_description.trim(), appraised_value: form.coll_value || 0 }); } catch { /* non-fatal — add it on the detail */ }
+      }
       onSaved();
     } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
   };
@@ -148,7 +160,7 @@ function ApplyModal({ welfareId, members, products, onClose, onSaved }) {
             </select>
           </div>
           {!form.product_id && <>
-            <div><label className={lbl}>Rate (% p.a.)</label><input type="number" min="0" step="0.01" value={form.interest_rate} onChange={set("interest_rate")} className={fld} /></div>
+            <div><label className={lbl}>Rate (% p.a.)</label><input type="number" min="0" step="0.01" value={form.interest_rate} onChange={set("interest_rate")} className={fld} />{rate > 0 && <p className="text-xs text-slate-400 mt-1">≈ {monthlyRate}% per month</p>}</div>
             <div><label className={lbl}>Method</label><select value={form.interest_method} onChange={set("interest_method")} className={fld}><option value="flat">Flat</option><option value="reducing">Reducing balance</option></select></div>
             <div><label className={lbl}>Late fee (KES)</label><input type="number" min="0" value={form.late_fee} onChange={set("late_fee")} placeholder="0" className={fld} /></div>
             <div><label className={lbl}>Penalty rate (%/mo)</label><input type="number" min="0" step="0.001" value={form.penalty_rate} onChange={set("penalty_rate")} placeholder="0" className={fld} /></div>
@@ -157,11 +169,29 @@ function ApplyModal({ welfareId, members, products, onClose, onSaved }) {
           <div><label className={lbl}>Duration (months)</label><input type="number" min="1" value={form.duration_months} onChange={set("duration_months")} className={fld} /></div>
         </div>
         <div><label className={lbl}>Purpose</label><input value={form.purpose} onChange={set("purpose")} placeholder="optional" className={fld} /></div>
-        {preview && (
-          <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm grid grid-cols-3 gap-3 text-center">
-            <div><p className="text-xs text-slate-500">Interest</p><p className="font-bold text-slate-800">{money(preview.totalInterest)}</p></div>
-            <div><p className="text-xs text-slate-500">Total repayable</p><p className="font-bold text-slate-800">{money(preview.totalAmountDue)}</p></div>
-            <div><p className="text-xs text-slate-500">~ / month</p><p className="font-bold text-slate-800">{money(preview.monthlyPayment)}</p></div>
+
+        {/* Collateral (optional) — secure the loan. Add more on the loan's details. */}
+        <div className="border-t border-slate-100 pt-3">
+          <p className="text-sm font-semibold text-slate-700 mb-1">Collateral <span className="font-normal text-slate-400">(optional)</span></p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2"><input value={form.coll_description} onChange={set("coll_description")} placeholder="e.g. Title deed, TV, car logbook" className={fld} /></div>
+            <div><input type="number" min="0" value={form.coll_value} onChange={set("coll_value")} placeholder="Value (KES)" className={fld} /></div>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">You can add more collateral items on the loan's details after creating it.</p>
+        </div>
+
+        {/* Live loan figures — replaces the standalone calculator. */}
+        {calc && (
+          <div className="bg-indigo-50/60 border border-indigo-100 rounded-lg px-4 py-3">
+            <p className="text-xs text-slate-500 mb-2">
+              {rate}% p.a. (≈ {monthlyRate}%/mo) · {method === "reducing" ? "reducing balance" : "flat"}{feeRate > 0 ? ` · ${feeRate}% processing fee` : ""}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-sm">
+              <div><p className="text-xs text-slate-500">To disburse</p><p className="font-bold text-emerald-700">{money(calc.netDisburse)}</p>{calc.processingFee > 0 && <p className="text-[11px] text-slate-400">fee {money(calc.processingFee)}</p>}</div>
+              <div><p className="text-xs text-slate-500">Interest</p><p className="font-bold text-slate-800">{money(calc.totalInterest)}</p></div>
+              <div><p className="text-xs text-slate-500">Total repayable</p><p className="font-bold text-slate-800">{money(calc.totalAmountDue)}</p></div>
+              <div><p className="text-xs text-slate-500">Per month</p><p className="font-bold text-slate-800">{money(calc.monthlyPayment)}</p><p className="text-[11px] text-slate-400">× {form.duration_months} mo</p></div>
+            </div>
           </div>
         )}
         <Actions busy={busy} onClose={onClose} label="Create application" />
