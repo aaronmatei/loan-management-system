@@ -3655,6 +3655,8 @@ CREATE TABLE public.member_loan_requests (
   issued_loan_id  integer REFERENCES public.member_loans(id) ON DELETE SET NULL,
   product_id      integer REFERENCES public.member_loan_products(id) ON DELETE SET NULL,
   interest_method varchar(20) NOT NULL DEFAULT 'flat',
+  collateral_description text,                  -- migration 103
+  collateral_value       numeric(15,2),         -- migration 103
   created_at      timestamp NOT NULL DEFAULT now(),
   decided_at      timestamp
 );

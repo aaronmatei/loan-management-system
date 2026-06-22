@@ -64,6 +64,34 @@ describe("member portal requests + admin approval", () => {
     expect(loans.body.data).toHaveLength(1);
   });
 
+  it("captures custom rate/method + collateral on a request and attaches it to the issued loan", async () => {
+    const { admin, welfare, tok } = await setup();
+    const reqRes = await request(app)
+      .post("/api/welfare/member/loan-requests")
+      .set("Authorization", tok)
+      .send({ principal: 15000, duration_months: 4, purpose: "Stock", interest_rate: 18, interest_method: "reducing", collateral_description: "Car logbook", collateral_value: 300000 });
+    expect(reqRes.status).toBe(201);
+    expect(Number(reqRes.body.data.interest_rate)).toBe(18);
+    expect(reqRes.body.data.interest_method).toBe("reducing");
+    expect(reqRes.body.data.collateral_description).toBe("Car logbook");
+
+    // Collateral with no value is rejected.
+    expect((await request(app).post("/api/welfare/member/loan-requests").set("Authorization", tok)
+      .send({ principal: 1000, duration_months: 2, collateral_description: "Phone" })).status).toBe(400);
+
+    const approve = await request(app)
+      .post(`/api/welfares/${welfare.id}/requests/loans/${reqRes.body.data.id}/approve`)
+      .set("Authorization", auth(admin)).send({});
+    expect(approve.status).toBe(200);
+    const loanId = approve.body.data.loan.id;
+
+    // The offered collateral now hangs off the issued loan.
+    const coll = (await query("SELECT * FROM member_loan_collateral WHERE member_loan_id = $1", [loanId])).rows;
+    expect(coll).toHaveLength(1);
+    expect(coll[0].description).toBe("Car logbook");
+    expect(Number(coll[0].appraised_value)).toBe(300000);
+  });
+
   it("rejects a withdrawal request over the member's savings at submit time", async () => {
     const { tok } = await setup(10000);
     const res = await request(app)

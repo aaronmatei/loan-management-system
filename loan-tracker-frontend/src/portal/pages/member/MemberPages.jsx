@@ -459,35 +459,46 @@ export function MemberLoans() {
 // live repayment-schedule preview, else a plain amount/duration request.
 function LoanApplyModal({ onClose, onDone }) {
   const { data: products } = useFetch("/welfare/member/loan-products");
-  const [form, setForm] = useState({ product_id: "", principal: "", duration_months: "", purpose: "" });
+  const round4 = (n) => Math.round(n * 10000) / 10000;
+  const [form, setForm] = useState({ product_id: "", principal: "", duration_months: "", purpose: "", interest_rate: "", interest_rate_monthly: "", interest_method: "flat", coll_description: "", coll_value: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
+  // Keep annual ⇄ monthly in sync for a custom (no product) request.
+  const onAnnualRate = (v) => setForm((s) => ({ ...s, interest_rate: v, interest_rate_monthly: v === "" ? "" : round4(parseFloat(v) / 12) }));
+  const onMonthlyRate = (v) => setForm((s) => ({ ...s, interest_rate_monthly: v, interest_rate: v === "" ? "" : round4(parseFloat(v) * 12) }));
   const product = (products || []).find((p) => String(p.id) === String(form.product_id));
+  const rate = product ? Number(product.annual_interest_rate) : Number(form.interest_rate) || 0;
+  const method = product ? product.interest_method : form.interest_method;
 
   const preview = (() => {
     const principal = Number(form.principal), months = Number(form.duration_months);
-    if (!product || !(principal > 0) || !(months > 0)) return null;
-    try { return computeLoanTotals({ principal, annualRatePct: Number(product.annual_interest_rate), months, method: product.interest_method }); } catch { return null; }
+    if (!(principal > 0) || !(months > 0) || !(rate > 0)) return null;
+    try { return computeLoanTotals({ principal, annualRatePct: rate, months, method }); } catch { return null; }
   })();
 
   const submit = async (e) => {
     e.preventDefault();
+    if (form.coll_description.trim() && !(Number(form.coll_value) > 0)) return setErr("Enter the collateral's value (or clear its description).");
     setBusy(true); setErr("");
     try {
-      await portalApi.post("/welfare/member/loan-requests", { product_id: form.product_id || undefined, principal: form.principal, duration_months: form.duration_months, purpose: form.purpose });
+      const body = { product_id: form.product_id || undefined, principal: form.principal, duration_months: form.duration_months, purpose: form.purpose };
+      if (!form.product_id) { body.interest_rate = form.interest_rate; body.interest_method = form.interest_method; }
+      if (form.coll_description.trim()) { body.collateral_description = form.coll_description.trim(); body.collateral_value = form.coll_value; }
+      await portalApi.post("/welfare/member/loan-requests", body);
       onDone(); onClose();
     } catch (e2) { setErr(e2.response?.data?.error || "Failed to submit"); setBusy(false); }
   };
   const fld = "w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-slate-700 mb-1";
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-900">Request a chama loan</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
         {err && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm mb-3">{err}</div>}
         <form onSubmit={submit} className="space-y-3">
           {(products || []).length > 0 && (
-            <div><label className="block text-sm font-semibold text-slate-700 mb-1">Loan product</label>
+            <div><label className={lbl}>Loan product</label>
               <select value={form.product_id} onChange={set("product_id")} className={fld}>
                 <option value="">No product (standard request)</option>
                 {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% {p.interest_method}</option>)}
@@ -495,9 +506,26 @@ function LoanApplyModal({ onClose, onDone }) {
               {product && <p className="text-xs text-slate-400 mt-1">KES {Number(product.min_amount).toLocaleString()}–{Number(product.max_amount).toLocaleString()} · {product.min_duration_months}–{product.max_duration_months} mo</p>}
             </div>
           )}
-          <div><label className="block text-sm font-semibold text-slate-700 mb-1">Amount (KES)</label><input type="number" value={form.principal} onChange={set("principal")} placeholder="e.g. 20000" className={fld} /></div>
-          <div><label className="block text-sm font-semibold text-slate-700 mb-1">Duration (months)</label><input type="number" value={form.duration_months} onChange={set("duration_months")} placeholder="e.g. 6" className={fld} /></div>
-          <div><label className="block text-sm font-semibold text-slate-700 mb-1">Purpose</label><input value={form.purpose} onChange={set("purpose")} placeholder="What's it for?" className={fld} /></div>
+          {!form.product_id && (
+            <div className="grid grid-cols-3 gap-2">
+              <div><label className={lbl}>Annual %</label><input type="number" min="0" step="0.01" value={form.interest_rate} onChange={(e) => onAnnualRate(e.target.value)} className={fld} /></div>
+              <div><label className={lbl}>Monthly %</label><input type="number" min="0" step="0.01" value={form.interest_rate_monthly} onChange={(e) => onMonthlyRate(e.target.value)} className={fld} /></div>
+              <div><label className={lbl}>Method</label><select value={form.interest_method} onChange={set("interest_method")} className={fld}><option value="flat">Flat</option><option value="reducing">Reducing</option></select></div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className={lbl}>Amount (KES)</label><input type="number" value={form.principal} onChange={set("principal")} placeholder="e.g. 20000" className={fld} /></div>
+            <div><label className={lbl}>Duration (months)</label><input type="number" value={form.duration_months} onChange={set("duration_months")} placeholder="e.g. 6" className={fld} /></div>
+          </div>
+          <div><label className={lbl}>Purpose</label><input value={form.purpose} onChange={set("purpose")} placeholder="What's it for?" className={fld} /></div>
+          {/* Collateral (optional) — offer security with the request. */}
+          <div className="border-t border-slate-100 pt-3">
+            <p className="text-sm font-semibold text-slate-700 mb-1">Collateral <span className="font-normal text-slate-400">(optional)</span></p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2"><input value={form.coll_description} onChange={set("coll_description")} placeholder="e.g. Title deed, TV, logbook" className={fld} /></div>
+              <div><input type="number" min="0" value={form.coll_value} onChange={set("coll_value")} placeholder="Value" className={fld} /></div>
+            </div>
+          </div>
           {preview && (
             <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-center text-sm">
               <div><p className="text-xs text-slate-500">Interest</p><p className="font-bold text-slate-800">{KES(preview.totalInterest)}</p></div>

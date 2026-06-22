@@ -734,7 +734,8 @@ router.post("/mpesa/event-share", async (req, res) => {
 // ── Requests (loan from the pool / savings withdrawal) ────────────────────
 // Members ASK; a welfare admin approves. No pool effect until approval.
 
-// POST /loan-requests { principal, duration_months, interest_rate?, purpose }
+// POST /loan-requests { principal, duration_months, interest_rate?, interest_method?,
+//   purpose, collateral_description?, collateral_value? }
 router.post("/loan-requests", gateLoanWrites, async (req, res) => {
   try {
     if (req.member.status !== "active") return res.status(400).json({ error: "Your membership is not active" });
@@ -749,14 +750,19 @@ router.post("/loan-requests", gateLoanWrites, async (req, res) => {
       if (principal < parseFloat(p.min_amount) || principal > parseFloat(p.max_amount)) return res.status(400).json({ error: `Amount must be between KES ${Number(p.min_amount).toLocaleString()} and KES ${Number(p.max_amount).toLocaleString()}` });
       if (months < p.min_duration_months || months > p.max_duration_months) return res.status(400).json({ error: `Duration must be ${p.min_duration_months}–${p.max_duration_months} months` });
       productId = p.id; rate = parseFloat(p.annual_interest_rate); method = p.interest_method;
-    } else if (req.body?.interest_rate != null && req.body.interest_rate !== "") {
-      rate = parseFloat(req.body.interest_rate);
+    } else {
+      if (req.body?.interest_rate != null && req.body.interest_rate !== "") rate = parseFloat(req.body.interest_rate);
+      if (["flat", "reducing"].includes(req.body?.interest_method)) method = req.body.interest_method;
     }
+    // Optional collateral offered with the request — must carry a value.
+    const collDesc = String(req.body?.collateral_description || "").trim() || null;
+    const collValue = req.body?.collateral_value != null && req.body.collateral_value !== "" ? parseFloat(req.body.collateral_value) : null;
+    if (collDesc && !(collValue > 0)) return res.status(400).json({ error: "Enter the collateral's value (or clear its description)" });
     const r = await query(
       `INSERT INTO member_loan_requests
-         (tenant_id, welfare_id, member_id, principal, duration_months, interest_rate, product_id, interest_method, purpose, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending') RETURNING *`,
-      [req.member.tenant_id, req.welfareId, req.member.id, principal, months, rate, productId, method, req.body?.purpose || null],
+         (tenant_id, welfare_id, member_id, principal, duration_months, interest_rate, product_id, interest_method, purpose, status, collateral_description, collateral_value)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11) RETURNING *`,
+      [req.member.tenant_id, req.welfareId, req.member.id, principal, months, rate, productId, method, req.body?.purpose || null, collDesc, collDesc ? collValue : null],
     );
     res.status(201).json({ success: true, data: r.rows[0] });
   } catch (e) {

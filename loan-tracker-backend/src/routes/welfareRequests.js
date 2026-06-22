@@ -108,6 +108,14 @@ router.post("/loans/:id/approve", authorize("admin", "manager"), gateLoanWrites,
         WHERE id=$1`,
       [reqRow.id, req.user.id, req.body?.notes || null, loan.id],
     );
+    // Carry any collateral the member offered onto the issued loan.
+    if (reqRow.collateral_description && Number(reqRow.collateral_value) > 0) {
+      await query(
+        `INSERT INTO member_loan_collateral (tenant_id, member_loan_id, description, appraised_value, created_by)
+         VALUES ($1,$2,$3,$4,$5)`,
+        [req.welfare.tenant_id, loan.id, reqRow.collateral_description, parseFloat(reqRow.collateral_value), req.user.id],
+      );
+    }
     await logAudit({
       user: req.user, action: "member_loan_request_approved", entityType: "member_loan",
       entityId: loan.id, entityCode: loan.loan_code,
