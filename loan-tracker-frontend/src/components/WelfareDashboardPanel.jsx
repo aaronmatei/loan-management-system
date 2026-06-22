@@ -84,19 +84,20 @@ export default function WelfareDashboardPanel({
         )}
       </div>
       <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        {/* First row: Pool balance → Savings → Investments → Profit. */}
         <Stat icon={Wallet} label="Pool balance" value={money(d.pool.balance)} sub={`Surplus ${money(d.pool.surplus)}`} tone="emerald" />
-        <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" />
-        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.outstanding)} sub={`${d.loans.open} open`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" />}
-        <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} mine={p && p.penalties != null ? money(p.penalties) : undefined} tone="rose" />
         <Stat icon={Wallet} label="Savings" value={money(d.pool.members_savings)} sub={`${money(d.pool.total_contributions)} contributed`} mine={p && p.savings != null ? money(p.savings) : undefined} />
-        <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" />
         {d.investments && (
           <Stat icon={TrendingUp} label="Investments" value={money(d.investments.current)}
             sub={`Income ${money(d.investments.income)} · invested ${money(d.investments.invested)}`}
             tone={d.investments.income < 0 ? "rose" : "emerald"} />
         )}
         <Stat icon={TrendingUp} label="Profit" value={money(d.pool.profit)} sub="pool above member savings" tone={d.pool.profit < 0 ? "rose" : "emerald"} />
+        <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" />
+        <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} mine={p && p.penalties != null ? money(p.penalties) : undefined} tone="rose" />
+        <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" />
         <Stat icon={Receipt} label="Expenses" value={money(d.pool.expenses)} sub="spent from the savings pool" tone="rose" />
+        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.outstanding)} sub={`${d.loans.open} open`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" />}
         {d.compliance ? (
           <Stat icon={CalendarCheck} label={`Compliance · ${d.compliance.cycle || "cycle"}`} value={`${d.compliance.paid_pct}%`} sub={`${d.compliance.paid}/${d.compliance.total} paid`} mine={p ? pct(p.compliance_pct, p.compliance) : undefined} tone="emerald" />
         ) : (
