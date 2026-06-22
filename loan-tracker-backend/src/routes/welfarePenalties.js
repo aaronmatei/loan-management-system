@@ -102,6 +102,36 @@ router.put("/settings/loans", authorize("admin", "manager"), async (req, res) =>
   }
 });
 
+// PUT /settings/loan-policy — the chama's default loan terms (mirrors the
+// lender's Loan Policy). Pre-fills every new loan / loan product. Dedicated so
+// it never disturbs contribution settings or the loans switch.
+router.put("/settings/loan-policy", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const numOrNull = (v) => (v != null && v !== "" ? parseFloat(v) : null);
+    const numOr0 = (v) => parseFloat(v) || 0;
+    const method = ["flat", "reducing"].includes(b.default_loan_interest_method) ? b.default_loan_interest_method : "flat";
+    const r = await query(
+      `INSERT INTO welfare_settings
+         (tenant_id, default_loan_interest_rate, default_loan_interest_method, default_loan_processing_fee_rate, default_loan_late_fee, default_loan_penalty_rate)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (tenant_id) DO UPDATE SET
+         default_loan_interest_rate = EXCLUDED.default_loan_interest_rate,
+         default_loan_interest_method = EXCLUDED.default_loan_interest_method,
+         default_loan_processing_fee_rate = EXCLUDED.default_loan_processing_fee_rate,
+         default_loan_late_fee = EXCLUDED.default_loan_late_fee,
+         default_loan_penalty_rate = EXCLUDED.default_loan_penalty_rate,
+         updated_at = NOW()
+       RETURNING *`,
+      [req.welfare.tenant_id, numOrNull(b.default_loan_interest_rate), method, numOr0(b.default_loan_processing_fee_rate), numOr0(b.default_loan_late_fee), numOr0(b.default_loan_penalty_rate)],
+    );
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("welfare loan-policy update error:", e);
+    res.status(500).json({ error: "Failed to save loan policy" });
+  }
+});
+
 // ---------------- PENALTY RULES ----------------
 
 router.get("/penalty-rules", async (req, res) => {

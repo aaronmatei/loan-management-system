@@ -24,6 +24,7 @@ export default function WelfareLoansPanel({ welfareId }) {
   const [loans, setLoans] = useState([]);
   const [members, setMembers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [policy, setPolicy] = useState(null); // default loan terms (welfare loan policy)
   const [tab, setTab] = useState("queue");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -32,14 +33,16 @@ export default function WelfareLoansPanel({ welfareId }) {
   const load = async () => {
     setLoading(true);
     try {
-      const [l, m, p] = await Promise.all([
+      const [l, m, p, s] = await Promise.all([
         api.get(`/welfares/${welfareId}/loans`),
         api.get(`/welfares/${welfareId}/members`),
         api.get(`/welfares/${welfareId}/loans/products`),
+        api.get(`/welfares/${welfareId}/settings`).catch(() => ({ data: { data: null } })),
       ]);
       setLoans(l.data.data || []);
       setMembers((m.data.data || []).filter((x) => x.status === "active"));
       setProducts((p.data.data || []).filter((x) => x.active));
+      setPolicy(s.data?.data || null);
     } catch { /* */ } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, [welfareId]);
@@ -92,14 +95,22 @@ export default function WelfareLoansPanel({ welfareId }) {
         )}
       </div>
 
-      {creating && <ApplyModal welfareId={welfareId} members={members} products={products} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
+      {creating && <ApplyModal welfareId={welfareId} members={members} products={products} policy={policy} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
       {selectedId && <LoanDetailModal welfareId={welfareId} loanId={selectedId} members={members} onClose={() => setSelectedId(null)} onChanged={load} />}
     </div>
   );
 }
 
-function ApplyModal({ welfareId, members, products, onClose, onSaved }) {
-  const [form, setForm] = useState({ member_id: "", product_id: "", interest_rate: "", interest_method: "flat", late_fee: "", penalty_rate: "", principal: "", duration_months: 6, purpose: "", coll_description: "", coll_value: "" });
+function ApplyModal({ welfareId, members, products, policy, onClose, onSaved }) {
+  // A custom loan (no product) starts from the chama's loan policy defaults.
+  const [form, setForm] = useState({
+    member_id: "", product_id: "",
+    interest_rate: policy?.default_loan_interest_rate ?? "",
+    interest_method: policy?.default_loan_interest_method || "flat",
+    late_fee: policy?.default_loan_late_fee ? Number(policy.default_loan_late_fee) || "" : "",
+    penalty_rate: policy?.default_loan_penalty_rate ? Number(policy.default_loan_penalty_rate) || "" : "",
+    principal: "", duration_months: 6, purpose: "", coll_description: "", coll_value: "",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));

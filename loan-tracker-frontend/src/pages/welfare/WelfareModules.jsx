@@ -228,6 +228,7 @@ export function WelfareSettingsPage() {
       {loansOn && (
         <>
           <NonMemberLendingCard />
+          <LoanPolicyCard welfareId={welfareId} />
           <MemberLoanProductsPanel welfareId={welfareId} />
         </>
       )}
@@ -268,6 +269,75 @@ function LoansSwitchCard({ welfareId, on, onChange }) {
           </button>
           <span className="text-sm font-semibold text-slate-700">{busy ? "Saving…" : on ? "Loans are ON" : "Loans are OFF"}</span>
         </div>
+      </PermissionGate>
+    </div>
+  );
+}
+
+// Default loan terms for the chama (mirrors the lender's Loan Policy). Pre-fills
+// every new loan / loan product; per-loan and per-product values still override.
+function LoanPolicyCard({ welfareId }) {
+  const [p, setP] = useState({ default_loan_interest_rate: "", monthly: "", default_loan_interest_method: "flat", default_loan_processing_fee_rate: "", default_loan_late_fee: "", default_loan_penalty_rate: "" });
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const round4 = (n) => Math.round(n * 10000) / 10000;
+
+  useEffect(() => {
+    api.get(`/welfares/${welfareId}/settings`).then((r) => {
+      const d = r.data?.data || {};
+      const annual = d.default_loan_interest_rate ?? "";
+      setP({
+        default_loan_interest_rate: annual,
+        monthly: annual === "" ? "" : round4(annual / 12),
+        default_loan_interest_method: d.default_loan_interest_method || "flat",
+        default_loan_processing_fee_rate: d.default_loan_processing_fee_rate ?? "",
+        default_loan_late_fee: d.default_loan_late_fee ?? "",
+        default_loan_penalty_rate: d.default_loan_penalty_rate ?? "",
+      });
+    }).catch(() => {});
+  }, [welfareId]);
+
+  const onAnnual = (v) => setP((s) => ({ ...s, default_loan_interest_rate: v, monthly: v === "" ? "" : round4(parseFloat(v) / 12) }));
+  const onMonthly = (v) => setP((s) => ({ ...s, monthly: v, default_loan_interest_rate: v === "" ? "" : round4(parseFloat(v) * 12) }));
+
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true); setSaved(false);
+    try {
+      await api.put(`/welfares/${welfareId}/settings/loan-policy`, {
+        default_loan_interest_rate: p.default_loan_interest_rate,
+        default_loan_interest_method: p.default_loan_interest_method,
+        default_loan_processing_fee_rate: p.default_loan_processing_fee_rate,
+        default_loan_late_fee: p.default_loan_late_fee,
+        default_loan_penalty_rate: p.default_loan_penalty_rate,
+      });
+      setSaved(true); setTimeout(() => setSaved(false), 3000);
+    } catch (err) { alert(err.response?.data?.error || "Failed to save"); } finally { setBusy(false); }
+  };
+
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl mt-6">
+      <h2 className="font-bold text-slate-900 mb-1">Loan policy</h2>
+      <p className="text-sm text-slate-500 mb-5">Default terms applied to every new loan and loan product. You can still override them per loan. The processing fee is deducted from what the borrower receives — they repay the full principal plus interest.</p>
+      <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit this.</p>}>
+        <form onSubmit={save} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label className={lbl}>Annual interest rate (%)</label><input type="number" min="0" step="0.01" value={p.default_loan_interest_rate} onChange={(e) => onAnnual(e.target.value)} className={fld} /><p className="text-xs text-gray-500 mt-1">e.g. 24 = 24% p.a.</p></div>
+            <div><label className={lbl}>Monthly interest rate (%)</label><input type="number" min="0" step="0.01" value={p.monthly} onChange={(e) => onMonthly(e.target.value)} className={fld} /><p className="text-xs text-gray-500 mt-1">Syncs with annual (÷ 12).</p></div>
+            <div><label className={lbl}>Interest method</label><select value={p.default_loan_interest_method} onChange={(e) => setP({ ...p, default_loan_interest_method: e.target.value })} className={fld}><option value="flat">Flat</option><option value="reducing">Reducing balance</option></select></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label className={lbl}>Processing fee (%)</label><input type="number" min="0" max="100" step="0.01" value={p.default_loan_processing_fee_rate} onChange={(e) => setP({ ...p, default_loan_processing_fee_rate: e.target.value })} className={fld} /><p className="text-xs text-gray-500 mt-1">Deducted upfront (0 = none).</p></div>
+            <div><label className={lbl}>Late fee (KES)</label><input type="number" min="0" step="1" value={p.default_loan_late_fee} onChange={(e) => setP({ ...p, default_loan_late_fee: e.target.value })} className={fld} /><p className="text-xs text-gray-500 mt-1">Flat fee on a missed instalment.</p></div>
+            <div><label className={lbl}>Penalty rate (%)</label><input type="number" min="0" step="0.001" value={p.default_loan_penalty_rate} onChange={(e) => setP({ ...p, default_loan_penalty_rate: e.target.value })} className={fld} /><p className="text-xs text-gray-500 mt-1">Per period on overdue balance.</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save loan policy"}</button>
+            {saved && <span className="text-sm text-emerald-700 font-semibold">Saved ✓</span>}
+          </div>
+        </form>
       </PermissionGate>
     </div>
   );

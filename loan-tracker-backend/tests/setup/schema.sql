@@ -3685,6 +3685,11 @@ CREATE TABLE public.welfare_settings (
   contribution_grace_days  integer NOT NULL DEFAULT 0,
   attendance_grace_minutes integer NOT NULL DEFAULT 0,
   loans_enabled            boolean NOT NULL DEFAULT false, -- migration 095
+  default_loan_interest_rate       numeric(6,2),            -- migration 102
+  default_loan_interest_method     varchar(20) NOT NULL DEFAULT 'flat',
+  default_loan_processing_fee_rate numeric(5,2) NOT NULL DEFAULT 0,
+  default_loan_late_fee            numeric(14,2) NOT NULL DEFAULT 0,
+  default_loan_penalty_rate        numeric(6,3) NOT NULL DEFAULT 0,
   created_at               timestamp NOT NULL DEFAULT NOW(),
   updated_at               timestamp NOT NULL DEFAULT NOW()
 );
