@@ -392,7 +392,14 @@ function Clients() {
       <PageHeader
         icon={Users}
         title="Clients"
-        subtitle={`Total: ${clients.length} clients`}
+        kpis={[
+          { label: "Total clients", value: clients.length },
+          {
+            label: "Active",
+            value: clients.filter((c) => c.status === "active").length,
+            tone: "pos",
+          },
+        ]}
         actions={
           <button
             onClick={() => setShowForm(!showForm)}

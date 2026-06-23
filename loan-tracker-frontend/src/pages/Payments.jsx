@@ -599,7 +599,15 @@ function Payments() {
       <PageHeader
         icon={Coins}
         title="Payments"
-        subtitle={`${payments.filter((p) => p.payment_status !== "voided").length} payments recorded`}
+        kpis={[
+          {
+            label: "Collected",
+            value: totals.total_collected,
+            money: true,
+            tone: "pos",
+          },
+          { label: "Payments", value: totals.count },
+        ]}
         actions={
           <button
             onClick={() => setShowForm(!showForm)}

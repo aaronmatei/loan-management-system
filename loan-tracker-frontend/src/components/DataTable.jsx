@@ -10,6 +10,16 @@ import { formatKES } from "../utils/money";
 // rows). The page owns the DATA (sorting, pagination, filtering, bulk
 // selection) and passes already-prepared rows in.
 //
+// LARGE DATASETS / virtualization: this table is NOT row-virtualized. The
+// DOM is instead bounded by the page's client-side pagination — callers
+// pass only the current page (≈50 rows) as `rows`, so the rendered node
+// count stays flat no matter how large the underlying dataset is. Row
+// windowing was deliberately skipped: rows here have variable height
+// (multi-line cells + expandable detail rows), which fights fixed-size
+// windowing, and pagination already caps the DOM. If a future list must
+// render thousands of rows in one scroll (no pagination), add windowing
+// here behind a `virtualize` prop rather than per page.
+//
 // Column shape:
 //   { key, label, align: "left"|"right", cell: (row) => node,
 //     money?: bool, total?: (rows) => number, totalClass?: string,

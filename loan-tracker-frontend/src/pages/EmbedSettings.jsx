@@ -14,8 +14,10 @@ import {
 import api from "../services/api";
 import PageHeader from "../components/PageHeader";
 import Skeleton from "../components/Skeleton";
+import { useToast } from "../components/Toast";
 
 function EmbedSettings() {
+  const { toast } = useToast();
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(null);
@@ -76,6 +78,7 @@ function EmbedSettings() {
   const copy = (code, type) => {
     navigator.clipboard.writeText(code);
     setCopied(type);
+    toast("Copied to clipboard"); // UI feedback only
     setTimeout(() => setCopied(null), 2000);
   };
 
