@@ -239,7 +239,7 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
           <div className="space-y-1">
             {pool.payouts.map((p) => (
               <div key={p.id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-700 dark:text-slate-200">{p.first_name} {p.last_name} <span className="text-slate-400 dark:text-slate-400">· {fmt(p.txn_date)}</span>
+                <span className="text-slate-700 dark:text-slate-200">{p.first_name} {p.last_name} <span className="text-slate-400 dark:text-slate-400">· {fmt(p.meeting_date || p.txn_date)}</span>
                   {p.meeting_id ? <span className="ml-1 text-violet-600 text-xs font-semibold" title={p.meeting_title}><Users size={11} className="inline -mt-0.5" /> {p.attended}/{p.recorded} present</span> : null}
                 </span>
                 <span className="font-semibold text-rose-600">− {money(p.amount)}</span>
