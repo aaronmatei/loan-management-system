@@ -19,7 +19,8 @@ import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
-import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import { useColumnPreset } from "../hooks/useTablePrefs";
 import { formatKES } from "../utils/money";
 
 const fmt = (n) => formatKES(n);
@@ -32,6 +33,141 @@ const fmtDate = (d) => {
     year: "numeric",
   });
 };
+
+const num = (v) => parseFloat(v || 0);
+
+// ── Defaulted-loans table column model ────────────────────────────────
+// Column-driven so the page can offer client-side presets (which columns
+// render in the row) and push the rest into an expandable detail row.
+// Loan Code is pinned (rendered specially) and so is NOT in this list.
+// `money` columns also contribute to the totals footer. Each row carries
+// a derived `penalty` (Σ penalty_outstanding) and `days` (max_days_late)
+// so the cells stay pure presentation. The Action column injects its
+// handlers via the factory arg.
+const defaultedColumns = ({ navigate, onReactivate }) => [
+  {
+    key: "client",
+    label: "Client",
+    align: "left",
+    cell: (loan) => (
+      <div>
+        <p className="font-semibold text-navy-900 dark:text-slate-100 text-sm">
+          {loan.first_name} {loan.last_name}
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+          {loan.client_code}
+        </p>
+      </div>
+    ),
+  },
+  {
+    key: "principal_amount",
+    label: "Principal",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, r) => s + num(r.principal_amount), 0),
+    totalClass: "text-amber-700",
+    cell: (loan) => (
+      <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
+        {fmt(loan.principal_amount)}
+      </p>
+    ),
+  },
+  {
+    key: "balance_due",
+    label: "Balance",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, r) => s + num(r.balance_due), 0),
+    totalClass: "text-rose-700",
+    cell: (loan) => (
+      <p className="font-bold text-rose-700 text-sm">{fmt(loan.balance_due)}</p>
+    ),
+  },
+  {
+    key: "penalty",
+    label: "Penalty",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, r) => s + num(r.penalty), 0),
+    totalClass: "text-orange-600",
+    cell: (loan) =>
+      loan.penalty > 0 ? (
+        <p
+          className="font-semibold text-orange-600 text-sm"
+          title="Sum of penalty_outstanding across this loan's overdue installments"
+        >
+          {fmt(loan.penalty)}
+        </p>
+      ) : (
+        <p className="text-slate-300 text-sm">—</p>
+      ),
+  },
+  {
+    key: "days",
+    label: "Days",
+    align: "right",
+    cell: (loan) =>
+      loan.days > 0 ? (
+        <span
+          className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
+            loan.days > 90
+              ? "bg-red-200 text-red-900"
+              : loan.days >= 31
+                ? "bg-red-100 text-red-700"
+                : loan.days >= 8
+                  ? "bg-orange-100 text-orange-700"
+                  : "bg-yellow-100 text-yellow-700"
+          }`}
+          title="Days since the oldest unpaid installment came due"
+        >
+          {loan.days}d
+        </span>
+      ) : (
+        <span className="text-sm text-slate-400">—</span>
+      ),
+  },
+  {
+    key: "action",
+    label: "Action",
+    align: "left",
+    cell: (loan) => (
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => navigate(`/loans/${loan.id}`)}
+          className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
+        >
+          <Eye size={13} /> Open
+        </button>
+        <PermissionGate role={["admin", "manager"]}>
+          <button
+            onClick={() => onReactivate(loan)}
+            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
+            title="Move back to active so waivers / new payments can land"
+          >
+            <CheckCircle size={13} /> Reactivate
+          </button>
+        </PermissionGate>
+      </div>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. Loan Code is always
+// pinned and shown outside this set. Hidden keys drop into the expandable
+// detail row, so nothing is lost — just demoted.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["client", "balance_due", "days", "action"],
+  },
+  full: {
+    label: "Everything",
+    keys: ["client", "principal_amount", "balance_due", "penalty", "days", "action"],
+  },
+};
+
+const PRESET_STORAGE_KEY = "defaulted.columnPreset";
 
 function Defaulted() {
   const navigate = useNavigate();
@@ -47,6 +183,24 @@ function Defaulted() {
   const [reactivating, setReactivating] = useState(null); // loan row
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  // ── Table UX state (client-side only) ─────────────────────────
+  // Expanded rows reveal columns demoted by the active preset.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
+  const toggleRow = (id) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Column preset — shared hook, localStorage only. (No client-side
+  // filters on this page, so there are no saved segments to manage.)
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "full",
+  );
 
   const load = async ({ silent = false } = {}) => {
     if (silent) setRefreshing(true);
@@ -128,6 +282,25 @@ function Defaulted() {
     return d > 0 && (acc == null || d > acc) ? d : acc;
   }, null);
 
+  // Sorted + derived rows for the table. Sort by days-late DESC
+  // (deepest defaults first) — the natural collections-side ordering.
+  // Ties broken by balance at risk so big-money rows still sit above
+  // smaller ones at the same age. `days` and `penalty` are precomputed
+  // so the column cells stay pure presentation.
+  const tableRows = rows
+    .slice()
+    .sort((a, b) => {
+      const da = parseInt(a.max_days_late, 10) || 0;
+      const db = parseInt(b.max_days_late, 10) || 0;
+      if (db !== da) return db - da;
+      return parseFloat(b.balance_due || 0) - parseFloat(a.balance_due || 0);
+    })
+    .map((loan) => ({
+      ...loan,
+      days: parseInt(loan.max_days_late, 10) || 0,
+      penalty: penaltyByLoan.get(loan.id) || 0,
+    }));
+
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <PageHeader
@@ -196,164 +369,52 @@ function Defaulted() {
         </div>
       </div>
 
-      {/* List */}
-      {loading ? (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4">
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-8 w-24 rounded-lg" />
+      {/* List — shared DataTable (column presets, expandable rows,
+          sticky pinned Loan Code, totals footer, skeleton). The rows
+          are pre-sorted (days-late DESC) by the page, so the column
+          headers are not interactive sorters. */}
+      <DataTable
+        columns={defaultedColumns({
+          navigate,
+          onReactivate: (loan) => setReactivating(loan),
+        })}
+        rows={tableRows}
+        rowKey={(l) => l.id}
+        pinned={{
+          label: "Loan",
+          cell: (loan) => (
+            <div>
+              <button
+                onClick={() => navigate(`/loans/${loan.id}`)}
+                className="font-mono text-sm font-bold text-ocean-600 hover:text-ocean-800 inline-flex items-center gap-1"
+              >
+                {loan.loan_code} <ArrowUpRight size={12} />
+              </button>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                disbursed {fmtDate(loan.disbursed_at)}
+              </p>
             </div>
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <EmptyState
-          icon={CheckCircle}
-          tone="muted"
-          title="No defaulted loans"
-          description="Everything on the book is current or being repaid."
-        />
-      ) : (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-          <div className="overflow-auto max-h-[calc(100vh-320px)]">
-            <table className="w-full whitespace-nowrap">
-              <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-                <tr className="text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">
-                  <th className="px-4 py-3">Loan</th>
-                  <th className="px-4 py-3">Client</th>
-                  <th className="px-4 py-3 text-right">Principal</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3 text-right">Penalty</th>
-                  <th className="px-4 py-3 text-right" title="Days since the oldest unpaid installment came due">
-                    Days
-                  </th>
-                  <th className="px-4 py-3 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows
-                  .slice()
-                  // Sort by days-late DESC (deepest defaults first) —
-                  // that's the natural collections-side ordering.
-                  // Ties broken by balance at risk so big-money rows
-                  // still sit above smaller ones at the same age.
-                  .sort((a, b) => {
-                    const da = parseInt(a.max_days_late, 10) || 0;
-                    const db = parseInt(b.max_days_late, 10) || 0;
-                    if (db !== da) return db - da;
-                    return (
-                      parseFloat(b.balance_due || 0) -
-                      parseFloat(a.balance_due || 0)
-                    );
-                  })
-                  .map((loan) => {
-                    // max_days_late comes from the loans-list overdue
-                    // subquery — days since the OLDEST unpaid
-                    // installment came due, not since the loan row
-                    // was last updated (which my earlier draft used
-                    // and was both stale + misleading after any
-                    // recent edit bumped updated_at).
-                    const days = parseInt(loan.max_days_late, 10) || 0;
-                    const penalty = penaltyByLoan.get(loan.id) || 0;
-                    return (
-                      <tr
-                        key={loan.id}
-                        className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-                      >
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => navigate(`/loans/${loan.id}`)}
-                            className="font-mono text-sm font-bold text-ocean-600 hover:text-ocean-800 inline-flex items-center gap-1"
-                          >
-                            {loan.loan_code} <ArrowUpRight size={12} />
-                          </button>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            disbursed {fmtDate(loan.disbursed_at)}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-navy-900 dark:text-slate-100 text-sm">
-                            {loan.first_name} {loan.last_name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                            {loan.client_code}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
-                            {fmt(loan.principal_amount)}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <p className="font-bold text-rose-700 text-sm">
-                            {fmt(loan.balance_due)}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {penalty > 0 ? (
-                            <p
-                              className="font-semibold text-orange-600 text-sm"
-                              title="Sum of penalty_outstanding across this loan's overdue installments"
-                            >
-                              {fmt(penalty)}
-                            </p>
-                          ) : (
-                            <p className="text-slate-300 text-sm">—</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {days > 0 ? (
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                                days > 90
-                                  ? "bg-red-200 text-red-900"
-                                  : days >= 31
-                                    ? "bg-red-100 text-red-700"
-                                    : days >= 8
-                                      ? "bg-orange-100 text-orange-700"
-                                      : "bg-yellow-100 text-yellow-700"
-                              }`}
-                              title="Days since the oldest unpaid installment came due"
-                            >
-                              {days}d
-                            </span>
-                          ) : (
-                            <span className="text-sm text-slate-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => navigate(`/loans/${loan.id}`)}
-                              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
-                            >
-                              <Eye size={13} /> Open
-                            </button>
-                            <PermissionGate role={["admin", "manager"]}>
-                              <button
-                                onClick={() => setReactivating(loan)}
-                                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
-                                title="Move back to active so waivers / new payments can land"
-                              >
-                                <CheckCircle size={13} /> Reactivate
-                              </button>
-                            </PermissionGate>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+          ),
+        }}
+        presets={COLUMN_PRESETS}
+        preset={columnPreset}
+        onPresetChange={setColumnPreset}
+        expandedRows={expandedRows}
+        onToggleRow={toggleRow}
+        totals={tableRows}
+        totalsLabel={`TOTALS (${tableRows.length})`}
+        loading={loading}
+        skeletonRows={6}
+        skeletonCols={7}
+        empty={
+          <EmptyState
+            icon={CheckCircle}
+            tone="muted"
+            title="No defaulted loans"
+            description="Everything on the book is current or being repaid."
+          />
+        }
+      />
 
       {/* Reactivate confirmation */}
       {reactivating && (

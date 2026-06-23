@@ -23,6 +23,134 @@ import api from "../services/api";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import SegmentBar from "../components/SegmentBar";
+import { useSortableTable } from "../hooks/useSortableTable";
+import {
+  useColumnPreset,
+  useFilterSegments,
+} from "../hooks/useTablePrefs";
+
+// ── Audit log presentation helpers ───────────────────────────────────
+// Action colour + icon are shared by the table cells and the detail
+// modal, so they live at module scope. Pure presentation, no data.
+const getActionBadge = (action) => {
+  const styles = {
+    created: "bg-green-100 text-green-700",
+    updated: "bg-ocean-100 text-ocean-700",
+    deleted: "bg-red-100 text-red-700",
+    status_changed: "bg-ocean-100 text-ocean-700",
+    login: "bg-ocean-100 text-ocean-700",
+    login_failed: "bg-red-100 text-red-700",
+    logout: "bg-gray-100 text-gray-700",
+    payment_recorded: "bg-emerald-100 text-emerald-700",
+    refund_processed: "bg-ocean-100 text-ocean-700",
+    sms_sent: "bg-ocean-100 text-ocean-700",
+    email_sent: "bg-ocean-100 text-ocean-700",
+    capital_adjusted: "bg-yellow-100 text-yellow-700",
+    report_exported: "bg-pink-100 text-pink-700",
+  };
+  return styles[action] || "bg-gray-100 text-gray-700";
+};
+
+const getActionIcon = (action) => {
+  const icons = {
+    created: <Sparkles size={12} />,
+    updated: <Pencil size={12} />,
+    deleted: <Trash2 size={12} />,
+    status_changed: <RotateCcw size={12} />,
+    login: <LockOpen size={12} />,
+    login_failed: <Ban size={12} />,
+    logout: <Lock size={12} />,
+    payment_recorded: <Coins size={12} />,
+    refund_processed: <Coins size={12} />,
+    sms_sent: <Smartphone size={12} />,
+    email_sent: <Mail size={12} />,
+    capital_adjusted: <Landmark size={12} />,
+    report_exported: <BarChart3 size={12} />,
+  };
+  return icons[action] || <FileText size={12} />;
+};
+
+// ── Audit log column model ────────────────────────────────────────────
+// The timestamp is the log's identity, so it's the pinned (sticky) column
+// and lives outside this list. Each cell reproduces the desktop table's
+// EXACT rendering (badges, mono codes, dark variants). No money on this
+// page — totals are intentionally omitted. Columns hidden by the active
+// preset drop into the expandable detail row, so nothing is ever lost.
+const AUDIT_COLUMNS = [
+  {
+    key: "user_name",
+    label: "User",
+    align: "left",
+    cell: (log) => (
+      <div className="text-sm">
+        <p className="font-semibold text-gray-800 dark:text-slate-100">
+          {log.user_name || "System"}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-slate-400">
+          {log.user_email}
+        </p>
+      </div>
+    ),
+  },
+  {
+    key: "action",
+    label: "Action",
+    align: "left",
+    cell: (log) => (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${getActionBadge(
+          log.action,
+        )}`}
+      >
+        {getActionIcon(log.action)} {log.action}
+      </span>
+    ),
+  },
+  {
+    key: "entity_type",
+    label: "Entity",
+    align: "left",
+    cell: (log) => (
+      <div className="text-sm">
+        <p className="text-gray-700 dark:text-slate-200 capitalize">
+          {log.entity_type}
+        </p>
+        {log.entity_code && (
+          <p className="text-xs text-ocean-600 font-mono">{log.entity_code}</p>
+        )}
+      </div>
+    ),
+  },
+  {
+    key: "description",
+    label: "Description",
+    align: "left",
+    cell: (log) => (
+      <span className="text-sm text-gray-700 dark:text-slate-200 max-w-md whitespace-normal">
+        {log.description}
+      </span>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. The timestamp is always
+// pinned and shown outside this set. Anything not visible drops into the
+// expandable detail row, so no data is ever hidden — just demoted.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["user_name", "action", "description"],
+  },
+  full: {
+    label: "Everything",
+    keys: AUDIT_COLUMNS.map((c) => c.key),
+  },
+};
+
+const PRESET_STORAGE_KEY = "audit.columnPreset";
+const SEGMENTS_STORAGE_KEY = "audit.segments";
 
 function AuditLog() {
   const [logs, setLogs] = useState([]);
@@ -44,6 +172,25 @@ function AuditLog() {
 
   // Detail modal
   const [selectedLog, setSelectedLog] = useState(null);
+
+  // ── Table UX state (client-side only) ─────────────────────────
+  // Expanded rows reveal columns demoted by the active preset.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
+  const toggleRow = (id) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "essentials",
+  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments(SEGMENTS_STORAGE_KEY);
 
   useEffect(() => {
     fetchData();
@@ -119,51 +266,45 @@ function AuditLog() {
     return true;
   });
 
+  // Sort the filtered set (newest first by default), then paginate.
+  const {
+    sortedData: sortedLogs,
+    requestSort,
+    getSortIndicator,
+  } = useSortableTable(filteredLogs, "created_at", "desc");
+
   // Pagination
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedLogs.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedLogs = filteredLogs.slice(
+  const paginatedLogs = sortedLogs.slice(
     startIndex,
     startIndex + itemsPerPage,
   );
 
-  // Action badges
-  const getActionBadge = (action) => {
-    const styles = {
-      created: "bg-green-100 text-green-700",
-      updated: "bg-ocean-100 text-ocean-700",
-      deleted: "bg-red-100 text-red-700",
-      status_changed: "bg-ocean-100 text-ocean-700",
-      login: "bg-ocean-100 text-ocean-700",
-      login_failed: "bg-red-100 text-red-700",
-      logout: "bg-gray-100 text-gray-700",
-      payment_recorded: "bg-emerald-100 text-emerald-700",
-      refund_processed: "bg-ocean-100 text-ocean-700",
-      sms_sent: "bg-ocean-100 text-ocean-700",
-      email_sent: "bg-ocean-100 text-ocean-700",
-      capital_adjusted: "bg-yellow-100 text-yellow-700",
-      report_exported: "bg-pink-100 text-pink-700",
-    };
-    return styles[action] || "bg-gray-100 text-gray-700";
-  };
+  // ── Saved filter segments (localStorage only, via shared hook) ─
+  const filtersActive =
+    searchQuery.trim() !== "" ||
+    filters.action !== "all" ||
+    filters.entity_type !== "all" ||
+    filters.date_from !== "" ||
+    filters.date_to !== "";
 
-  const getActionIcon = (action) => {
-    const icons = {
-      created: <Sparkles size={12} />,
-      updated: <Pencil size={12} />,
-      deleted: <Trash2 size={12} />,
-      status_changed: <RotateCcw size={12} />,
-      login: <LockOpen size={12} />,
-      login_failed: <Ban size={12} />,
-      logout: <Lock size={12} />,
-      payment_recorded: <Coins size={12} />,
-      refund_processed: <Coins size={12} />,
-      sms_sent: <Smartphone size={12} />,
-      email_sent: <Mail size={12} />,
-      capital_adjusted: <Landmark size={12} />,
-      report_exported: <BarChart3 size={12} />,
-    };
-    return icons[action] || <FileText size={12} />;
+  const handleSaveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. Logins last week)");
+    if (!name) return;
+    saveSegment(name, { searchQuery, filters: { ...filters } });
+  };
+  const applySegment = (segment) => {
+    const snap = segment.snapshot || {};
+    setSearchQuery(snap.searchQuery || "");
+    setFilters({
+      action: "all",
+      entity_type: "all",
+      date_from: "",
+      date_to: "",
+      ...(snap.filters || {}),
+    });
+    setCurrentPage(1);
   };
 
   const renderJson = (value) => {
@@ -327,133 +468,85 @@ function AuditLog() {
         </div>
       </div>
 
-      {/* Audit Logs Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-        <div className="overflow-auto max-h-[calc(100vh-450px)]">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 border-b-2 border-gray-200 dark:border-slate-700">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                  Date/Time
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                  User
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                  Action
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                  Entity
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                  Description
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                  Details
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="p-6">
-                    <EmptyState
-                      icon={FileText}
-                      tone="muted"
-                      title="No audit logs found"
-                      description="Activity matching your current filters will appear here."
-                    />
-                  </td>
-                </tr>
-              ) : (
-                paginatedLogs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200 whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString("en-GB")}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <p className="font-semibold text-gray-800 dark:text-slate-100">
-                        {log.user_name || "System"}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400">{log.user_email}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${getActionBadge(
-                          log.action,
-                        )}`}
-                      >
-                        {getActionIcon(log.action)} {log.action}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <p className="text-gray-700 dark:text-slate-200 capitalize">
-                        {log.entity_type}
-                      </p>
-                      {log.entity_code && (
-                        <p className="text-xs text-ocean-600 font-mono">
-                          {log.entity_code}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200 max-w-md">
-                      {log.description}
-                    </td>
-                    <td className="px-4 py-3">
-                      {(log.old_values || log.new_values || log.metadata) && (
-                        <button
-                          onClick={() => setSelectedLog(log)}
-                          className="text-ocean-600 hover:text-ocean-800 text-sm"
-                        >
-                          View Changes →
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Saved filter segments */}
+      <SegmentBar
+        segments={segments}
+        onApply={applySegment}
+        onDelete={deleteSegment}
+        onSave={handleSaveSegment}
+        canSave={filtersActive}
+        className="mb-4"
+      />
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700">
-            <span className="text-sm text-gray-600 dark:text-slate-400">
-              Showing{" "}
-              <strong>
-                {startIndex + 1}-
-                {Math.min(startIndex + itemsPerPage, filteredLogs.length)}
-              </strong>{" "}
-              of <strong>{filteredLogs.length}</strong>
+      {/* Audit Logs Table */}
+      <DataTable
+        columns={AUDIT_COLUMNS}
+        rows={paginatedLogs}
+        rowKey={(log) => log.id}
+        pinned={{
+          label: "Date/Time",
+          sortKey: "created_at",
+          cell: (log) => (
+            <span className="text-sm text-gray-700 dark:text-slate-200 whitespace-nowrap">
+              {new Date(log.created_at).toLocaleString("en-GB")}
             </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 bg-white dark:bg-slate-800 dark:text-slate-200 border dark:border-slate-700 rounded disabled:opacity-50"
-              >
-                ← Previous
-              </button>
-              <span className="px-3 py-1 bg-ocean-600 text-white rounded font-semibold">
-                {currentPage} of {totalPages}
-              </span>
-              <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 bg-white dark:bg-slate-800 dark:text-slate-200 border dark:border-slate-700 rounded disabled:opacity-50"
-              >
-                Next →
-              </button>
-            </div>
+          ),
+        }}
+        presets={COLUMN_PRESETS}
+        preset={columnPreset}
+        onPresetChange={setColumnPreset}
+        expandedRows={expandedRows}
+        onToggleRow={toggleRow}
+        sort={{ requestSort, getSortIndicator }}
+        onRowClick={setSelectedLog}
+        openLabel={() => "View audit details"}
+        loading={loading}
+        skeletonRows={8}
+        skeletonCols={6}
+        empty={
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-6">
+            <EmptyState
+              icon={FileText}
+              tone="muted"
+              title="No audit logs found"
+              description="Activity matching your current filters will appear here."
+            />
           </div>
-        )}
-      </div>
+        }
+      />
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center p-4 mt-4 bg-gray-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl">
+          <span className="text-sm text-gray-600 dark:text-slate-400">
+            Showing{" "}
+            <strong>
+              {startIndex + 1}-
+              {Math.min(startIndex + itemsPerPage, filteredLogs.length)}
+            </strong>{" "}
+            of <strong>{filteredLogs.length}</strong>
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 bg-white dark:bg-slate-800 dark:text-slate-200 border dark:border-slate-700 rounded disabled:opacity-50"
+            >
+              ← Previous
+            </button>
+            <span className="px-3 py-1 bg-ocean-600 text-white rounded font-semibold">
+              {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 bg-white dark:bg-slate-800 dark:text-slate-200 border dark:border-slate-700 rounded disabled:opacity-50"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selectedLog && (

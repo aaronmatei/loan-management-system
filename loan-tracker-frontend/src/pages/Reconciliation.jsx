@@ -31,6 +31,8 @@ import api from "../services/api";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import { useColumnPreset } from "../hooks/useTablePrefs";
 import { formatKES } from "../utils/money";
 
 const fmt = (n) => formatKES(n);
@@ -84,6 +86,241 @@ const shiftDays = (iso, delta) => {
   return isoLocal(d);
 };
 
+const num = (v) => parseFloat(v || 0);
+
+// ── Daily Cash Register column model ──────────────────────────────────
+// Column-driven so the page can offer client-side presets + an expandable
+// detail row. The Txn identity (code + timestamp) is pinned and rendered
+// specially, so it is NOT in this list. The totals footer mirrors the
+// original tfoot: Cash/Penalty/Overpaid read the backend `totals` summary
+// (kept identical to the prior behaviour), while Principal/Interest sum
+// the visible transactions. The factory injects `navigate` + `totals`.
+const registerColumns = ({ navigate, totals }) => [
+  {
+    key: "method",
+    label: "Method",
+    align: "left",
+    cell: (t) => {
+      const methKey = (t.payment_method || "other").toLowerCase();
+      const meta = METHOD_META[methKey] || METHOD_META.other;
+      const cls = COLOR_CLS[meta.color];
+      return (
+        <div>
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${cls.bg} ${cls.text}`}
+          >
+            {meta.label}
+          </span>
+          {t.payment_reference && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+              {t.payment_reference}
+            </p>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    key: "loan",
+    label: "Loan / Client",
+    align: "left",
+    cell: (t) => (
+      <div>
+        <button
+          onClick={() => navigate(`/loans/${t.loan_id}`)}
+          className="font-mono text-xs font-bold text-ocean-600 hover:text-ocean-800 inline-flex items-center gap-1"
+        >
+          {t.loan_code} <ArrowUpRight size={11} />
+        </button>
+        <p className="text-xs text-slate-700 dark:text-slate-200">
+          {t.first_name} {t.last_name}
+        </p>
+      </div>
+    ),
+  },
+  {
+    key: "cash",
+    label: "Cash",
+    align: "right",
+    money: true,
+    footer: () => (
+      <p className="font-bold text-sm text-ocean-700">{fmt2(totals.gross)}</p>
+    ),
+    cell: (t) => (
+      <p className="font-bold text-ocean-700">{fmt2(t.amount_paid)}</p>
+    ),
+  },
+  {
+    key: "penalty",
+    label: "Penalty",
+    align: "right",
+    money: true,
+    footer: () => (
+      <p className="font-bold text-sm text-rose-700">{fmt2(totals.penalty)}</p>
+    ),
+    cell: (t) =>
+      parseFloat(t.penalty_portion) > 0 ? (
+        <span className="text-rose-700 font-semibold">
+          {fmt2(t.penalty_portion)}
+        </span>
+      ) : (
+        <span className="text-slate-300">—</span>
+      ),
+  },
+  {
+    key: "principal",
+    label: "Principal",
+    align: "right",
+    money: true,
+    footer: (rows) => (
+      <p className="font-bold text-sm text-slate-700 dark:text-slate-200">
+        {fmt2(rows.reduce((s, t) => s + num(t.principal_portion), 0))}
+      </p>
+    ),
+    cell: (t) =>
+      parseFloat(t.principal_portion) > 0 ? (
+        <span className="text-slate-700 dark:text-slate-200">
+          {fmt2(t.principal_portion)}
+        </span>
+      ) : (
+        "—"
+      ),
+  },
+  {
+    key: "interest",
+    label: "Interest",
+    align: "right",
+    money: true,
+    footer: (rows) => (
+      <p className="font-bold text-sm text-emerald-700">
+        {fmt2(rows.reduce((s, t) => s + num(t.interest_portion), 0))}
+      </p>
+    ),
+    cell: (t) =>
+      parseFloat(t.interest_portion) > 0 ? (
+        <span className="text-emerald-700 font-semibold">
+          {fmt2(t.interest_portion)}
+        </span>
+      ) : (
+        "—"
+      ),
+  },
+  {
+    key: "overpaid",
+    label: "Overpaid",
+    align: "right",
+    money: true,
+    footer: () => (
+      <p className="font-bold text-sm text-amber-700">
+        {fmt2(totals.overpayment)}
+      </p>
+    ),
+    cell: (t) =>
+      parseFloat(t.overpayment_portion) > 0 ? (
+        <span className="text-amber-700 font-semibold">
+          {fmt2(t.overpayment_portion)}
+        </span>
+      ) : (
+        <span className="text-slate-300">—</span>
+      ),
+  },
+];
+
+const REGISTER_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["method", "loan", "cash"],
+  },
+  full: {
+    label: "Everything",
+    keys: ["method", "loan", "cash", "penalty", "principal", "interest", "overpaid"],
+  },
+};
+const REGISTER_PRESET_KEY = "reconciliation.register.columnPreset";
+
+// ── Overpayments column model ─────────────────────────────────────────
+// Loan Code is pinned; the rest render as preset-driven columns with an
+// expandable detail row. The Action button injects `navigate`.
+const overpaymentsColumns = ({ navigate }) => [
+  {
+    key: "client",
+    label: "Client",
+    align: "left",
+    cell: (l) => (
+      <div>
+        <p className="font-semibold text-navy-900 dark:text-slate-100">
+          {l.first_name} {l.last_name}
+        </p>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+          {l.client_code} · {l.phone_number}
+        </p>
+      </div>
+    ),
+  },
+  {
+    key: "principal_amount",
+    label: "Principal",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.principal_amount), 0),
+    totalClass: "text-slate-700 dark:text-slate-200",
+    cell: (l) => (
+      <span className="text-slate-700 dark:text-slate-200">
+        {fmt(l.principal_amount)}
+      </span>
+    ),
+  },
+  {
+    key: "overpayment_amount",
+    label: "Overpaid",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.overpayment_amount), 0),
+    totalClass: "text-amber-700",
+    cell: (l) => (
+      <span className="font-bold text-amber-700">
+        {fmt2(l.overpayment_amount)}
+      </span>
+    ),
+  },
+  {
+    key: "since",
+    label: "Since",
+    align: "left",
+    cell: (l) => (
+      <span className="text-xs text-slate-500 dark:text-slate-400">
+        {fmtDate(l.updated_at)}
+      </span>
+    ),
+  },
+  {
+    key: "action",
+    label: "Action",
+    align: "left",
+    cell: (l) => (
+      <button
+        onClick={() => navigate(`/loans/${l.id}`)}
+        className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
+        title="Open the loan to mark this refund as paid"
+      >
+        Process Refund
+      </button>
+    ),
+  },
+];
+
+const OVERPAYMENTS_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["client", "overpayment_amount", "action"],
+  },
+  full: {
+    label: "Everything",
+    keys: ["client", "principal_amount", "overpayment_amount", "since", "action"],
+  },
+};
+const OVERPAYMENTS_PRESET_KEY = "reconciliation.overpayments.columnPreset";
+
 function Reconciliation() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("register");
@@ -99,6 +336,35 @@ function Reconciliation() {
   const [overpayments, setOverpayments] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // ── Table UX state (client-side only) — one expand set + preset per
+  // table (register / overpayments). Presets persist in localStorage.
+  const [registerExpanded, setRegisterExpanded] = useState(() => new Set());
+  const toggleRegisterRow = (id) =>
+    setRegisterExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const [overpaymentsExpanded, setOverpaymentsExpanded] = useState(
+    () => new Set(),
+  );
+  const toggleOverpaymentsRow = (id) =>
+    setOverpaymentsExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const [registerPreset, setRegisterPreset] = useColumnPreset(
+    REGISTER_PRESET_KEY,
+    REGISTER_PRESETS,
+    "full",
+  );
+  const [overpaymentsPreset, setOverpaymentsPreset] = useColumnPreset(
+    OVERPAYMENTS_PRESET_KEY,
+    OVERPAYMENTS_PRESETS,
+    "full",
+  );
 
   const loadRegister = async ({ silent = false } = {}) => {
     if (silent) setRefreshing(true);
@@ -362,151 +628,45 @@ function Reconciliation() {
                 </div>
               </div>
 
-              {/* Transactions table */}
-              {data.transactions.length === 0 ? (
-                <EmptyState
-                  icon={ArrowDownToLine}
-                  tone="muted"
-                  title={`No transactions on ${fmtDate(date)}`}
-                  description="Use the arrows above to step through other days, or jump to a specific date with the picker."
-                />
-              ) : (
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                  <div className="overflow-auto max-h-[calc(100vh-460px)]">
-                    <table className="w-full whitespace-nowrap text-sm">
-                      <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-                        <tr className="text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">
-                          <th className="px-4 py-3">Txn</th>
-                          <th className="px-4 py-3">Method</th>
-                          <th className="px-4 py-3">Loan / Client</th>
-                          <th className="px-4 py-3 text-right">Cash</th>
-                          <th className="px-4 py-3 text-right">Penalty</th>
-                          <th className="px-4 py-3 text-right">Principal</th>
-                          <th className="px-4 py-3 text-right">Interest</th>
-                          <th className="px-4 py-3 text-right">Overpaid</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.transactions.map((t) => {
-                          const methKey = (
-                            t.payment_method || "other"
-                          ).toLowerCase();
-                          const meta =
-                            METHOD_META[methKey] || METHOD_META.other;
-                          const cls = COLOR_CLS[meta.color];
-                          return (
-                            <tr
-                              key={t.id}
-                              className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-                            >
-                              <td className="px-4 py-3">
-                                <p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-100">
-                                  {t.transaction_code}
-                                </p>
-                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                  {fmtDate(t.payment_date)}{" "}
-                                  {fmtTime(t.payment_date)}
-                                </p>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${cls.bg} ${cls.text}`}
-                                >
-                                  {meta.label}
-                                </span>
-                                {t.payment_reference && (
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                                    {t.payment_reference}
-                                  </p>
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  onClick={() =>
-                                    navigate(`/loans/${t.loan_id}`)
-                                  }
-                                  className="font-mono text-xs font-bold text-ocean-600 hover:text-ocean-800 inline-flex items-center gap-1"
-                                >
-                                  {t.loan_code}{" "}
-                                  <ArrowUpRight size={11} />
-                                </button>
-                                <p className="text-xs text-slate-700 dark:text-slate-200">
-                                  {t.first_name} {t.last_name}
-                                </p>
-                              </td>
-                              <td className="px-4 py-3 text-right font-bold text-ocean-700">
-                                {fmt2(t.amount_paid)}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {parseFloat(t.penalty_portion) > 0 ? (
-                                  <span className="text-rose-700 font-semibold">
-                                    {fmt2(t.penalty_portion)}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-300">—</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-200">
-                                {parseFloat(t.principal_portion) > 0
-                                  ? fmt2(t.principal_portion)
-                                  : "—"}
-                              </td>
-                              <td className="px-4 py-3 text-right text-emerald-700 font-semibold">
-                                {parseFloat(t.interest_portion) > 0
-                                  ? fmt2(t.interest_portion)
-                                  : "—"}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {parseFloat(t.overpayment_portion) > 0 ? (
-                                  <span className="text-amber-700 font-semibold">
-                                    {fmt2(t.overpayment_portion)}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-300">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot className="bg-slate-50 dark:bg-slate-900 border-t-2 border-slate-200 dark:border-slate-700 sticky bottom-0">
-                        <tr className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                          <td colSpan={3} className="px-4 py-3 uppercase">
-                            Totals
-                          </td>
-                          <td className="px-4 py-3 text-right text-ocean-700">
-                            {fmt2(data.totals.gross)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-rose-700">
-                            {fmt2(data.totals.penalty)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-200">
-                            {fmt2(
-                              data.transactions.reduce(
-                                (s, t) =>
-                                  s + parseFloat(t.principal_portion || 0),
-                                0,
-                              ),
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right text-emerald-700">
-                            {fmt2(
-                              data.transactions.reduce(
-                                (s, t) =>
-                                  s + parseFloat(t.interest_portion || 0),
-                                0,
-                              ),
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right text-amber-700">
-                            {fmt2(data.totals.overpayment)}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              )}
+              {/* Transactions table — shared DataTable (column presets,
+                  expandable rows, sticky pinned Txn, totals footer). The
+                  footer mirrors the prior tfoot exactly: Cash/Penalty/
+                  Overpaid from the backend summary, Principal/Interest
+                  summed from the visible transactions. */}
+              <DataTable
+                columns={registerColumns({ navigate, totals: data.totals })}
+                rows={data.transactions}
+                rowKey={(t) => t.id}
+                pinned={{
+                  label: "Txn",
+                  cell: (t) => (
+                    <div>
+                      <p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-100">
+                        {t.transaction_code}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {fmtDate(t.payment_date)} {fmtTime(t.payment_date)}
+                      </p>
+                    </div>
+                  ),
+                }}
+                presets={REGISTER_PRESETS}
+                preset={registerPreset}
+                onPresetChange={setRegisterPreset}
+                expandedRows={registerExpanded}
+                onToggleRow={toggleRegisterRow}
+                totals={data.transactions}
+                totalsLabel="TOTALS"
+                maxHeight="calc(100vh - 460px)"
+                empty={
+                  <EmptyState
+                    icon={ArrowDownToLine}
+                    tone="muted"
+                    title={`No transactions on ${fmtDate(date)}`}
+                    description="Use the arrows above to step through other days, or jump to a specific date with the picker."
+                  />
+                }
+              />
             </>
           )}
         </>
@@ -560,68 +720,37 @@ function Reconciliation() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                <div className="overflow-auto max-h-[calc(100vh-360px)]">
-                  <table className="w-full whitespace-nowrap text-sm">
-                    <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-                      <tr className="text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">
-                        <th className="px-4 py-3">Loan</th>
-                        <th className="px-4 py-3">Client</th>
-                        <th className="px-4 py-3 text-right">Principal</th>
-                        <th className="px-4 py-3 text-right">Overpaid</th>
-                        <th className="px-4 py-3">Since</th>
-                        <th className="px-4 py-3 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overpayments.loans.map((l) => (
-                        <tr
-                          key={l.id}
-                          className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-                        >
-                          <td className="px-4 py-3">
-                            <button
-                              onClick={() => navigate(`/loans/${l.id}`)}
-                              className="font-mono text-xs font-bold text-ocean-600 hover:text-ocean-800 inline-flex items-center gap-1"
-                            >
-                              {l.loan_code}{" "}
-                              <ArrowUpRight size={11} />
-                            </button>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="font-semibold text-navy-900 dark:text-slate-100">
-                              {l.first_name} {l.last_name}
-                            </p>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                              {l.client_code} · {l.phone_number}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-200">
-                            {fmt(l.principal_amount)}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="font-bold text-amber-700">
-                              {fmt2(l.overpayment_amount)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
-                            {fmtDate(l.updated_at)}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => navigate(`/loans/${l.id}`)}
-                              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
-                              title="Open the loan to mark this refund as paid"
-                            >
-                              Process Refund
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <DataTable
+                columns={overpaymentsColumns({ navigate })}
+                rows={overpayments.loans}
+                rowKey={(l) => l.id}
+                pinned={{
+                  label: "Loan",
+                  cell: (l) => (
+                    <button
+                      onClick={() => navigate(`/loans/${l.id}`)}
+                      className="font-mono text-xs font-bold text-ocean-600 hover:text-ocean-800 inline-flex items-center gap-1"
+                    >
+                      {l.loan_code} <ArrowUpRight size={11} />
+                    </button>
+                  ),
+                }}
+                presets={OVERPAYMENTS_PRESETS}
+                preset={overpaymentsPreset}
+                onPresetChange={setOverpaymentsPreset}
+                expandedRows={overpaymentsExpanded}
+                onToggleRow={toggleOverpaymentsRow}
+                totals={overpayments.loans}
+                totalsLabel={`TOTALS (${overpayments.loans.length})`}
+                maxHeight="calc(100vh - 360px)"
+                empty={
+                  <EmptyState
+                    icon={Coins}
+                    title="No overpayments pending refund"
+                    description='Loans flip to "pending refund" when the borrower pays past their balance.'
+                  />
+                }
+              />
             </>
           )}
         </>

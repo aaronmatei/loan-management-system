@@ -24,7 +24,103 @@ import BulkActionBar from "../components/BulkActionBar";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import SegmentBar from "../components/SegmentBar";
+import {
+  useColumnPreset,
+  useFilterSegments,
+} from "../hooks/useTablePrefs";
 import { formatKES } from "../utils/money";
+
+// ── Applications table column model ───────────────────────────────────
+// The desktop applications table is column-driven so we can offer
+// client-side presets (which columns show in the row) and push the rest
+// into the always-present expandable detail row. Loan Code is pinned
+// (sticky) and rendered specially in the row, so it is NOT part of this
+// generic list. Each column keeps its EXACT prior cell rendering. The
+// status badge helper is shared with the mobile cards, so it lives on the
+// component; the Status column below calls a passed-in `getStatusBadge`.
+const APPLICATION_COLUMNS = [
+  {
+    key: "client",
+    label: "Client",
+    align: "left",
+    sortable: false,
+    cell: (app) => (
+      <div>
+        <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
+          {app.first_name} {app.last_name}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-slate-400">
+          {app.phone_number} • {app.client_code}
+        </p>
+      </div>
+    ),
+  },
+  {
+    key: "principal_amount",
+    label: "Principal",
+    align: "right",
+    sortable: false,
+    cell: (app) => (
+      <div className="font-bold text-gray-800 dark:text-slate-100 text-sm">
+        {formatKES(app.principal_amount)}
+        {app.status === "counter_offered" && app.offered_amount != null && (
+          <p className="text-xs font-semibold text-amber-700">
+            → {formatKES(app.offered_amount)}
+          </p>
+        )}
+      </div>
+    ),
+  },
+  {
+    key: "duration",
+    label: "Duration",
+    align: "center",
+    sortable: false,
+    cell: (app) => (
+      <span className="text-sm text-gray-700 dark:text-slate-200">
+        {app.loan_duration_months} mo
+      </span>
+    ),
+  },
+  {
+    key: "status",
+    label: "Status",
+    align: "center",
+    sortable: false,
+    // `getStatusBadge` is injected at render time (it lives on the
+    // component so the mobile cards can share it).
+    cell: (app, getStatusBadge) => {
+      const badge = getStatusBadge(app.status);
+      return (
+        <span
+          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${badge.color}`}
+        >
+          {badge.icon} {app.status.replace("_", " ").toUpperCase()}
+        </span>
+      );
+    },
+  },
+];
+
+// Column presets — which keys render in the row. Loan Code is always
+// pinned and shown outside this set; the synthetic "details" column
+// (the full detail panel + actions) is never in a preset, so DataTable
+// always renders it in the expand panel. No data is ever hidden.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["client", "principal_amount", "status"],
+  },
+  full: {
+    label: "Everything",
+    keys: APPLICATION_COLUMNS.map((c) => c.key),
+  },
+};
+
+const PRESET_STORAGE_KEY = "applications.columnPreset";
+const SEGMENTS_STORAGE_KEY = "applications.segments";
 
 // Format a date (Date | YYYY-MM-DD string) as "DD/MM/YYYY". Native
 // <input type="date"> displays in the browser's locale, which may not
@@ -66,6 +162,15 @@ function Applications() {
   // Which application rows are expanded to reveal their full details.
   const [expanded, setExpanded] = useState(() => new Set());
 
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "essentials",
+  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments(SEGMENTS_STORAGE_KEY);
+
   // Bulk selection across applications shown by the current filter.
   const bulk = useBulkSelection(applications);
   const [bulkRunning, setBulkRunning] = useState(null);
@@ -80,6 +185,19 @@ function Applications() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+
+  // ── Saved filter segments (localStorage only, via shared hook) ─
+  // The only filter on this page is the status tab, so a segment is a
+  // named snapshot of statusFilter.
+  const handleSaveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. Pending queue)");
+    if (!name) return;
+    saveSegment(name, { statusFilter });
+  };
+  const applySegment = (segment) => {
+    const snap = segment.snapshot || {};
+    if (snap.statusFilter) setStatusFilter(snap.statusFilter);
+  };
 
   useEffect(() => {
     setExpanded(new Set()); // collapse all when the filter changes
@@ -718,6 +836,40 @@ function Applications() {
     </div>
   );
 
+  // Desktop columns = the module-level model (status badge injected) + a
+  // synthetic, always-demoted "details" column carrying the full detail
+  // panel and the contextual action buttons (it lives here because it
+  // needs the row handlers). It is never in a preset, so DataTable always
+  // renders it inside the expand panel — preserving the prior expandable
+  // detail row exactly.
+  const desktopColumns = [
+    ...APPLICATION_COLUMNS.map((col) => ({
+      ...col,
+      cell: (app) => col.cell(app, getStatusBadge),
+    })),
+    {
+      key: "details",
+      label: "Details",
+      align: "left",
+      sortable: false,
+      fullSpan: true,
+      cell: (app) => (
+        <div className="min-w-[320px] space-y-3">
+          {renderDetails(app)}
+          {renderActions(app)}
+        </div>
+      ),
+    },
+  ];
+
+  // Adapt the bulk-selection hook to DataTable's selection contract.
+  const selection = {
+    isSelected: bulk.isSelected,
+    toggle: bulk.toggle,
+    allSelected: bulk.allOnPageSelected,
+    toggleAll: bulk.togglePage,
+  };
+
   if (loading)
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -875,135 +1027,51 @@ function Applications() {
         />
       ) : (
         <>
-          {/* Desktop table — one row per application, expand for full details */}
-          <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-            <div className="overflow-auto max-h-[calc(100vh-340px)]">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-                  <tr>
-                    <th className="px-4 py-3 w-10">
-                      <input
-                        type="checkbox"
-                        checked={bulk.allOnPageSelected}
-                        onChange={bulk.togglePage}
-                        className="w-4 h-4 cursor-pointer"
-                        aria-label="Select all on page"
-                      />
-                    </th>
-                    <th className="px-3 py-3 w-10"></th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      Loan Code
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      Client
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      Principal
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      Duration
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {applications.map((app) => {
-                    const open = expanded.has(app.id);
-                    const badge = getStatusBadge(app.status);
-                    return (
-                      <React.Fragment key={app.id}>
-                        <tr
-                          className={`border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition ${
-                            bulk.isSelected(app.id) ? "bg-ocean-50" : open ? "bg-gray-50 dark:bg-slate-700" : ""
-                          }`}
-                        >
-                          <td className="px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={bulk.isSelected(app.id)}
-                              onChange={() => bulk.toggle(app.id)}
-                              className="w-4 h-4 cursor-pointer"
-                              aria-label="Select application"
-                            />
-                          </td>
-                          <td className="px-3 py-3">
-                            <button
-                              onClick={() => toggleExpand(app.id)}
-                              className="text-gray-400 dark:text-slate-400 hover:text-gray-700"
-                              aria-label={open ? "Collapse" : "Expand"}
-                            >
-                              {open ? (
-                                <ChevronDown size={18} />
-                              ) : (
-                                <ChevronRight size={18} />
-                              )}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3">
-                            <button
-                              onClick={() => toggleExpand(app.id)}
-                              className="font-mono text-sm font-bold text-ocean-600 hover:underline block"
-                            >
-                              {app.loan_code}
-                            </button>
-                            {/* Package chip when applied via a
-                                published product; absent for
-                                off-product custom apps. Keeps the
-                                code column readable at a glance. */}
-                            {app.package_name && (
-                              <p className="text-[10px] font-semibold text-ocean-700 bg-ocean-50 inline-block px-1.5 py-0.5 rounded mt-1">
-                                {app.package_name}
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
-                              {app.first_name} {app.last_name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">
-                              {app.phone_number} • {app.client_code}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3 text-right font-bold text-gray-800 dark:text-slate-100 text-sm">
-                            {formatKES(app.principal_amount)}
-                            {app.status === "counter_offered" &&
-                              app.offered_amount != null && (
-                                <p className="text-xs font-semibold text-amber-700">
-                                  → {formatKES(app.offered_amount)}
-                                </p>
-                              )}
-                          </td>
-                          <td className="px-4 py-3 text-center text-sm text-gray-700 dark:text-slate-200">
-                            {app.loan_duration_months} mo
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${badge.color}`}
-                            >
-                              {badge.icon}{" "}
-                              {app.status.replace("_", " ").toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">{renderActions(app)}</td>
-                        </tr>
-                        {open && (
-                          <tr className="bg-gray-50/60 dark:bg-slate-900">
-                            <td colSpan={8} className="px-6 pb-4 pt-1">
-                              {renderDetails(app)}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          {/* Saved filter segments — localStorage only. */}
+          <SegmentBar
+            className="mb-3"
+            segments={segments}
+            onApply={applySegment}
+            onDelete={deleteSegment}
+            onSave={handleSaveSegment}
+            canSave
+          />
+
+          {/* Desktop table — shared DataTable. One row per application;
+              expand for the full detail panel + contextual actions. */}
+          <div className="hidden md:block">
+            <DataTable
+              columns={desktopColumns}
+              rows={applications}
+              rowKey={(app) => app.id}
+              pinned={{
+                label: "Loan Code",
+                cell: (app) => (
+                  <div>
+                    <button
+                      onClick={() => toggleExpand(app.id)}
+                      className="font-mono text-sm font-bold text-ocean-600 hover:underline block"
+                    >
+                      {app.loan_code}
+                    </button>
+                    {/* Package chip when applied via a published
+                        product; absent for off-product custom apps. */}
+                    {app.package_name && (
+                      <p className="text-[10px] font-semibold text-ocean-700 bg-ocean-50 inline-block px-1.5 py-0.5 rounded mt-1">
+                        {app.package_name}
+                      </p>
+                    )}
+                  </div>
+                ),
+              }}
+              presets={COLUMN_PRESETS}
+              preset={columnPreset}
+              onPresetChange={setColumnPreset}
+              expandedRows={expanded}
+              onToggleRow={toggleExpand}
+              selection={selection}
+              skeletonCols={5}
+            />
           </div>
 
           {/* Mobile cards — collapsed summary, expand for details + actions */}

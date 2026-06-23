@@ -7,10 +7,12 @@ import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
-import SortableHeader from "../components/SortableHeader";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import SegmentBar from "../components/SegmentBar";
+import { useColumnPreset, useFilterSegments } from "../hooks/useTablePrefs";
 import { formatKES } from "../utils/money";
 
 // Days-late badge colour, 4 severity tiers
@@ -28,6 +30,260 @@ const LOAN_STATUS_BADGE = {
   suspended: "bg-amber-100 text-amber-700",
   completed: "bg-ocean-100 text-ocean-700",
 };
+
+const fmtDate = (v) =>
+  new Date(v).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+// ── Overdue table column model (shared DataTable) ─────────────────────
+// One row per loan (grouped overdue installments). The borrower identity
+// (name + phone) is the pinned column and is rendered separately, so it
+// is NOT part of this list. `money` columns also feed the totals row.
+// The trailing `_installments` column is never part of any preset, so it
+// always drops into the expandable detail row — that is where the
+// per-installment penalty breakdown lives.
+const num = (v) => parseFloat(v || 0);
+
+const OVERDUE_COLUMNS = [
+  {
+    key: "loan_code",
+    label: "Loan Code",
+    align: "left",
+    cell: (g) => (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          g.__navigate(`/loans/${g.loan_id}`);
+        }}
+        className="font-mono text-sm font-semibold text-ocean-600 hover:text-ocean-800 hover:underline"
+      >
+        {g.loan_code}
+      </button>
+    ),
+  },
+  {
+    key: "overdue_count",
+    label: "Overdue",
+    align: "left",
+    cell: (g) => (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          g.__toggleExpand(g.loan_id);
+        }}
+        className="font-semibold text-gray-800 dark:text-slate-100 hover:text-ocean-600 text-sm"
+      >
+        {g.overdue_count} payment
+        {g.overdue_count !== 1 ? "s" : ""}
+      </button>
+    ),
+  },
+  {
+    key: "oldest_due_date",
+    label: "Oldest Due",
+    align: "left",
+    cell: (g) => (
+      <span className="text-sm text-gray-700 dark:text-slate-200">
+        {fmtDate(g.oldest_due_date)}
+      </span>
+    ),
+  },
+  {
+    key: "days_late",
+    label: "Days Late",
+    align: "center",
+    cell: (g) => (
+      <span
+        className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${daysBadgeClass(
+          g.days_late,
+        )}`}
+      >
+        {g.days_late} {g.days_late === 1 ? "day" : "days"}
+      </span>
+    ),
+  },
+  {
+    key: "amount_due",
+    label: "Amount Due",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, g) => s + num(g.amount_due), 0),
+    totalClass: "text-gray-800 dark:text-slate-100",
+    cell: (g) => (
+      <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">
+        {formatKES(g.amount_due)}
+      </span>
+    ),
+  },
+  {
+    key: "balance_due",
+    label: "Balance",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, g) => s + num(g.balance_due), 0),
+    totalClass: "text-red-700",
+    cell: (g) => (
+      <p className="font-bold text-red-600 text-sm">
+        {formatKES(g.balance_due)}
+      </p>
+    ),
+  },
+  {
+    key: "penalty_outstanding",
+    label: "Penalty",
+    align: "right",
+    money: true,
+    total: (rows) =>
+      rows.reduce(
+        (s, g) =>
+          s + parseFloat(g.penalty_outstanding ?? g.penalty_total ?? 0),
+        0,
+      ),
+    totalClass: "text-amber-700",
+    cell: (g) => (
+      <p
+        className="font-semibold text-amber-700 text-sm"
+        title="Late fee per missed payment + penalty interest on the overdue balance"
+      >
+        {formatKES(g.penalty_outstanding)}
+      </p>
+    ),
+  },
+  {
+    key: "loan_status",
+    label: "Status",
+    align: "center",
+    cell: (g) => (
+      <span
+        className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+          LOAN_STATUS_BADGE[g.loan_status] || "bg-gray-100 text-gray-700"
+        }`}
+      >
+        {String(g.loan_status || "").replace("_", " ")}
+      </span>
+    ),
+  },
+  {
+    // Synthetic column — excluded from every preset so it always renders
+    // inside the expandable detail row. Holds the per-installment penalty
+    // breakdown that previously lived in the inline expanded table.
+    key: "_installments",
+    label: "Overdue installments",
+    align: "left",
+    sortable: false,
+    fullSpan: true,
+    cell: (g) => (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-slate-400">
+              <th className="text-left py-1 font-semibold">Payment</th>
+              <th className="text-left py-1 font-semibold">Due Date</th>
+              <th className="text-center py-1 font-semibold">Days Late</th>
+              <th className="text-right py-1 font-semibold">Amount Due</th>
+              <th className="text-right py-1 font-semibold">Balance</th>
+              <th className="text-right py-1 font-semibold">Late Fee</th>
+              <th className="text-right py-1 font-semibold">
+                Penalty Interest
+              </th>
+              <th className="text-right py-1 font-semibold">Penalty Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {g.installments.map((s) => {
+              const d = parseInt(s.days_late, 10) || 0;
+              const total =
+                s.total_payments_in_loan || s.total_payments || "?";
+              const months = s.months_late || 1;
+              const rate = Number(s.penalty_rate || 0);
+              return (
+                <tr
+                  key={s.schedule_id || s.id}
+                  className="border-t border-gray-200/70 dark:border-slate-700"
+                >
+                  <td className="py-1.5 text-gray-700 dark:text-slate-200">
+                    Payment {s.payment_number} of {total}
+                  </td>
+                  <td className="py-1.5 text-gray-700 dark:text-slate-200">
+                    {fmtDate(s.due_date)}
+                  </td>
+                  <td className="py-1.5 text-center">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${daysBadgeClass(
+                        d,
+                      )}`}
+                    >
+                      {d}d
+                    </span>
+                  </td>
+                  <td className="py-1.5 text-right text-gray-700 dark:text-slate-200">
+                    {formatKES(s.amount_due)}
+                  </td>
+                  <td className="py-1.5 text-right font-semibold text-red-600">
+                    {formatKES(s.balance_due)}
+                  </td>
+                  <td className="py-1.5 text-right text-gray-700 dark:text-slate-200">
+                    {formatKES(s.late_fee)}
+                  </td>
+                  <td
+                    className="py-1.5 text-right text-gray-700 dark:text-slate-200"
+                    title={`${rate}% per month × ${months} month${months !== 1 ? "s" : ""} on the overdue balance`}
+                  >
+                    {formatKES(s.penalty_interest)}
+                  </td>
+                  <td className="py-1.5 text-right font-semibold text-amber-700">
+                    {formatKES(s.penalty_total)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. The pinned Client column
+// is always shown outside this set. The `_installments` column is never
+// listed, so it always lives in the expandable detail row.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["loan_code", "days_late", "balance_due", "loan_status"],
+  },
+  collections: {
+    label: "Collections",
+    keys: [
+      "loan_code",
+      "overdue_count",
+      "oldest_due_date",
+      "days_late",
+      "balance_due",
+      "penalty_outstanding",
+      "loan_status",
+    ],
+  },
+  full: {
+    label: "Everything",
+    keys: [
+      "loan_code",
+      "overdue_count",
+      "oldest_due_date",
+      "days_late",
+      "amount_due",
+      "balance_due",
+      "penalty_outstanding",
+      "loan_status",
+    ],
+  },
+};
+
+const PRESET_STORAGE_KEY = "overdue.columnPreset";
+const SEGMENTS_STORAGE_KEY = "overdue.segments";
 
 const RANGE_FILTERS = [
   { key: "all", label: "All" },
@@ -72,6 +328,15 @@ function Overdue() {
 
   // Which loans are expanded to reveal their overdue installments.
   const [expanded, setExpanded] = useState(() => new Set());
+
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "collections",
+  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments(SEGMENTS_STORAGE_KEY);
 
   // Log Promise to Pay — inline action so the collections officer can
   // capture a borrower's verbal commitment without leaving the chase
@@ -350,6 +615,15 @@ function Overdue() {
   const endIndex = startIndex + itemsPerPage;
   const paginated = sortedGroups.slice(startIndex, endIndex);
 
+  // Rows handed to the shared DataTable. Cells are module-level so they
+  // can't close over component scope — inject navigate + expand toggle
+  // onto each row so the Loan Code / Overdue cells stay clickable.
+  const tableRows = paginated.map((g) => ({
+    ...g,
+    __navigate: navigate,
+    __toggleExpand: toggleExpand,
+  }));
+
   // Severity counts for the dropdown — from the API summary so they
   // reflect the full data set, not the current page
   const sb = summary?.severity_breakdown;
@@ -378,6 +652,26 @@ function Overdue() {
     setSeverityFilter("all");
     setPeriodFrom("");
     setPeriodTo("");
+  };
+
+  // ── Saved filter segments (localStorage only, via shared hook) ─
+  const handleSaveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. 90+ days)");
+    if (!name) return;
+    saveSegment(name, {
+      searchQuery,
+      severityFilter,
+      periodFrom,
+      periodTo,
+    });
+  };
+  const applySegment = (segment) => {
+    const snap = segment.snapshot || {};
+    setSearchQuery(snap.searchQuery || "");
+    setSeverityFilter(snap.severityFilter || "all");
+    setPeriodFrom(snap.periodFrom || "");
+    setPeriodTo(snap.periodTo || "");
+    setCurrentPage(1);
   };
 
   // ── Bulk selection (keyed by loan id — one selection per loan) ──
@@ -715,6 +1009,17 @@ function Overdue() {
             )}
           </div>
 
+          {/* Saved segments — named search + filter snapshots (shared
+              SegmentBar; localStorage only, never server-side). */}
+          <SegmentBar
+            className="mb-6"
+            segments={segments}
+            onApply={applySegment}
+            onDelete={deleteSegment}
+            onSave={handleSaveSegment}
+            canSave={filtersActive}
+          />
+
           {/* Mobile card list (desktop uses the table below) */}
           {filtered.length > 0 && (
             <div className="md:hidden space-y-3 mb-4">
@@ -903,280 +1208,71 @@ function Overdue() {
               />
             )
           ) : (
-            <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-              <div className="overflow-auto max-h-[calc(100vh-400px)]">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                      <th className="px-4 py-4 w-10">
-                        <input
-                          type="checkbox"
-                          checked={bulk.allOnPageSelected}
-                          onChange={bulk.togglePage}
-                          className="w-4 h-4 cursor-pointer"
-                        />
-                      </th>
-                      {[
-                        ["Client", "first_name", "left"],
-                        ["Loan Code", "loan_code", "left"],
-                        ["Overdue", "overdue_count", "left"],
-                        ["Oldest Due", "oldest_due_date", "left"],
-                        ["Days Late", "days_late", "center"],
-                        ["Amount Due", "amount_due", "right"],
-                        ["Balance", "balance_due", "right"],
-                        ["Penalty", "penalty_outstanding", "right"],
-                        ["Status", "loan_status", "center"],
-                      ].map(([label, key, align], i) => (
-                        <SortableHeader
-                          key={`${key}-${i}`}
-                          label={label}
-                          sortKey={key}
-                          requestSort={requestSort}
-                          getSortIndicator={getSortIndicator}
-                          align={align}
-                          className={`px-4 py-4 text-${align} text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase`}
-                        />
-                      ))}
-                      <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.map((g) => {
-                      const open = expanded.has(g.loan_id);
-                      return (
-                        <React.Fragment key={g.loan_id}>
-                          <tr
-                            className={`border-b border-gray-100 dark:border-slate-700 hover:bg-red-50 transition ${
-                              bulk.isSelected(g.id) ? "bg-red-50" : ""
-                            }`}
-                          >
-                            <td className="px-4 py-4">
-                              <input
-                                type="checkbox"
-                                checked={bulk.isSelected(g.id)}
-                                onChange={() => bulk.toggle(g.id)}
-                                className="w-4 h-4 cursor-pointer"
-                              />
-                            </td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => toggleExpand(g.loan_id)}
-                                  className="text-gray-400 dark:text-slate-400 hover:text-gray-700 shrink-0"
-                                  aria-label={open ? "Collapse" : "Expand"}
-                                >
-                                  {open ? (
-                                    <ChevronDown size={16} />
-                                  ) : (
-                                    <ChevronRight size={16} />
-                                  )}
-                                </button>
-                                <div>
-                                  <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
-                                    {g.first_name} {g.last_name}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-slate-400">
-                                    {g.phone_number}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-4">
-                              <button
-                                onClick={() => navigate(`/loans/${g.loan_id}`)}
-                                className="font-mono text-sm font-semibold text-ocean-600 hover:text-ocean-800 hover:underline"
-                              >
-                                {g.loan_code}
-                              </button>
-                            </td>
-                            <td className="px-4 py-4 text-sm">
-                              <button
-                                onClick={() => toggleExpand(g.loan_id)}
-                                className="font-semibold text-gray-800 dark:text-slate-100 hover:text-ocean-600"
-                              >
-                                {g.overdue_count} payment
-                                {g.overdue_count !== 1 ? "s" : ""}
-                              </button>
-                            </td>
-                            <td className="px-4 py-4 text-sm text-gray-700 dark:text-slate-200">
-                              {new Date(g.oldest_due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                            </td>
-                            <td className="px-4 py-4 text-center">
-                              <span
-                                className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${daysBadgeClass(
-                                  g.days_late,
-                                )}`}
-                              >
-                                {g.days_late} {g.days_late === 1 ? "day" : "days"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-4 text-right text-sm font-semibold text-gray-700 dark:text-slate-200">
-                              {KES(g.amount_due)}
-                            </td>
-                            <td className="px-4 py-4 text-right">
-                              <p className="font-bold text-red-600 text-sm">
-                                {KES(g.balance_due)}
-                              </p>
-                            </td>
-                            <td className="px-4 py-4 text-right">
-                              <p
-                                className="font-semibold text-amber-700 text-sm"
-                                title="Late fee per missed payment + penalty interest on the overdue balance"
-                              >
-                                {KES(g.penalty_outstanding)}
-                              </p>
-                            </td>
-                            <td className="px-4 py-4 text-center">
-                              <span
-                                className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-                                  LOAN_STATUS_BADGE[g.loan_status] ||
-                                  "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {String(g.loan_status || "").replace("_", " ")}
-                              </span>
-                            </td>
-                            <td className="px-4 py-4 text-center">
-                              <div className="inline-flex items-center gap-1.5">
-                                <button
-                                  onClick={() => openPromise(g)}
-                                  className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition inline-flex items-center gap-1"
-                                  title="Log a Promise to Pay from this overdue row"
-                                >
-                                  <Handshake size={12} /> Promise
-                                </button>
-                                <button
-                                  onClick={() => navigate(`/loans/${g.loan_id}`)}
-                                  className="px-3 py-1.5 bg-ocean-gradient text-white text-xs font-semibold rounded-lg hover:shadow-lg transition"
-                                >
-                                  View
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                          {open && (
-                            <tr className="bg-gray-50/70 dark:bg-slate-900">
-                              <td colSpan="11" className="px-6 pb-4 pt-1">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-slate-400">
-                                      <th className="text-left py-1 font-semibold">
-                                        Payment
-                                      </th>
-                                      <th className="text-left py-1 font-semibold">
-                                        Due Date
-                                      </th>
-                                      <th className="text-center py-1 font-semibold">
-                                        Days Late
-                                      </th>
-                                      <th className="text-right py-1 font-semibold">
-                                        Amount Due
-                                      </th>
-                                      <th className="text-right py-1 font-semibold">
-                                        Balance
-                                      </th>
-                                      <th className="text-right py-1 font-semibold">
-                                        Late Fee
-                                      </th>
-                                      <th className="text-right py-1 font-semibold">
-                                        Penalty Interest
-                                      </th>
-                                      <th className="text-right py-1 font-semibold">
-                                        Penalty Total
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {g.installments.map((s) => {
-                                      const d = parseInt(s.days_late, 10) || 0;
-                                      const total =
-                                        s.total_payments_in_loan ||
-                                        s.total_payments ||
-                                        "?";
-                                      const months = s.months_late || 1;
-                                      const rate = Number(s.penalty_rate || 0);
-                                      return (
-                                        <tr
-                                          key={s.schedule_id || s.id}
-                                          className="border-t border-gray-200/70 dark:border-slate-700"
-                                        >
-                                          <td className="py-1.5 text-gray-700 dark:text-slate-200">
-                                            Payment {s.payment_number} of {total}
-                                          </td>
-                                          <td className="py-1.5 text-gray-700 dark:text-slate-200">
-                                            {new Date(
-                                              s.due_date,
-                                            ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                                          </td>
-                                          <td className="py-1.5 text-center">
-                                            <span
-                                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${daysBadgeClass(
-                                                d,
-                                              )}`}
-                                            >
-                                              {d}d
-                                            </span>
-                                          </td>
-                                          <td className="py-1.5 text-right text-gray-700 dark:text-slate-200">
-                                            {KES(s.amount_due)}
-                                          </td>
-                                          <td className="py-1.5 text-right font-semibold text-red-600">
-                                            {KES(s.balance_due)}
-                                          </td>
-                                          <td className="py-1.5 text-right text-gray-700 dark:text-slate-200">
-                                            {KES(s.late_fee)}
-                                          </td>
-                                          <td
-                                            className="py-1.5 text-right text-gray-700 dark:text-slate-200"
-                                            title={`${rate}% per month × ${months} month${months !== 1 ? "s" : ""} on the overdue balance`}
-                                          >
-                                            {KES(s.penalty_interest)}
-                                          </td>
-                                          <td className="py-1.5 text-right font-semibold text-amber-700">
-                                            {KES(s.penalty_total)}
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-
-                  {/* TOTALS ROW */}
-                  <tfoot className="bg-gradient-to-r from-red-50 to-rose-50 border-t-2 border-red-200">
-                    <tr>
-                      <td
-                        colSpan="6"
-                        className="px-4 py-4 font-bold text-gray-800 text-sm"
+            <div className="hidden md:block">
+              <DataTable
+                columns={OVERDUE_COLUMNS}
+                rows={tableRows}
+                rowKey={(g) => g.loan_id}
+                pinned={{
+                  label: "Client",
+                  sortKey: "first_name",
+                  cell: (g) => (
+                    <div>
+                      <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
+                        {g.first_name} {g.last_name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        {g.phone_number}
+                      </p>
+                    </div>
+                  ),
+                }}
+                presets={COLUMN_PRESETS}
+                preset={columnPreset}
+                onPresetChange={setColumnPreset}
+                expandedRows={expanded}
+                onToggleRow={toggleExpand}
+                selection={{
+                  isSelected: bulk.isSelected,
+                  toggle: bulk.toggle,
+                  allSelected: bulk.allOnPageSelected,
+                  toggleAll: bulk.togglePage,
+                }}
+                sort={{ requestSort, getSortIndicator }}
+                onOpen={(g) => navigate(`/loans/${g.loan_id}`)}
+                openLabel={(g) => `Open loan ${g.loan_code}`}
+                totals={filtered}
+                totalsLabel={
+                  <span className="inline-flex items-center gap-1.5">
+                    <BarChart3 size={15} /> TOTALS — {filtered.length} overdue •{" "}
+                    {filteredLoans} loans
+                  </span>
+                }
+                loading={loading}
+                skeletonRows={8}
+                skeletonCols={8}
+                empty={
+                  <EmptyState
+                    icon={Search}
+                    tone="muted"
+                    title="No payments match your filters"
+                    description="Try a different severity range or clear your search."
+                    action={
+                      <button
+                        onClick={clearFilters}
+                        className="inline-flex items-center gap-1.5 px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
                       >
-                        <span className="inline-flex items-center gap-1.5"><BarChart3 size={15} /> TOTALS — {filtered.length} overdue • {filteredLoans} loans</span>
-                      </td>
-                      <td className="px-4 py-4 text-right font-bold text-gray-800 text-sm">
-                        {KES(filteredAmountDue)}
-                      </td>
-                      <td className="px-4 py-4 text-right font-bold text-red-700 text-sm">
-                        {KES(filteredBalance)}
-                      </td>
-                      <td className="px-4 py-4 text-right font-bold text-amber-700 text-sm">
-                        {KES(filteredPenalty)}
-                      </td>
-                      <td className="px-4 py-4" colSpan="2"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                        <X size={15} /> Clear Filters
+                      </button>
+                    }
+                  />
+                }
+              />
+
 
               {/* Pagination (same component as Clients/Loans) */}
               {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
                   <div className="text-sm text-gray-600 dark:text-slate-400">
                     Showing{" "}
                     <span className="font-semibold">{startIndex + 1}</span> to{" "}

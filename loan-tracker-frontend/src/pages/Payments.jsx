@@ -3,12 +3,143 @@ import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, BarChart3, Smartphone, Coins, X, Check, Search, ChevronRight, ChevronDown, Calendar, Pencil } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
-import SortableHeader from "../components/SortableHeader";
 import PaymentReceipt from "../components/PaymentReceipt";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
-import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import SegmentBar from "../components/SegmentBar";
+import { useColumnPreset, useFilterSegments } from "../hooks/useTablePrefs";
 import { formatKES } from "../utils/money";
+
+// ── Payments table column model (shared DataTable) ────────────────────
+// One row per loan (grouped), with the loan's transactions nested in the
+// expandable detail row. The Client (name + phone) is pinned/sticky and
+// rendered specially, so it is NOT part of this generic list. `money`
+// columns also feed the totals footer. Secondary columns demote into the
+// expandable panel via the presets below — nothing is ever hidden.
+const PAYMENT_COLUMNS = [
+  {
+    key: "loan_code",
+    label: "Loan",
+    align: "left",
+    cell: (g) => (
+      <p className="font-mono text-sm">
+        <Link
+          to={`/loans/${g.loan_id}`}
+          className="text-ocean-600 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {g.loan_code}
+        </Link>
+      </p>
+    ),
+  },
+  {
+    key: "count",
+    label: "Payments",
+    align: "left",
+    footer: (rows) => {
+      const n = rows.reduce((s, g) => s + g.count, 0);
+      return (
+        <p className="font-semibold text-gray-700 dark:text-slate-200 text-sm">
+          {n} payment{n !== 1 ? "s" : ""}
+        </p>
+      );
+    },
+    cell: (g) => (
+      <p className="font-semibold text-gray-800 dark:text-slate-100">
+        {g.count} payment{g.count !== 1 ? "s" : ""}
+      </p>
+    ),
+  },
+  {
+    key: "total_paid",
+    label: "Total Paid",
+    align: "left",
+    money: true,
+    total: (rows) => rows.reduce((s, g) => s + g.total_paid, 0),
+    totalClass: "text-green-700",
+    cell: (g) => (
+      <p className="font-bold text-green-600">{formatKES(g.total_paid)}</p>
+    ),
+  },
+  {
+    key: "total_collected",
+    label: "Total Collected",
+    align: "left",
+    money: true,
+    total: (rows) => rows.reduce((s, g) => s + g.total_collected, 0),
+    totalClass: "text-emerald-800",
+    cell: (g) => (
+      <p className="font-bold text-emerald-700">
+        {formatKES(g.total_collected)}
+      </p>
+    ),
+  },
+  {
+    key: "overpayment",
+    label: "Overpayment",
+    align: "left",
+    money: true,
+    total: (rows) => rows.reduce((s, g) => s + g.overpayment, 0),
+    totalClass: "text-amber-700",
+    footer: (rows) => {
+      const op = rows.reduce((s, g) => s + g.overpayment, 0);
+      return (
+        <p className="font-semibold text-amber-700 text-sm">
+          {op > 0 ? formatKES(op) : "—"}
+        </p>
+      );
+    },
+    cell: (g) =>
+      g.overpayment > 0 ? (
+        <span className="font-semibold text-amber-700 text-sm">
+          {formatKES(g.overpayment)}
+        </span>
+      ) : (
+        <span className="text-gray-400 dark:text-slate-400 text-sm">—</span>
+      ),
+  },
+  {
+    key: "last_date",
+    label: "Last Payment",
+    align: "left",
+    cell: (g) => (
+      <span className="text-gray-600 dark:text-slate-400 text-sm">
+        {new Date(g.last_date).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}
+      </span>
+    ),
+  },
+];
+
+// Column presets — which keys render inline. Client is always pinned and
+// shown outside this set. Anything not visible drops into the expandable
+// detail row (which also always carries the transaction sub-table), so no
+// data is ever hidden — just demoted. The synthetic "transactions" column
+// (built inside the component, where the row handlers live) is never listed
+// in any preset, so it is ALWAYS demoted into the expand panel — that's what
+// keeps the per-transaction sub-table available on every preset.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["loan_code", "count", "total_paid"],
+  },
+  financials: {
+    label: "Financials",
+    keys: ["loan_code", "count", "total_paid", "total_collected", "last_date"],
+  },
+  full: {
+    label: "Everything",
+    keys: PAYMENT_COLUMNS.map((c) => c.key),
+  },
+};
+
+const PRESET_STORAGE_KEY = "payments.columnPreset";
+const SEGMENTS_STORAGE_KEY = "payments.segments";
 
 function Payments() {
   const [payments, setPayments] = useState([]);
@@ -33,7 +164,8 @@ function Payments() {
     setCurrentPage(1);
   }, [dateFrom, dateTo]);
 
-  // Which loans are expanded to reveal their transactions.
+  // Which loans are expanded to reveal their transactions (drives both the
+  // mobile card list and the desktop DataTable detail rows).
   const [expanded, setExpanded] = useState(() => new Set());
   const toggleExpand = (loanId) =>
     setExpanded((s) => {
@@ -41,6 +173,16 @@ function Payments() {
       next.has(loanId) ? next.delete(loanId) : next.add(loanId);
       return next;
     });
+
+  // ── Table UX (client-side only) ───────────────────────────────────
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "financials",
+  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments(SEGMENTS_STORAGE_KEY);
 
   // Loan search
   const [loanSearch, setLoanSearch] = useState("");
@@ -361,6 +503,96 @@ function Payments() {
     { count: 0, total_paid: 0, total_collected: 0, overpayment: 0 },
   );
 
+  // ── Saved filter segments (localStorage only, via shared hook) ──────
+  // The Payments page's only filter is the date range, so a segment is a
+  // named snapshot of {dateFrom, dateTo}.
+  const filtersActive = dateFrom !== "" || dateTo !== "";
+  const handleSaveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. This month)");
+    if (!name) return;
+    saveSegment(name, { dateFrom, dateTo });
+  };
+  const applySegment = (segment) => {
+    const snap = segment.snapshot || {};
+    setDateFrom(snap.dateFrom || "");
+    setDateTo(snap.dateTo || "");
+    setCurrentPage(1);
+  };
+
+  // Desktop columns = the module-level model + a synthetic, always-demoted
+  // "transactions" column carrying the per-transaction sub-table (lives here
+  // because it needs the row handlers). It is never in a preset, so DataTable
+  // always renders it inside the expand panel.
+  const desktopColumns = [
+    ...PAYMENT_COLUMNS,
+    {
+      key: "transactions",
+      label: "Transactions",
+      align: "left",
+      sortable: false,
+      fullSpan: true,
+      cell: (g) => (
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-sm min-w-[480px]">
+            <thead>
+              <tr className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-slate-400">
+                <th className="text-left py-1 font-semibold">Transaction</th>
+                <th className="text-left py-1 font-semibold">Amount</th>
+                <th className="text-left py-1 font-semibold">Method</th>
+                <th className="text-left py-1 font-semibold">Reference</th>
+                <th className="text-right py-1 font-semibold">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {g.transactions.map((p) => (
+                <tr
+                  key={p.id}
+                  className="border-t border-gray-200/70 dark:border-slate-700"
+                >
+                  <td className="py-1.5">
+                    <button
+                      onClick={() => setTxnModal(p)}
+                      className="font-mono font-semibold text-green-600 hover:underline"
+                    >
+                      {p.transaction_code}
+                    </button>
+                  </td>
+                  <td className="py-1.5 font-bold text-green-600">
+                    {formatKES(p.amount_paid)}
+                  </td>
+                  <td className="py-1.5">
+                    <span className="inline-block px-2 py-0.5 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
+                      {p.payment_method}
+                    </span>
+                  </td>
+                  <td className="py-1.5 text-gray-600 dark:text-slate-400">
+                    {p.payment_reference || "-"}
+                  </td>
+                  <td className="py-1.5 text-right text-gray-600 dark:text-slate-400">
+                    <span className="inline-flex items-center gap-2 justify-end">
+                      {new Date(p.payment_date).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                      <button
+                        onClick={() => openEditPayment(p)}
+                        title="Edit payment"
+                        className="text-gray-400 dark:text-slate-400 hover:text-ocean-600 transition"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -428,6 +660,17 @@ function Payments() {
           </span>
         )}
       </div>
+
+      {/* Saved segments — named date-range snapshots (shared SegmentBar;
+          localStorage only, never server-side). */}
+      <SegmentBar
+        className="mb-4"
+        segments={segments}
+        onApply={applySegment}
+        onDelete={deleteSegment}
+        onSave={handleSaveSegment}
+        canSave={filtersActive}
+      />
 
       {loans.length === 0 && !loading && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
@@ -987,28 +1230,7 @@ function Payments() {
       )}
 
       {/* Payments List */}
-      {loading ? (
-        <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700">
-            <Skeleton className="h-4 w-40" />
-          </div>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 px-6 py-4 border-b border-gray-100 dark:border-slate-700"
-            >
-              <Skeleton className="h-9 w-9 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-3 w-32" />
-              </div>
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-          ))}
-        </div>
-      ) : payments.length === 0 ? (
+      {!loading && payments.length === 0 ? (
         <EmptyState
           icon={Coins}
           title="No payments yet"
@@ -1024,227 +1246,69 @@ function Payments() {
           }
         />
       ) : (
-        <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-          <div className="overflow-auto max-h-[calc(100vh-280px)]">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-              <tr>
-                {[
-                  ["Client", "first_name"],
-                  ["Loan", "loan_code"],
-                  ["Payments", "count"],
-                  ["Total Paid", "total_paid"],
-                  ["Total Collected", "total_collected"],
-                  ["Overpayment", "overpayment"],
-                  ["Last Payment", "last_date"],
-                ].map(([label, key]) => (
-                  <SortableHeader
-                    key={key}
-                    label={label}
-                    sortKey={key}
-                    requestSort={requestSort}
-                    getSortIndicator={getSortIndicator}
-                    className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase"
-                  />
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedGroups.length === 0 && (
-                <tr>
-                  <td colSpan="7" className="px-6 py-8">
-                    <EmptyState
-                      icon={Calendar}
-                      tone="muted"
-                      title="No payments in this date range"
-                      description="No transactions fall in the selected window. Clear the date range to see every payment."
-                      action={
-                        (dateFrom || dateTo) && (
-                          <button
-                            onClick={() => {
-                              setDateFrom("");
-                              setDateTo("");
-                            }}
-                            className="inline-flex items-center gap-1.5 px-6 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
-                          >
-                            <X size={15} /> Clear date range
-                          </button>
-                        )
-                      }
-                    />
-                  </td>
-                </tr>
-              )}
-              {paginatedGroups.map((g) => {
-                const open = expanded.has(g.loan_id);
-                return (
-                  <React.Fragment key={g.loan_id}>
-                    <tr className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => toggleExpand(g.loan_id)}
-                            className="text-gray-400 dark:text-slate-400 hover:text-gray-700 shrink-0"
-                            aria-label={open ? "Collapse" : "Expand"}
-                          >
-                            {open ? (
-                              <ChevronDown size={16} />
-                            ) : (
-                              <ChevronRight size={16} />
-                            )}
-                          </button>
-                          <div>
-                            <p className="font-semibold text-gray-800 dark:text-slate-100">
-                              {g.first_name} {g.last_name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">
-                              {g.phone_number}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-sm">
-                        <Link
-                          to={`/loans/${g.loan_id}`}
-                          className="text-ocean-600 hover:underline"
-                        >
-                          {g.loan_code}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => toggleExpand(g.loan_id)}
-                          className="font-semibold text-gray-800 dark:text-slate-100 hover:text-ocean-600"
-                        >
-                          {g.count} payment{g.count !== 1 ? "s" : ""}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-green-600">
-                        {formatKES(g.total_paid)}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-emerald-700">
-                        {formatKES(g.total_collected)}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {g.overpayment > 0 ? (
-                          <span className="font-semibold text-amber-700">
-                            {formatKES(g.overpayment)}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 dark:text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 dark:text-slate-400 text-sm">
-                        {new Date(g.last_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                      </td>
-                    </tr>
-                    {open && (
-                      <tr className="bg-gray-50/70 dark:bg-slate-900">
-                        <td colSpan="7" className="px-8 pb-4 pt-1">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-slate-400">
-                                <th className="text-left py-1 font-semibold">
-                                  Transaction
-                                </th>
-                                <th className="text-left py-1 font-semibold">
-                                  Amount
-                                </th>
-                                <th className="text-left py-1 font-semibold">
-                                  Method
-                                </th>
-                                <th className="text-left py-1 font-semibold">
-                                  Reference
-                                </th>
-                                <th className="text-right py-1 font-semibold">
-                                  Date
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {g.transactions.map((p) => (
-                                <tr
-                                  key={p.id}
-                                  className="border-t border-gray-200/70 dark:border-slate-700"
-                                >
-                                  <td className="py-1.5">
-                                    <button
-                                      onClick={() => setTxnModal(p)}
-                                      className="font-mono font-semibold text-green-600 hover:underline"
-                                    >
-                                      {p.transaction_code}
-                                    </button>
-                                  </td>
-                                  <td className="py-1.5 font-bold text-green-600">
-                                    {formatKES(p.amount_paid)}
-                                  </td>
-                                  <td className="py-1.5">
-                                    <span className="inline-block px-2 py-0.5 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
-                                      {p.payment_method}
-                                    </span>
-                                  </td>
-                                  <td className="py-1.5 text-gray-600 dark:text-slate-400">
-                                    {p.payment_reference || "-"}
-                                  </td>
-                                  <td className="py-1.5 text-right text-gray-600 dark:text-slate-400">
-                                    <span className="inline-flex items-center gap-2 justify-end">
-                                      {new Date(
-                                        p.payment_date,
-                                      ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                                      <button
-                                        onClick={() => openEditPayment(p)}
-                                        title="Edit payment"
-                                        className="text-gray-400 dark:text-slate-400 hover:text-ocean-600 transition"
-                                      >
-                                        <Pencil size={13} />
-                                      </button>
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-            {sortedGroups.length > 0 && (
-              <tfoot className="bg-gray-50 dark:bg-slate-900 border-t-2 border-gray-200 dark:border-slate-700 sticky bottom-0 z-10">
-                <tr>
-                  <td className="px-6 py-3 font-bold text-gray-800 dark:text-slate-100">
-                    TOTAL
-                  </td>
-                  <td className="px-6 py-3 text-sm text-gray-600 dark:text-slate-400">
-                    {sortedGroups.length} loan
-                    {sortedGroups.length !== 1 ? "s" : ""}
-                  </td>
-                  <td className="px-6 py-3 font-semibold text-gray-700 dark:text-slate-200">
-                    {totals.count} payment
-                    {totals.count !== 1 ? "s" : ""}
-                  </td>
-                  <td className="px-6 py-3 font-bold text-green-700">
-                    {formatKES(totals.total_paid)}
-                  </td>
-                  <td className="px-6 py-3 font-bold text-emerald-800">
-                    {formatKES(totals.total_collected)}
-                  </td>
-                  <td className="px-6 py-3 font-semibold text-amber-700">
-                    {totals.overpayment > 0
-                      ? formatKES(totals.overpayment)
-                      : "—"}
-                  </td>
-                  <td className="px-6 py-3 text-gray-400 dark:text-slate-400 text-sm">—</td>
-                </tr>
-              </tfoot>
-            )}
-            </table>
-          </div>
+        /* Desktop — shared DataTable (column presets, expandable rows with
+           the per-transaction sub-table, sticky pinned Client, totals,
+           skeleton, scroll affordance). Mobile uses the card list above. */
+        <div className="hidden md:block">
+          <DataTable
+            columns={desktopColumns}
+            rows={paginatedGroups}
+            rowKey={(g) => g.loan_id}
+            pinned={{
+              label: "Client",
+              sortKey: "first_name",
+              cell: (g) => (
+                <div>
+                  <p className="font-semibold text-gray-800 dark:text-slate-100">
+                    {g.first_name} {g.last_name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    {g.phone_number}
+                  </p>
+                </div>
+              ),
+            }}
+            presets={COLUMN_PRESETS}
+            preset={columnPreset}
+            onPresetChange={setColumnPreset}
+            expandedRows={expanded}
+            onToggleRow={toggleExpand}
+            sort={{ requestSort, getSortIndicator }}
+            totals={sortedGroups}
+            totalsLabel={
+              <span className="inline-flex items-center gap-2">
+                <BarChart3 size={16} /> TOTAL ({sortedGroups.length} loan
+                {sortedGroups.length !== 1 ? "s" : ""})
+              </span>
+            }
+            loading={loading}
+            skeletonRows={8}
+            skeletonCols={7}
+            empty={
+              <EmptyState
+                icon={Calendar}
+                tone="muted"
+                title="No payments in this date range"
+                description="No transactions fall in the selected window. Clear the date range to see every payment."
+                action={
+                  (dateFrom || dateTo) && (
+                    <button
+                      onClick={() => {
+                        setDateFrom("");
+                        setDateTo("");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-6 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      <X size={15} /> Clear date range
+                    </button>
+                  )
+                }
+              />
+            }
+          />
 
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+          {!loading && sortedGroups.length > 0 && totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
               <div className="text-sm text-gray-600 dark:text-slate-400">
                 Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
                 to{" "}

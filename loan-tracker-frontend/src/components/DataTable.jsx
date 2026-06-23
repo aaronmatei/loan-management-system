@@ -268,10 +268,15 @@ export default function DataTable({
                         <td colSpan={totalColCount} className="px-4 py-3">
                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3 pl-12">
                             {hiddenColumns.map((col) => (
-                              <div key={col.key}>
-                                <p className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-semibold mb-0.5">
-                                  {col.label}
-                                </p>
+                              <div
+                                key={col.key}
+                                className={col.fullSpan ? "col-span-full" : undefined}
+                              >
+                                {col.label && (
+                                  <p className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 font-semibold mb-0.5">
+                                    {col.label}
+                                  </p>
+                                )}
                                 {col.cell(row)}
                               </div>
                             ))}

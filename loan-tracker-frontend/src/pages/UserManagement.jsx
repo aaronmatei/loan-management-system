@@ -17,6 +17,133 @@ import { apiErrorMessage } from "../utils/apiError";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import { useColumnPreset } from "../hooks/useTablePrefs";
+
+// ── Users table column model ──────────────────────────────────────────
+// Column-driven so the page can offer client-side presets (which columns
+// render in the row) and push the rest into an expandable detail row.
+// The User identity (name + email) is pinned and rendered specially, so
+// it is NOT part of this generic list. Action handlers are injected via
+// the `actions` arg so the column cells stay pure presentation.
+const userColumns = ({ onEdit, onReset, onToggleStatus }) => [
+  {
+    key: "role",
+    label: "Role",
+    align: "left",
+    cell: (user) => {
+      const badge = getRoleBadge(user.role);
+      return (
+        <span
+          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}
+        >
+          {badge.label}
+        </span>
+      );
+    },
+  },
+  {
+    key: "phone_number",
+    label: "Phone",
+    align: "left",
+    cell: (user) => (
+      <span className="text-gray-700 dark:text-slate-200">
+        {user.phone_number || "-"}
+      </span>
+    ),
+  },
+  {
+    key: "last_login",
+    label: "Last Login",
+    align: "left",
+    cell: (user) => (
+      <span className="text-sm text-gray-600 dark:text-slate-400">
+        {user.last_login
+          ? new Date(user.last_login).toLocaleString("en-GB")
+          : "Never"}
+      </span>
+    ),
+  },
+  {
+    key: "is_active",
+    label: "Status",
+    align: "left",
+    cell: (user) => (
+      <span
+        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+          user.is_active
+            ? "bg-green-100 text-green-700"
+            : "bg-red-100 text-red-700"
+        }`}
+      >
+        {user.is_active ? (
+          <span className="inline-flex items-center gap-1">
+            <Check size={12} /> Active
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1">
+            <X size={12} /> Inactive
+          </span>
+        )}
+      </span>
+    ),
+  },
+  {
+    key: "actions",
+    label: "Actions",
+    align: "left",
+    cell: (user) => (
+      <div className="flex gap-2">
+        <button
+          onClick={() => onEdit(user)}
+          className="text-ocean-600 hover:text-ocean-800 text-sm inline-flex items-center gap-1"
+        >
+          <Pencil size={14} /> Edit
+        </button>
+        <button
+          onClick={() => onReset(user)}
+          className="text-ocean-600 hover:text-ocean-800 text-sm inline-flex items-center gap-1"
+        >
+          <KeyRound size={14} /> Reset Password
+        </button>
+        <button
+          onClick={() => onToggleStatus(user)}
+          className={`text-sm inline-flex items-center gap-1 ${
+            user.is_active
+              ? "text-red-600 hover:text-red-800"
+              : "text-green-600 hover:text-green-800"
+          }`}
+        >
+          {user.is_active ? (
+            <>
+              <UserX size={14} /> Deactivate
+            </>
+          ) : (
+            <>
+              <UserCheck size={14} /> Activate
+            </>
+          )}
+        </button>
+      </div>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. The User identity is
+// always pinned and shown outside this set. Hidden keys drop into the
+// expandable detail row, so no data is ever lost — just demoted.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["role", "is_active", "actions"],
+  },
+  full: {
+    label: "Everything",
+    keys: ["role", "phone_number", "last_login", "is_active", "actions"],
+  },
+};
+
+const PRESET_STORAGE_KEY = "userManagement.columnPreset";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -46,6 +173,24 @@ function UserManagement() {
 
   const [editData, setEditData] = useState({});
   const [newPassword, setNewPassword] = useState("");
+
+  // ── Table UX state (client-side only) ─────────────────────────
+  // Expanded rows reveal columns demoted by the active preset.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
+  const toggleRow = (id) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Column preset — shared hook, localStorage only. (No filters on this
+  // page, so there are no saved segments to manage.)
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "full",
+  );
 
   useEffect(() => {
     fetchUsers();
@@ -216,120 +361,58 @@ function UserManagement() {
           }
         />
       ) : (
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                User
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                Role
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                Phone
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                Last Login
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => {
-              const badge = getRoleBadge(user.role);
-              return (
-                <tr
-                  key={user.id}
-                  className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
-                >
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-gray-800 dark:text-slate-100">
-                      {user.first_name} {user.last_name}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">{user.email}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}
-                    >
-                      {badge.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-slate-200">
-                    {user.phone_number || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
-                    {user.last_login
-                      ? new Date(user.last_login).toLocaleString("en-GB")
-                      : "Never"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                        user.is_active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {user.is_active ? (
-                      <span className="inline-flex items-center gap-1"><Check size={12} /> Active</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1"><X size={12} /> Inactive</span>
-                    )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setEditData({
-                            first_name: user.first_name,
-                            last_name: user.last_name,
-                            phone_number: user.phone_number,
-                            role: user.role,
-                            is_active: user.is_active,
-                          });
-                          setShowEditModal(true);
-                        }}
-                        className="text-ocean-600 hover:text-ocean-800 text-sm inline-flex items-center gap-1"
-                      >
-                        <Pencil size={14} /> Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setNewPassword("");
-                          setShowPasswordModal(true);
-                        }}
-                        className="text-ocean-600 hover:text-ocean-800 text-sm inline-flex items-center gap-1"
-                      >
-                        <KeyRound size={14} /> Reset Password
-                      </button>
-                      <button
-                        onClick={() => toggleUserStatus(user)}
-                        className={`text-sm inline-flex items-center gap-1 ${
-                          user.is_active
-                            ? "text-red-600 hover:text-red-800"
-                            : "text-green-600 hover:text-green-800"
-                        }`}
-                      >
-                        {user.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Activate</>}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+        <DataTable
+          columns={userColumns({
+            onEdit: (user) => {
+              setSelectedUser(user);
+              setEditData({
+                first_name: user.first_name,
+                last_name: user.last_name,
+                phone_number: user.phone_number,
+                role: user.role,
+                is_active: user.is_active,
+              });
+              setShowEditModal(true);
+            },
+            onReset: (user) => {
+              setSelectedUser(user);
+              setNewPassword("");
+              setShowPasswordModal(true);
+            },
+            onToggleStatus: toggleUserStatus,
+          })}
+          rows={users}
+          rowKey={(u) => u.id}
+          pinned={{
+            label: "User",
+            cell: (user) => (
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-slate-100">
+                  {user.first_name} {user.last_name}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  {user.email}
+                </p>
+              </div>
+            ),
+          }}
+          presets={COLUMN_PRESETS}
+          preset={columnPreset}
+          onPresetChange={setColumnPreset}
+          expandedRows={expandedRows}
+          onToggleRow={toggleRow}
+          loading={loading}
+          skeletonRows={6}
+          skeletonCols={6}
+          empty={
+            <EmptyState
+              icon={Users}
+              tone="muted"
+              title="No users to show"
+              description="Add a staff member to get started."
+            />
+          }
+        />
       )}
 
       {/* Add User Modal */}

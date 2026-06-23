@@ -17,11 +17,126 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
-import SortableHeader from "../components/SortableHeader";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton, { SkeletonText } from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import SegmentBar from "../components/SegmentBar";
+import {
+  useColumnPreset,
+  useFilterSegments,
+} from "../hooks/useTablePrefs";
 import { MailX } from "lucide-react";
+
+// ── Email log table column model ─────────────────────────────────────
+// Column-driven so the desktop log table can offer client-side presets
+// (which columns show in the row) and demote the rest into an expandable
+// detail row. Recipient is pinned (sticky). Each cell() carries the EXACT
+// rendering — including dark variants — from the prior table.
+const EMAIL_COLUMNS = [
+  {
+    key: "created_at",
+    label: "Date",
+    align: "left",
+    cell: (log) => (
+      <span className="text-sm text-gray-600 dark:text-slate-400">
+        {new Date(log.created_at).toLocaleString("en-GB")}
+      </span>
+    ),
+  },
+  {
+    key: "subject",
+    label: "Subject",
+    align: "left",
+    fullSpan: true,
+    cell: (log) => (
+      <p
+        className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-wrap break-words"
+        title={log.subject}
+      >
+        {log.subject}
+      </p>
+    ),
+  },
+  {
+    key: "message_type",
+    label: "Type",
+    align: "left",
+    cell: (log) => (
+      <span
+        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+          log.message_type === "overdue_reminder"
+            ? "bg-red-100 text-red-700"
+            : log.message_type === "payment_received"
+              ? "bg-green-100 text-green-700"
+              : log.message_type === "statement" ||
+                  log.message_type === "loan_agreement"
+                ? "bg-amber-100 text-amber-700"
+                : "bg-ocean-100 text-ocean-700"
+        }`}
+      >
+        {log.message_type}
+      </span>
+    ),
+  },
+  {
+    key: "has_attachment",
+    label: "Attachment",
+    align: "left",
+    cell: (log) => (
+      <span className="text-sm text-gray-700 dark:text-slate-200">
+        {log.has_attachment ? (
+          <span title={log.attachment_name} className="inline-flex items-center gap-1">
+            <Paperclip size={14} /> {log.attachment_name}
+          </span>
+        ) : (
+          <span className="text-gray-400 dark:text-slate-400">—</span>
+        )}
+      </span>
+    ),
+  },
+  {
+    key: "status",
+    label: "Status",
+    align: "left",
+    cell: (log) => (
+      <span
+        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+          log.status === "sent"
+            ? "bg-green-100 text-green-700"
+            : "bg-red-100 text-red-700"
+        }`}
+      >
+        {log.status === "sent" ? (
+          <span className="inline-flex items-center gap-1"><Check size={12} /> Sent</span>
+        ) : (
+          <span className="inline-flex items-center gap-1"><X size={12} /> Failed</span>
+        )}
+      </span>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. The pinned Recipient
+// column is always shown outside this set; anything not listed drops into
+// the expandable detail row, so no data is ever hidden — just demoted.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["created_at", "message_type", "status"],
+  },
+  detailed: {
+    label: "Detailed",
+    keys: ["created_at", "subject", "message_type", "has_attachment", "status"],
+  },
+  full: {
+    label: "Everything",
+    keys: EMAIL_COLUMNS.map((c) => c.key),
+  },
+};
+
+const PRESET_STORAGE_KEY = "email.columnPreset";
+const SEGMENTS_STORAGE_KEY = "email.segments";
 
 function Email() {
   const [stats, setStats] = useState(null);
@@ -45,6 +160,25 @@ function Email() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // ── Table UX state (client-side only) ─────────────────────────
+  // Expanded rows reveal columns demoted by the active preset.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
+  const toggleRow = (id) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "detailed",
+  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments(SEGMENTS_STORAGE_KEY);
 
   useEffect(() => {
     fetchData();
@@ -210,6 +344,20 @@ function Email() {
 
   const filtersActive =
     searchQuery || typeFilter !== "all" || statusFilter !== "all";
+
+  // ── Saved filter segments (localStorage only, via shared hook) ─
+  const handleSaveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. Statements sent)");
+    if (!name) return;
+    saveSegment(name, { searchQuery, typeFilter, statusFilter });
+  };
+  const applySegment = (segment) => {
+    const snap = segment.snapshot || {};
+    setSearchQuery(snap.searchQuery || "");
+    setTypeFilter(snap.typeFilter || "all");
+    setStatusFilter(snap.statusFilter || "all");
+    setCurrentPage(1);
+  };
 
   if (loading) {
     return (
@@ -508,6 +656,17 @@ function Email() {
           )}
         </div>
 
+        {/* Saved segments — named search + filter snapshots (shared
+            SegmentBar; localStorage only, never server-side). */}
+        <SegmentBar
+          className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700"
+          segments={segments}
+          onApply={applySegment}
+          onDelete={deleteSegment}
+          onSave={handleSaveSegment}
+          canSave={filtersActive}
+        />
+
         {/* Active Filter Tags */}
         {filtersActive && (
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between">
@@ -560,126 +719,60 @@ function Email() {
         <div className="p-6 border-b border-gray-200 dark:border-slate-700">
           <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><ClipboardList size={20} /> Email History</h2>
         </div>
-        <div className="overflow-auto max-h-[calc(100vh-500px)]">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 border-b-2 border-gray-200 dark:border-slate-700 shadow-sm">
-              <tr>
-                {[
-                  ["Date", "created_at"],
-                  ["Recipient", "recipient_email"],
-                  ["Subject", "subject"],
-                  ["Type", "email_type"],
-                  ["Attachment", "has_attachment"],
-                  ["Status", "status"],
-                ].map(([label, key]) => (
-                  <SortableHeader
-                    key={key}
-                    label={label}
-                    sortKey={key}
-                    requestSort={requestSort}
-                    getSortIndicator={getSortIndicator}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase"
-                  />
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-4 py-10">
-                    {logs.length === 0 ? (
-                      <EmptyState
-                        icon={MailX}
-                        title="No emails sent yet"
-                        description="Send overdue reminders or compose an email — every message you send will appear here."
-                        action={
-                          <button
-                            onClick={() => setShowCustomModal(true)}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
-                          >
-                            <Mail size={16} /> Compose Email
-                          </button>
-                        }
-                      />
-                    ) : (
-                      <EmptyState
-                        icon={MailX}
-                        title="No emails match your filters"
-                        description="Try adjusting your search or clearing the filters above."
-                        tone="muted"
-                      />
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                paginatedLogs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
+        {/* Desktop — shared DataTable (column presets, expandable rows,
+            sticky pinned Recipient, skeleton, scroll affordance). */}
+        <DataTable
+          columns={EMAIL_COLUMNS}
+          rows={paginatedLogs}
+          rowKey={(log) => log.id}
+          pinned={{
+            label: "Recipient",
+            sortKey: "recipient_email",
+            cell: (log) => (
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
+                  {log.first_name} {log.last_name}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  {log.recipient_email}
+                </p>
+              </div>
+            ),
+          }}
+          presets={COLUMN_PRESETS}
+          preset={columnPreset}
+          onPresetChange={setColumnPreset}
+          expandedRows={expandedRows}
+          onToggleRow={toggleRow}
+          sort={{ requestSort, getSortIndicator }}
+          loading={loading}
+          skeletonRows={8}
+          skeletonCols={6}
+          empty={
+            logs.length === 0 ? (
+              <EmptyState
+                icon={MailX}
+                title="No emails sent yet"
+                description="Send overdue reminders or compose an email — every message you send will appear here."
+                action={
+                  <button
+                    onClick={() => setShowCustomModal(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
                   >
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
-                      {new Date(log.created_at).toLocaleString("en-GB")}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
-                        {log.first_name} {log.last_name}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400">
-                        {log.recipient_email}
-                      </p>
-                    </td>
-                    <td
-                      className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200 max-w-xs truncate"
-                      title={log.subject}
-                    >
-                      {log.subject}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                          log.message_type === "overdue_reminder"
-                            ? "bg-red-100 text-red-700"
-                            : log.message_type === "payment_received"
-                              ? "bg-green-100 text-green-700"
-                              : log.message_type === "statement" ||
-                                  log.message_type === "loan_agreement"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-ocean-100 text-ocean-700"
-                        }`}
-                      >
-                        {log.message_type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
-                      {log.has_attachment ? (
-                        <span title={log.attachment_name} className="inline-flex items-center gap-1">
-                          <Paperclip size={14} /> {log.attachment_name}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 dark:text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                          log.status === "sent"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {log.status === "sent" ? (
-                          <span className="inline-flex items-center gap-1"><Check size={12} /> Sent</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1"><X size={12} /> Failed</span>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    <Mail size={16} /> Compose Email
+                  </button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={MailX}
+                title="No emails match your filters"
+                description="Try adjusting your search or clearing the filters above."
+                tone="muted"
+              />
+            )
+          }
+        />
 
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">

@@ -32,6 +32,9 @@ import PermissionGate from "../components/PermissionGate";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton, { SkeletonText } from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import SegmentBar from "../components/SegmentBar";
+import { useColumnPreset, useFilterSegments } from "../hooks/useTablePrefs";
 import { formatKES } from "../utils/money";
 import PeriodNavigator, {
   periodToRange,
@@ -42,6 +45,171 @@ const fmt = (n) => formatKES(n);
 const today = () => new Date().toISOString().split("T")[0];
 const ymd = (v) =>
   v ? new Date(v).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }) : "—";
+
+// ── Expenses table column model ───────────────────────────────────────
+// The desktop table is column-driven (shared <DataTable>): the page picks
+// which columns render via a preset, the rest fold into an expandable
+// detail row. Date is pinned (sticky first column). The `amount` column is
+// `money` and contributes to the totals footer. Each cell() reproduces the
+// EXACT prior rendering — classes, badges, dark variants — verbatim.
+//
+// `onEdit`, `onDelete`, `onOpenBilling` are wired from the page so the
+// Actions column keeps its permission-gated edit/delete/billing buttons.
+const num = (v) => parseFloat(v || 0);
+
+const buildExpenseColumns = ({ onEdit, onDelete, onOpenBilling }) => [
+  {
+    key: "category",
+    label: "Category",
+    align: "left",
+    sortable: false,
+    cell: (e) => (
+      <div className="inline-flex items-center gap-2 flex-wrap">
+        <Tag size={14} className="text-stone-400 dark:text-slate-400" />
+        <span className="text-sm font-medium text-stone-900 dark:text-slate-100">
+          {e.category_name || "—"}
+        </span>
+        {e.invoice_id && (
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-200 dark:bg-slate-700 text-stone-700 dark:text-slate-200"
+            title="Auto-imported from Platform Billing"
+          >
+            <Link2 size={10} /> Auto
+          </span>
+        )}
+        {e.is_recurring && !e.invoice_id && (
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800"
+            title={`Recurring · ${e.recurrence_period || "monthly"}`}
+          >
+            <Repeat size={10} />
+            {e.recurrence_period || "recurring"}
+          </span>
+        )}
+      </div>
+    ),
+  },
+  {
+    key: "description",
+    label: "Description",
+    align: "left",
+    sortable: false,
+    cell: (e) => (
+      <div className="max-w-md">
+        <p className="truncate text-sm text-stone-700 dark:text-slate-200">
+          {e.description || "—"}
+        </p>
+        {e.reference && (
+          <p className="text-xs text-stone-400 dark:text-slate-400 font-mono">
+            Ref · {e.reference}
+          </p>
+        )}
+      </div>
+    ),
+  },
+  {
+    key: "amount",
+    label: "Amount",
+    align: "right",
+    sortable: false,
+    money: true,
+    total: (rows) => rows.reduce((s, e) => s + num(e.amount), 0),
+    totalClass: "text-rose-700",
+    footer: (rows) => (
+      <span className="font-bold text-rose-700 text-base">
+        − {fmt(rows.reduce((s, e) => s + num(e.amount), 0))}
+      </span>
+    ),
+    cell: (e) => (
+      <span className="font-bold text-rose-700">− {fmt(e.amount)}</span>
+    ),
+  },
+  {
+    key: "payment_method",
+    label: "Method",
+    align: "left",
+    sortable: false,
+    cell: (e) => (
+      <span className="text-sm text-stone-600 dark:text-slate-400">
+        {e.payment_method || "—"}
+      </span>
+    ),
+  },
+  {
+    key: "recorded_by",
+    label: "Recorded By",
+    align: "left",
+    sortable: false,
+    cell: (e) => (
+      <span className="text-sm text-stone-600 dark:text-slate-400">
+        {e.recorded_by_name || "—"}
+      </span>
+    ),
+  },
+  {
+    key: "actions",
+    label: "Actions",
+    align: "center",
+    sortable: false,
+    cell: (e) => (
+      <div className="flex items-center justify-center gap-1">
+        {e.invoice_id ? (
+          // Auto-synced from Platform Billing — send the user
+          // to the Billing page where they can actually settle it.
+          <button
+            onClick={() => onOpenBilling()}
+            className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-400 dark:text-slate-400 hover:text-stone-700 dark:hover:text-slate-200 transition"
+            title="Open the underlying invoice on Billing"
+          >
+            <Link2 size={14} />
+          </button>
+        ) : (
+          <>
+            <PermissionGate role={["admin", "manager"]}>
+              <button
+                onClick={() => onEdit(e)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-600 dark:text-slate-400 hover:text-amber-700 transition"
+                title="Edit"
+              >
+                <Pencil size={14} />
+              </button>
+            </PermissionGate>
+            <PermissionGate role="admin">
+              <button
+                onClick={() => onDelete(e.id)}
+                className="p-1.5 rounded-lg hover:bg-rose-50 text-stone-400 dark:text-slate-400 hover:text-rose-700 transition"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </PermissionGate>
+          </>
+        )}
+      </div>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. Date is always pinned and
+// shown outside this set. Hidden columns fold into the expandable detail
+// row, so nothing is ever truly hidden — just demoted.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["category", "description", "amount", "actions"],
+  },
+  full: {
+    label: "Everything",
+    keys: [
+      "category",
+      "description",
+      "amount",
+      "payment_method",
+      "recorded_by",
+      "actions",
+    ],
+  },
+};
 
 const RECURRENCE_OPTIONS = [
   { value: "monthly", label: "Monthly" },
@@ -77,6 +245,25 @@ function Expenses() {
   const [period, setPeriod] = usePersistentPeriod();
   const { from: dateFrom, to: dateTo } = periodToRange(period);
   const [recurringFilter, setRecurringFilter] = useState("all");
+
+  // ── Table UX state (client-side only) ─────────────────────────
+  // Expanded rows reveal columns demoted by the active preset.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
+  const toggleRow = (id) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    "expenses.columnPreset",
+    COLUMN_PRESETS,
+    "full",
+  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments("expenses.segments");
 
   // Modals
   const [showForm, setShowForm] = useState(false);
@@ -259,6 +446,27 @@ function Expenses() {
     setCategoryFilter("all");
     setRecurringFilter("all");
   };
+
+  // ── Saved filter segments (localStorage only, via shared hook) ─
+  const handleSaveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. Recurring rent)");
+    if (!name) return;
+    saveSegment(name, { searchQuery, categoryFilter, recurringFilter });
+  };
+  const applySegment = (segment) => {
+    const snap = segment.snapshot || {};
+    setSearchQuery(snap.searchQuery || "");
+    setCategoryFilter(snap.categoryFilter || "all");
+    setRecurringFilter(snap.recurringFilter || "all");
+  };
+
+  // Desktop table columns — handlers wired so the Actions column keeps its
+  // permission-gated edit/delete/billing buttons (no behavior change).
+  const expenseColumns = buildExpenseColumns({
+    onEdit: openEdit,
+    onDelete: setShowDeleteId,
+    onOpenBilling: () => navigate("/billing"),
+  });
 
   const topCategory = stats?.by_category?.find((c) => c.total > 0);
 
@@ -566,178 +774,69 @@ function Expenses() {
         </div>
       </div>
 
-      {/* ── Table ──────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 overflow-hidden">
-        <div className="overflow-auto max-h-[calc(100vh-380px)]">
-          <table className="w-full">
-            <thead className="bg-stone-50 dark:bg-slate-900 border-b-2 border-stone-200 dark:border-slate-700 sticky top-0 z-10">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
-                  Category
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
-                  Description
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
-                  Amount
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
-                  Method
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
-                  Recorded By
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredExpenses.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-4 py-10">
-                    {expenses.length === 0 ? (
-                      <EmptyState
-                        icon={Receipt}
-                        tone="muted"
-                        title="No expenses recorded yet"
-                        description="Record salaries, transport, transaction fees and other outflows to start the cash-out ledger."
-                        action={
-                          <PermissionGate role={["admin", "manager"]}>
-                            <button
-                              onClick={openAdd}
-                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-800 text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
-                            >
-                              <Plus size={16} /> Record Expense
-                            </button>
-                          </PermissionGate>
-                        }
-                      />
-                    ) : (
-                      <p className="text-center text-stone-500 dark:text-slate-400">
-                        No expenses match your filters.
-                      </p>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                filteredExpenses.map((e) => (
-                  <tr
-                    key={e.id}
-                    className="border-b border-stone-100 dark:border-slate-700 hover:bg-stone-50/60 dark:hover:bg-slate-700 transition"
+      {/* Saved segments — named search + filter snapshots (shared
+          SegmentBar; localStorage only, never server-side). */}
+      <SegmentBar
+        className="mb-4"
+        segments={segments}
+        onApply={applySegment}
+        onDelete={deleteSegment}
+        onSave={handleSaveSegment}
+        canSave={filtersActive}
+      />
+
+      {/* ── Table — shared DataTable (column presets, expandable rows,
+          sticky pinned Date column, totals footer). No row sorting or
+          bulk selection on this page, so `sort`/`selection` are omitted. */}
+      <DataTable
+        columns={expenseColumns}
+        rows={filteredExpenses}
+        rowKey={(e) => e.id}
+        pinned={{
+          label: "Date",
+          cell: (e) => (
+            <span className="text-sm text-stone-700 dark:text-slate-200">
+              {ymd(e.expense_date)}
+            </span>
+          ),
+        }}
+        presets={COLUMN_PRESETS}
+        preset={columnPreset}
+        onPresetChange={setColumnPreset}
+        expandedRows={expandedRows}
+        onToggleRow={toggleRow}
+        totals={filteredExpenses}
+        totalsLabel={`TOTALS · ${filteredExpenses.length} entr${
+          filteredExpenses.length === 1 ? "y" : "ies"
+        }`}
+        skeletonCols={7}
+        empty={
+          expenses.length === 0 ? (
+            <EmptyState
+              icon={Receipt}
+              tone="muted"
+              title="No expenses recorded yet"
+              description="Record salaries, transport, transaction fees and other outflows to start the cash-out ledger."
+              action={
+                <PermissionGate role={["admin", "manager"]}>
+                  <button
+                    onClick={openAdd}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-800 text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
                   >
-                    <td className="px-4 py-3 text-sm text-stone-700 dark:text-slate-200">
-                      {ymd(e.expense_date)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="inline-flex items-center gap-2 flex-wrap">
-                        <Tag size={14} className="text-stone-400 dark:text-slate-400" />
-                        <span className="text-sm font-medium text-stone-900 dark:text-slate-100">
-                          {e.category_name || "—"}
-                        </span>
-                        {e.invoice_id && (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-200 dark:bg-slate-700 text-stone-700 dark:text-slate-200"
-                            title="Auto-imported from Platform Billing"
-                          >
-                            <Link2 size={10} /> Auto
-                          </span>
-                        )}
-                        {e.is_recurring && !e.invoice_id && (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800"
-                            title={`Recurring · ${e.recurrence_period || "monthly"}`}
-                          >
-                            <Repeat size={10} />
-                            {e.recurrence_period || "recurring"}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-stone-700 dark:text-slate-200 max-w-md">
-                      <p className="truncate">{e.description || "—"}</p>
-                      {e.reference && (
-                        <p className="text-xs text-stone-400 dark:text-slate-400 font-mono">
-                          Ref · {e.reference}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="font-bold text-rose-700">
-                        − {fmt(e.amount)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-slate-400">
-                      {e.payment_method || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-slate-400">
-                      {e.recorded_by_name || "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        {e.invoice_id ? (
-                          // Auto-synced from Platform Billing — send the user
-                          // to the Billing page where they can actually settle it.
-                          <button
-                            onClick={() => navigate("/billing")}
-                            className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-400 dark:text-slate-400 hover:text-stone-700 dark:hover:text-slate-200 transition"
-                            title="Open the underlying invoice on Billing"
-                          >
-                            <Link2 size={14} />
-                          </button>
-                        ) : (
-                          <>
-                            <PermissionGate role={["admin", "manager"]}>
-                              <button
-                                onClick={() => openEdit(e)}
-                                className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-600 dark:text-slate-400 hover:text-amber-700 transition"
-                                title="Edit"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                            </PermissionGate>
-                            <PermissionGate role="admin">
-                              <button
-                                onClick={() => setShowDeleteId(e.id)}
-                                className="p-1.5 rounded-lg hover:bg-rose-50 text-stone-400 dark:text-slate-400 hover:text-rose-700 transition"
-                                title="Delete"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </PermissionGate>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            {filteredExpenses.length > 0 && (
-              <tfoot className="bg-stone-50 dark:bg-slate-900 border-t-2 border-stone-200 dark:border-slate-700">
-                <tr>
-                  <td
-                    colSpan="3"
-                    className="px-4 py-3 text-sm font-bold text-stone-800 dark:text-slate-100"
-                  >
-                    TOTALS · {filteredExpenses.length} entr
-                    {filteredExpenses.length === 1 ? "y" : "ies"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="font-bold text-rose-700 text-base">
-                      − {fmt(filteredTotal)}
-                    </span>
-                  </td>
-                  <td colSpan="3"></td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </div>
+                    <Plus size={16} /> Record Expense
+                  </button>
+                </PermissionGate>
+              }
+            />
+          ) : (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-10">
+              <p className="text-center text-stone-500 dark:text-slate-400">
+                No expenses match your filters.
+              </p>
+            </div>
+          )
+        }
+      />
 
       {/* ── Add/Edit Form Modal ────────────────────────────────── */}
       {showForm && (

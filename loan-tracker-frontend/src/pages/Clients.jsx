@@ -27,11 +27,153 @@ import BulkMessaging from "../components/BulkMessaging";
 import PermissionGate from "../components/PermissionGate";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
-import SortableHeader from "../components/SortableHeader";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import SegmentBar from "../components/SegmentBar";
+import { useColumnPreset, useFilterSegments } from "../hooks/useTablePrefs";
 import { formatKES } from "../utils/money";
+
+// ── Clients table column model ───────────────────────────────────────
+// The desktop clients table is column-driven so we can offer client-side
+// presets (which columns show in the row) and push the rest into an
+// expandable detail row — without forking the rendering logic. The client
+// identity (code + name + tags) is pinned (sticky) and rendered specially
+// in the row, so it is NOT part of this generic list. There are no money
+// columns here, so the table has no totals row.
+const CLIENT_COLUMNS = [
+  {
+    key: "client_type",
+    label: "Type",
+    align: "left",
+    cell: (client) => (
+      <span
+        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+          client.client_type === "business"
+            ? "bg-violet-100 text-violet-700"
+            : client.client_type === "group"
+              ? "bg-amber-100 text-amber-700"
+              : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+        }`}
+      >
+        {clientTypeLabel(client.client_type)}
+      </span>
+    ),
+  },
+  {
+    key: "phone_number",
+    label: "Phone",
+    align: "left",
+    cell: (client) => (
+      <span className="text-gray-600 dark:text-slate-400">
+        {client.phone_number}
+      </span>
+    ),
+  },
+  {
+    key: "branch_name",
+    label: "Branch",
+    align: "left",
+    cell: (client) => (
+      <span className="text-gray-600 dark:text-slate-400">
+        {client.branch_name || "—"}
+      </span>
+    ),
+  },
+  {
+    key: "created_at",
+    label: "Joined",
+    align: "left",
+    cell: (client) => (
+      <span className="text-gray-600 dark:text-slate-400 whitespace-nowrap">
+        {client.created_at
+          ? new Date(client.created_at).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "—"}
+      </span>
+    ),
+  },
+  {
+    key: "credit_score",
+    label: "Score",
+    align: "left",
+    cell: (client) =>
+      client.credit_score == null ? (
+        <span className="font-semibold text-gray-400 dark:text-slate-400">
+          —
+        </span>
+      ) : (
+        <span
+          className={`font-semibold ${
+            client.credit_score >= 80
+              ? "text-emerald-600"
+              : client.credit_score >= 60
+                ? "text-amber-600"
+                : "text-rose-600"
+          }`}
+        >
+          {client.credit_score}
+        </span>
+      ),
+  },
+  {
+    key: "last_activity",
+    label: "Last Activity",
+    align: "left",
+    cell: (client) => (
+      <span className="text-gray-600 dark:text-slate-400 whitespace-nowrap">
+        {timeAgo(client.last_activity)}
+      </span>
+    ),
+  },
+  {
+    key: "status",
+    label: "Status",
+    align: "left",
+    cell: (client) => (
+      <span
+        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+          client.status === "active"
+            ? "bg-green-100 text-green-700"
+            : "bg-red-100 text-red-700"
+        }`}
+      >
+        {client.status}
+      </span>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. The client identity is
+// always pinned and shown outside this set. Anything not visible drops
+// into the expandable detail row, so no data is ever hidden — just demoted.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["phone_number", "credit_score", "status"],
+  },
+  standard: {
+    label: "Standard",
+    keys: [
+      "client_type",
+      "phone_number",
+      "branch_name",
+      "credit_score",
+      "status",
+    ],
+  },
+  full: {
+    label: "Everything",
+    keys: CLIENT_COLUMNS.map((c) => c.key),
+  },
+};
+
+const PRESET_STORAGE_KEY = "clients.columnPreset";
+const SEGMENTS_STORAGE_KEY = "clients.segments";
 
 function Clients() {
   const navigate = useNavigate();
@@ -181,6 +323,39 @@ function Clients() {
 
   // ── Bulk selection ──────────────────────────────────────────
   const bulk = useBulkSelection(paginatedClients);
+
+  // ── Table UX state (client-side only) ─────────────────────────
+  // Expanded rows reveal columns demoted by the active preset.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
+  const toggleRow = (id) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "standard",
+  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments(SEGMENTS_STORAGE_KEY);
+
+  // ── Saved filter segments (localStorage only, via shared hook) ─
+  // The Clients page's only filter is the search box, so segments snapshot
+  // that single piece of state.
+  const handleSaveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. Acme search)");
+    if (!name) return;
+    saveSegment(name, { searchTerm });
+  };
+  const applySegment = (segment) => {
+    const snap = segment.snapshot || {};
+    setSearchTerm(snap.searchTerm || "");
+    setCurrentPage(1);
+  };
 
   const handleBulkExport = async () => {
     try {
@@ -774,151 +949,68 @@ function Clients() {
           }
         />
       ) : (
-        <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-          <div className="overflow-auto max-h-[calc(100vh-280px)]">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-                <tr>
-                  <th className="px-4 py-4 w-10">
-                    <input
-                      type="checkbox"
-                      checked={bulk.allOnPageSelected}
-                      onChange={bulk.togglePage}
-                      className="w-4 h-4 cursor-pointer"
-                    />
-                  </th>
-                  {[
-                    ["Code", "client_code"],
-                    ["Name", "first_name"],
-                    ["Type", "client_type"],
-                    ["Phone", "phone_number"],
-                    ["Branch", "branch_name"],
-                    ["Joined", "created_at"],
-                    ["Score", "credit_score"],
-                    ["Last Activity", "last_activity"],
-                    ["Status", "status"],
-                  ].map(([label, key]) => (
-                    <SortableHeader
-                      key={key}
-                      label={label}
-                      sortKey={key}
-                      requestSort={requestSort}
-                      getSortIndicator={getSortIndicator}
-                      className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase"
-                    />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedClients.map((client) => (
-                  <tr
-                    key={client.id}
-                    onClick={() => navigate(`/clients/${client.id}/profile`)}
-                    className={`border-b border-gray-100 dark:border-slate-700 hover:bg-ocean-50 dark:hover:bg-slate-700 transition cursor-pointer ${
-                      bulk.isSelected(client.id) ? "bg-ocean-50" : ""
-                    }`}
-                  >
-                    <td
-                      className="px-4 py-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={bulk.isSelected(client.id)}
-                        onChange={() => bulk.toggle(client.id)}
-                        className="w-4 h-4 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-6 py-4 font-mono text-sm font-semibold text-ocean-600">
-                      {client.client_code}
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-gray-800 dark:text-slate-100">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span>
-                          {client.first_name} {client.last_name}
-                        </span>
-                        {clientTags(client).map((t) => (
-                          <span
-                            key={t.key}
-                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${tagChipClass(
-                              t.tone,
-                            )}`}
-                          >
-                            {t.label}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
+        <div className="hidden md:block">
+          <SegmentBar
+            segments={segments}
+            onApply={applySegment}
+            onDelete={deleteSegment}
+            onSave={handleSaveSegment}
+            canSave={searchTerm.trim() !== ""}
+            className="mb-3"
+          />
+
+          <DataTable
+            columns={CLIENT_COLUMNS}
+            rows={paginatedClients}
+            rowKey={(client) => client.id}
+            pinned={{
+              label: "Client",
+              sortKey: "client_code",
+              cell: (client) => (
+                <div className="min-w-0">
+                  <p className="font-mono text-sm font-semibold text-ocean-600">
+                    {client.client_code}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5 font-semibold text-gray-800 dark:text-slate-100">
+                    <span>
+                      {client.first_name} {client.last_name}
+                    </span>
+                    {clientTags(client).map((t) => (
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          client.client_type === "business"
-                            ? "bg-violet-100 text-violet-700"
-                            : client.client_type === "group"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-                        }`}
+                        key={t.key}
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${tagChipClass(
+                          t.tone,
+                        )}`}
                       >
-                        {clientTypeLabel(client.client_type)}
+                        {t.label}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">
-                      {client.phone_number}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">
-                      {client.branch_name || "—"}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400 whitespace-nowrap">
-                      {client.created_at
-                        ? new Date(client.created_at).toLocaleDateString(
-                            "en-GB",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )
-                        : "—"}
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-gray-700 dark:text-slate-200">
-                      {client.credit_score == null ? (
-                        <span className="text-gray-400 dark:text-slate-400">—</span>
-                      ) : (
-                        <span
-                          className={
-                            client.credit_score >= 80
-                              ? "text-emerald-600"
-                              : client.credit_score >= 60
-                                ? "text-amber-600"
-                                : "text-rose-600"
-                          }
-                        >
-                          {client.credit_score}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400 whitespace-nowrap">
-                      {timeAgo(client.last_activity)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                          client.status === "active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {client.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ))}
+                  </div>
+                </div>
+              ),
+            }}
+            presets={COLUMN_PRESETS}
+            preset={columnPreset}
+            onPresetChange={setColumnPreset}
+            expandedRows={expandedRows}
+            onToggleRow={toggleRow}
+            selection={{
+              isSelected: bulk.isSelected,
+              toggle: bulk.toggle,
+              allSelected: bulk.allOnPageSelected,
+              toggleAll: bulk.togglePage,
+            }}
+            sort={{ requestSort, getSortIndicator }}
+            onRowClick={(client) =>
+              navigate(`/clients/${client.id}/profile`)
+            }
+            openLabel={(client) =>
+              `Open ${client.first_name} ${client.last_name}`
+            }
+          />
 
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
               <div className="text-sm text-gray-600 dark:text-slate-400">
                 Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
                 to{" "}
