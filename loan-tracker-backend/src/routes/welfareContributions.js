@@ -363,11 +363,16 @@ export async function loadPlanOverview(welfare, planId, year, { ensure = true } 
   const plan = await getPlanById(welfare.id, planId);
   if (!plan) return null;
   if (ensure) {
-    // Quarterly: open every quarter so members can prepay the year; others just
-    // open the current period.
+    // Quarterly: open the CURRENT year's four quarters so members can prepay —
+    // but never auto-open a past (or future) year just because it was viewed,
+    // which used to fabricate stale back-dated dues for everyone. Other
+    // frequencies only ever open the current period.
     try {
-      if (plan.frequency === "quarterly") await ensureYearCycles(welfare, plan, year);
-      else await ensureCurrentCycle({ welfare, plan });
+      if (plan.frequency === "quarterly") {
+        if (year === new Date().getFullYear()) await ensureYearCycles(welfare, plan, year);
+      } else {
+        await ensureCurrentCycle({ welfare, plan });
+      }
     } catch { /* non-fatal */ }
   }
   return buildPlanOverview(welfare, plan, year);

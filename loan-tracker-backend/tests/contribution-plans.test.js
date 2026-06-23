@@ -41,6 +41,17 @@ describe("recurring contribution plans", () => {
     expect(mov.periods.filter((p) => p.opened).length).toBe(1);
   });
 
+  it("does NOT auto-open cycles when an admin views a PAST year (no fabricated back-dated dues)", async () => {
+    const { admin, w } = await welfareSetup(2);
+    const plan = (await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
+      .send({ name: "Quarterly", frequency: "quarterly", amount: 5000, due_day: 28, pool_kind: "benefit" })).body.data;
+    const pastYear = new Date().getFullYear() - 2;
+    const ov = (await request(app).get(`/api/welfares/${w.id}/contribution-plans/${plan.id}/overview?year=${pastYear}`).set("Authorization", auth(admin))).body.data;
+    // Every quarter is a projection — nothing opened, so no member gets a stale due.
+    expect(ov.periods.filter((p) => p.opened)).toHaveLength(0);
+    expect(ov.periods.some((p) => p.cycle_id)).toBe(false);
+  });
+
   it("setting the plan auto-opens the current month's cycle with its fine rule (idempotent)", async () => {
     const { admin, w } = await welfareSetup(2);
     const put = await request(app).post(`/api/welfares/${w.id}/contribution-plans`).set("Authorization", auth(admin))
