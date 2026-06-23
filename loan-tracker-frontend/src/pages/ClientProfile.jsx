@@ -22,7 +22,9 @@ import api from "../services/api";
 import { apiErrorMessage } from "../utils/apiError";
 import { KENYA_COUNTIES } from "../utils/counties";
 import { BUSINESS_TYPES } from "../utils/businessTypes";
-import Spinner from "../components/Spinner";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { formatKES } from "../utils/money";
 
 // Small status dot beside the risk label in the credit-score card.
 const riskDot = {
@@ -32,7 +34,7 @@ const riskDot = {
   red: "bg-red-500",
 };
 
-const KES = (n) => `KES ${Number(n || 0).toLocaleString()}`;
+const KES = (n) => formatKES(n);
 
 function Card({ title, value, icon, color }) {
   const accent =
@@ -45,11 +47,11 @@ function Card({ title, value, icon, color }) {
     }[color] || "border-gray-300";
 
   return (
-    <div className={`bg-white rounded-xl shadow-md p-4 border-l-4 ${accent}`}>
-      <p className="text-xs text-gray-500 uppercase font-semibold">
+    <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 border-l-4 ${accent}`}>
+      <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-semibold">
         {icon} {title}
       </p>
-      <p className="text-xl font-bold text-gray-800 mt-1 break-words">
+      <p className="text-xl font-bold text-gray-800 dark:text-slate-100 mt-1 break-words">
         {value}
       </p>
     </div>
@@ -60,7 +62,7 @@ function statusBadge(status) {
   if (status === "active") return "bg-green-100 text-green-700";
   if (status === "completed") return "bg-ocean-100 text-ocean-700";
   if (status === "defaulted") return "bg-red-100 text-red-700";
-  return "bg-gray-100 text-gray-700";
+  return "bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-200";
 }
 
 function ClientProfile() {
@@ -116,9 +118,30 @@ function ClientProfile() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading credit profile…" />
+        {/* Heading placeholder */}
+        <div className="mb-6 space-y-3">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-8 w-56" />
         </div>
+        {/* Identity + credit score */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+          <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 lg:p-8">
+            <div className="flex items-center gap-5">
+              <Skeleton className="h-24 w-24" rounded="rounded-full" />
+              <div className="flex-1">
+                <SkeletonText lines={3} />
+              </div>
+            </div>
+          </div>
+          <Skeleton className="h-48 w-full rounded-2xl" />
+        </div>
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
@@ -152,7 +175,7 @@ function ClientProfile() {
   } = data;
 
   const actionBtn =
-    "w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-ocean-200 text-slate-700 font-semibold transition text-left";
+    "w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-ocean-200 text-slate-700 dark:text-slate-200 font-semibold transition text-left";
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -160,14 +183,14 @@ function ClientProfile() {
       <div className="mb-6">
         <button
           onClick={() => navigate("/clients")}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-ocean-600 mb-3"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-ocean-600 mb-3"
         >
           <ArrowLeft size={16} /> Back to Clients
         </button>
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100">
           Client Profile
         </h1>
-        <p className="text-slate-500">
+        <p className="text-slate-500 dark:text-slate-400">
           Manage client information and account details
         </p>
       </div>
@@ -175,7 +198,7 @@ function ClientProfile() {
       {/* Header: identity + credit score / actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         {/* Identity card */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 lg:p-8">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center gap-5">
             {client.profile_photo_url ? (
               <img
@@ -191,16 +214,16 @@ function ClientProfile() {
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-400">
                 Client Code
               </p>
-              <h2 className="text-2xl lg:text-3xl font-extrabold text-navy-900 break-all">
+              <h2 className="text-2xl lg:text-3xl font-extrabold text-navy-900 dark:text-slate-100 break-all">
                 {client.client_code}
               </h2>
-              <p className="text-lg font-bold text-slate-800 mt-0.5">
+              <p className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-0.5">
                 {client.first_name} {client.last_name}
               </p>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {client.business_name && `${client.business_name} · `}
                 Member since{" "}
                 {new Date(client.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
@@ -228,22 +251,22 @@ function ClientProfile() {
         {/* Credit score + actions */}
         <div className="space-y-3">
           <div className="bg-gradient-to-br from-ocean-50 to-ocean-100 rounded-2xl border border-ocean-100 p-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Credit Score
             </p>
             <p className="text-4xl font-extrabold text-ocean-600 mt-1 leading-none">
               {rated ? creditScore : "New"}
             </p>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {rated ? "out of 100" : "unrated"}
             </p>
-            <div className="inline-flex items-center gap-2 mt-3 bg-white rounded-full px-3 py-1 shadow-sm">
+            <div className="inline-flex items-center gap-2 mt-3 bg-white dark:bg-slate-800 rounded-full px-3 py-1 shadow-sm">
               <span
                 className={`w-2 h-2 rounded-full ${
                   riskDot[riskColor] || "bg-ocean-400"
                 }`}
               />
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {riskLabel}
               </span>
             </div>
@@ -332,11 +355,11 @@ function ClientProfile() {
       </div>
 
       {/* Identity documents — from the client's linked customer-portal account */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
-          <IdCard size={20} className="text-gray-600" /> Identity Documents
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
+          <IdCard size={20} className="text-gray-600 dark:text-slate-400" /> Identity Documents
         </h2>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           Uploaded by the client in the customer portal. Click an image to view
           it full-size.
         </p>
@@ -357,17 +380,17 @@ function ClientProfile() {
                   <img
                     src={client[key]}
                     alt={label}
-                    className={`w-full aspect-square object-cover border border-gray-200 ${shape}`}
+                    className={`w-full aspect-square object-cover border border-gray-200 dark:border-slate-700 ${shape}`}
                   />
                 </a>
               ) : (
                 <div
-                  className={`w-full aspect-square bg-gray-100 flex items-center justify-center text-sm text-gray-400 border border-gray-200 ${shape}`}
+                  className={`w-full aspect-square bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-sm text-gray-400 dark:text-slate-400 border border-gray-200 dark:border-slate-700 ${shape}`}
                 >
                   Not uploaded
                 </div>
               )}
-              <p className="text-sm font-semibold text-gray-700 mt-2">{label}</p>
+              <p className="text-sm font-semibold text-gray-700 dark:text-slate-200 mt-2">{label}</p>
             </div>
           ))}
         </div>
@@ -378,7 +401,7 @@ function ClientProfile() {
         <Card
           title="Total Loans"
           value={summary.total_loans_count}
-          icon={<ClipboardList size={14} className="inline mr-1 text-gray-400" />}
+          icon={<ClipboardList size={14} className="inline mr-1 text-gray-400 dark:text-slate-400" />}
           color="indigo"
         />
         <Card
@@ -402,41 +425,41 @@ function ClientProfile() {
         <Card
           title="On-Time Rate"
           value={summary.on_time_rate == null ? "—" : `${summary.on_time_rate}%`}
-          icon={<Clock size={14} className="inline mr-1 text-gray-400" />}
+          icon={<Clock size={14} className="inline mr-1 text-gray-400 dark:text-slate-400" />}
           color="green"
         />
         <Card
           title="Total Borrowed"
           value={KES(summary.total_borrowed)}
-          icon={<Coins size={14} className="inline mr-1 text-gray-400" />}
+          icon={<Coins size={14} className="inline mr-1 text-gray-400 dark:text-slate-400" />}
           color="purple"
         />
       </div>
 
       {/* Financial Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
-          <p className="text-sm text-gray-500 uppercase">Lifetime Borrowed</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400 uppercase">Lifetime Borrowed</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-slate-100 mt-1">
             {KES(summary.total_borrowed)}
           </p>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Across {summary.total_loans_count} loans
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-          <p className="text-sm text-gray-500 uppercase">Total Repaid</p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-green-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400 uppercase">Total Repaid</p>
           <p className="text-2xl font-bold text-green-600 mt-1">
             {KES(summary.total_repaid)}
           </p>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             {summary.total_payments} payments made
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
-          <p className="text-sm text-gray-500 uppercase">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-orange-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400 uppercase">
             Current Outstanding
           </p>
           <p className="text-2xl font-bold text-orange-600 mt-1">
@@ -469,18 +492,18 @@ function ClientProfile() {
                 ? <><CheckCircle size={20} /> Eligible for New Loan</>
                 : <><X size={20} /> Not Eligible</>}
             </h3>
-            <p className="text-gray-700 mt-2">{eligibility.reason}</p>
+            <p className="text-gray-700 dark:text-slate-200 mt-2">{eligibility.reason}</p>
 
             {eligibility.can_borrow && (
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Recommended Max</p>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">Recommended Max</p>
                   <p className="text-xl font-bold text-green-700">
                     {KES(eligibility.max_recommended_amount)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Recommended Rate</p>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">Recommended Rate</p>
                   <p className="text-xl font-bold text-green-700">
                     {eligibility.recommended_interest_rate}% p.a.
                   </p>
@@ -520,49 +543,49 @@ function ClientProfile() {
       </div>
 
       {/* Loans History */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <ClipboardList size={20} className="text-gray-500" /> Loan History
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden mb-6">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+            <ClipboardList size={20} className="text-gray-500 dark:text-slate-400" /> Loan History
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             {loans.length} loan{loans.length !== 1 ? "s" : ""} total
           </p>
         </div>
         {loans.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <div className="flex justify-center mb-2">
-              <ClipboardList size={40} className="text-gray-300" />
-            </div>
-            <p>No loans yet</p>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            tone="muted"
+            title="No loans yet"
+            description="This client's loans will appear here once they borrow."
+          />
         ) : (
           <div className="overflow-auto max-h-[calc(100vh-200px)]">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+              <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Loan Code
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Principal
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Total Due
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Paid
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Balance
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Start Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     View
                   </th>
                 </tr>
@@ -572,12 +595,12 @@ function ClientProfile() {
                   <tr
                     key={loan.id}
                     onClick={() => navigate(`/loans/${loan.id}`)}
-                    className="border-b border-gray-100 hover:bg-ocean-50 transition cursor-pointer"
+                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-ocean-50 dark:hover:bg-slate-700 transition cursor-pointer"
                   >
                     <td className="px-4 py-3 font-mono text-sm font-semibold text-ocean-600">
                       {loan.loan_code}
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-800">
+                    <td className="px-4 py-3 text-right text-sm text-gray-800 dark:text-slate-100">
                       {KES(loan.principal_amount)}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-semibold text-ocean-600">
@@ -589,7 +612,7 @@ function ClientProfile() {
                     <td className="px-4 py-3 text-right text-sm font-semibold text-orange-600">
                       {KES(loan.balance_due)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
                       {loan.start_date
                         ? new Date(loan.start_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                         : "—"}
@@ -615,41 +638,41 @@ function ClientProfile() {
       </div>
 
       {/* Recent Payments */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Banknote size={20} className="text-gray-500" /> Recent Payments
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+            <Banknote size={20} className="text-gray-500 dark:text-slate-400" /> Recent Payments
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Last {recentPayments.length} payment
             {recentPayments.length !== 1 ? "s" : ""}
           </p>
         </div>
         {recentPayments.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <div className="flex justify-center mb-2">
-              <Banknote size={40} className="text-gray-300" />
-            </div>
-            <p>No payments recorded yet</p>
-          </div>
+          <EmptyState
+            icon={Banknote}
+            tone="muted"
+            title="No payments recorded yet"
+            description="Repayments made by this client will be listed here."
+          />
         ) : (
           <div className="overflow-auto max-h-[calc(100vh-200px)]">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+              <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Transaction
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Loan Code
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                     Method
                   </th>
                 </tr>
@@ -658,7 +681,7 @@ function ClientProfile() {
                 {recentPayments.map((p, idx) => (
                   <tr
                     key={p.transaction_code || idx}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition"
+                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition"
                   >
                     <td className="px-6 py-3 font-mono text-sm font-semibold text-green-600">
                       {p.transaction_code}
@@ -669,7 +692,7 @@ function ClientProfile() {
                     <td className="px-6 py-3 text-right font-bold text-green-600">
                       {KES(p.amount_paid)}
                     </td>
-                    <td className="px-6 py-3 text-gray-700 text-sm">
+                    <td className="px-6 py-3 text-gray-700 dark:text-slate-200 text-sm">
                       {new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
                     <td className="px-6 py-3">
@@ -688,12 +711,12 @@ function ClientProfile() {
       {/* Edit Client Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-3xl w-full my-8">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-3xl w-full my-8">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800">Edit Client</h3>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Edit Client</h3>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-600"
               >
                 <X size={22} />
               </button>
@@ -714,7 +737,7 @@ function ClientProfile() {
             <form onSubmit={handleUpdateClient} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     {(editFormData.client_type || "individual") === "individual" ? "First Name *" : "Contact First Name *"}
                   </label>
                   <input
@@ -727,11 +750,11 @@ function ClientProfile() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     {(editFormData.client_type || "individual") === "individual" ? "Last Name *" : "Contact Last Name *"}
                   </label>
                   <input
@@ -744,14 +767,14 @@ function ClientProfile() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Phone Number *
                   </label>
                   <input
@@ -764,11 +787,11 @@ function ClientProfile() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Email
                   </label>
                   <input
@@ -780,14 +803,14 @@ function ClientProfile() {
                         email: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     ID Number
                   </label>
                   <input
@@ -799,11 +822,11 @@ function ClientProfile() {
                         id_number: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Status
                   </label>
                   <select
@@ -814,7 +837,7 @@ function ClientProfile() {
                         status: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -825,7 +848,7 @@ function ClientProfile() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     {editFormData.client_type === "group" ? "Group Name" : "Business Name"}
                   </label>
                   <input
@@ -837,11 +860,11 @@ function ClientProfile() {
                         business_name: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     {editFormData.client_type === "group" ? "Group Activity" : "Business Type"}
                   </label>
                   <select
@@ -852,7 +875,7 @@ function ClientProfile() {
                         business_type: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   >
                     <option value="">-- Select Type --</option>
                     {BUSINESS_TYPES.map((t) => (
@@ -868,21 +891,21 @@ function ClientProfile() {
               {(editFormData.client_type === "group" || editFormData.client_type === "business") && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Registration No.</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Registration No.</label>
                     <input
                       type="text"
                       value={editFormData.registration_no || ""}
                       onChange={(e) => setEditFormData({ ...editFormData, registration_no: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                     />
                   </div>
                   {editFormData.client_type === "group" && (
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Meeting Frequency</label>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Meeting Frequency</label>
                       <select
                         value={editFormData.meeting_frequency || ""}
                         onChange={(e) => setEditFormData({ ...editFormData, meeting_frequency: e.target.value })}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                       >
                         <option value="">-- Select --</option>
                         <option value="weekly">Weekly</option>
@@ -894,13 +917,13 @@ function ClientProfile() {
                   )}
                   {editFormData.client_type === "group" && (
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Number of Members</label>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Number of Members</label>
                       <input
                         type="number"
                         min="0"
                         value={editFormData.member_count ?? ""}
                         onChange={(e) => setEditFormData({ ...editFormData, member_count: e.target.value })}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                       />
                     </div>
                   )}
@@ -911,7 +934,7 @@ function ClientProfile() {
               {(editFormData.client_type || "individual") === "individual" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                       Date of Birth
                     </label>
                     <input
@@ -928,11 +951,11 @@ function ClientProfile() {
                           date_of_birth: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                       Gender
                     </label>
                     <select
@@ -943,7 +966,7 @@ function ClientProfile() {
                           gender: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                     >
                       <option value="">-- Select --</option>
                       <option value="male">Male</option>
@@ -956,7 +979,7 @@ function ClientProfile() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     City
                   </label>
                   <input
@@ -968,11 +991,11 @@ function ClientProfile() {
                         city: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     County
                   </label>
                   <select
@@ -983,7 +1006,7 @@ function ClientProfile() {
                         county: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   >
                     <option value="">-- Select County --</option>
                     {KENYA_COUNTIES.map((county) => (
@@ -996,7 +1019,7 @@ function ClientProfile() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Address
                 </label>
                 <input
@@ -1008,7 +1031,7 @@ function ClientProfile() {
                       address: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 

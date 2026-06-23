@@ -19,7 +19,10 @@ import {
 import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
+import { MessageSquare, Inbox } from "lucide-react";
 
 function SMS() {
   const [stats, setStats] = useState(null);
@@ -203,8 +206,20 @@ function SMS() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading SMS data…" />
+        <div className="flex items-center justify-between mb-10">
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-72" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-11 w-44" rounded="rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" rounded="rounded-2xl" />
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+          <SkeletonText lines={6} />
         </div>
       </div>
     );
@@ -212,41 +227,35 @@ function SMS() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      {/* ── Editorial header ────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-10">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl lg:text-5xl font-bold text-navy-900 tracking-tight">
-            SMS{" "}
-            <span className="font-serif italic font-medium text-ocean-700">
-              Notifications
-            </span>
-          </h1>
-          <p className="text-slate-500 mt-3 leading-relaxed">
-            A quiet control room for the messages you send. Track delivery,
-            reach the right clients, and keep every conversation in flight.
-          </p>
-        </div>
-        <div className="flex gap-3 shrink-0">
-          <button
-            onClick={() => fetchData({ silent: true })}
-            disabled={refreshing || loading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCcw
-              size={16}
-              className={refreshing ? "animate-spin" : ""}
-            />
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
-          <button
-            onClick={() => setShowCustomModal(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
-          >
-            <Mail size={16} /> Send Custom SMS
-            <ArrowUpRight size={14} className="opacity-70" />
-          </button>
-        </div>
-      </div>
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <PageHeader
+        icon={MessageSquare}
+        title="SMS Notifications"
+        subtitle="A quiet control room for the messages you send. Track delivery, reach the right clients, and keep every conversation in flight."
+        className="mb-10"
+        actions={
+          <>
+            <button
+              onClick={() => fetchData({ silent: true })}
+              disabled={refreshing || loading}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCcw
+                size={16}
+                className={refreshing ? "animate-spin" : ""}
+              />
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+            <button
+              onClick={() => setShowCustomModal(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
+            >
+              <Mail size={16} /> Send Custom SMS
+              <ArrowUpRight size={14} className="opacity-70" />
+            </button>
+          </>
+        }
+      />
 
       {/* ── Stat cards — frosted-glass pastel with corner icon ──── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
@@ -326,14 +335,14 @@ function SMS() {
       </div>
 
       {/* ── Quick actions — parent card with two action tiles ───── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-10">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-10">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center">
             <Sparkles size={18} className="text-ocean-600" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-navy-900">Quick actions</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-lg font-bold text-navy-900 dark:text-slate-100">Quick actions</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Two clicks to a conversation.
             </p>
           </div>
@@ -389,11 +398,11 @@ function SMS() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
         <div className="flex flex-wrap gap-4 items-end">
           {/* Search */}
           <div className="flex-1 min-w-[250px]">
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               Search
             </label>
             <input
@@ -401,19 +410,19 @@ function SMS() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by name, phone, or message..."
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
 
           {/* Type Filter */}
           <div className="min-w-[180px]">
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               Message Type
             </label>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({typeCounts.all})</option>
               <option value="application_submitted">
@@ -454,13 +463,13 @@ function SMS() {
 
           {/* Status Filter */}
           <div className="min-w-[150px]">
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               Status
             </label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
             >
               <option value="all">All ({statusCounts.all})</option>
               <option value="sent">Sent ({statusCounts.sent})</option>
@@ -478,7 +487,7 @@ function SMS() {
                 setTypeFilter("all");
                 setStatusFilter("all");
               }}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
+              className="px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold rounded-lg transition inline-flex items-center gap-1"
             >
               <X size={16} /> Clear
             </button>
@@ -487,9 +496,9 @@ function SMS() {
 
         {/* Active Filter Tags */}
         {filtersActive && (
-          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-gray-600">Filters:</span>
+              <span className="text-sm text-gray-600 dark:text-slate-400">Filters:</span>
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                   "{searchQuery}"
@@ -524,7 +533,7 @@ function SMS() {
                 </span>
               )}
             </div>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-slate-400">
               Showing <strong>{filteredLogs.length}</strong> of{" "}
               <strong>{logs.length}</strong>
             </span>
@@ -533,13 +542,13 @@ function SMS() {
       </div>
 
       {/* SMS Logs */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList size={20} /> SMS History</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><ClipboardList size={20} /> SMS History</h2>
         </div>
         <div className="overflow-auto max-h-[calc(100vh-500px)]">
           <table className="w-full">
-            <thead className="bg-gray-50 sticky top-0 z-10 border-b-2 border-gray-200 shadow-sm">
+            <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 border-b-2 border-gray-200 dark:border-slate-700 shadow-sm">
               <tr>
                 {[
                   ["Date", "created_at"],
@@ -555,7 +564,7 @@ function SMS() {
                     sortKey={key}
                     requestSort={requestSort}
                     getSortIndicator={getSortIndicator}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase"
+                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase"
                   />
                 ))}
               </tr>
@@ -563,33 +572,49 @@ function SMS() {
             <tbody>
               {paginatedLogs.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="6"
-                    className="px-4 py-12 text-center text-gray-500"
-                  >
-                    {logs.length === 0
-                      ? "No SMS sent yet"
-                      : "No messages match your filters"}
+                  <td colSpan="6" className="px-4 py-10">
+                    {logs.length === 0 ? (
+                      <EmptyState
+                        icon={Inbox}
+                        title="No SMS sent yet"
+                        description="Send overdue reminders or compose a custom message — every SMS you send will appear here."
+                        action={
+                          <button
+                            onClick={() => setShowCustomModal(true)}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ocean-gradient text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
+                          >
+                            <Mail size={16} /> Send Custom SMS
+                          </button>
+                        }
+                      />
+                    ) : (
+                      <EmptyState
+                        icon={Inbox}
+                        title="No messages match your filters"
+                        description="Try adjusting your search or clearing the filters above."
+                        tone="muted"
+                      />
+                    )}
                   </td>
                 </tr>
               ) : (
                 paginatedLogs.map((log) => (
                   <tr
                     key={log.id}
-                    className="border-b border-gray-100 hover:bg-gray-50"
+                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
                   >
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                       {new Date(log.created_at).toLocaleString("en-GB")}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-800 text-sm">
+                      <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
                         {log.first_name} {log.last_name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
                         {log.client_code}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
                       {log.phone_number}
                     </td>
                     <td className="px-4 py-3">
@@ -606,7 +631,7 @@ function SMS() {
                       </span>
                     </td>
                     <td
-                      className="px-4 py-3 text-sm text-gray-700 max-w-md truncate"
+                      className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200 max-w-md truncate"
                       title={log.message}
                     >
                       {log.message}
@@ -634,8 +659,8 @@ function SMS() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+            <div className="text-sm text-gray-600 dark:text-slate-400">
               Showing{" "}
               <span className="font-semibold">{startIndex + 1}</span> to{" "}
               <span className="font-semibold">
@@ -650,7 +675,7 @@ function SMS() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 ← Previous
               </button>
@@ -670,14 +695,14 @@ function SMS() {
                     return (
                       <React.Fragment key={page}>
                         {showEllipsisBefore && (
-                          <span className="px-2 text-gray-400">...</span>
+                          <span className="px-2 text-gray-400 dark:text-slate-400">...</span>
                         )}
                         <button
                           onClick={() => setCurrentPage(page)}
                           className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                             currentPage === page
                               ? "bg-ocean-600 text-white"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                              : "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                           }`}
                         >
                           {page}
@@ -692,7 +717,7 @@ function SMS() {
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
                 disabled={currentPage === totalPages}
-                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Next →
               </button>
@@ -704,15 +729,15 @@ function SMS() {
       {/* Custom SMS Modal */}
       {showCustomModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full">
-            <h3 className="text-2xl font-bold text-gray-800 mb-6">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6">
               Send Custom SMS
             </h3>
 
             <form onSubmit={handleSendCustom} className="space-y-4">
               {/* Client Search */}
               <div className="relative">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Select Client *
                 </label>
                 {selectedClient ? (
@@ -747,10 +772,10 @@ function SMS() {
                       }}
                       onFocus={() => setShowClientDropdown(true)}
                       placeholder="Search by name or phone..."
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                     {showClientDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {filteredClients.slice(0, 20).map((client) => (
                           <button
                             key={client.id}
@@ -760,12 +785,12 @@ function SMS() {
                               setClientSearch("");
                               setShowClientDropdown(false);
                             }}
-                            className="w-full text-left p-3 hover:bg-ocean-50 border-b border-gray-100"
+                            className="w-full text-left p-3 hover:bg-ocean-50 dark:hover:bg-slate-700 border-b border-gray-100 dark:border-slate-700"
                           >
                             <p className="font-semibold">
                               {client.first_name} {client.last_name}
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 dark:text-slate-400">
                               {client.phone_number} • {client.client_code}
                             </p>
                           </button>
@@ -778,9 +803,9 @@ function SMS() {
 
               {/* Message */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Message *{" "}
-                  <span className="text-gray-500">
+                  <span className="text-gray-500 dark:text-slate-400">
                     ({customMessage.length}/160)
                   </span>
                 </label>
@@ -790,10 +815,10 @@ function SMS() {
                   rows="5"
                   maxLength="160"
                   placeholder="Type your message..."
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 inline-flex items-center gap-1">
                   <Lightbulb size={14} /> Standard SMS: 160 characters. Longer messages cost more.
                 </p>
               </div>

@@ -45,10 +45,12 @@ import PeriodNavigator, {
   periodLabel,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { formatKES } from "../utils/money";
 
-const fmt = (n) =>
-  `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+const fmt = (n) => formatKES(n);
 const fmtK = (n) => {
   const v = parseFloat(n) || 0;
   if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
@@ -185,7 +187,25 @@ function Reports() {
 
   if (loading) {
     return (
-      <Spinner centered label="Loading analytics…" className="py-20" />
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <PageHeader
+          icon={BarChart3}
+          title="Reports & Exports"
+          subtitle={`Performance for ${periodLabel(period)} · download data for analysis`}
+        />
+        <Skeleton className="h-44 w-full rounded-2xl mb-6" />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-72 w-full rounded-2xl mb-8" />
+      </div>
     );
   }
   if (!data) return null;
@@ -249,33 +269,30 @@ function Reports() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-              <BarChart3 size={28} /> Reports &amp; Exports
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Performance for {periodLabel(period)} · download data for analysis
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <PeriodNavigator value={period} onChange={setPeriod} />
-            <button
-              onClick={() => exportReport("pdf")}
-              disabled={exporting !== null}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
-            >
-              {exporting === "pdf" ? "…" : <><FileText size={15} /> PDF</>}
-            </button>
-            <button
-              onClick={() => exportReport("excel")}
-              disabled={exporting !== null}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
-            >
-              {exporting === "excel" ? "…" : <><BarChart3 size={15} /> Excel</>}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          icon={BarChart3}
+          title="Reports & Exports"
+          subtitle={`Performance for ${periodLabel(period)} · download data for analysis`}
+          actions={
+            <div className="flex flex-wrap gap-2 items-center">
+              <PeriodNavigator value={period} onChange={setPeriod} />
+              <button
+                onClick={() => exportReport("pdf")}
+                disabled={exporting !== null}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
+              >
+                {exporting === "pdf" ? "…" : <><FileText size={15} /> PDF</>}
+              </button>
+              <button
+                onClick={() => exportReport("excel")}
+                disabled={exporting !== null}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
+              >
+                {exporting === "excel" ? "…" : <><BarChart3 size={15} /> Excel</>}
+              </button>
+            </div>
+          }
+        />
 
         {/* Portfolio Performance hero — investor-view summary of the
             selected window: how much capital was deployed, what it
@@ -521,31 +538,31 @@ function Reports() {
             (the three income components share an emerald-bordered
             group with their summed Income reading at the top). */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
             <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center mb-3">
               <DollarSign size={20} className="text-ocean-600" />
             </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500 dark:text-slate-400">
               Total Disbursed
             </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 dark:text-slate-100 break-words">
               {fmt(kpis.total_disbursed)}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
               {kpis.total_loans} loans
             </p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
               <CheckCircle size={20} className="text-emerald-600" />
             </div>
-            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+            <p className="text-xs uppercase font-semibold tracking-wide text-gray-500 dark:text-slate-400">
               Collected
             </p>
-            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
+            <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 dark:text-slate-100 break-words">
               {fmt(kpis.total_collected)}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
               {kpis.payment_count} payments
             </p>
           </div>
@@ -677,19 +694,19 @@ function Reports() {
               period — they describe outstanding balances right now,
               not the picked window, so hiding them when you pick a
               past year just made the layout look broken. */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
                   <Clock size={20} className="text-amber-600" />
                 </div>
-                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500 dark:text-slate-400">
                   Receivable
                 </p>
-                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
+                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 dark:text-slate-100 break-words">
                   {fmt(snap.outstanding_balance)}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">to be collected</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">to be collected</p>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
                     parPct > 15
@@ -710,43 +727,43 @@ function Reports() {
                     }
                   />
                 </div>
-                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500 dark:text-slate-400">
                   Portfolio at Risk
                 </p>
-                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900">
+                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 dark:text-slate-100">
                   {par.par_percentage}%
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   {par.at_risk_count} of {par.total_active} loans
                 </p>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mb-3">
                   <AlertTriangle size={20} className="text-orange-600" />
                 </div>
-                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500 dark:text-slate-400">
                   Overdue
                 </p>
-                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
+                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 dark:text-slate-100 break-words">
                   {fmt(snap.overdue_amount)}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   {snap.overdue_count} payment
                   {snap.overdue_count !== 1 ? "s" : ""}
                   {snap.overdue_loans > 0 && ` · ${snap.overdue_loans} loans`}
                 </p>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center mb-3">
                   <XCircle size={20} className="text-rose-600" />
                 </div>
-                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500">
+                <p className="text-xs uppercase font-semibold tracking-wide text-gray-500 dark:text-slate-400">
                   Defaulted
                 </p>
-                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 break-words">
+                <p className="text-xl lg:text-2xl font-bold mt-1 text-gray-900 dark:text-slate-100 break-words">
                   {fmt(snap.defaulted_amount)}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   {snap.defaulted_count} loan
                   {snap.defaulted_count !== 1 ? "s" : ""}
                 </p>
@@ -759,16 +776,16 @@ function Reports() {
 
         {/* ── Income vs Expenses monthly trend ──────────────────── */}
         {Array.isArray(cashFlow) && cashFlow.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
                 <ArrowUpDown size={18} className="text-emerald-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900">
+                <h3 className="font-bold text-gray-900 dark:text-slate-100">
                   Income vs Expenses
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   What's coming in (interest + fines) versus going out
                   (operating expenses), month by month.
                 </p>
@@ -837,16 +854,16 @@ function Reports() {
             for the difference makes the gap pop, similar to the Net
             line on Income vs Expenses above. */}
         {disbursedVsCollected.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center">
                 <ArrowUpDown size={18} className="text-ocean-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900">
+                <h3 className="font-bold text-gray-900 dark:text-slate-100">
                   Disbursed vs Collected
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   Principal lent versus cash received, by period. The Net
                   line is collections minus disbursements — positive means
                   more came back than went out.
@@ -915,26 +932,26 @@ function Reports() {
         )}
 
         {/* ── Excel exports ────────────────────────────────────── */}
-        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2 mt-2">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2 mt-2">
           <Download size={22} /> Excel Exports
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* Clients export — optional join-date window */}
-          <div className="bg-white rounded-xl shadow-md p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                   <Users size={18} className="text-ocean-600" /> Clients
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                   Full client list with totals borrowed and paid.
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
                   Joined from
                 </label>
                 <input
@@ -943,11 +960,11 @@ function Reports() {
                   onChange={(e) =>
                     setClientsRange({ ...clientsRange, from: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
                   Joined to
                 </label>
                 <input
@@ -956,7 +973,7 @@ function Reports() {
                   onChange={(e) =>
                     setClientsRange({ ...clientsRange, to: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
                 />
               </div>
             </div>
@@ -971,19 +988,19 @@ function Reports() {
           </div>
 
           {/* Loans export — status filter + optional disbursement window */}
-          <div className="bg-white rounded-xl shadow-md p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                   <Coins size={18} className="text-ocean-600" /> Loans
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                   Filter by status, narrow by disbursement date.
                 </p>
               </div>
             </div>
             <div className="mb-3">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
+              <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
                 Status
               </label>
               <select
@@ -991,7 +1008,7 @@ function Reports() {
                 onChange={(e) =>
                   setLoansFilters({ ...loansFilters, status: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white text-sm"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 text-sm"
               >
                 <option value="all">All loans</option>
                 <option value="active">Active only</option>
@@ -1002,7 +1019,7 @@ function Reports() {
             </div>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
                   Disbursed from
                 </label>
                 <input
@@ -1011,11 +1028,11 @@ function Reports() {
                   onChange={(e) =>
                     setLoansFilters({ ...loansFilters, from: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
                   Disbursed to
                 </label>
                 <input
@@ -1024,7 +1041,7 @@ function Reports() {
                   onChange={(e) =>
                     setLoansFilters({ ...loansFilters, to: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
                 />
               </div>
             </div>
@@ -1039,20 +1056,20 @@ function Reports() {
           </div>
 
           {/* Payments export — date range */}
-          <div className="bg-white rounded-xl shadow-md p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                   <Calendar size={18} className="text-green-600" /> Payments
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                   Every transaction recorded in a date window.
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
                   From
                 </label>
                 <input
@@ -1061,11 +1078,11 @@ function Reports() {
                   onChange={(e) =>
                     setPaymentsRange({ ...paymentsRange, from: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
                   To
                 </label>
                 <input
@@ -1074,7 +1091,7 @@ function Reports() {
                   onChange={(e) =>
                     setPaymentsRange({ ...paymentsRange, to: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none text-sm"
                 />
               </div>
             </div>
@@ -1089,14 +1106,14 @@ function Reports() {
           </div>
 
           {/* Overdue export — no filters needed */}
-          <div className="bg-white rounded-xl shadow-md p-5 flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 flex flex-col">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                   <AlertTriangle size={18} className="text-orange-600" />{" "}
                   Overdue Payments
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                   Every past-due installment with days late.
                 </p>
               </div>

@@ -50,9 +50,9 @@ export default function WelfareLoansPanel({ welfareId }) {
   const shown = loans.filter((l) => (TABS.find((t) => t.id === tab) || TABS[2]).match(l.status));
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-indigo-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-indigo-100 mb-6 overflow-hidden">
       <div className="bg-indigo-50 px-5 py-3 border-b border-indigo-100 flex items-center justify-between">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2"><HandCoins size={18} className="text-indigo-600" /> Loans</h2>
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><HandCoins size={18} className="text-indigo-600" /> Loans</h2>
         <PermissionGate role={["admin", "manager", "loan_officer"]}>
           <button onClick={() => setCreating(true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> New application</button>
         </PermissionGate>
@@ -62,27 +62,27 @@ export default function WelfareLoansPanel({ welfareId }) {
         {TABS.map((t) => {
           const count = loans.filter((l) => t.match(l.status)).length;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${tab === t.id ? "bg-indigo-100 text-indigo-700" : "text-slate-500 hover:bg-slate-100"}`}>
-              {t.label} <span className="text-xs text-slate-400">{count}</span>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-1.5 text-sm font-semibold rounded-lg ${tab === t.id ? "bg-indigo-100 text-indigo-700" : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"}`}>
+              {t.label} <span className="text-xs text-slate-400 dark:text-slate-400">{count}</span>
             </button>
           );
         })}
       </div>
 
       <div className="p-5">
-        {loading ? <p className="text-sm text-slate-500">Loading…</p> : shown.length === 0 ? (
-          <p className="text-sm text-slate-400 py-4">No loans here.</p>
+        {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p> : shown.length === 0 ? (
+          <p className="text-sm text-slate-400 dark:text-slate-400 py-4">No loans here.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr><th className="text-left px-3 py-2">Member</th><th className="text-left px-3 py-2">Code</th><th className="text-right px-3 py-2">Principal</th><th className="text-right px-3 py-2">Balance</th><th className="text-left px-3 py-2">Status</th><th className="px-3 py-2"></th></tr>
               </thead>
               <tbody>
                 {shown.map((l) => (
-                  <tr key={l.id} onClick={() => setSelectedId(l.id)} className="border-t border-slate-100 hover:bg-indigo-50/50 cursor-pointer">
-                    <td className="px-3 py-2 font-semibold text-slate-800">{l.first_name} {l.last_name}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-slate-500">{l.loan_code}</td>
+                  <tr key={l.id} onClick={() => setSelectedId(l.id)} className="border-t border-slate-100 dark:border-slate-700 hover:bg-indigo-50/50 cursor-pointer">
+                    <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-100">{l.first_name} {l.last_name}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">{l.loan_code}</td>
                     <td className="px-3 py-2 text-right">{money(l.principal)}</td>
                     <td className="px-3 py-2 text-right">{["active", "defaulted"].includes(l.status) ? money(l.balance) : "—"}</td>
                     <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[l.status] || STATUS.pending}`}>{l.status.replace("_", " ")}</span></td>
@@ -156,8 +156,8 @@ function ApplyModal({ welfareId, members, products, policy, onClose, onSaved }) 
     } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
   };
 
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-indigo-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
   return (
     <Shell title="New loan application" onClose={onClose} wide>
       <form onSubmit={submit} className="space-y-4">
@@ -188,13 +188,13 @@ function ApplyModal({ welfareId, members, products, policy, onClose, onSaved }) 
         <div><label className={lbl}>Purpose</label><input value={form.purpose} onChange={set("purpose")} placeholder="optional" className={fld} /></div>
 
         {/* Collateral (optional) — secure the loan. Add more on the loan's details. */}
-        <div className="border-t border-slate-100 pt-3">
-          <p className="text-sm font-semibold text-slate-700 mb-1">Collateral <span className="font-normal text-slate-400">(optional)</span></p>
+        <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Collateral <span className="font-normal text-slate-400 dark:text-slate-400">(optional)</span></p>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2"><input value={form.coll_description} onChange={set("coll_description")} placeholder="e.g. Title deed, TV, car logbook" className={fld} /></div>
             <div><input type="number" min="0" value={form.coll_value} onChange={set("coll_value")} placeholder="Value (KES)" className={fld} /></div>
           </div>
-          <p className="text-xs text-slate-400 mt-1">You can add more collateral items on the loan's details after creating it.</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">You can add more collateral items on the loan's details after creating it.</p>
         </div>
 
         {/* Live loan figures — replaces the standalone calculator. */}
@@ -258,15 +258,15 @@ function LoanDetailModal({ welfareId, loanId, members = [], onClose, onChanged }
   const loan = data?.loan;
   return (
     <Shell title={loan ? `${loan.loan_code} — ${data.member?.first_name} ${data.member?.last_name}` : "Loan"} onClose={onClose} wide>
-      {!data ? <p className="text-sm text-slate-500">Loading…</p> : (
+      {!data ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p> : (
         <div className="space-y-4">
           {error && <Err msg={error} />}
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
-            <span><span className="text-slate-400">Status</span> <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[loan.status] || STATUS.pending}`}>{loan.status.replace("_", " ")}</span></span>
-            <span><span className="text-slate-400">Principal</span> {money(loan.principal)}</span>
-            <span><span className="text-slate-400">Rate</span> {Number(loan.interest_rate)}% p.a. · {(Number(loan.interest_rate) / 12).toFixed(2)}%/mo {loan.interest_method}</span>
-            <span><span className="text-slate-400">Balance</span> {money(loan.balance)}</span>
-            {loan.due_date && <span><span className="text-slate-400">Ends</span> {fmt(loan.end_date || loan.due_date)}</span>}
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 dark:text-slate-400">
+            <span><span className="text-slate-400 dark:text-slate-400">Status</span> <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[loan.status] || STATUS.pending}`}>{loan.status.replace("_", " ")}</span></span>
+            <span><span className="text-slate-400 dark:text-slate-400">Principal</span> {money(loan.principal)}</span>
+            <span><span className="text-slate-400 dark:text-slate-400">Rate</span> {Number(loan.interest_rate)}% p.a. · {(Number(loan.interest_rate) / 12).toFixed(2)}%/mo {loan.interest_method}</span>
+            <span><span className="text-slate-400 dark:text-slate-400">Balance</span> {money(loan.balance)}</span>
+            {loan.due_date && <span><span className="text-slate-400 dark:text-slate-400">Ends</span> {fmt(loan.end_date || loan.due_date)}</span>}
           </div>
 
           <PermissionGate role={["admin", "manager", "loan_officer"]}>
@@ -281,8 +281,8 @@ function LoanDetailModal({ welfareId, loanId, members = [], onClose, onChanged }
 
           {["active", "defaulted"].includes(loan.status) && (
             <PermissionGate role={["admin", "manager", "loan_officer"]}>
-              <div className="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                <div className="flex-1"><label className="block text-xs font-semibold text-slate-600 mb-1">Record repayment (KES)</label><input type="number" min="1" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} className="w-full px-3 py-1.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none" /></div>
+              <div className="flex items-end gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
+                <div className="flex-1"><label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Record repayment (KES)</label><input type="number" min="1" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} className="w-full px-3 py-1.5 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-indigo-500 focus:outline-none" /></div>
                 <button onClick={recordPay} disabled={busy === "pay"} className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg disabled:opacity-50">{busy === "pay" ? "…" : "Pay"}</button>
               </div>
             </PermissionGate>
@@ -290,16 +290,16 @@ function LoanDetailModal({ welfareId, loanId, members = [], onClose, onChanged }
 
           {data.schedule?.length > 0 && (
             <div className="overflow-x-auto">
-              <p className="text-sm font-semibold text-slate-700 mb-1">Schedule</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Schedule</p>
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase"><tr><th className="text-left px-2 py-1">#</th><th className="text-left px-2 py-1">Due</th><th className="text-right px-2 py-1">Amount</th><th className="text-right px-2 py-1">Interest</th><th className="text-right px-2 py-1">Principal</th><th className="text-right px-2 py-1">Paid</th><th className="text-left px-2 py-1">Status</th></tr></thead>
+                <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 uppercase"><tr><th className="text-left px-2 py-1">#</th><th className="text-left px-2 py-1">Due</th><th className="text-right px-2 py-1">Amount</th><th className="text-right px-2 py-1">Interest</th><th className="text-right px-2 py-1">Principal</th><th className="text-right px-2 py-1">Paid</th><th className="text-left px-2 py-1">Status</th></tr></thead>
                 <tbody>
                   {data.schedule.map((s) => (
-                    <tr key={s.id} className="border-t border-slate-100">
+                    <tr key={s.id} className="border-t border-slate-100 dark:border-slate-700">
                       <td className="px-2 py-1">{s.payment_number}</td><td className="px-2 py-1">{fmt(s.due_date)}</td>
                       <td className="px-2 py-1 text-right">{money(s.amount_due)}</td><td className="px-2 py-1 text-right">{money(s.interest_portion)}</td>
                       <td className="px-2 py-1 text-right">{money(s.principal_portion)}</td><td className="px-2 py-1 text-right">{money(s.amount_paid)}</td>
-                      <td className="px-2 py-1">{s.status === "paid" ? <CheckCircle2 size={13} className="text-emerald-600 inline" /> : <span className={s.status === "overdue" ? "text-rose-600" : "text-slate-400"}>{s.status}</span>}</td>
+                      <td className="px-2 py-1">{s.status === "paid" ? <CheckCircle2 size={13} className="text-emerald-600 inline" /> : <span className={s.status === "overdue" ? "text-rose-600" : "text-slate-400 dark:text-slate-400"}>{s.status}</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -309,10 +309,10 @@ function LoanDetailModal({ welfareId, loanId, members = [], onClose, onChanged }
 
           {data.ledger?.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-slate-700 mb-1">Pool postings</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Pool postings</p>
               <div className="space-y-1">
                 {data.ledger.map((t) => (
-                  <div key={t.id} className="flex justify-between text-xs text-slate-600"><span>{fmt(t.txn_date)} · {t.type.replace(/_/g, " ")}</span><span className={t.direction < 0 ? "text-rose-600" : "text-emerald-700"}>{t.direction < 0 ? "−" : "+"}{money(t.amount)}</span></div>
+                  <div key={t.id} className="flex justify-between text-xs text-slate-600 dark:text-slate-400"><span>{fmt(t.txn_date)} · {t.type.replace(/_/g, " ")}</span><span className={t.direction < 0 ? "text-rose-600" : "text-emerald-700"}>{t.direction < 0 ? "−" : "+"}{money(t.amount)}</span></div>
                 ))}
               </div>
             </div>
@@ -321,24 +321,24 @@ function LoanDetailModal({ welfareId, loanId, members = [], onClose, onChanged }
           <PermissionGate role={["admin", "manager", "loan_officer"]}>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <div className="flex items-center justify-between mb-1"><p className="text-sm font-semibold text-slate-700">Collateral</p><button onClick={addCollateral} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Add</button></div>
-                {(!data.collateral || data.collateral.length === 0) ? <p className="text-xs text-slate-400">None.</p> : data.collateral.map((c) => (
-                  <div key={c.id} className="text-xs text-slate-600 flex items-center justify-between gap-2 py-0.5">
-                    <span className="truncate">{c.description} · {money(c.appraised_value)} <span className="text-slate-400">{c.status}</span></span>
+                <div className="flex items-center justify-between mb-1"><p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Collateral</p><button onClick={addCollateral} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Add</button></div>
+                {(!data.collateral || data.collateral.length === 0) ? <p className="text-xs text-slate-400 dark:text-slate-400">None.</p> : data.collateral.map((c) => (
+                  <div key={c.id} className="text-xs text-slate-600 dark:text-slate-400 flex items-center justify-between gap-2 py-0.5">
+                    <span className="truncate">{c.description} · {money(c.appraised_value)} <span className="text-slate-400 dark:text-slate-400">{c.status}</span></span>
                     <span className="flex gap-1 shrink-0">
                       {c.status === "held" && <button onClick={() => setCollStatus(c.id, "forfeited")} className="text-rose-600 hover:underline">forfeit</button>}
                       {c.status === "held" && <button onClick={() => setCollStatus(c.id, "returned")} className="text-emerald-600 hover:underline">return</button>}
-                      <button onClick={() => removeColl(c.id)} className="text-slate-400 hover:text-slate-700">✕</button>
+                      <button onClick={() => removeColl(c.id)} className="text-slate-400 dark:text-slate-400 hover:text-slate-700">✕</button>
                     </span>
                   </div>
                 ))}
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1"><p className="text-sm font-semibold text-slate-700">Guarantors</p><button onClick={addGuarantor} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Add</button></div>
-                {(!data.guarantors || data.guarantors.length === 0) ? <p className="text-xs text-slate-400">None.</p> : data.guarantors.map((g) => (
-                  <div key={g.id} className="text-xs text-slate-600 flex items-center justify-between gap-2 py-0.5">
+                <div className="flex items-center justify-between mb-1"><p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Guarantors</p><button onClick={addGuarantor} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Add</button></div>
+                {(!data.guarantors || data.guarantors.length === 0) ? <p className="text-xs text-slate-400 dark:text-slate-400">None.</p> : data.guarantors.map((g) => (
+                  <div key={g.id} className="text-xs text-slate-600 dark:text-slate-400 flex items-center justify-between gap-2 py-0.5">
                     <span className="truncate">{g.guarantor_name}{g.guaranteed_amount ? ` · ${money(g.guaranteed_amount)}` : ""}</span>
-                    <button onClick={() => removeGuarantor(g.id)} className="text-slate-400 hover:text-slate-700 shrink-0">✕</button>
+                    <button onClick={() => removeGuarantor(g.id)} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 shrink-0">✕</button>
                   </div>
                 ))}
               </div>
@@ -361,8 +361,8 @@ function Btn({ children, onClick, busy, tone = "slate" }) {
 function Shell({ title, onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className={`bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100"><h3 className="text-lg font-bold text-slate-900">{title}</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
+      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700"><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3><button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
         <div className="p-5">{children}</div>
       </div>
     </div>
@@ -370,5 +370,5 @@ function Shell({ title, onClose, children, wide }) {
 }
 const Err = ({ msg }) => <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {msg}</div>;
 function Actions({ busy, onClose, label }) {
-  return <div className="flex justify-end gap-3 pt-1"><button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button><button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : label}</button></div>;
+  return <div className="flex justify-end gap-3 pt-1"><button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button><button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : label}</button></div>;
 }

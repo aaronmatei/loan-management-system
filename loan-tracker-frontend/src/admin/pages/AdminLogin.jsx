@@ -46,17 +46,17 @@ function AdminLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-slate-800 p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
           <Logo
             className="justify-center mb-3"
             markClassName="h-8 w-8"
             textClassName="text-2xl"
           />
-          <h1 className="text-base font-semibold text-slate-700 mb-1 flex items-center justify-center gap-1.5">
-            <ShieldCheck size={18} className="text-slate-500" /> Platform Admin
+          <h1 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={18} className="text-slate-500 dark:text-slate-400" /> Platform Admin
           </h1>
-          <h2 className="text-gray-600 text-sm">
+          <h2 className="text-gray-600 dark:text-slate-400 text-sm">
             Restricted area — platform administrators only
           </h2>
         </div>
@@ -69,7 +69,7 @@ function AdminLogin() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">
               Email
             </label>
             <input
@@ -80,12 +80,12 @@ function AdminLogin() {
               required
               autoFocus
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-slate-700 focus:outline-none disabled:bg-gray-100 transition"
+              className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-slate-700 focus:outline-none disabled:bg-gray-100 transition dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">
               Password
             </label>
             <PasswordInput
@@ -94,7 +94,7 @@ function AdminLogin() {
               required
               disabled={loading}
               autoComplete="current-password"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-slate-700 focus:outline-none disabled:bg-gray-100 transition"
+              className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-slate-700 focus:outline-none disabled:bg-gray-100 transition dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
             />
           </div>
 
@@ -107,9 +107,9 @@ function AdminLogin() {
           </button>
         </form>
 
-        <p className="text-center mt-6 text-xs text-gray-500">
+        <p className="text-center mt-6 text-xs text-gray-500 dark:text-slate-400">
           Tenant staff?{" "}
-          <a href="/login" className="text-slate-700 font-semibold">
+          <a href="/login" className="text-slate-700 dark:text-slate-200 font-semibold">
             Use the regular login
           </a>
         </p>

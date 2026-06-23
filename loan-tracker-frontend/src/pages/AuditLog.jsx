@@ -20,7 +20,9 @@ import {
   X,
 } from "lucide-react";
 import api from "../services/api";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
 
 function AuditLog() {
   const [logs, setLogs] = useState([]);
@@ -175,25 +177,41 @@ function AuditLog() {
   };
 
   if (loading) {
-    return <Spinner centered className="py-20" label="Loading audit logs…" />;
+    return (
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64 mt-3" />
+          </div>
+          <Skeleton className="h-12 w-40" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-32 w-full rounded-xl mb-6" />
+        <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
+    );
   }
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2"><Search size={28} /> Audit Log</h1>
-          <p className="text-gray-600 mt-2">
-            Track all system activity and changes
-          </p>
-        </div>
-        <button
-          onClick={handleExport}
-          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
-        >
-          <Download size={16} /> Export Excel
-        </button>
-      </div>
+      <PageHeader
+        icon={Search}
+        title="Audit Log"
+        subtitle="Track all system activity and changes"
+        actions={
+          <button
+            onClick={handleExport}
+            className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
+          >
+            <Download size={16} /> Export Excel
+          </button>
+        }
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -224,10 +242,10 @@ function AuditLog() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               Search
             </label>
             <input
@@ -235,11 +253,11 @@ function AuditLog() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search descriptions, codes, users..."
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               Action
             </label>
             <select
@@ -247,7 +265,7 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, action: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900"
             >
               <option value="all">All Actions</option>
               <option value="created">Created</option>
@@ -262,7 +280,7 @@ function AuditLog() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               Entity
             </label>
             <select
@@ -270,7 +288,7 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, entity_type: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900"
             >
               <option value="all">All Entities</option>
               <option value="client">Client</option>
@@ -281,7 +299,7 @@ function AuditLog() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               From
             </label>
             <input
@@ -290,11 +308,11 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, date_from: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase mb-1">
               To
             </label>
             <input
@@ -303,34 +321,34 @@ function AuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, date_to: e.target.value })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Audit Logs Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-auto max-h-[calc(100vh-450px)]">
           <table className="w-full">
-            <thead className="bg-gray-50 sticky top-0 z-10 border-b-2 border-gray-200">
+            <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 border-b-2 border-gray-200 dark:border-slate-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Date/Time
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   User
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Action
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Entity
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Description
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Details
                 </th>
               </tr>
@@ -338,24 +356,29 @@ function AuditLog() {
             <tbody>
               {paginatedLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-12 text-center text-gray-500">
-                    No audit logs found
+                  <td colSpan="6" className="p-6">
+                    <EmptyState
+                      icon={FileText}
+                      tone="muted"
+                      title="No audit logs found"
+                      description="Activity matching your current filters will appear here."
+                    />
                   </td>
                 </tr>
               ) : (
                 paginatedLogs.map((log) => (
                   <tr
                     key={log.id}
-                    className="border-b border-gray-100 hover:bg-gray-50"
+                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
                   >
-                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200 whitespace-nowrap">
                       {new Date(log.created_at).toLocaleString("en-GB")}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <p className="font-semibold text-gray-800">
+                      <p className="font-semibold text-gray-800 dark:text-slate-100">
                         {log.user_name || "System"}
                       </p>
-                      <p className="text-xs text-gray-500">{log.user_email}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">{log.user_email}</p>
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -367,7 +390,7 @@ function AuditLog() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <p className="text-gray-700 capitalize">
+                      <p className="text-gray-700 dark:text-slate-200 capitalize">
                         {log.entity_type}
                       </p>
                       {log.entity_code && (
@@ -376,7 +399,7 @@ function AuditLog() {
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 max-w-md">
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200 max-w-md">
                       {log.description}
                     </td>
                     <td className="px-4 py-3">
@@ -398,8 +421,8 @@ function AuditLog() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-between items-center p-4 bg-gray-50 border-t">
-            <span className="text-sm text-gray-600">
+          <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700">
+            <span className="text-sm text-gray-600 dark:text-slate-400">
               Showing{" "}
               <strong>
                 {startIndex + 1}-
@@ -411,7 +434,7 @@ function AuditLog() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 bg-white border rounded disabled:opacity-50"
+                className="px-3 py-1 bg-white dark:bg-slate-800 dark:text-slate-200 border dark:border-slate-700 rounded disabled:opacity-50"
               >
                 ← Previous
               </button>
@@ -423,7 +446,7 @@ function AuditLog() {
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 bg-white border rounded disabled:opacity-50"
+                className="px-3 py-1 bg-white dark:bg-slate-800 dark:text-slate-200 border dark:border-slate-700 rounded disabled:opacity-50"
               >
                 Next →
               </button>
@@ -435,15 +458,15 @@ function AuditLog() {
       {/* Detail Modal */}
       {selectedLog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b dark:border-slate-700">
               <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-bold text-gray-800">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-slate-100">
                   Audit Details
                 </h3>
                 <button
                   onClick={() => setSelectedLog(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 dark:text-slate-400 hover:text-gray-600"
                 >
                   <X size={22} />
                 </button>
@@ -452,19 +475,19 @@ function AuditLog() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">Date/Time</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Date/Time</p>
                   <p className="font-semibold">
                     {new Date(selectedLog.created_at).toLocaleString("en-GB")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">User</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">User</p>
                   <p className="font-semibold">
                     {selectedLog.user_name} ({selectedLog.user_email})
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Action</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Action</p>
                   <span
                     className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getActionBadge(
                       selectedLog.action,
@@ -474,7 +497,7 @@ function AuditLog() {
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Entity</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Entity</p>
                   <p className="font-semibold capitalize">
                     {selectedLog.entity_type}{" "}
                     {selectedLog.entity_code &&
@@ -482,13 +505,13 @@ function AuditLog() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">IP Address</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">IP Address</p>
                   <p className="font-mono text-sm">
                     {selectedLog.ip_address}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Description</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Description</p>
                   <p>{selectedLog.description}</p>
                 </div>
               </div>

@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
 import { AlertTriangle, BarChart3, Phone, Users, Gem, Percent } from "lucide-react";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
+import { formatKES } from "../../utils/money";
 
-// Full KES figures (no K abbreviation) — e.g. KES 2,000,000, not 2.0K.
-const K = (v) =>
-  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+// Full KES figures (no K abbreviation) — delegate to the shared money helper.
+const K = (v) => formatKES(v);
 
 function TenantDetail() {
   const { id } = useParams();
@@ -53,7 +53,20 @@ function TenantDetail() {
   if (loading) {
     return (
       <PlatformLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8">
+          <Skeleton className="h-4 w-32 mb-4" />
+          <Skeleton className="h-36 w-full rounded-2xl mb-6" />
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-xl" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Skeleton className="h-48 w-full rounded-xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
+          </div>
+          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
       </PlatformLayout>
     );
   }
@@ -98,32 +111,32 @@ function TenantDetail() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500">Total Disbursed</p>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <p className="text-xs text-gray-500 dark:text-slate-400">Total Disbursed</p>
             <p className="text-2xl font-bold">
               {K(financials.total_disbursed)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500">Outstanding</p>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <p className="text-xs text-gray-500 dark:text-slate-400">Outstanding</p>
             <p className="text-2xl font-bold text-orange-600">
               {K(financials.outstanding_principal)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500">Collected</p>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <p className="text-xs text-gray-500 dark:text-slate-400">Collected</p>
             <p className="text-2xl font-bold text-green-600">
               {K(financials.total_collected)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500">Contract Interest</p>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <p className="text-xs text-gray-500 dark:text-slate-400">Contract Interest</p>
             <p className="text-2xl font-bold text-ocean-600">
               {K(financials.total_interest_earned)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500">Collected Interest</p>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <p className="text-xs text-gray-500 dark:text-slate-400">Collected Interest</p>
             <p className="text-2xl font-bold text-green-600">
               {K(financials.total_interest_collected)}
             </p>
@@ -131,7 +144,7 @@ function TenantDetail() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
             <h3 className="font-bold mb-3 flex items-center gap-2"><BarChart3 size={18} /> Tenant Stats</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -164,45 +177,45 @@ function TenantDetail() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
             <h3 className="font-bold mb-3 flex items-center gap-2"><Phone size={18} /> Contact</h3>
             <div className="space-y-2 text-sm">
               <div>
-                <span className="text-gray-500">Contact:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">Contact:</span>{" "}
                 {tenant.contact_name || "—"}
               </div>
               <div>
-                <span className="text-gray-500">Email:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">Email:</span>{" "}
                 {tenant.contact_email || "—"}
               </div>
               <div>
-                <span className="text-gray-500">Phone:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">Phone:</span>{" "}
                 {tenant.contact_phone || "—"}
               </div>
               <div>
-                <span className="text-gray-500">Location:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">Location:</span>{" "}
                 {[tenant.city, tenant.county].filter(Boolean).join(", ") ||
                   "—"}
               </div>
               <div>
-                <span className="text-gray-500">Plan:</span>{" "}
+                <span className="text-gray-500 dark:text-slate-400">Plan:</span>{" "}
                 {tenant.plan || "—"}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mb-6">
           <h3 className="font-bold mb-1 flex items-center gap-2">
             <Percent size={18} /> Platform Fee
           </h3>
-          <p className="text-sm text-gray-600 mb-3">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
             Charged on this lender's interest earned each billing cycle.
             Default is 5%.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">
                 Interest-earned fee (%)
               </label>
               <div className="relative w-40">
@@ -213,9 +226,9 @@ function TenantDetail() {
                   step="0.01"
                   value={feeInput}
                   onChange={(e) => setFeeInput(e.target.value)}
-                  className="w-full px-3 py-2 pr-8 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 pr-8 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
                   %
                 </span>
               </div>
@@ -231,20 +244,20 @@ function TenantDetail() {
             >
               {savingFee ? "Saving…" : "Save Fee"}
             </button>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               Current:{" "}
               <strong>{tenant.billing_fee_percentage ?? 5}%</strong> of interest
               earned
               {parseFloat(tenant.billing_base_fee) > 0
-                ? ` + KES ${parseFloat(tenant.billing_base_fee).toLocaleString()} base`
+                ? ` + ${K(tenant.billing_base_fee)} base`
                 : ""}
             </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mb-6">
           <h3 className="font-bold mb-1 flex items-center gap-2"><Gem size={18} /> White-Label Tier</h3>
-          <p className="text-sm text-gray-600 mb-3">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
             Current:{" "}
             <strong className="capitalize">
               {tenant.white_label_tier || "basic"}
@@ -281,7 +294,7 @@ function TenantDetail() {
                   className={`flex-1 py-2 rounded-lg font-semibold text-sm capitalize ${
                     current
                       ? "bg-ocean-600 text-white"
-                      : "bg-gray-100 hover:bg-gray-200"
+                      : "bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700"
                   }`}
                 >
                   {t}
@@ -291,11 +304,11 @@ function TenantDetail() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4 lg:p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6">
           <h2 className="font-bold mb-3 flex items-center gap-2"><Users size={18} /> Staff Users ({users.length})</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b text-gray-500">
+              <thead className="border-b text-gray-500 dark:text-slate-400">
                 <tr>
                   <th className="text-left p-2">Name</th>
                   <th className="text-left p-2">Email</th>
@@ -323,7 +336,7 @@ function TenantDetail() {
                         {u.is_active ? "active" : "inactive"}
                       </span>
                     </td>
-                    <td className="p-2 text-gray-500">
+                    <td className="p-2 text-gray-500 dark:text-slate-400">
                       {u.last_login
                         ? new Date(u.last_login).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                         : "Never"}
@@ -334,7 +347,7 @@ function TenantDetail() {
                   <tr>
                     <td
                       colSpan="5"
-                      className="p-4 text-center text-gray-500"
+                      className="p-4 text-center text-gray-500 dark:text-slate-400"
                     >
                       No staff users.
                     </td>

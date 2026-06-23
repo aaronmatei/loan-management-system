@@ -17,21 +17,22 @@ import {
   CheckCircle,
   Clock,
 } from "lucide-react";
-import Spinner from "../../components/Spinner";
+import Skeleton, { SkeletonText } from "../../components/Skeleton";
+import EmptyState from "../../components/EmptyState";
+import { formatKES } from "../../utils/money";
 import StatCard from "../components/StatCard";
 
-// Full KES figures (no K/M abbreviation) — e.g. KES 2,000,000, not 2.0M.
-const M = (v) =>
-  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
-const K = (v) =>
-  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+// Full KES figures (no K/M abbreviation) — delegate to the shared money
+// helper so every figure formats the same way.
+const M = (v) => formatKES(v);
+const K = (v) => formatKES(v);
 
 // One labelled figure in the consolidated Tenants panel.
 function Stat({ label, value }) {
   return (
-    <div className="flex justify-between py-2 border-b border-gray-100">
-      <span className="text-gray-600">{label}</span>
-      <span className="font-bold text-gray-800">{value}</span>
+    <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-700">
+      <span className="text-gray-600 dark:text-slate-400">{label}</span>
+      <span className="font-bold text-gray-800 dark:text-slate-100">{value}</span>
     </div>
   );
 }
@@ -52,7 +53,22 @@ function PlatformDashboard() {
   if (loading) {
     return (
       <PlatformLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-40 mb-6" />
+          <Skeleton className="h-24 w-full rounded-2xl mb-6" />
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-40 w-full rounded-xl mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Skeleton className="h-56 w-full rounded-xl" />
+            <Skeleton className="h-56 w-full rounded-xl" />
+          </div>
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       </PlatformLayout>
     );
   }
@@ -73,10 +89,10 @@ function PlatformDashboard() {
   return (
     <PlatformLayout>
       <div className="p-4 lg:p-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <Crown size={28} className="text-gray-700" /> Platform Overview
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+          <Crown size={28} className="text-gray-700 dark:text-slate-200" /> Platform Overview
         </h1>
-        <p className="text-gray-600 mt-1 mb-6">Your SaaS at a glance</p>
+        <p className="text-gray-600 dark:text-slate-400 mt-1 mb-6">Your SaaS at a glance</p>
 
         {/* All-Time Revenue — headline, styled like the portal total bar. */}
         <div className="flex items-center justify-between gap-3 bg-navy-900 text-white rounded-2xl px-6 py-5 mb-6">
@@ -161,31 +177,33 @@ function PlatformDashboard() {
         </div>
 
         {/* Per-month platform revenue (fees received), most recent first. */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 mb-6">
-          <h2 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm p-4 mb-6">
+          <h2 className="font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
             <Banknote size={18} /> Revenue by Month
           </h2>
           {monthly_revenue.length === 0 ? (
-            <p className="text-sm text-slate-400 py-4 text-center">
-              No platform revenue recorded yet — it appears here as tenants pay
-              their invoices.
-            </p>
+            <EmptyState
+              tone="muted"
+              icon={Banknote}
+              title="No revenue yet"
+              description="Platform revenue appears here as tenants pay their invoices."
+            />
           ) : (
             <div className="space-y-2.5">
               {monthly_revenue.map((r) => {
                 const pct = Math.max(3, Math.round((r.revenue / maxRev) * 100));
                 return (
                   <div key={r.month} className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500 w-20 shrink-0">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 w-20 shrink-0">
                       {r.month}
                     </span>
-                    <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="flex-1 h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-ocean-gradient"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-sm font-semibold text-slate-700 w-32 text-right">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 w-32 text-right">
                       {M(r.revenue)}
                     </span>
                   </div>
@@ -197,8 +215,8 @@ function PlatformDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* Tenants Status — status boxes + the moved count tiles. */}
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <h2 className="font-bold text-gray-800 dark:text-slate-100 mb-3 flex items-center gap-2">
               <BarChart3 size={18} /> Tenants Status
             </h2>
             <div className="grid grid-cols-3 gap-2 mb-3">
@@ -232,8 +250,8 @@ function PlatformDashboard() {
           </div>
 
           {/* Platform Activity — restored. */}
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <h2 className="font-bold text-gray-800 dark:text-slate-100 mb-3 flex items-center gap-2">
               <Briefcase size={18} /> Platform Activity
             </h2>
             <div className="space-y-2 text-sm">
@@ -275,9 +293,9 @@ function PlatformDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4 lg:p-6 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Trophy size={20} /> Top Tenants</h2>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Trophy size={20} /> Top Tenants</h2>
             <button
               onClick={() => navigate("/admin/tenants")}
               className="text-sm text-ocean-600 font-semibold"
@@ -287,7 +305,7 @@ function PlatformDashboard() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-900">
                 <tr>
                   <th className="text-left p-2">Tenant</th>
                   <th className="text-right p-2">Clients</th>
@@ -301,7 +319,7 @@ function PlatformDashboard() {
                   <tr
                     key={t.id}
                     onClick={() => navigate(`/admin/tenants/${t.id}`)}
-                    className="border-b hover:bg-gray-50 cursor-pointer"
+                    className="border-b hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
                   >
                     <td className="p-2">
                       <div className="flex items-center gap-2">
@@ -343,32 +361,35 @@ function PlatformDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4 lg:p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <UserPlus size={20} /> Recent Signups
           </h2>
           {recent_signups.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">
-              No recent signups
-            </p>
+            <EmptyState
+              tone="muted"
+              icon={UserPlus}
+              title="No recent signups"
+              description="New tenants that join your platform show up here."
+            />
           ) : (
             <div className="space-y-2">
               {recent_signups.map((t) => (
                 <div
                   key={t.id}
                   onClick={() => navigate(`/admin/tenants/${t.id}`)}
-                  className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+                  className="flex justify-between items-center p-3 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer"
                 >
                   <div>
                     <p className="font-semibold">{t.business_name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
                       {t.subdomain} • Joined{" "}
                       {new Date(t.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>
                   </div>
                   <div className="text-right text-sm">
                     <p>{t.client_count} clients</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
                       {t.loan_count} loans
                     </p>
                   </div>

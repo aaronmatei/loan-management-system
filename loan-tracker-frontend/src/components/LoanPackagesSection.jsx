@@ -13,7 +13,9 @@ import {
 import api from "../services/api";
 import { LOAN_PURPOSES } from "../utils/loanPurposes";
 import { LOAN_TYPES, loanTypeLabel } from "../utils/loanTypes";
-import Spinner from "./Spinner";
+import { formatKES } from "../utils/money";
+import Skeleton from "./Skeleton";
+import EmptyState from "./EmptyState";
 
 // Loan packages — per-tenant loan products. A package locks the
 // financial mechanics (rate, processing fee, interest method) and
@@ -226,7 +228,7 @@ function LoanPackagesSection() {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
   const editingOrAdding = adding || editingId !== null;
   const cfg = fieldsFor(form.loan_type);
   const visibleRows =
@@ -235,9 +237,9 @@ function LoanPackagesSection() {
       : rows.filter((p) => (p.loan_type || "personal") === typeFilter);
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
           <PackageIcon size={22} /> Loan Packages
         </h2>
         {!editingOrAdding && (
@@ -249,7 +251,7 @@ function LoanPackagesSection() {
           </button>
         )}
       </div>
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
         Pre-configured loan products. A package locks the rate, fee, and
         interest method, and validates the amount + duration when staff
         apply a loan using it.
@@ -258,7 +260,7 @@ function LoanPackagesSection() {
       {editingOrAdding && (
         <form
           onSubmit={save}
-          className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50 space-y-3"
+          className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 mb-4 bg-gray-50 dark:bg-slate-900 space-y-3"
         >
           <div>
             <label className="block text-sm font-semibold mb-1">Loan Type *</label>
@@ -273,7 +275,7 @@ function LoanPackagesSection() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               {(LOAN_TYPES.find((t) => t.key === form.loan_type) || {}).description}
             </p>
           </div>
@@ -298,7 +300,7 @@ function LoanPackagesSection() {
                   onChange={(e) =>
                     setForm({ ...form, interest_method: e.target.value })
                   }
-                  className={`${fld} bg-white`}
+                  className={`${fld} bg-white dark:bg-slate-900`}
                 >
                   <option value="flat">Flat — interest spread evenly</option>
                   <option value="reducing">
@@ -421,7 +423,7 @@ function LoanPackagesSection() {
                 placeholder="1.5"
                 className={fld}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 {form.loan_type === "pawn"
                   ? "For pawn, the monthly rate is the fee charged per month on the amount advanced."
                   : "Synced with annual (annual ÷ 12). Edit either one."}
@@ -450,8 +452,8 @@ function LoanPackagesSection() {
           {/* Eligibility — three optional gates that block apply for
               clients who don't qualify. All default to "no restriction"
               so leaving them blank keeps the package open. */}
-          <div className="border-t border-gray-200 pt-3 mt-1">
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
+          <div className="border-t border-gray-200 dark:border-slate-700 pt-3 mt-1">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-2">
               Eligibility (optional)
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -472,7 +474,7 @@ function LoanPackagesSection() {
                   placeholder="Leave blank for no minimum"
                   className={fld}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Unrated clients fail any minimum.
                 </p>
               </div>
@@ -495,7 +497,7 @@ function LoanPackagesSection() {
                         className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
                           on
                             ? "bg-ocean-600 text-white border-ocean-600"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                            : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
                         }`}
                       >
                         {c.label}
@@ -503,7 +505,7 @@ function LoanPackagesSection() {
                     );
                   })}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   None selected = all types allowed.
                 </p>
               </div>
@@ -530,7 +532,7 @@ function LoanPackagesSection() {
                           className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
                             on
                               ? "bg-ocean-600 text-white border-ocean-600"
-                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                              : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
                           }`}
                         >
                           {b.name}
@@ -539,7 +541,7 @@ function LoanPackagesSection() {
                     })}
                   </div>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   None selected = all branches.
                 </p>
               </div>
@@ -564,7 +566,7 @@ function LoanPackagesSection() {
                       className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
                         on
                           ? "bg-ocean-600 text-white border-ocean-600"
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
                       }`}
                     >
                       {p}
@@ -572,7 +574,7 @@ function LoanPackagesSection() {
                   );
                 })}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 None selected = the customer can pick any purpose.
               </p>
             </div>
@@ -594,7 +596,7 @@ function LoanPackagesSection() {
             <button
               type="button"
               onClick={cancel}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-100 text-sm font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition"
             >
               <X size={14} /> Cancel
             </button>
@@ -604,11 +606,11 @@ function LoanPackagesSection() {
 
       {!loading && rows.length > 0 && (
         <div className="flex items-center gap-2 mb-3">
-          <label className="text-sm font-semibold text-gray-600">Loan type</label>
+          <label className="text-sm font-semibold text-gray-600 dark:text-slate-400">Loan type</label>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 border-2 border-gray-200 rounded-lg text-sm bg-white focus:border-ocean-500 focus:outline-none"
+            className="px-3 py-1.5 border-2 border-gray-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 dark:text-slate-100 focus:border-ocean-500 focus:outline-none"
           >
             <option value="all">All types</option>
             {PACKAGE_TYPES.map((t) => (
@@ -617,25 +619,45 @@ function LoanPackagesSection() {
               </option>
             ))}
           </select>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-slate-400">
             {visibleRows.length} of {rows.length}
           </span>
         </div>
       )}
 
       {loading ? (
-        <Spinner centered className="py-6" size={28} label="Loading packages…" />
-      ) : rows.length === 0 ? (
-        <div className="text-gray-500 text-sm">No packages yet.</div>
-      ) : visibleRows.length === 0 ? (
-        <div className="text-gray-500 text-sm">
-          No {loanTypeLabel(typeFilter)} packages.
+        <div className="space-y-2 py-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
         </div>
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={PackageIcon}
+          tone="muted"
+          title="No packages yet"
+          description="Add a loan package to lock the rate, fee, and interest method so staff can apply loans against it."
+          action={
+            <button
+              onClick={startAdd}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-ocean-gradient text-white text-sm font-semibold rounded-lg hover:shadow-lg transition"
+            >
+              <Plus size={14} /> Add Package
+            </button>
+          }
+        />
+      ) : visibleRows.length === 0 ? (
+        <EmptyState
+          icon={PackageIcon}
+          tone="muted"
+          title={`No ${loanTypeLabel(typeFilter)} packages`}
+          description="No packages match this loan type. Try a different filter or add one."
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-600 border-b border-gray-200">
+              <tr className="text-left text-gray-600 dark:text-slate-400 border-b border-gray-200 dark:border-slate-700">
                 <th className="w-8" aria-hidden="true"></th>
                 <th className="px-3 py-2 font-semibold">Name</th>
                 <th className="px-3 py-2 font-semibold">Type</th>
@@ -656,11 +678,11 @@ function LoanPackagesSection() {
                   <React.Fragment key={p.id}>
                     <tr
                       onClick={() => toggleExpanded(p.id)}
-                      className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition ${
+                      className={`border-b border-gray-100 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition ${
                         p.active ? "" : "opacity-60"
                       }`}
                     >
-                      <td className="px-2 py-2 text-gray-400">
+                      <td className="px-2 py-2 text-gray-400 dark:text-slate-400">
                         {expanded ? (
                           <ChevronDown size={16} />
                         ) : (
@@ -668,10 +690,10 @@ function LoanPackagesSection() {
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <div className="font-semibold text-gray-800">
+                        <div className="font-semibold text-gray-800 dark:text-slate-100">
                           {p.name}
                           {!p.active && (
-                            <span className="ml-2 text-xs text-gray-500">
+                            <span className="ml-2 text-xs text-gray-500 dark:text-slate-400">
                               (archived)
                             </span>
                           )}
@@ -704,15 +726,14 @@ function LoanPackagesSection() {
                       <td className="px-3 py-2 text-right">
                         {Number(p.annual_interest_rate).toFixed(2)}%
                       </td>
-                      <td className="px-3 py-2 text-right text-gray-600">
+                      <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-400">
                         {(Number(p.annual_interest_rate) / 12).toFixed(2)}%
                       </td>
                       <td className="px-3 py-2 text-right">
                         {Number(p.processing_fee_rate).toFixed(2)}%
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
-                        {Number(p.min_amount).toLocaleString()} –{" "}
-                        {Number(p.max_amount).toLocaleString()}
+                        {formatKES(p.min_amount)} – {formatKES(p.max_amount)}
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
                         {p.min_duration_months} – {p.max_duration_months}
@@ -725,7 +746,7 @@ function LoanPackagesSection() {
                         <div className="inline-flex items-center gap-1">
                           <button
                             onClick={() => startEdit(p)}
-                            className="p-1 text-gray-700 hover:bg-gray-100 rounded"
+                            className="p-1 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
                             title="Edit"
                           >
                             <Pencil size={16} />
@@ -751,23 +772,23 @@ function LoanPackagesSection() {
                       </td>
                     </tr>
                     {expanded && (
-                      <tr className="border-b border-gray-100 bg-gray-50">
+                      <tr className="border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
                         <td></td>
                         <td colSpan={10} className="px-3 py-3">
                           <div className="space-y-2">
                             {p.description ? (
-                              <p className="text-sm text-gray-700">
+                              <p className="text-sm text-gray-700 dark:text-slate-200">
                                 {p.description}
                               </p>
                             ) : (
-                              <p className="text-sm text-gray-400 italic">
+                              <p className="text-sm text-gray-400 dark:text-slate-400 italic">
                                 No description.
                               </p>
                             )}
                             {(p.min_credit_score != null ||
                               (p.allowed_client_types || []).length > 0 ||
                               (p.allowed_branch_ids || []).length > 0) && (
-                              <div className="flex flex-wrap gap-3 text-xs text-gray-600 pt-1">
+                              <div className="flex flex-wrap gap-3 text-xs text-gray-600 dark:text-slate-400 pt-1">
                                 {p.min_credit_score != null && (
                                   <span>
                                     <span className="font-semibold">

@@ -6,13 +6,14 @@ import MonthNavigator from "../components/MonthNavigator";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
 import { Coins, RotateCcw, ClipboardList, Clock, CheckCircle, AlertTriangle } from "lucide-react";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
+import EmptyState from "../../components/EmptyState";
+import { formatKES } from "../../utils/money";
 import StatCard from "../components/StatCard";
 
-// Full KES figures (no K abbreviation) — e.g. KES 2,000,000, not 2.0K.
-const K = (v) =>
-  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
-const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
+// Full KES figures (no K abbreviation) — delegate to the shared money helper.
+const K = (v) => formatKES(v);
+const KES = (v) => formatKES(v);
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const STATUS_BADGE = {
@@ -162,7 +163,17 @@ function BillingDashboard() {
   if (loading) {
     return (
       <PlatformLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8">
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-56 mb-6" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-40 w-full rounded-xl mb-6" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       </PlatformLayout>
     );
   }
@@ -172,10 +183,10 @@ function BillingDashboard() {
       <div className="p-4 lg:p-8">
         <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-              <Coins size={28} className="text-gray-700" /> Billing
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+              <Coins size={28} className="text-gray-700 dark:text-slate-200" /> Billing
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-slate-400 mt-1">
               Invoices, payments, and revenue
             </p>
           </div>
@@ -228,15 +239,15 @@ function BillingDashboard() {
             each month (platform fee on interest collected) vs what's been
             paid. Surfaces every month with activity, including months that
             were never invoiced. */}
-        <div className="bg-white rounded-xl shadow p-4 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <h2 className="font-bold text-gray-800 flex items-center gap-2">
+            <h2 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <ClipboardList size={18} /> Tenant Monthly Statement
             </h2>
             <select
               value={stmtTenant}
               onChange={(e) => setStmtTenant(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-ocean-500/40"
+              className="border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-ocean-500/40 dark:bg-slate-900 dark:border-slate-600"
             >
               <option value="">Select a tenant…</option>
               {tenants.map((t) => (
@@ -248,19 +259,28 @@ function BillingDashboard() {
           </div>
 
           {!stmtTenant ? (
-            <p className="text-sm text-gray-400 py-6 text-center">
-              Pick a tenant to see what they owe each month, based on the
-              interest they collected.
-            </p>
+            <EmptyState
+              tone="muted"
+              icon={ClipboardList}
+              title="Pick a tenant"
+              description="Select a tenant to see what they owe each month, based on the interest they collected."
+            />
           ) : stmtLoading ? (
-            <Spinner centered className="py-8" label="Loading…" />
+            <div className="space-y-3 py-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-full" />
+              ))}
+            </div>
           ) : !statement || statement.months.length === 0 ? (
-            <p className="text-sm text-gray-400 py-6 text-center">
-              No billable activity for this tenant yet.
-            </p>
+            <EmptyState
+              tone="muted"
+              icon={ClipboardList}
+              title="No billable activity"
+              description="This tenant has no billable activity yet."
+            />
           ) : (
             <>
-              <p className="text-xs text-gray-500 mb-2">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">
                 Fee: {statement.tenant.billing_fee_percentage}% of interest
                 collected
                 {statement.tenant.billing_base_fee > 0
@@ -273,8 +293,8 @@ function BillingDashboard() {
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr className="text-gray-500">
+                  <thead className="bg-gray-50 dark:bg-slate-900">
+                    <tr className="text-gray-500 dark:text-slate-400">
                       <th className="text-left p-2">Month</th>
                       <th className="text-right p-2">Interest Collected</th>
                       <th className="text-right p-2">Supposed to Pay</th>
@@ -288,9 +308,9 @@ function BillingDashboard() {
                     {statement.months.map((m) => (
                       <tr
                         key={`${m.year}-${m.month}`}
-                        className="border-b last:border-0 hover:bg-gray-50"
+                        className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-slate-700"
                       >
-                        <td className="p-2 font-medium text-gray-800 whitespace-nowrap">
+                        <td className="p-2 font-medium text-gray-800 dark:text-slate-100 whitespace-nowrap">
                           {MONTHS[m.month - 1]} {m.year}
                         </td>
                         <td className="text-right p-2">
@@ -304,7 +324,7 @@ function BillingDashboard() {
                         </td>
                         <td
                           className={`text-right p-2 font-semibold ${
-                            m.outstanding > 0 ? "text-red-600" : "text-gray-400"
+                            m.outstanding > 0 ? "text-red-600" : "text-gray-400 dark:text-slate-400"
                           }`}
                         >
                           {K(m.outstanding)}
@@ -323,7 +343,7 @@ function BillingDashboard() {
                         </td>
                         <td className="text-right p-2 whitespace-nowrap">
                           {m.invoiced ? (
-                            <span className="text-xs text-gray-400">—</span>
+                            <span className="text-xs text-gray-400 dark:text-slate-400">—</span>
                           ) : (
                             <button
                               onClick={() => sendInvoice(m)}
@@ -340,7 +360,7 @@ function BillingDashboard() {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold text-gray-800">
+                    <tr className="border-t-2 border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 font-bold text-gray-800 dark:text-slate-100">
                       <td className="p-2">Total</td>
                       <td className="text-right p-2">
                         {K(statement.totals.interest_earned)}
@@ -378,7 +398,7 @@ function BillingDashboard() {
               className={`px-3 py-2 text-sm font-semibold rounded-lg transition ${
                 filter === t.v
                   ? "bg-ocean-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
+                  : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
             >
               {t.l}
@@ -402,15 +422,16 @@ function BillingDashboard() {
         )}
 
         {invoices.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
-            <ClipboardList size={48} className="mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-500">No invoices yet.</p>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title="No invoices yet"
+            description="Invoices appear here once you generate them for billable tenants."
+          />
         ) : (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 dark:bg-slate-900 border-b">
                   <tr>
                     <SortableHeader
                       label="Invoice"
@@ -462,12 +483,12 @@ function BillingDashboard() {
                 </thead>
                 <tbody>
                   {sortedInvoices.map((i) => (
-                    <tr key={i.id} className="border-b hover:bg-gray-50">
+                    <tr key={i.id} className="border-b hover:bg-gray-50 dark:hover:bg-slate-700">
                       <td className="p-3">
                         <p className="font-mono font-semibold">
                           {i.invoice_number}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
                           Due {new Date(i.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                         </p>
                       </td>

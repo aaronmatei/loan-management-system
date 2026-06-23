@@ -53,9 +53,9 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings",
   const emergPool = list?.oneoff_pool_balance ?? 0; // all emergencies share one pool
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <CalendarClock size={18} className="text-sky-600" /> {benefit ? "Events & Emergencies" : "Contributions"}
         </h2>
         {!benefit && !readOnly && (
@@ -68,7 +68,7 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings",
       </div>
 
       <div className="p-5">
-        {loading ? <p className="text-sm text-slate-500">Loading…</p> : benefit ? (
+        {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p> : benefit ? (
           <div className="space-y-6">
             <BenefitSection title="Events" subtitle="Recurring benefit pools — members contribute, the pool pays a lump sum to each (e.g. Quarterly dowry)."
               pool={plans.length ? eventsPool : null} poolLabel={plans.length > 1 ? "Pools total" : "Pool"} readOnly={readOnly}
@@ -81,7 +81,7 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings",
             </BenefitSection>
           </div>
         ) : empty ? (
-          <div className="text-center py-8 text-slate-500 text-sm">No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span>.</div>
+          <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span>.</div>
         ) : (
           <div className="space-y-3">
             {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
@@ -106,10 +106,10 @@ function BenefitSection({ title, subtitle, pool, poolLabel = "Pool", addLabel, o
     <div>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <h3 className="font-bold text-slate-800 flex items-center gap-2">{title}
+          <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">{title}
             {pool != null && <span className="font-normal text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">{poolLabel}: <span className={`font-bold ${pool < 0 ? "text-rose-600" : ""}`}>{money(pool)}</span></span>}
           </h3>
-          <p className="text-xs text-slate-400">{subtitle}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400">{subtitle}</p>
         </div>
         {!readOnly && (
           <PermissionGate role={["admin", "manager"]}>
@@ -117,7 +117,7 @@ function BenefitSection({ title, subtitle, pool, poolLabel = "Pool", addLabel, o
           </PermissionGate>
         )}
       </div>
-      {has ? <div className="space-y-3">{children}</div> : <p className="text-sm text-slate-400 py-3">{empty}</p>}
+      {has ? <div className="space-y-3">{children}</div> : <p className="text-sm text-slate-400 dark:text-slate-400 py-3">{empty}</p>}
     </div>
   );
 }
@@ -127,41 +127,41 @@ function PlanRow({ plan, onClick }) {
   const c = plan.current || {};
   const done = c.member_count > 0 && c.paid_count >= c.member_count;
   return (
-    <button onClick={onClick} className="w-full text-left flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 transition">
+    <button onClick={onClick} className="w-full text-left flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-sky-300 hover:bg-sky-50/40 transition">
       <div className="h-10 w-10 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0"><Repeat size={18} /></div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-slate-900 truncate">{plan.name}</span>
-          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{FREQ_LABEL[plan.frequency] || plan.frequency}</span>
+          <span className="font-bold text-slate-900 dark:text-slate-100 truncate">{plan.name}</span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold">{FREQ_LABEL[plan.frequency] || plan.frequency}</span>
           <PoolBadge kind={plan.pool_kind} />
         </div>
-        <p className="text-xs text-slate-500 mt-0.5">{money(plan.amount)} per member · this year collected {money(plan.ytd_collected)}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{money(plan.amount)} per member · this year collected {money(plan.ytd_collected)}</p>
       </div>
       <div className="text-right shrink-0">
-        <p className={`text-sm font-bold ${done ? "text-emerald-700" : "text-slate-800"}`}>{c.paid_count ?? 0}/{c.member_count ?? 0} paid</p>
-        <p className="text-xs text-slate-500">{money(c.collected)} · due {fmt(c.due_date)}</p>
+        <p className={`text-sm font-bold ${done ? "text-emerald-700" : "text-slate-800 dark:text-slate-100"}`}>{c.paid_count ?? 0}/{c.member_count ?? 0} paid</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{money(c.collected)} · due {fmt(c.due_date)}</p>
       </div>
-      <ChevronRight size={18} className="text-slate-300 shrink-0" />
+      <ChevronRight size={18} className="text-slate-300 dark:text-slate-400 shrink-0" />
     </button>
   );
 }
 
 function OneoffRow({ cycle, onClick }) {
   return (
-    <button onClick={onClick} className="w-full text-left flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 transition">
+    <button onClick={onClick} className="w-full text-left flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-sky-300 hover:bg-sky-50/40 transition">
       <div className="h-10 w-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0"><Coins size={18} /></div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-slate-900 truncate">{cycle.name}</span>
+          <span className="font-bold text-slate-900 dark:text-slate-100 truncate">{cycle.name}</span>
           <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">{cycle.beneficiary_member_id ? "Emergency" : "One-off"}</span>
         </div>
-        <p className="text-xs text-slate-500 mt-0.5">{cycle.beneficiary_member_id ? <>beneficiary {cycle.ben_first} {cycle.ben_last} · </> : null}due {fmt(cycle.due_date)}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{cycle.beneficiary_member_id ? <>beneficiary {cycle.ben_first} {cycle.ben_last} · </> : null}due {fmt(cycle.due_date)}</p>
       </div>
       <div className="text-right shrink-0">
-        <p className="text-sm font-bold text-slate-800">{cycle.paid_count}/{cycle.member_count} paid</p>
-        <p className="text-xs text-slate-500">{money(cycle.collected)}</p>
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{cycle.paid_count}/{cycle.member_count} paid</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{money(cycle.collected)}</p>
       </div>
-      <ChevronRight size={18} className="text-slate-300 shrink-0" />
+      <ChevronRight size={18} className="text-slate-300 dark:text-slate-400 shrink-0" />
     </button>
   );
 }
@@ -196,50 +196,50 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
     try { const r = await client.post(`${basePath}/cycles/0/assess-late`, {}); alert(`${r.data.assessed} new late-contribution penalt${r.data.assessed === 1 ? "y" : "ies"} assessed.`); load(); }
     catch (e) { alert(e.response?.data?.error || "Failed"); } finally { setBusy(false); }
   };
-  const tabCls = (on) => `px-3 py-1 text-sm font-semibold rounded-lg ${on ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`;
+  const tabCls = (on) => `px-3 py-1 text-sm font-semibold rounded-lg ${on ? "bg-sky-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"}`;
   const isBenefit = plan.pool_kind === "benefit";
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
-        <button onClick={onBack} className="text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ChevronLeft size={16} /> {kind === "benefit" ? "All events & emergencies" : "All contributions"}</button>
+        <button onClick={onBack} className="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 inline-flex items-center gap-1"><ChevronLeft size={16} /> {kind === "benefit" ? "All events & emergencies" : "All contributions"}</button>
         {!readOnly && (
           <PermissionGate role={["admin", "manager"]}>
             <div className="flex gap-2">
               {isBenefit && <button onClick={() => setPaying(true)} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><ArrowDownToLine size={14} /> Pay a beneficiary</button>}
-              <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">Assess late</button>
-              <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-white border border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg">Edit</button>
+              <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+              <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg">Edit</button>
             </div>
           </PermissionGate>
         )}
       </div>
 
       <div className="px-5 py-3 border-b border-sky-100">
-        <h2 className="font-bold text-slate-900 text-lg flex items-center gap-2">{plan.name}
-          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{FREQ_LABEL[plan.frequency] || plan.frequency}</span>
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 text-lg flex items-center gap-2">{plan.name}
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold">{FREQ_LABEL[plan.frequency] || plan.frequency}</span>
           <PoolBadge kind={plan.pool_kind} />
         </h2>
-        <p className="text-xs text-slate-500 mt-0.5"><Repeat size={12} className="inline mr-1 text-sky-600" />{planSummary(plan)} · {fineSummary(plan)}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5"><Repeat size={12} className="inline mr-1 text-sky-600" />{planSummary(plan)} · {fineSummary(plan)}</p>
       </div>
 
       {/* Pool card */}
-      <div className="px-5 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center gap-x-8 gap-y-2">
+      <div className="px-5 py-3 bg-slate-50/60 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-x-8 gap-y-2">
         <div>
-          <p className="text-xs text-slate-500">{isBenefit ? "Benefit pool balance" : "Savings pool balance"}</p>
-          <p className={`text-lg font-bold ${pool && pool.balance < 0 ? "text-rose-600" : "text-slate-900"}`}>{money(pool?.balance)}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{isBenefit ? "Benefit pool balance" : "Savings pool balance"}</p>
+          <p className={`text-lg font-bold ${pool && pool.balance < 0 ? "text-rose-600" : "text-slate-900 dark:text-slate-100"}`}>{money(pool?.balance)}</p>
         </div>
-        <p className="text-xs text-slate-500 max-w-md">{isBenefit
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">{isBenefit
           ? "Members contribute in; lump sums are paid out to member beneficiaries. Kept separate from member savings."
           : "Group savings — each member owns their balance and can withdraw it."}</p>
       </div>
 
       {isBenefit && pool?.payouts?.length > 0 && (
-        <div className="px-5 py-3 border-b border-slate-100">
-          <p className="text-sm font-semibold text-slate-700 mb-2">Payouts ({pool.payouts.length})</p>
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Payouts ({pool.payouts.length})</p>
           <div className="space-y-1">
             {pool.payouts.map((p) => (
               <div key={p.id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-700">{p.first_name} {p.last_name} <span className="text-slate-400">· {fmt(p.txn_date)}</span>
+                <span className="text-slate-700 dark:text-slate-200">{p.first_name} {p.last_name} <span className="text-slate-400 dark:text-slate-400">· {fmt(p.txn_date)}</span>
                   {p.meeting_id ? <span className="ml-1 text-violet-600 text-xs font-semibold" title={p.meeting_title}><Users size={11} className="inline -mt-0.5" /> {p.attended}/{p.recorded} present</span> : null}
                 </span>
                 <span className="font-semibold text-rose-600">− {money(p.amount)}</span>
@@ -251,9 +251,9 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
 
       <div className="px-5 pt-3 flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
-          <button onClick={() => setYear((y) => y - 1)} className="p-1 text-slate-500 hover:text-slate-800"><ChevronLeft size={16} /></button>
-          <span className="font-semibold text-slate-700 w-12 text-center">{year}</span>
-          <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30"><ChevronRight size={16} /></button>
+          <button onClick={() => setYear((y) => y - 1)} className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800"><ChevronLeft size={16} /></button>
+          <span className="font-semibold text-slate-700 dark:text-slate-200 w-12 text-center">{year}</span>
+          <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 disabled:opacity-30"><ChevronRight size={16} /></button>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setView("months")} className={tabCls(view === "months")}>By period</button>
@@ -262,7 +262,7 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
       </div>
 
       <div className="p-5">
-        {loading || !data ? <p className="text-sm text-slate-500">Loading…</p> : view === "months" ? (
+        {loading || !data ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p> : view === "months" ? (
           <MonthsTable periods={data.periods} onOpen={(p) => setOpenCycle({ id: p.cycle_id, name: p.name, due_date: p.due_date })} />
         ) : (
           <MembersGrid data={data} />
@@ -291,8 +291,8 @@ function PayoutModal({ welfareId, planId, cycleId, members, balance, defaultBene
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-sky-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
   const submit = async (e) => {
     e.preventDefault();
     if (!form.beneficiary_member_id) return setError("Pick a beneficiary.");
@@ -308,19 +308,19 @@ function PayoutModal({ welfareId, planId, cycleId, members, balance, defaultBene
     <Shell title="Pay a beneficiary" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
-        <p className="text-xs text-slate-500">Pool balance: <span className="font-semibold">{money(balance)}</span>. The payout leaves this pool (it can go negative — it won't touch member savings).</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Pool balance: <span className="font-semibold">{money(balance)}</span>. The payout leaves this pool (it can go negative — it won't touch member savings).</p>
         <div><label className={lbl}>Beneficiary *</label>
           <select value={form.beneficiary_member_id} onChange={set("beneficiary_member_id")} className={fld}>
             <option value="">Select a member…</option>
             {eligible.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
           </select>
-          {excludeIds.length > 0 && <p className="text-xs text-slate-400 mt-1">{excludeIds.length} member{excludeIds.length === 1 ? "" : "s"} who already received this benefit {excludeIds.length === 1 ? "is" : "are"} hidden.</p>}
+          {excludeIds.length > 0 && <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">{excludeIds.length} member{excludeIds.length === 1 ? "" : "s"} who already received this benefit {excludeIds.length === 1 ? "is" : "are"} hidden.</p>}
         </div>
         <div><label className={lbl}>Amount *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} /></div>
         <div><label className={lbl}>Note</label><input value={form.description} onChange={set("description")} placeholder="e.g. Dowry / wedding" className={fld} /></div>
-        <div className="border-t border-slate-100 pt-3">
-          <p className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5"><Users size={14} /> Gathering (optional)</p>
-          <p className="text-xs text-slate-400 mb-2">Naming it creates a meeting under <span className="font-semibold">Meetings</span> where you mark attendance. Optionally fine late/absent members.</p>
+        <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5"><Users size={14} /> Gathering (optional)</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400 mb-2">Naming it creates a meeting under <span className="font-semibold">Meetings</span> where you mark attendance. Optionally fine late/absent members.</p>
           <div className="grid grid-cols-2 gap-3">
             <input value={form.gathering_title} onChange={set("gathering_title")} placeholder="Event name e.g. Dowry hand-out — Jane" className={fld} />
             <input type="date" value={form.gathering_date} onChange={set("gathering_date")} className={fld} />
@@ -343,7 +343,7 @@ function MonthsTable({ periods, onOpen }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+        <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
           <tr>
             <th className="text-left px-4 py-2">Period</th>
             <th className="text-left px-4 py-2">Due</th>
@@ -355,10 +355,10 @@ function MonthsTable({ periods, onOpen }) {
         </thead>
         <tbody>
           {periods.map((m) => (
-            <tr key={m.key} className={`border-t border-slate-100 ${m.opened ? "hover:bg-sky-50/50 cursor-pointer" : "opacity-70"}`} onClick={() => m.opened && onOpen(m)}>
-              <td className="px-4 py-2 font-semibold text-slate-800">{m.name}</td>
-              <td className="px-4 py-2 text-slate-600">{fmt(m.due_date)}</td>
-              <td className="px-4 py-2 text-right">{m.opened ? <>{money(m.collected)} <span className="text-slate-400">/ {money(m.expected)}</span></> : <span className="text-slate-400">{m.expected ? `— / ${money(m.expected)}` : "—"}</span>}</td>
+            <tr key={m.key} className={`border-t border-slate-100 dark:border-slate-700 ${m.opened ? "hover:bg-sky-50/50 cursor-pointer" : "opacity-70"}`} onClick={() => m.opened && onOpen(m)}>
+              <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">{m.name}</td>
+              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{fmt(m.due_date)}</td>
+              <td className="px-4 py-2 text-right">{m.opened ? <>{money(m.collected)} <span className="text-slate-400 dark:text-slate-400">/ {money(m.expected)}</span></> : <span className="text-slate-400 dark:text-slate-400">{m.expected ? `— / ${money(m.expected)}` : "—"}</span>}</td>
               <td className="px-4 py-2 text-right">{m.opened ? `${m.paid_count}/${m.member_count}` : "—"}</td>
               <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${MONTH_STATUS[m.status] || MONTH_STATUS.unopened}`}>{m.status}</span></td>
               <td className="px-4 py-2 text-right">
@@ -388,9 +388,9 @@ function MembersGrid({ data }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+        <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
           <tr>
-            <th className="text-left px-3 py-2 sticky left-0 bg-slate-50">Member</th>
+            <th className="text-left px-3 py-2 sticky left-0 bg-slate-50 dark:bg-slate-900">Member</th>
             {periods.map((p) => <th key={p.key} className="px-2 py-2 text-center" title={p.name}>{p.short}</th>)}
             <th className="px-3 py-2 text-right">Total paid</th>
             <th className="px-3 py-2 text-right">Fines</th>
@@ -398,10 +398,10 @@ function MembersGrid({ data }) {
         </thead>
         <tbody>
           {data.members.length === 0 ? (
-            <tr><td colSpan={periods.length + 3} className="px-3 py-8 text-center text-slate-500">No active members.</td></tr>
+            <tr><td colSpan={periods.length + 3} className="px-3 py-8 text-center text-slate-500 dark:text-slate-400">No active members.</td></tr>
           ) : data.members.map((mem) => (
-            <tr key={mem.id} className="border-t border-slate-100">
-              <td className="px-3 py-2 text-slate-800 whitespace-nowrap sticky left-0 bg-white">{mem.first_name} {mem.last_name}</td>
+            <tr key={mem.id} className="border-t border-slate-100 dark:border-slate-700">
+              <td className="px-3 py-2 text-slate-800 dark:text-slate-100 whitespace-nowrap sticky left-0 bg-white dark:bg-slate-800">{mem.first_name} {mem.last_name}</td>
               {periods.map((p, i) => <td key={p.key} className="px-2 py-2 text-center">{cellMark(mem.cells[i])}</td>)}
               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(mem.total_paid)}</td>
               <td className="px-3 py-2 text-right font-semibold">{mem.fines > 0 ? <span className={mem.fines_outstanding > 0 ? "text-rose-600" : "text-slate-500"}>{money(mem.fines)}</span> : <span className="text-slate-300">—</span>}</td>
@@ -409,7 +409,7 @@ function MembersGrid({ data }) {
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-xs text-slate-500"><span className="text-emerald-600 font-bold">✓</span> on time · <span className="text-amber-600 font-bold">✓</span> paid late · <span className="text-red-600 font-semibold">Nd</span> days late · <span className="text-slate-400">○</span> due · <span className="text-slate-300">·</span> upcoming</p>
+      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400"><span className="text-emerald-600 font-bold">✓</span> on time · <span className="text-amber-600 font-bold">✓</span> paid late · <span className="text-red-600 font-semibold">Nd</span> days late · <span className="text-slate-400">○</span> due · <span className="text-slate-300">·</span> upcoming</p>
     </div>
   );
 }
@@ -520,8 +520,8 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
       }
     } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-sky-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   const hint = {
     weekly: `Opens every week, due each ${WEEKDAYS.find((d) => d.v === Number(form.due_day))?.n || "week"}.`,
@@ -575,16 +575,16 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
             <div className="col-span-2">
               <label className={lbl}>Benefit paid to beneficiary *</label>
               <input type="number" value={form.payout_amount} onChange={set("payout_amount")} placeholder="e.g. 150000" className={fld} />
-              <p className="text-xs text-slate-500 mt-1">Paid out from the emergency pool the moment you create this — only if the pool can cover it. Members' contributions above keep the pool funded.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Paid out from the emergency pool the moment you create this — only if the pool can cover it. Members' contributions above keep the pool funded.</p>
             </div>
           </div>
         )}
         {benefit && recurring && (
-          <p className="text-xs text-slate-500 flex items-center gap-2"><PoolBadge kind="benefit" /> Members contribute in; you disburse lump sums to beneficiaries from its pool.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2"><PoolBadge kind="benefit" /> Members contribute in; you disburse lump sums to beneficiaries from its pool.</p>
         )}
 
-        <div className="border-t border-slate-100 pt-3">
-          <p className="text-sm font-semibold text-slate-700 mb-2">Late fine</p>
+        <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Late fine</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className={lbl}>Charge</label>
@@ -598,7 +598,7 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
             {form.fine_calc_type && <div><label className={lbl}>Cap (optional)</label><input type="number" value={form.fine_cap} onChange={set("fine_cap")} className={fld} /></div>}
           </div>
         </div>
-        <p className="text-xs text-gray-500">{hint} A schedule is created for every active member.</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400">{hint} A schedule is created for every active member.</p>
         <Actions busy={busy} onClose={onClose} label={recurring ? "Save plan" : "Open contribution"} tone="bg-sky-600 hover:bg-sky-700" />
       </form>
     </Shell>
@@ -642,17 +642,17 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange, cli
         </div>
       )}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className="text-slate-500">Late fine: {detail?.fine_calc_type ? <span className="font-semibold text-slate-700">{fineSummary(detail)}</span> : "none"}</span>
+        <span className="text-slate-500 dark:text-slate-400">Late fine: {detail?.fine_calc_type ? <span className="font-semibold text-slate-700 dark:text-slate-200">{fineSummary(detail)}</span> : "none"}</span>
         {!readOnly && (
           <PermissionGate role={["admin", "manager"]}>
-            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-lg disabled:opacity-50">Assess late</button>
           </PermissionGate>
         )}
       </div>
-      {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
+      {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p> : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+            <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
               <tr>
                 <th className="text-left px-3 py-2">Member</th>
                 <th className="text-right px-3 py-2">Due</th>
@@ -665,8 +665,8 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange, cli
             </thead>
             <tbody>
               {schedules.map((s) => (
-                <tr key={s.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2 text-slate-800">{s.first_name} {s.last_name}</td>
+                <tr key={s.id} className="border-t border-slate-100 dark:border-slate-700">
+                  <td className="px-3 py-2 text-slate-800 dark:text-slate-100">{s.first_name} {s.last_name}</td>
                   <td className="px-3 py-2 text-right">{money(s.amount_due)}</td>
                   <td className="px-3 py-2 text-right">{money(s.amount_paid)}</td>
                   <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[s.status] || STATUS.pending}`}>{s.status}</span></td>
@@ -721,24 +721,24 @@ function PayModal({ welfareId, cycle, schedule, onClose, onDone }) {
       setError(err.response?.data?.error || "Couldn't start the M-Pesa request.");
     } finally { setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
 
   return (
     <Shell title={`Contribution — ${schedule.first_name} ${schedule.last_name}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <p className="text-sm text-slate-600">Outstanding: <strong>{money(outstanding)}</strong></p>
+        <p className="text-sm text-slate-600 dark:text-slate-400">Outstanding: <strong>{money(outstanding)}</strong></p>
         {error && <Err msg={error} />}
         {notice && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><Smartphone size={15} /> {notice}</div>}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Amount <span className="text-gray-500 font-normal">(blank = full)</span></label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Amount <span className="text-gray-500 dark:text-slate-400 font-normal">(blank = full)</span></label>
           <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(outstanding)} className={fld} autoFocus />
         </div>
         <Actions busy={busy} onClose={onClose} label="Record payment" tone="bg-emerald-600 hover:bg-emerald-700" />
       </form>
 
-      <div className="mt-5 pt-4 border-t border-slate-100">
-        <p className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1.5"><Smartphone size={15} className="text-green-600" /> Or request via M-Pesa</p>
-        <p className="text-xs text-slate-500 mb-2">Sends an STK prompt for the full outstanding to the member's phone.</p>
+      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700">
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5"><Smartphone size={15} className="text-green-600" /> Or request via M-Pesa</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Sends an STK prompt for the full outstanding to the member's phone.</p>
         <div className="flex gap-2">
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (blank = member's number)" className={`${fld} flex-1`} />
           <button type="button" onClick={requestMpesa} disabled={busy} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50 whitespace-nowrap">STK push</button>
@@ -751,10 +751,10 @@ function PayModal({ welfareId, cycle, schedule, onClose, onDone }) {
 function Shell({ title, onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className={`bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>
         </div>
         <div className="p-5">{children}</div>
       </div>
@@ -767,7 +767,7 @@ const Err = ({ msg }) => (
 function Actions({ busy, onClose, label, tone }) {
   return (
     <div className="flex justify-end gap-3 pt-1">
-      <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+      <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
       <button type="submit" disabled={busy} className={`px-5 py-2 rounded-lg text-white font-semibold disabled:opacity-50 ${tone}`}>{busy ? "Saving…" : label}</button>
     </div>
   );

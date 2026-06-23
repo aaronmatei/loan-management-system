@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Ticket, Copy, CheckCircle, Users, Plus, X } from "lucide-react";
 import api from "../services/api";
-import Spinner from "./Spinner";
+import Skeleton from "./Skeleton";
+import EmptyState from "./EmptyState";
 
 // Promo / campaign codes for the customer sign-up link. A tenant creates named
 // codes and shares /portal/register?promo=<code>; customers who sign up
@@ -77,14 +78,14 @@ function PromoCodesSection() {
   };
 
   const fld =
-    "px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
       <h3 className="font-bold text-lg flex items-center gap-2">
         <Ticket size={20} className="text-ocean-600" /> Promo Codes
       </h3>
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
         Create a code per campaign, share its sign-up link, and see who joined
         through it.
       </p>
@@ -116,15 +117,22 @@ function PromoCodesSection() {
 
       {/* List */}
       {loading ? (
-        <Spinner centered className="py-4" size={28} label="Loading…" />
+        <div className="space-y-2 py-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
       ) : codes.length === 0 ? (
-        <p className="text-sm text-gray-400 py-4">
-          No promo codes yet. Create one above to start tracking sign-ups.
-        </p>
+        <EmptyState
+          icon={Ticket}
+          tone="muted"
+          title="No promo codes yet"
+          description="Create a code above to share a campaign sign-up link and see who joined through it."
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
+            <thead className="bg-gray-50 dark:bg-slate-900 text-left text-xs uppercase text-gray-500 dark:text-slate-400">
               <tr>
                 <th className="p-2">Code</th>
                 <th className="p-2">Label</th>
@@ -135,15 +143,15 @@ function PromoCodesSection() {
             <tbody>
               {codes.map((p) => (
                 <tr key={p.id} className="border-b last:border-0">
-                  <td className="p-2 font-mono font-semibold text-navy-900">
+                  <td className="p-2 font-mono font-semibold text-navy-900 dark:text-slate-100">
                     {p.code}
                     {!p.is_active && (
-                      <span className="ml-2 text-[10px] font-bold uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                      <span className="ml-2 text-[10px] font-bold uppercase bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
                         Off
                       </span>
                     )}
                   </td>
-                  <td className="p-2 text-gray-600">{p.label || "—"}</td>
+                  <td className="p-2 text-gray-600 dark:text-slate-400">{p.label || "—"}</td>
                   <td className="p-2 text-center">
                     <span className="font-bold text-ocean-600">{p.signups}</span>
                   </td>
@@ -151,7 +159,7 @@ function PromoCodesSection() {
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => copy(p.code)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs font-semibold"
                       >
                         {copied === p.code ? (
                           <>
@@ -166,13 +174,13 @@ function PromoCodesSection() {
                       <button
                         onClick={() => viewClients(p)}
                         disabled={!p.signups}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold disabled:opacity-40"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs font-semibold disabled:opacity-40"
                       >
                         <Users size={13} /> Clients
                       </button>
                       <button
                         onClick={() => toggle(p)}
-                        className="text-xs font-semibold text-gray-500 hover:text-gray-700 px-1"
+                        className="text-xs font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 px-1"
                       >
                         {p.is_active ? "Disable" : "Enable"}
                       </button>
@@ -188,21 +196,21 @@ function PromoCodesSection() {
       {/* Clients-per-code modal */}
       {viewing && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b dark:border-slate-700">
               <div>
-                <h3 className="font-bold text-navy-900">
+                <h3 className="font-bold text-navy-900 dark:text-slate-100">
                   Clients via{" "}
                   <span className="font-mono text-ocean-600">{viewing.code}</span>
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   {viewing.label || "Promo code"} · {clients.length} sign-up
                   {clients.length !== 1 ? "s" : ""}
                 </p>
               </div>
               <button
                 onClick={() => setViewing(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200"
                 aria-label="Close"
               >
                 <X size={22} />
@@ -210,24 +218,28 @@ function PromoCodesSection() {
             </div>
             <div className="overflow-y-auto p-2">
               {clientsLoading ? (
-                <Spinner centered className="p-4" size={28} label="Loading…" />
+                <div className="space-y-2 p-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
               ) : clients.length === 0 ? (
-                <p className="text-sm text-gray-400 p-4">No sign-ups yet.</p>
+                <p className="text-sm text-gray-400 dark:text-slate-400 p-4">No sign-ups yet.</p>
               ) : (
                 clients.map((c) => (
                   <div
                     key={c.id}
-                    className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg"
+                    className="flex justify-between items-center p-3 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg"
                   >
                     <div>
-                      <p className="font-semibold text-navy-900">
+                      <p className="font-semibold text-navy-900 dark:text-slate-100">
                         {c.first_name} {c.last_name}
                       </p>
-                      <p className="text-xs text-gray-500 font-mono">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 font-mono">
                         {c.client_code} · {c.phone_number}
                       </p>
                     </div>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-slate-400">
                       {new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </span>
                   </div>

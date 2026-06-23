@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (Tailwind v4). `dark:` utilities activate only when
+   a `.dark` class is on an ancestor — NOT on system preference — so dark
+   styling stays inert until the in-app theme toggle sets it. This lets us
+   land `dark:` classes on shared components incrementally without affecting
+   users whose OS is in dark mode before the rollout completes. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================
    LenderFest design tokens (platform/product chrome).
    Tailwind v4 reads the theme from this @theme block (the JS
@@ -77,6 +84,10 @@
 .bg-app-bg {
   background-image: linear-gradient(180deg, #fbf7ef 0%, #f3ecdd 100%);
 }
+/* Dark app shell background — replaces the cream gradient under .dark. */
+.dark .bg-app-bg {
+  background-image: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+}
 .bg-navy-gradient {
   background-image: linear-gradient(180deg, #0b1c1f 0%, #122a2e 100%);
 }
@@ -118,6 +129,23 @@
     transform: translateX(100%);
   }
 }
+
+/* Toast entrance (UI feedback only — see components/Toast.jsx). */
+@keyframes lf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[lf-toast-in_0\.2s_ease-out\] {
+    animation: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .lf-skeleton::after {
     animation-duration: 3s;
@@ -146,6 +174,14 @@ body {
   font-feature-settings: "tnum" 1;
   font-variant-numeric: tabular-nums;
   margin: 0;
+}
+
+/* Dark base — page background + default text. Surfaces/cards opt in via
+   `dark:` variants (e.g. `bg-white dark:bg-slate-800`); this just sets the
+   canvas so any unconverted gap reads as dark, not a white flash. */
+.dark body {
+  background-color: #0f172a; /* slate-900 */
+  color: #e2e8f0; /* slate-200 */
 }
 
 /* Subtle grid backdrop used by the public landing page hero/CTA. */

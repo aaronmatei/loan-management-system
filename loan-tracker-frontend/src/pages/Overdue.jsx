@@ -8,7 +8,10 @@ import BulkMessaging from "../components/BulkMessaging";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
 // Days-late badge colour, 4 severity tiers
 function daysBadgeClass(days) {
@@ -42,7 +45,7 @@ function inRange(days, range) {
   return true; // "all"
 }
 
-const KES = (n) => `KES ${Number(n || 0).toLocaleString()}`;
+const KES = (n) => formatKES(n);
 
 function Overdue() {
   const navigate = useNavigate();
@@ -435,28 +438,20 @@ function Overdue() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <AlertTriangle size={28} className="text-red-500" /> Overdue Payments
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Total:{" "}
-            <span className="font-semibold">{totalOverdueCount}</span> overdue
-            payments • <span className="font-semibold">
-              {KES(totalOverdueAmount)}
-            </span>{" "}
-            outstanding
-          </p>
-        </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing || loading}
-          className="px-6 py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {refreshing ? "Refreshing..." : <span className="inline-flex items-center gap-1.5"><RotateCcw size={16} /> Refresh</span>}
-        </button>
-      </div>
+      <PageHeader
+        icon={AlertTriangle}
+        title="Overdue Payments"
+        subtitle={`${totalOverdueCount} overdue payments • ${KES(totalOverdueAmount)} outstanding`}
+        actions={
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            className="px-6 py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshing ? "Refreshing..." : <span className="inline-flex items-center gap-1.5"><RotateCcw size={16} /> Refresh</span>}
+          </button>
+        }
+      />
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -465,23 +460,49 @@ function Overdue() {
       )}
 
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading overdue payments…" />
-        </div>
+        <>
+          {/* Summary card skeletons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 space-y-3"
+              >
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ))}
+          </div>
+          {/* Table skeleton */}
+          <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-6 py-4 border-b border-gray-100 dark:border-slate-700"
+              >
+                <Skeleton className="h-4 w-4" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        </>
       ) : overdueList.length === 0 && !periodFrom && !periodTo ? (
         // Celebration only when there's truly no overdue debt — not
         // when a period filter narrowed the result to zero. The
         // period-zero case keeps the full layout so the user can
         // try another window without having to navigate back.
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <PartyPopper size={56} className="mx-auto mb-4 text-green-400" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
-            No overdue payments! Great job!
-          </h3>
-          <p className="text-gray-500">
-            Every scheduled installment is on track.
-          </p>
-        </div>
+        <EmptyState
+          icon={PartyPopper}
+          title="No overdue payments! Great job!"
+          description="Every scheduled installment is on track."
+        />
       ) : (
         <>
           {/* Summary Cards */}
@@ -547,11 +568,11 @@ function Overdue() {
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-[220px]">
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none flex items-center">
                     <Search size={16} />
                   </span>
                   <input
@@ -559,7 +580,7 @@ function Overdue() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by client name, phone, or loan code..."
-                    className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none"
+                    className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
                   />
                 </div>
               </div>
@@ -567,7 +588,7 @@ function Overdue() {
               <select
                 value={severityFilter}
                 onChange={(e) => setSeverityFilter(e.target.value)}
-                className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none bg-white font-semibold text-gray-700"
+                className="px-4 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none bg-white dark:bg-slate-900 font-semibold text-gray-700 dark:text-slate-100"
               >
                 {RANGE_FILTERS.map((f) => (
                   <option key={f.key} value={f.key}>
@@ -579,7 +600,7 @@ function Overdue() {
               {filtersActive && (
                 <button
                   onClick={clearFilters}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition"
                 >
                   <X size={15} /> Clear
                 </button>
@@ -594,20 +615,20 @@ function Overdue() {
                 cover the 90% case (this week / last week / this
                 month / last month); custom From/To stays for one-
                 off windows. */}
-            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-end gap-3">
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex flex-wrap items-end gap-3">
               <div>
-                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 mb-1">
+                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-1">
                   Due From
                 </label>
                 <input
                   type="date"
                   value={periodFrom}
                   onChange={(e) => setPeriodFrom(e.target.value)}
-                  className="px-3 py-1.5 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none text-sm"
+                  className="px-3 py-1.5 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none text-sm dark:bg-slate-900 dark:text-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 mb-1">
+                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-1">
                   Due To
                 </label>
                 <input
@@ -615,7 +636,7 @@ function Overdue() {
                   value={periodTo}
                   onChange={(e) => setPeriodTo(e.target.value)}
                   min={periodFrom || undefined}
-                  className="px-3 py-1.5 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none text-sm"
+                  className="px-3 py-1.5 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none text-sm dark:bg-slate-900 dark:text-slate-100"
                 />
               </div>
               <div className="flex flex-wrap gap-1.5 ml-auto">
@@ -629,7 +650,7 @@ function Overdue() {
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
                       matchedPreset?.key === p.key
                         ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
                     }`}
                   >
                     {p.label}
@@ -641,7 +662,7 @@ function Overdue() {
                       setPeriodFrom("");
                       setPeriodTo("");
                     }}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1 transition"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 inline-flex items-center gap-1 transition"
                     title="Show all overdue, ignore the date window"
                   >
                     <X size={12} /> Clear period
@@ -652,14 +673,14 @@ function Overdue() {
 
             {/* Active filter tags */}
             {filtersActive && (
-              <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
-                <span className="text-sm text-gray-500">
+              <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+                <span className="text-sm text-gray-500 dark:text-slate-400">
                   Showing{" "}
-                  <span className="font-semibold text-gray-800">
+                  <span className="font-semibold text-gray-800 dark:text-slate-100">
                     {filtered.length}
                   </span>{" "}
                   of{" "}
-                  <span className="font-semibold text-gray-800">
+                  <span className="font-semibold text-gray-800 dark:text-slate-100">
                     {overdueList.length}
                   </span>
                 </span>
@@ -702,7 +723,7 @@ function Overdue() {
                 return (
                   <div
                     key={g.loan_id}
-                    className={`bg-white rounded-xl shadow-md p-4 ${
+                    className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 ${
                       bulk.isSelected(g.id) ? "ring-2 ring-red-400" : ""
                     }`}
                   >
@@ -715,10 +736,10 @@ function Overdue() {
                           className="w-5 h-5 mt-1 cursor-pointer flex-shrink-0"
                         />
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-800 truncate">
+                          <p className="font-semibold text-gray-800 dark:text-slate-100 truncate">
                             {g.first_name} {g.last_name}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
                             {g.phone_number}
                           </p>
                           <button
@@ -730,7 +751,7 @@ function Overdue() {
                           <span
                             className={`ml-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
                               LOAN_STATUS_BADGE[g.loan_status] ||
-                              "bg-gray-100 text-gray-700"
+                              "bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200"
                             }`}
                           >
                             {String(g.loan_status || "").replace("_", " ")}
@@ -745,32 +766,32 @@ function Overdue() {
                         {g.days_late}d late
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 dark:border-slate-700 pt-3">
                       <div>
-                        <p className="text-xs text-gray-500">Overdue</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Overdue</p>
                         <p className="font-semibold">
                           {g.overdue_count} payment
                           {g.overdue_count !== 1 ? "s" : ""}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Oldest Due</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Oldest Due</p>
                         <p className="font-semibold">
                           {new Date(g.oldest_due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Amount Due</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Amount Due</p>
                         <p className="font-semibold">{KES(g.amount_due)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Balance</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Balance</p>
                         <p className="font-bold text-red-600">
                           {KES(g.balance_due)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Penalty</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Penalty</p>
                         <p className="font-semibold text-amber-700">
                           {KES(g.penalty_outstanding)}
                         </p>
@@ -806,7 +827,7 @@ function Overdue() {
                       )}
                     </button>
                     {open && (
-                      <div className="mt-2 space-y-1.5 border-t border-gray-100 pt-2">
+                      <div className="mt-2 space-y-1.5 border-t border-gray-100 dark:border-slate-700 pt-2">
                         {g.installments.map((s) => {
                           const d = parseInt(s.days_late, 10) || 0;
                           return (
@@ -815,7 +836,7 @@ function Overdue() {
                               className="text-xs"
                             >
                               <div className="flex justify-between items-center">
-                                <span className="text-gray-600">
+                                <span className="text-gray-600 dark:text-slate-400">
                                   #{s.payment_number} ·{" "}
                                   {new Date(s.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                                 </span>
@@ -851,46 +872,41 @@ function Overdue() {
             // Empty-state copy adapts to which filter set returned
             // zero rows. Period filter alone vs search/severity needs
             // different language so the user knows what to try next.
-            <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              {(periodFrom || periodTo) && overdueList.length === 0 ? (
-                <>
-                  <PartyPopper
-                    size={56}
-                    className="mx-auto mb-4 text-green-400"
-                  />
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">
-                    No overdue installments in this period
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Nothing came due (and went unpaid) between{" "}
-                    {periodFrom || "—"} and {periodTo || "—"}. Try a
-                    different window, or clear the period filter to see
-                    everything.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Search size={56} className="mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">
-                    No payments match your filters
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Try a different severity range or clear your search
-                  </p>
-                </>
-              )}
-              <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-1.5 px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
-              >
-                <X size={15} /> Clear Filters
-              </button>
-            </div>
+            (periodFrom || periodTo) && overdueList.length === 0 ? (
+              <EmptyState
+                icon={PartyPopper}
+                title="No overdue installments in this period"
+                description={`Nothing came due (and went unpaid) between ${periodFrom || "—"} and ${periodTo || "—"}. Try a different window, or clear the period filter to see everything.`}
+                action={
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1.5 px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
+                  >
+                    <X size={15} /> Clear Filters
+                  </button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={Search}
+                tone="muted"
+                title="No payments match your filters"
+                description="Try a different severity range or clear your search."
+                action={
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1.5 px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
+                  >
+                    <X size={15} /> Clear Filters
+                  </button>
+                }
+              />
+            )
           ) : (
-            <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
               <div className="overflow-auto max-h-[calc(100vh-400px)]">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
+                  <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="px-4 py-4 w-10">
                         <input
@@ -918,10 +934,10 @@ function Overdue() {
                           requestSort={requestSort}
                           getSortIndicator={getSortIndicator}
                           align={align}
-                          className={`px-4 py-4 text-${align} text-xs font-semibold text-gray-600 uppercase`}
+                          className={`px-4 py-4 text-${align} text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase`}
                         />
                       ))}
-                      <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                         Action
                       </th>
                     </tr>
@@ -932,7 +948,7 @@ function Overdue() {
                       return (
                         <React.Fragment key={g.loan_id}>
                           <tr
-                            className={`border-b border-gray-100 hover:bg-red-50 transition ${
+                            className={`border-b border-gray-100 dark:border-slate-700 hover:bg-red-50 transition ${
                               bulk.isSelected(g.id) ? "bg-red-50" : ""
                             }`}
                           >
@@ -948,7 +964,7 @@ function Overdue() {
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => toggleExpand(g.loan_id)}
-                                  className="text-gray-400 hover:text-gray-700 shrink-0"
+                                  className="text-gray-400 dark:text-slate-400 hover:text-gray-700 shrink-0"
                                   aria-label={open ? "Collapse" : "Expand"}
                                 >
                                   {open ? (
@@ -958,10 +974,10 @@ function Overdue() {
                                   )}
                                 </button>
                                 <div>
-                                  <p className="font-semibold text-gray-800 text-sm">
+                                  <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
                                     {g.first_name} {g.last_name}
                                   </p>
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400">
                                     {g.phone_number}
                                   </p>
                                 </div>
@@ -978,13 +994,13 @@ function Overdue() {
                             <td className="px-4 py-4 text-sm">
                               <button
                                 onClick={() => toggleExpand(g.loan_id)}
-                                className="font-semibold text-gray-800 hover:text-ocean-600"
+                                className="font-semibold text-gray-800 dark:text-slate-100 hover:text-ocean-600"
                               >
                                 {g.overdue_count} payment
                                 {g.overdue_count !== 1 ? "s" : ""}
                               </button>
                             </td>
-                            <td className="px-4 py-4 text-sm text-gray-700">
+                            <td className="px-4 py-4 text-sm text-gray-700 dark:text-slate-200">
                               {new Date(g.oldest_due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                             </td>
                             <td className="px-4 py-4 text-center">
@@ -996,7 +1012,7 @@ function Overdue() {
                                 {g.days_late} {g.days_late === 1 ? "day" : "days"}
                               </span>
                             </td>
-                            <td className="px-4 py-4 text-right text-sm font-semibold text-gray-700">
+                            <td className="px-4 py-4 text-right text-sm font-semibold text-gray-700 dark:text-slate-200">
                               {KES(g.amount_due)}
                             </td>
                             <td className="px-4 py-4 text-right">
@@ -1041,11 +1057,11 @@ function Overdue() {
                             </td>
                           </tr>
                           {open && (
-                            <tr className="bg-gray-50/70">
+                            <tr className="bg-gray-50/70 dark:bg-slate-900">
                               <td colSpan="11" className="px-6 pb-4 pt-1">
                                 <table className="w-full text-sm">
                                   <thead>
-                                    <tr className="text-[11px] uppercase tracking-wide text-gray-400">
+                                    <tr className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-slate-400">
                                       <th className="text-left py-1 font-semibold">
                                         Payment
                                       </th>
@@ -1084,12 +1100,12 @@ function Overdue() {
                                       return (
                                         <tr
                                           key={s.schedule_id || s.id}
-                                          className="border-t border-gray-200/70"
+                                          className="border-t border-gray-200/70 dark:border-slate-700"
                                         >
-                                          <td className="py-1.5 text-gray-700">
+                                          <td className="py-1.5 text-gray-700 dark:text-slate-200">
                                             Payment {s.payment_number} of {total}
                                           </td>
-                                          <td className="py-1.5 text-gray-700">
+                                          <td className="py-1.5 text-gray-700 dark:text-slate-200">
                                             {new Date(
                                               s.due_date,
                                             ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
@@ -1103,17 +1119,17 @@ function Overdue() {
                                               {d}d
                                             </span>
                                           </td>
-                                          <td className="py-1.5 text-right text-gray-700">
+                                          <td className="py-1.5 text-right text-gray-700 dark:text-slate-200">
                                             {KES(s.amount_due)}
                                           </td>
                                           <td className="py-1.5 text-right font-semibold text-red-600">
                                             {KES(s.balance_due)}
                                           </td>
-                                          <td className="py-1.5 text-right text-gray-700">
+                                          <td className="py-1.5 text-right text-gray-700 dark:text-slate-200">
                                             {KES(s.late_fee)}
                                           </td>
                                           <td
-                                            className="py-1.5 text-right text-gray-700"
+                                            className="py-1.5 text-right text-gray-700 dark:text-slate-200"
                                             title={`${rate}% per month × ${months} month${months !== 1 ? "s" : ""} on the overdue balance`}
                                           >
                                             {KES(s.penalty_interest)}
@@ -1160,8 +1176,8 @@ function Overdue() {
 
               {/* Pagination (same component as Clients/Loans) */}
               {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+                  <div className="text-sm text-gray-600 dark:text-slate-400">
                     Showing{" "}
                     <span className="font-semibold">{startIndex + 1}</span> to{" "}
                     <span className="font-semibold">
@@ -1176,7 +1192,7 @@ function Overdue() {
                     <button
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
                       ← Previous
                     </button>
@@ -1196,14 +1212,14 @@ function Overdue() {
                           return (
                             <React.Fragment key={page}>
                               {showEllipsisBefore && (
-                                <span className="px-2 text-gray-400">...</span>
+                                <span className="px-2 text-gray-400 dark:text-slate-400">...</span>
                               )}
                               <button
                                 onClick={() => setCurrentPage(page)}
                                 className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                                   currentPage === page
                                     ? "bg-red-600 text-white"
-                                    : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                                    : "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                                 }`}
                               >
                                 {page}
@@ -1218,7 +1234,7 @@ function Overdue() {
                         setCurrentPage((p) => Math.min(totalPages, p + 1))
                       }
                       disabled={currentPage === totalPages}
-                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
                       Next →
                     </button>
@@ -1264,14 +1280,14 @@ function Overdue() {
           validation are identical. */}
       {promiseTarget && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                   <Handshake size={22} className="text-amber-600" />
                   Log Promise to Pay
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                   {promiseTarget.loanCode} ·{" "}
                   <span className="font-semibold">{promiseTarget.name}</span>
                 </p>
@@ -1279,7 +1295,7 @@ function Overdue() {
               <button
                 onClick={() => setPromiseTarget(null)}
                 disabled={savingPromise}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-600"
               >
                 <X size={22} />
               </button>
@@ -1303,7 +1319,7 @@ function Overdue() {
             <form onSubmit={submitPromise} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Amount (KES) *
                   </label>
                   <input
@@ -1315,11 +1331,11 @@ function Overdue() {
                     onChange={(e) =>
                       setPromiseForm((p) => ({ ...p, amount: e.target.value }))
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-amber-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Promised by *
                   </label>
                   <input
@@ -1333,12 +1349,12 @@ function Overdue() {
                         promised_date: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-amber-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Notes (optional)
                 </label>
                 <textarea
@@ -1348,7 +1364,7 @@ function Overdue() {
                     setPromiseForm((p) => ({ ...p, notes: e.target.value }))
                   }
                   placeholder="e.g. will pay after salary on Friday"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-amber-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-3 border-t">

@@ -36,6 +36,13 @@ import { computeLoanTotals } from "../utils/loanMath";
 import { evaluatePackageEligibility } from "../utils/packageEligibility";
 import { purposesForPackage } from "../utils/loanPurposes";
 import Skeleton from "../components/Skeleton";
+import DataTable from "../components/DataTable";
+import EmptyState from "../components/EmptyState";
+import SegmentBar from "../components/SegmentBar";
+import {
+  useColumnPreset,
+  useFilterSegments,
+} from "../hooks/useTablePrefs";
 import { formatKES, exactKES } from "../utils/money";
 
 // ── Loans table column model (UX pilot) ──────────────────────────────
@@ -82,7 +89,7 @@ const LOAN_COLUMNS = [
     align: "right",
     money: true,
     total: (rows) => rows.reduce((s, l) => s + num(l.principal_amount), 0),
-    totalClass: "text-gray-800",
+    totalClass: "text-gray-800 dark:text-slate-100",
     cell: (l) => (
       <p className="font-semibold text-gray-800 text-sm">
         {formatKES(l.principal_amount)}
@@ -108,7 +115,7 @@ const LOAN_COLUMNS = [
     align: "right",
     money: true,
     total: (rows) => rows.reduce((s, l) => s + num(l.total_amount_due), 0),
-    totalClass: "text-ocean-700",
+    totalClass: "text-ocean-700 dark:text-ocean-300",
     cell: (l) => (
       <p className="font-bold text-ocean-600 text-sm">
         {formatKES(l.total_amount_due)}
@@ -184,7 +191,22 @@ const LOAN_COLUMNS = [
     align: "right",
     money: true,
     total: (rows) => rows.reduce((s, l) => s + num(l.overpayment_amount), 0),
-    totalClass: "text-ocean-700",
+    totalClass: "text-ocean-700 dark:text-ocean-300",
+    footer: (rows) => (
+      <div>
+        <p className="font-bold text-ocean-700 dark:text-ocean-300 text-sm">
+          {formatKES(rows.reduce((s, l) => s + num(l.overpayment_amount), 0))}
+        </p>
+        <p className="text-xs text-ocean-600 dark:text-ocean-400 mt-1">
+          Pending:{" "}
+          {formatKES(
+            rows
+              .filter((l) => l.refund_status === "pending")
+              .reduce((s, l) => s + num(l.overpayment_amount), 0),
+          )}
+        </p>
+      </div>
+    ),
     cell: (l) => {
       const o = num(l.overpayment_amount);
       if (o <= 0) return <p className="text-money-muted text-sm">-</p>;
@@ -214,6 +236,12 @@ const LOAN_COLUMNS = [
     key: "status",
     label: "Status",
     align: "left",
+    footer: (rows) => (
+      <p className="text-xs text-gray-600 dark:text-slate-400">
+        Active: {rows.filter((l) => l.status === "active").length} • Completed:{" "}
+        {rows.filter((l) => l.status === "completed").length}
+      </p>
+    ),
     cell: (l) => (
       <div className="flex flex-col gap-1 items-start">
         <span
@@ -272,30 +300,6 @@ const COLUMN_PRESETS = {
 const PRESET_STORAGE_KEY = "loans.columnPreset";
 const SEGMENTS_STORAGE_KEY = "loans.segments";
 
-// Skeleton placeholder for the desktop loans table while the first page
-// of data loads. Mirrors the real row rhythm so nothing jumps.
-function LoansTableSkeleton({ rows = 8 }) {
-  return (
-    <div
-      className="hidden md:block bg-white rounded-xl shadow-card overflow-hidden"
-      aria-busy="true"
-    >
-      <div className="px-4 py-4 border-b border-gray-100 flex gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-4 flex-1" />
-        ))}
-      </div>
-      {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="px-4 py-4 border-b border-gray-50 flex gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-5 flex-1" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function Loans() {
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
@@ -320,7 +324,7 @@ function Loans() {
   });
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ── Table UX state (pilot, client-side only) ──────────────────
+  // ── Table UX state (client-side only) ─────────────────────────
   // Expanded rows reveal columns demoted by the active preset.
   const [expandedRows, setExpandedRows] = useState(() => new Set());
   const toggleRow = (id) =>
@@ -330,37 +334,14 @@ function Loans() {
       return next;
     });
 
-  // Column preset — persisted in localStorage, never server-side.
-  const [columnPreset, setColumnPreset] = useState(() => {
-    const saved = localStorage.getItem(PRESET_STORAGE_KEY);
-    return saved && COLUMN_PRESETS[saved] ? saved : "financials";
-  });
-  useEffect(() => {
-    localStorage.setItem(PRESET_STORAGE_KEY, columnPreset);
-  }, [columnPreset]);
-
-  // Saved filter "segments" — named snapshots of search + filters, stored
-  // in localStorage only. Purely a UI convenience; no backend involvement.
-  const [segments, setSegments] = useState(() => {
-    try {
-      const raw = localStorage.getItem(SEGMENTS_STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
-  useEffect(() => {
-    localStorage.setItem(SEGMENTS_STORAGE_KEY, JSON.stringify(segments));
-  }, [segments]);
-
-  const visibleColumnKeys = COLUMN_PRESETS[columnPreset].keys;
-  const visibleColumns = LOAN_COLUMNS.filter((c) =>
-    visibleColumnKeys.includes(c.key),
+  // Column preset + saved filter segments — shared hooks, localStorage only.
+  const [columnPreset, setColumnPreset] = useColumnPreset(
+    PRESET_STORAGE_KEY,
+    COLUMN_PRESETS,
+    "financials",
   );
-  const hiddenColumns = LOAN_COLUMNS.filter(
-    (c) => !visibleColumnKeys.includes(c.key),
-  );
+  const { segments, saveSegment, deleteSegment } =
+    useFilterSegments(SEGMENTS_STORAGE_KEY);
 
   // Client search state
   const [clientSearch, setClientSearch] = useState("");
@@ -958,36 +939,25 @@ function Loans() {
     });
   };
 
-  // ── Saved filter segments (localStorage only) ─────────────────
-  const saveSegment = () => {
+  // ── Saved filter segments (localStorage only, via shared hook) ─
+  const handleSaveSegment = () => {
     const name = window.prompt("Name this segment (e.g. Overdue actives)");
-    if (!name || !name.trim()) return;
-    const segment = {
-      id: `${name.trim()}-${Date.now()}`,
-      name: name.trim(),
-      searchQuery,
-      filters: { ...filters },
-    };
-    // Replace any existing segment with the same name, else append.
-    setSegments((prev) => [
-      ...prev.filter((s) => s.name !== segment.name),
-      segment,
-    ]);
+    if (!name) return;
+    saveSegment(name, { searchQuery, filters: { ...filters } });
   };
   const applySegment = (segment) => {
-    setSearchQuery(segment.searchQuery || "");
+    const snap = segment.snapshot || {};
+    setSearchQuery(snap.searchQuery || "");
     setFilters({
       status: "all",
       refundStatus: "all",
       overdue: "all",
       disbursedFrom: "",
       disbursedTo: "",
-      ...segment.filters,
+      ...(snap.filters || {}),
     });
     setCurrentPage(1);
   };
-  const deleteSegment = (id) =>
-    setSegments((prev) => prev.filter((s) => s.id !== id));
 
   // Derive `balance` so it's sortable alongside the real columns
   // (the row already reads loan.total_amount_due - loan.total_paid
@@ -1122,10 +1092,10 @@ function Loans() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100">
             Loans
           </h1>
-          <p className="text-sm lg:text-base text-gray-600 mt-1">
+          <p className="text-sm lg:text-base text-gray-600 dark:text-slate-400 mt-1">
             Total: <span className="font-semibold">{loans.length}</span> loans
           </p>
         </div>
@@ -1162,8 +1132,8 @@ function Loans() {
 
       {/* Create Loan Form */}
       {showForm && (
-        <div className="bg-white rounded-xl shadow-md p-8 mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6 flex items-center gap-2">
             <ClipboardList size={24}/> New Loan Application
           </h2>
 
@@ -1187,9 +1157,9 @@ function Loans() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Searchable Client Dropdown */}
             <div ref={dropdownRef} className="relative">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Select Client *
-                <span className="text-gray-500 font-normal ml-2">
+                <span className="text-gray-500 dark:text-slate-400 font-normal ml-2">
                   (Search by name, phone, email, or ID)
                 </span>
               </label>
@@ -1225,13 +1195,13 @@ function Loans() {
                     }}
                     onFocus={() => setShowDropdown(true)}
                     placeholder="Type to search clients..."
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
 
                   {showDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
                       {filteredClients.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">
+                        <div className="p-4 text-center text-gray-500 dark:text-slate-400">
                           No clients found matching "{clientSearch}"
                         </div>
                       ) : (
@@ -1240,21 +1210,21 @@ function Loans() {
                             key={client.id}
                             type="button"
                             onClick={() => handleSelectClient(client)}
-                            className="w-full text-left p-3 hover:bg-ocean-50 border-b border-gray-100 last:border-b-0 transition"
+                            className="w-full text-left p-3 hover:bg-ocean-50 border-b border-gray-100 dark:border-slate-700 last:border-b-0 transition"
                           >
                             <div className="flex justify-between items-start">
                               <div>
-                                <p className="font-semibold text-gray-800">
+                                <p className="font-semibold text-gray-800 dark:text-slate-100">
                                   {client.first_name} {client.last_name}
                                 </p>
-                                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1 flex-wrap">
+                                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 flex items-center gap-1 flex-wrap">
                                   <Smartphone size={13}/> {client.phone_number}
                                   {client.email && (
                                     <><span>•</span><Mail size={13}/>{client.email}</>
                                   )}
                                 </p>
                                 {client.id_number && (
-                                  <p className="text-xs text-gray-400">
+                                  <p className="text-xs text-gray-400 dark:text-slate-400">
                                     ID: {client.id_number}
                                   </p>
                                 )}
@@ -1284,12 +1254,12 @@ function Loans() {
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-semibold text-gray-800">
+                    <p className="font-semibold text-gray-800 dark:text-slate-100">
                       Credit Score:
                       <span
                         className={`ml-2 ${
                           clientCreditProfile.credit_score == null
-                            ? "text-slate-500"
+                            ? "text-slate-500 dark:text-slate-400"
                             : clientCreditProfile.credit_score >= 80
                               ? "text-green-600"
                               : clientCreditProfile.credit_score >= 60
@@ -1302,7 +1272,7 @@ function Loans() {
                           : `${clientCreditProfile.credit_score}/100`}
                       </span>
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
                       {clientCreditProfile.summary.total_loans_count} loans
                       total •{" "}
                       {clientCreditProfile.summary.on_time_rate == null
@@ -1346,7 +1316,7 @@ function Loans() {
 
                   {clientCreditProfile.eligibility.can_borrow && (
                     <div className="text-right">
-                      <p className="text-xs text-gray-500">Recommended max</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Recommended max</p>
                       <p className="font-bold text-green-700">
                         KES{" "}
                         {clientCreditProfile.eligibility.max_recommended_amount.toLocaleString()}
@@ -1366,7 +1336,7 @@ function Loans() {
                 informational; the backend re-validates on submit. */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Loan Package
                 </label>
                 <select
@@ -1403,7 +1373,7 @@ function Loans() {
                       setFormData((prev) => ({ ...prev, package_id: "" }));
                     }
                   }}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="">
                     Custom loan — no package (free-form)
@@ -1428,7 +1398,7 @@ function Loans() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Interest Method *
                 </label>
                 <select
@@ -1440,7 +1410,7 @@ function Loans() {
                     })
                   }
                   disabled={!!selectedPackage}
-                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white ${
+                  className={`w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100 ${
                     selectedPackage ? "opacity-60 cursor-not-allowed" : ""
                   }`}
                 >
@@ -1451,7 +1421,7 @@ function Loans() {
                     Reducing balance — amortized (EMI)
                   </option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   {formData.interest_method === "reducing"
                     ? "Each installment is the same EMI; interest portion shrinks as the balance falls."
                     : "Total interest spread evenly across all installments (legacy default)."}
@@ -1511,7 +1481,7 @@ function Loans() {
             {/* Amount, Annual Rate, Monthly Rate, Duration */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Principal Amount (KES) *
                 </label>
                 <input
@@ -1524,11 +1494,11 @@ function Loans() {
                   max={selectedPackage ? selectedPackage.max_amount : undefined}
                   step="100"
                   placeholder="5000"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Annual Rate (%) *
                 </label>
                 <input
@@ -1539,13 +1509,13 @@ function Loans() {
                   min="0"
                   step="0.01"
                   readOnly={!!selectedPackage}
-                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none ${
-                    selectedPackage ? "bg-gray-50 cursor-not-allowed" : ""
+                  className={`w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                    selectedPackage ? "bg-gray-50 dark:bg-slate-900 cursor-not-allowed" : ""
                   }`}
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Monthly Rate (%) *
                 </label>
                 <input
@@ -1556,16 +1526,16 @@ function Loans() {
                   min="0"
                   step="0.01"
                   readOnly={!!selectedPackage}
-                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none ${
-                    selectedPackage ? "bg-gray-50 cursor-not-allowed" : ""
+                  className={`w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                    selectedPackage ? "bg-gray-50 dark:bg-slate-900 cursor-not-allowed" : ""
                   }`}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Synced with annual rate.
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Duration (months) *
                 </label>
                 <input
@@ -1578,14 +1548,14 @@ function Loans() {
                   max={
                     selectedPackage ? selectedPackage.max_duration_months : 60
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Processing Fee Rate (%)
                 </label>
                 <input
@@ -1597,16 +1567,16 @@ function Loans() {
                   max="100"
                   step="0.01"
                   readOnly={!!selectedPackage}
-                  className={`w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none ${
-                    selectedPackage ? "bg-gray-50 cursor-not-allowed" : ""
+                  className={`w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none ${
+                    selectedPackage ? "bg-gray-50 dark:bg-slate-900 cursor-not-allowed" : ""
                   }`}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Deducted from disbursed amount.
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Application Date *
                 </label>
                 <input
@@ -1616,21 +1586,21 @@ function Loans() {
                   onChange={handleInputChange}
                   required
                   max={new Date().toISOString().split("T")[0]}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Defaults to today; backdate for paper applications.
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Purpose
                 </label>
                 <select
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="">Select purpose…</option>
                   {purposesForPackage(selectedPackage).map((p) => (
@@ -1641,7 +1611,7 @@ function Loans() {
                 </select>
                 {selectedPackage &&
                   (selectedPackage.allowed_purposes || []).length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       Restricted by package to{" "}
                       {(selectedPackage.allowed_purposes || []).join(", ")}.
                     </p>
@@ -1650,13 +1620,13 @@ function Loans() {
             </div>
 
             {/* Agreement Details Section */}
-            <div className="border-t-2 border-gray-100 pt-4 mt-4">
-              <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <div className="border-t-2 border-gray-100 dark:border-slate-700 pt-4 mt-4">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 mb-3 flex items-center gap-2">
                 <ClipboardList size={20}/> Agreement Details (Optional)
               </h3>
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <h4 className="font-semibold text-gray-700 mb-2">
+              <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-4 mb-4">
+                <h4 className="font-semibold text-gray-700 dark:text-slate-200 mb-2">
                   Guarantor Information
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1666,7 +1636,7 @@ function Loans() {
                     value={formData.guarantor_name || ""}
                     onChange={handleInputChange}
                     placeholder="Guarantor Name"
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                   <input
                     type="text"
@@ -1674,7 +1644,7 @@ function Loans() {
                     value={formData.guarantor_phone || ""}
                     onChange={handleInputChange}
                     placeholder="Phone Number"
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                   <input
                     type="text"
@@ -1682,7 +1652,7 @@ function Loans() {
                     value={formData.guarantor_id_number || ""}
                     onChange={handleInputChange}
                     placeholder="ID Number"
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1692,7 +1662,7 @@ function Loans() {
                   on, since the structured item below replaces it. */}
               {!againstCollateral && (
                 <div className="mb-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Collateral / Security (Optional)
                   </label>
                   <textarea
@@ -1701,7 +1671,7 @@ function Loans() {
                     onChange={handleInputChange}
                     rows="2"
                     placeholder="Describe any collateral or security (e.g., Vehicle KCA 123A, Title Deed, etc.)"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               )}
@@ -1739,18 +1709,18 @@ function Loans() {
                       value={collateralForm.description}
                       onChange={setCol("description")}
                       placeholder="Item description * (e.g. Gold ring, 18k)"
-                      className="md:col-span-2 px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                      className="md:col-span-2 px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
                     />
                     <input
                       value={collateralForm.category}
                       onChange={setCol("category")}
                       placeholder="Category (jewelry, electronics…)"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
                     />
                     <select
                       value={collateralForm.condition}
                       onChange={setCol("condition")}
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
                     >
                       <option value="">Condition…</option>
                       <option value="excellent">Excellent</option>
@@ -1762,27 +1732,27 @@ function Loans() {
                       value={collateralForm.serial_number}
                       onChange={setCol("serial_number")}
                       placeholder="Serial / model no."
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
                     />
                     <input
                       value={collateralForm.storage_location}
                       onChange={setCol("storage_location")}
                       placeholder="Storage location"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
                     />
                     <input
                       type="number"
                       value={collateralForm.appraised_value}
                       onChange={setCol("appraised_value")}
                       placeholder="Appraised value * (KES)"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
                     />
                     <input
                       type="number"
                       value={collateralForm.ltv_percent}
                       onChange={setCol("ltv_percent")}
                       placeholder="LTV %"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
                     />
                     <div className="md:col-span-2">
                       <label className="block text-xs font-semibold text-amber-800 mb-1">
@@ -1816,7 +1786,7 @@ function Loans() {
                                     photos: c.photos.filter((_, j) => j !== i),
                                   }))
                                 }
-                                className="absolute -top-2 -right-2 bg-white rounded-full border border-amber-300 p-0.5 text-amber-700 hover:text-red-600"
+                                className="absolute -top-2 -right-2 bg-white dark:bg-slate-800 rounded-full border border-amber-300 p-0.5 text-amber-700 hover:text-red-600"
                               >
                                 <X size={12} />
                               </button>
@@ -1843,57 +1813,57 @@ function Loans() {
                       value={vehicleForm.make}
                       onChange={setVeh("make")}
                       placeholder="Make (Toyota)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       value={vehicleForm.model}
                       onChange={setVeh("model")}
                       placeholder="Model (Premio)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       type="number"
                       value={vehicleForm.year}
                       onChange={setVeh("year")}
                       placeholder="Year (2015)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       value={vehicleForm.registration_number}
                       onChange={setVeh("registration_number")}
                       placeholder="Registration * (KCA 123A)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       value={vehicleForm.color}
                       onChange={setVeh("color")}
                       placeholder="Colour"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       type="number"
                       value={vehicleForm.valuation}
                       onChange={setVeh("valuation")}
                       placeholder="Valuation * (KES)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       value={vehicleForm.logbook_number}
                       onChange={setVeh("logbook_number")}
                       placeholder="Logbook no."
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       value={vehicleForm.chassis_number}
                       onChange={setVeh("chassis_number")}
                       placeholder="Chassis no."
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                     <input
                       value={vehicleForm.engine_number}
                       onChange={setVeh("engine_number")}
                       placeholder="Engine no."
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-sky-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1914,26 +1884,26 @@ function Loans() {
                       value={salaryForm.employer_name}
                       onChange={setSal("employer_name")}
                       placeholder="Employer name * (Acme Ltd)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                     <input
                       value={salaryForm.employer_contact}
                       onChange={setSal("employer_contact")}
                       placeholder="Employer contact (HR)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                     <input
                       value={salaryForm.staff_number}
                       onChange={setSal("staff_number")}
                       placeholder="Staff / payroll no."
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                     <input
                       type="number"
                       value={salaryForm.net_monthly_pay}
                       onChange={setSal("net_monthly_pay")}
                       placeholder="Net monthly pay * (KES)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                     <input
                       type="number"
@@ -1942,7 +1912,7 @@ function Loans() {
                       value={salaryForm.payday_day}
                       onChange={setSal("payday_day")}
                       placeholder="Payday (day of month)"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                     <input
                       type="number"
@@ -1951,7 +1921,7 @@ function Loans() {
                       value={salaryForm.max_deduction_percent}
                       onChange={setSal("max_deduction_percent")}
                       placeholder="Max deduction %"
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none"
+                      className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1969,7 +1939,7 @@ function Loans() {
                   <select
                     value={groupId}
                     onChange={(e) => setGroupId(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   >
                     <option value="">Select group…</option>
                     {groups.map((g) => (
@@ -1987,7 +1957,7 @@ function Loans() {
                     <select
                       value={cycleId}
                       onChange={(e) => setCycleId(e.target.value)}
-                      className="w-full mt-2 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full mt-2 px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                     >
                       <option value="">No lending cycle</option>
                       {groupCycles.map((c) => (
@@ -2007,7 +1977,7 @@ function Loans() {
                       unambiguous which field it gates. Off keeps the
                       submitted value at 0 regardless of what's typed. */}
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-sm font-semibold text-gray-700">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                       Late Payment Fee (KES)
                     </label>
                     <button
@@ -2032,7 +2002,7 @@ function Loans() {
                       }
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
                           formData.late_fee_enabled
                             ? "translate-x-5"
                             : "translate-x-1"
@@ -2055,11 +2025,11 @@ function Loans() {
                     placeholder="e.g. 500"
                     className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
                       formData.late_fee_enabled
-                        ? "border-gray-200 focus:border-ocean-500"
-                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                        ? "border-gray-200 dark:border-slate-700 focus:border-ocean-500"
+                        : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-gray-400 dark:text-slate-400 cursor-not-allowed"
                     }`}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                     {formData.late_fee_enabled
                       ? "Flat fee charged once an installment becomes overdue."
                       : "No late fee on this loan."}
@@ -2070,7 +2040,7 @@ function Loans() {
                       Late Payment Fee toggle. Off sends 0 to the backend
                       regardless of what's typed. */}
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-sm font-semibold text-gray-700">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                       Penalty Rate (% per month on overdue)
                     </label>
                     <button
@@ -2095,7 +2065,7 @@ function Loans() {
                       }
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
                           formData.penalty_rate_enabled
                             ? "translate-x-5"
                             : "translate-x-1"
@@ -2118,11 +2088,11 @@ function Loans() {
                     placeholder="e.g. 5.0"
                     className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
                       formData.penalty_rate_enabled
-                        ? "border-gray-200 focus:border-ocean-500"
-                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                        ? "border-gray-200 dark:border-slate-700 focus:border-ocean-500"
+                        : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-gray-400 dark:text-slate-400 cursor-not-allowed"
                     }`}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                     {formData.penalty_rate_enabled
                       ? "Monthly % charged on the overdue principal balance."
                       : "No penalty rate on this loan."}
@@ -2139,8 +2109,8 @@ function Loans() {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                   <div>
-                    <p className="text-gray-600">Principal</p>
-                    <p className="font-bold text-gray-800">
+                    <p className="text-gray-600 dark:text-slate-400">Principal</p>
+                    <p className="font-bold text-gray-800 dark:text-slate-100">
                       KES{" "}
                       {parseFloat(
                         formData.principal_amount || 0,
@@ -2148,25 +2118,25 @@ function Loans() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Per Annum</p>
-                    <p className="font-bold text-gray-800">
+                    <p className="text-gray-600 dark:text-slate-400">Per Annum</p>
+                    <p className="font-bold text-gray-800 dark:text-slate-100">
                       {formData.annual_interest_rate}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Per Month</p>
-                    <p className="font-bold text-gray-800">
+                    <p className="text-gray-600 dark:text-slate-400">Per Month</p>
+                    <p className="font-bold text-gray-800 dark:text-slate-100">
                       {calc.monthlyRate}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Total Interest</p>
+                    <p className="text-gray-600 dark:text-slate-400">Total Interest</p>
                     <p className="font-bold text-orange-600">
                       KES {parseFloat(calc.totalInterest).toLocaleString()}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Monthly Payment</p>
+                    <p className="text-gray-600 dark:text-slate-400">Monthly Payment</p>
                     <p className="font-bold text-green-600">
                       KES {parseFloat(calc.monthlyPayment).toLocaleString()}
                     </p>
@@ -2175,7 +2145,7 @@ function Loans() {
                 {calc.processingFee > 0 && (
                   <div className="mt-3 pt-3 border-t border-ocean-200 grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                     <div>
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-slate-400">
                         Processing Fee ({calc.feeRate}%)
                       </p>
                       <p className="font-bold text-amber-700">
@@ -2183,7 +2153,7 @@ function Loans() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-gray-600">To Disburse</p>
+                      <p className="text-gray-600 dark:text-slate-400">To Disburse</p>
                       <p className="font-bold text-ocean-700">
                         KES {parseFloat(calc.netDisbursed).toLocaleString()}
                       </p>
@@ -2191,7 +2161,7 @@ function Loans() {
                   </div>
                 )}
                 <div className="mt-3 pt-3 border-t border-ocean-200">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
                     Total Repayable:{" "}
                     <span className="font-bold text-ocean-600 text-lg">
                       KES {parseFloat(calc.totalAmount).toLocaleString()}
@@ -2243,15 +2213,15 @@ function Loans() {
 
       {/* Filter Bar */}
       {!loading && loans.length > 0 && (
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
           {/* Search stands alone — full width — so the input stays generous
               even when the row of filters below grows. */}
           <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
               Search
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none">
                 <Search size={16}/>
               </span>
               <input
@@ -2259,60 +2229,26 @@ function Loans() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Loan code, client name, or phone..."
-                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
           </div>
 
-          {/* Saved segments — named search + filter snapshots, stored in
-              localStorage only (never server-side). A quick way to jump
-              back to a frequent view. */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <Bookmark size={14} /> Segments
-            </span>
-            {segments.length === 0 && (
-              <span className="text-xs text-slate-400">
-                None saved yet — set filters, then save this view.
-              </span>
-            )}
-            {segments.map((seg) => (
-              <span
-                key={seg.id}
-                className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 bg-ocean-50 text-ocean-700 rounded-full text-xs font-semibold"
-              >
-                <button
-                  type="button"
-                  onClick={() => applySegment(seg)}
-                  className="hover:text-ocean-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 rounded"
-                >
-                  {seg.name}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteSegment(seg.id)}
-                  aria-label={`Delete segment ${seg.name}`}
-                  className="text-ocean-400 hover:text-rose-600"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </span>
-            ))}
-            {filtersActive && (
-              <button
-                type="button"
-                onClick={saveSegment}
-                className="inline-flex items-center gap-1 px-3 py-1 border border-dashed border-slate-300 text-slate-600 rounded-full text-xs font-semibold hover:border-ocean-400 hover:text-ocean-700 transition"
-              >
-                <Plus size={12} /> Save current
-              </button>
-            )}
-          </div>
+          {/* Saved segments — named search + filter snapshots (shared
+              SegmentBar; localStorage only, never server-side). */}
+          <SegmentBar
+            className="mb-4"
+            segments={segments}
+            onApply={applySegment}
+            onDelete={deleteSegment}
+            onSave={handleSaveSegment}
+            canSave={filtersActive}
+          />
 
           <div className="flex flex-wrap items-end gap-4">
             {/* Status */}
             <div className="min-w-[180px]">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Status
               </label>
               <select
@@ -2320,7 +2256,7 @@ function Loans() {
                 onChange={(e) =>
                   setFilters({ ...filters, status: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
               >
                 <option value="all">All Statuses ({statusCounts.all})</option>
                 <option value="active">
@@ -2337,7 +2273,7 @@ function Loans() {
 
             {/* Refund Status */}
             <div className="min-w-[200px]">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Refund Status
               </label>
               <select
@@ -2345,7 +2281,7 @@ function Loans() {
                 onChange={(e) =>
                   setFilters({ ...filters, refundStatus: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
               >
                 <option value="all">All Refunds ({refundCounts.all})</option>
                 <option value="pending">
@@ -2360,7 +2296,7 @@ function Loans() {
 
             {/* Overdue */}
             <div className="min-w-[180px]">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Overdue Payments
               </label>
               <select
@@ -2368,7 +2304,7 @@ function Loans() {
                 onChange={(e) =>
                   setFilters({ ...filters, overdue: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
               >
                 <option value="all">
                   All ({loans.length})
@@ -2386,7 +2322,7 @@ function Loans() {
 
             {/* Disbursed-date range */}
             <div className="min-w-[150px]">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Disbursed From
               </label>
               <input
@@ -2395,11 +2331,11 @@ function Loans() {
                 onChange={(e) =>
                   setFilters({ ...filters, disbursedFrom: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
             <div className="min-w-[150px]">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Disbursed To
               </label>
               <input
@@ -2408,7 +2344,7 @@ function Loans() {
                 onChange={(e) =>
                   setFilters({ ...filters, disbursedTo: e.target.value })
                 }
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
 
@@ -2416,7 +2352,7 @@ function Loans() {
             {filtersActive && (
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition inline-flex items-center gap-1"
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold rounded-lg hover:bg-gray-200 transition inline-flex items-center gap-1"
               >
                 <X size={16}/> Clear
               </button>
@@ -2425,14 +2361,14 @@ function Loans() {
 
           {/* Active Filter Tags */}
           {filtersActive && (
-            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
-              <span className="text-sm text-gray-500">
+            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+              <span className="text-sm text-gray-500 dark:text-slate-400">
                 Showing{" "}
-                <span className="font-semibold text-gray-800">
+                <span className="font-semibold text-gray-800 dark:text-slate-100">
                   {filteredLoans.length}
                 </span>{" "}
                 of{" "}
-                <span className="font-semibold text-gray-800">
+                <span className="font-semibold text-gray-800 dark:text-slate-100">
                   {loans.length}
                 </span>{" "}
                 loans
@@ -2495,7 +2431,7 @@ function Loans() {
               <div
                 key={loan.id}
                 onClick={() => navigate(`/loans/${loan.id}`)}
-                className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+                className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
                   bulk.isSelected(loan.id) ? "ring-2 ring-ocean-400" : ""
                 }`}
               >
@@ -2512,14 +2448,14 @@ function Loans() {
                       <p className="font-mono text-sm font-bold text-ocean-600">
                         {loan.loan_code}
                       </p>
-                      <p className="font-semibold text-gray-800 truncate">
+                      <p className="font-semibold text-gray-800 dark:text-slate-100 truncate">
                         {loan.first_name} {loan.last_name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
                         {loan.phone_number}
                       </p>
                       {loan.disbursed_at && (
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                           Disbursed{" "}
                           {new Date(loan.disbursed_at).toLocaleDateString(
                             "en-GB",
@@ -2542,7 +2478,7 @@ function Loans() {
                             ? "bg-ocean-100 text-ocean-700"
                             : loan.status === "defaulted"
                               ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-gray-700"
+                              : "bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200"
                       }`}
                     >
                       {loan.status}
@@ -2555,29 +2491,29 @@ function Loans() {
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 dark:border-slate-700 pt-3">
                   <div>
-                    <p className="text-xs text-gray-500">Principal</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Principal</p>
                     <p className="font-bold">{formatKES(loan.principal_amount)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Interest</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Interest</p>
                     <p className="font-bold text-money-pos">
                       {formatKES(loan.total_interest || 0)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Total Due</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Total Due</p>
                     <p className="font-bold">{formatKES(loan.total_amount_due)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Paid</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Paid</p>
                     <p className="font-bold text-money-pos">
                       {formatKES(loan.total_paid || 0)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Balance</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Balance</p>
                     <p
                       className={`font-bold ${
                         balance > 0 ? "text-money-warn" : "text-money-pos"
@@ -2594,379 +2530,188 @@ function Loans() {
       )}
 
       {/* Loans List */}
-      {loading ? (
-        <>
-          <LoansTableSkeleton />
-          <div className="md:hidden space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-xl shadow-card p-4 space-y-3"
-              >
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-6 w-full rounded-lg" />
-              </div>
-            ))}
-          </div>
-        </>
-      ) : loans.length === 0 ? (
+      {!loading && loans.length === 0 ? (
         /* Guided empty state — static illustrative UI, no DB rows. */
-        <div className="bg-white rounded-2xl shadow-card p-10 lg:p-14 text-center max-w-xl mx-auto">
-          <div className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-ocean-gradient-soft flex items-center justify-center">
-            <Coins size={30} className="text-ocean-600" />
-          </div>
-          <h3 className="text-xl font-bold text-navy-900 mb-2">
-            No loans issued yet
-          </h3>
-          <p className="text-slate-500 mb-6">
-            When you issue a loan it shows up here with its balance, schedule
-            and repayment progress. Create your first one to get started.
-          </p>
-          <PermissionGate role={["admin", "manager", "officer"]}>
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-6 py-2.5 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
-            >
-              <Plus size={16} /> Create Loan
-            </button>
-          </PermissionGate>
-        </div>
-      ) : filteredLoans.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-card p-10 lg:p-14 text-center max-w-xl mx-auto">
-          <div className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
-            <Search size={30} className="text-slate-400" />
-          </div>
-          <h3 className="text-xl font-bold text-navy-900 mb-2">
-            No loans match your filters
-          </h3>
-          <p className="text-slate-500 mb-6">
-            Try adjusting your search or filter criteria.
-          </p>
-          <button
-            onClick={clearFilters}
-            className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
-          >
-            <X size={16} /> Clear Filters
-          </button>
-        </div>
+        <EmptyState
+          icon={Coins}
+          title="No loans issued yet"
+          description="When you issue a loan it shows up here with its balance, schedule and repayment progress. Create your first one to get started."
+          action={
+            <PermissionGate role={["admin", "manager", "officer"]}>
+              <button
+                onClick={() => setShowForm(true)}
+                className="px-6 py-2.5 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
+              >
+                <Plus size={16} /> Create Loan
+              </button>
+            </PermissionGate>
+          }
+        />
       ) : (
-        <div className="hidden md:block bg-white rounded-xl shadow-card overflow-hidden">
-          {/* Column-preset toolbar — client-side only (persisted in
-              localStorage). Switches which columns ride in the row; the
-              rest fall into each row's expandable detail panel. */}
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 flex-wrap">
-            <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
-              <SlidersHorizontal size={15} /> Columns
-            </span>
-            <div
-              className="inline-flex rounded-lg bg-gray-100 p-0.5"
-              role="group"
-              aria-label="Column preset"
-            >
-              {Object.entries(COLUMN_PRESETS).map(([key, preset]) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={columnPreset === key}
-                  onClick={() => setColumnPreset(key)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 ${
-                    columnPreset === key
-                      ? "bg-white text-ocean-700 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  }`}
+        <>
+          {/* Desktop — shared DataTable (column presets, expandable rows,
+              sticky pinned Loan Code, totals, skeleton, scroll affordance). */}
+          <div className="hidden md:block">
+            <DataTable
+              columns={LOAN_COLUMNS}
+              rows={paginatedLoans}
+              rowKey={(l) => l.id}
+              pinned={{
+                label: "Loan Code",
+                sortKey: "loan_code",
+                cell: (loan) => (
+                  <div className="font-mono text-sm font-semibold text-ocean-600 dark:text-ocean-300">
+                    <div>{loan.loan_code}</div>
+                    {loan.package_name && (
+                      <p className="text-[10px] font-semibold text-ocean-700 dark:text-ocean-300 bg-ocean-50 dark:bg-ocean-900/40 inline-block px-1.5 py-0.5 rounded mt-1 font-sans">
+                        {loan.package_name}
+                      </p>
+                    )}
+                  </div>
+                ),
+              }}
+              presets={COLUMN_PRESETS}
+              preset={columnPreset}
+              onPresetChange={setColumnPreset}
+              expandedRows={expandedRows}
+              onToggleRow={toggleRow}
+              selection={{
+                isSelected: bulk.isSelected,
+                toggle: bulk.toggle,
+                allSelected: bulk.allOnPageSelected,
+                toggleAll: bulk.togglePage,
+              }}
+              sort={{ requestSort, getSortIndicator }}
+              onRowClick={(loan) => navigate(`/loans/${loan.id}`)}
+              openLabel={(loan) => `Open loan ${loan.loan_code}`}
+              totals={filteredLoans}
+              totalsLabel={
+                <span className="inline-flex items-center gap-2">
+                  <BarChart3 size={16} /> TOTALS ({filteredLoans.length})
+                </span>
+              }
+              loading={loading}
+              skeletonRows={8}
+              skeletonCols={7}
+              empty={
+                <EmptyState
+                  icon={Search}
+                  tone="muted"
+                  title="No loans match your filters"
+                  description="Try adjusting your search or filter criteria."
+                  action={
+                    <button
+                      onClick={clearFilters}
+                      className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
+                    >
+                      <X size={16} /> Clear Filters
+                    </button>
+                  }
+                />
+              }
+            />
+
+            {!loading && filteredLoans.length > 0 && totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
+                <div className="text-sm text-gray-600 dark:text-slate-400">
+                  Showing{" "}
+                  <span className="font-semibold">{startIndex + 1}</span> to{" "}
+                  <span className="font-semibold">
+                    {Math.min(endIndex, filteredLoans.length)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold">{filteredLoans.length}</span>{" "}
+                  results
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    ← Previous
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(
+                        (page) =>
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 2 && page <= currentPage + 2),
+                      )
+                      .map((page, idx, arr) => {
+                        const showEllipsisBefore =
+                          idx > 0 && page - arr[idx - 1] > 1;
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsisBefore && (
+                              <span className="px-2 text-gray-400 dark:text-slate-400">...</span>
+                            )}
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+                                currentPage === page
+                                  ? "bg-ocean-600 text-white"
+                                  : "bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-600"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                  </div>
+                  <button
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile — loading skeletons + filtered-empty (the card list
+              itself renders in the block above when there are matches). */}
+          {loading && (
+            <div className="md:hidden space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-4 space-y-3"
                 >
-                  {preset.label}
-                </button>
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-6 w-full rounded-lg" />
+                </div>
               ))}
             </div>
-          </div>
-
-          <div className="relative">
-            <div
-              className="overflow-auto max-h-[calc(100vh-400px)]"
-              role="region"
-              aria-label="Loans — scroll horizontally for more columns"
-              tabIndex={0}
-            >
-              <table className="w-full whitespace-nowrap [&_tbody_td]:align-top">
-                <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-20 shadow-sm">
-                  <tr>
-                    <th className="px-4 py-4 w-10 sticky left-0 z-30 bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={bulk.allOnPageSelected}
-                        onChange={bulk.togglePage}
-                        className="w-4 h-4 cursor-pointer"
-                        aria-label="Select all loans on this page"
-                      />
-                    </th>
-                    <SortableHeader
-                      label="Loan Code"
-                      sortKey="loan_code"
-                      requestSort={requestSort}
-                      getSortIndicator={getSortIndicator}
-                      align="left"
-                      className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase sticky left-10 z-30 bg-gray-50 border-r border-gray-200"
-                    />
-                    {visibleColumns.map((col) => (
-                      <SortableHeader
-                        key={col.key}
-                        label={col.label}
-                        sortKey={col.key}
-                        requestSort={requestSort}
-                        getSortIndicator={getSortIndicator}
-                        align={col.align}
-                        className={`px-4 py-4 text-${col.align} text-xs font-semibold text-gray-600 uppercase`}
-                      />
-                    ))}
-                    <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
-                      View
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                {paginatedLoans.map((loan) => {
-                  const isSel = bulk.isSelected(loan.id);
-                  const expanded = expandedRows.has(loan.id);
-                  // Sticky identity cells need an opaque bg that still tracks
-                  // the row's hover/selected state (a transparent sticky cell
-                  // would let scrolled columns show through).
-                  const stickyBg = isSel
-                    ? "bg-ocean-50"
-                    : "bg-white group-hover:bg-ocean-50";
-
-                  return (
-                    <React.Fragment key={loan.id}>
-                      <tr
-                        onClick={() => navigate(`/loans/${loan.id}`)}
-                        className={`group border-b border-gray-100 transition cursor-pointer ${
-                          isSel ? "bg-ocean-50" : "hover:bg-ocean-50"
-                        }`}
-                      >
-                        <td
-                          className={`px-4 py-4 sticky left-0 z-10 ${stickyBg}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSel}
-                            onChange={() => bulk.toggle(loan.id)}
-                            className="w-4 h-4 cursor-pointer"
-                            aria-label={`Select loan ${loan.loan_code}`}
-                          />
-                        </td>
-                        <td
-                          className={`px-4 py-4 sticky left-10 z-10 border-r border-gray-100 ${stickyBg}`}
-                        >
-                          <div className="flex items-start gap-2">
-                            {hiddenColumns.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleRow(loan.id);
-                                }}
-                                aria-expanded={expanded}
-                                aria-label={
-                                  expanded
-                                    ? `Hide details for ${loan.loan_code}`
-                                    : `Show details for ${loan.loan_code}`
-                                }
-                                className="mt-0.5 text-gray-400 hover:text-ocean-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400"
-                              >
-                                {expanded ? (
-                                  <ChevronDown size={16} />
-                                ) : (
-                                  <ChevronRight size={16} />
-                                )}
-                              </button>
-                            )}
-                            <div className="font-mono text-sm font-semibold text-ocean-600">
-                              <div>{loan.loan_code}</div>
-                              {/* Package tag — only shown when the loan was
-                                  applied via a published product. */}
-                              {loan.package_name && (
-                                <p className="text-[10px] font-semibold text-ocean-700 bg-ocean-50 inline-block px-1.5 py-0.5 rounded mt-1 font-sans">
-                                  {loan.package_name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        {visibleColumns.map((col) => (
-                          <td
-                            key={col.key}
-                            className={`px-4 py-4 text-${col.align}`}
-                          >
-                            {col.cell(loan)}
-                          </td>
-                        ))}
-                        <td
-                          className="px-4 py-4 text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/loans/${loan.id}`)}
-                            aria-label={`Open loan ${loan.loan_code}`}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-ocean-600 hover:bg-ocean-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 transition"
-                          >
-                            <ArrowRight size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                      {expanded && hiddenColumns.length > 0 && (
-                        <tr className="bg-ocean-50/40 border-b border-gray-100">
-                          <td
-                            colSpan={visibleColumns.length + 3}
-                            className="px-4 py-3"
-                          >
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3 pl-12">
-                              {hiddenColumns.map((col) => (
-                                <div key={col.key}>
-                                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">
-                                    {col.label}
-                                  </p>
-                                  {col.cell(loan)}
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-
-              {/* TOTALS ROW — driven by the same visible columns as the
-                  header so totals stay aligned across presets. */}
-              <tfoot className="bg-ocean-gradient-soft border-t-2 border-ocean-200">
-                <tr>
-                  <td className="px-4 py-4 sticky left-0 z-10 bg-ocean-50" />
-                  <td className="px-4 py-4 font-bold text-gray-800 text-sm sticky left-10 z-10 bg-ocean-50 border-r border-ocean-200">
-                    <span className="inline-flex items-center gap-2">
-                      <BarChart3 size={16} /> TOTALS ({filteredLoans.length})
-                    </span>
-                  </td>
-                  {visibleColumns.map((col) => (
-                    <td key={col.key} className={`px-4 py-4 text-${col.align}`}>
-                      {col.money ? (
-                        <div>
-                          <p
-                            className={`font-bold text-sm ${col.totalClass || "text-gray-800"}`}
-                          >
-                            {formatKES(col.total(filteredLoans))}
-                          </p>
-                          {col.key === "overpayment_amount" && (
-                            <p className="text-xs text-ocean-600 mt-1">
-                              Pending:{" "}
-                              {formatKES(
-                                filteredLoans
-                                  .filter((l) => l.refund_status === "pending")
-                                  .reduce(
-                                    (s, l) => s + num(l.overpayment_amount),
-                                    0,
-                                  ),
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      ) : col.key === "status" ? (
-                        <p className="text-xs text-gray-600">
-                          Active:{" "}
-                          {
-                            filteredLoans.filter((l) => l.status === "active")
-                              .length
-                          }{" "}
-                          • Completed:{" "}
-                          {
-                            filteredLoans.filter((l) => l.status === "completed")
-                              .length
-                          }
-                        </p>
-                      ) : null}
-                    </td>
-                  ))}
-                  <td className="px-4 py-4" />
-                </tr>
-              </tfoot>
-            </table>
-            </div>
-            {/* horizontal-scroll affordance — a soft right-edge fade hints
-                there are more columns when the table overflows. */}
-            <div className="pointer-events-none absolute top-0 right-0 h-full w-10 bg-gradient-to-l from-slate-900/5 to-transparent" />
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
-              <div className="text-sm text-gray-600">
-                Showing{" "}
-                <span className="font-semibold">{startIndex + 1}</span> to{" "}
-                <span className="font-semibold">
-                  {Math.min(endIndex, filteredLoans.length)}
-                </span>{" "}
-                of{" "}
-                <span className="font-semibold">{filteredLoans.length}</span>{" "}
-                results
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  ← Previous
-                </button>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((page) => {
-                      return (
-                        page === 1 ||
-                        page === totalPages ||
-                        (page >= currentPage - 2 && page <= currentPage + 2)
-                      );
-                    })
-                    .map((page, idx, arr) => {
-                      const showEllipsisBefore =
-                        idx > 0 && page - arr[idx - 1] > 1;
-                      return (
-                        <React.Fragment key={page}>
-                          {showEllipsisBefore && (
-                            <span className="px-2 text-gray-400">...</span>
-                          )}
-                          <button
-                            onClick={() => setCurrentPage(page)}
-                            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
-                              currentPage === page
-                                ? "bg-ocean-600 text-white"
-                                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        </React.Fragment>
-                      );
-                    })}
-                </div>
-
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  Next →
-                </button>
-              </div>
+          )}
+          {!loading && loans.length > 0 && filteredLoans.length === 0 && (
+            <div className="md:hidden">
+              <EmptyState
+                icon={Search}
+                tone="muted"
+                title="No loans match your filters"
+                description="Try adjusting your search or filter criteria."
+                action={
+                  <button
+                    onClick={clearFilters}
+                    className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
+                  >
+                    <X size={16} /> Clear Filters
+                  </button>
+                }
+              />
             </div>
           )}
-        </div>
+        </>
       )}
+
 
       <BulkActionBar
         selectedCount={bulk.count}
@@ -2975,7 +2720,7 @@ function Loans() {
       >
         <button
           onClick={handleBulkExport}
-          className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold inline-flex items-center gap-2"
+          className="px-4 py-2 bg-white dark:bg-slate-800/20 hover:bg-white/30 rounded-lg text-sm font-semibold inline-flex items-center gap-2"
         >
           <Download size={16}/> Export
         </button>
@@ -3021,7 +2766,7 @@ function Loans() {
           selected pending refund. Backend re-checks per-loan eligibility. */}
       {showBulkRefundModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md">
             <div className="p-5 border-b flex items-center justify-between">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <RotateCcw size={18} className="text-ocean-600" /> Mass
@@ -3029,14 +2774,14 @@ function Loans() {
               </h3>
               <button
                 onClick={() => setShowBulkRefundModal(false)}
-                className="text-gray-400 hover:text-gray-700"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-700"
                 aria-label="Close"
               >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleBulkRefund} className="p-5 space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
                 Marking{" "}
                 <strong>
                   {bulk.count} refund{bulk.count !== 1 ? "s" : ""}
@@ -3056,7 +2801,7 @@ function Loans() {
                 .
               </p>
               <div>
-                <label className="block text-sm font-semibold mb-1 text-gray-700">
+                <label className="block text-sm font-semibold mb-1 text-gray-700 dark:text-slate-200">
                   Refund method *
                 </label>
                 <select
@@ -3067,7 +2812,7 @@ function Loans() {
                       refund_method: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg"
                 >
                   <option value="M-Pesa">M-Pesa</option>
                   <option value="bank_transfer">Bank transfer</option>
@@ -3076,7 +2821,7 @@ function Loans() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1 text-gray-700">
+                <label className="block text-sm font-semibold mb-1 text-gray-700 dark:text-slate-200">
                   Reference
                 </label>
                 <input
@@ -3089,11 +2834,11 @@ function Loans() {
                     })
                   }
                   placeholder="optional — shared by all"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1 text-gray-700">
+                <label className="block text-sm font-semibold mb-1 text-gray-700 dark:text-slate-200">
                   Refund date *
                 </label>
                 <input
@@ -3105,14 +2850,14 @@ function Loans() {
                       refunded_date: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowBulkRefundModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg"
+                  className="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg"
                 >
                   Cancel
                 </button>
@@ -3133,15 +2878,15 @@ function Loans() {
       {/* Dues/defaults are a warning, not a wall — let the lender decide. */}
       {duesPrompt && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDuesPrompt(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center"><AlertTriangle size={20} className="text-amber-600" /></div>
-              <h3 className="text-lg font-bold text-slate-900">Heads up — this client has dues</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Heads up — this client has dues</h3>
             </div>
-            <p className="text-sm text-slate-600 mb-1">{duesPrompt.error}</p>
-            <p className="text-sm text-slate-500 mb-5">Lending is still your call. Cancel to hold off, or proceed to issue the loan anyway.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">{duesPrompt.error}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Lending is still your call. Cancel to hold off, or proceed to issue the loan anyway.</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setDuesPrompt(null)} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={() => setDuesPrompt(null)} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
               <button
                 onClick={() => { setDuesPrompt(null); handleSubmit(null, true); }}
                 disabled={submitting}

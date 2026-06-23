@@ -14,7 +14,10 @@ import PeriodNavigator, {
   periodLabel,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { formatKES as fmtKES } from "../utils/money";
 import {
   LineChart,
   Line,
@@ -106,11 +109,7 @@ function Analytics() {
     }
   };
 
-  const formatKES = (value) => {
-    if (!value && value !== 0) return "KES 0";
-    const num = parseFloat(value);
-    return `KES ${Math.round(num).toLocaleString("en-KE")}`;
-  };
+  const formatKES = (value) => fmtKES(value);
   // Y-axis ticks have ~50px to render in; the long-form labels overflow
   // and clip the chart. Keep the compact form for axis ticks only.
   const formatKESCompact = (value) => {
@@ -124,12 +123,11 @@ function Analytics() {
   const CurrencyTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border-2 border-gray-200 rounded-lg shadow-lg">
-          <p className="font-bold text-gray-800">{label}</p>
+        <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
+          <p className="font-bold text-gray-800 dark:text-slate-100">{label}</p>
           {payload.map((entry, i) => (
             <p key={i} style={{ color: entry.color }} className="text-sm">
-              {entry.name}: KES{" "}
-              {parseFloat(entry.value).toLocaleString()}
+              {entry.name}: {fmtKES(entry.value)}
             </p>
           ))}
         </div>
@@ -140,26 +138,36 @@ function Analytics() {
 
   if (loading) {
     return (
-      <div className="p-4 lg:p-8">
-        <Spinner centered className="py-12" label="Loading analytics…" />
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <PageHeader
+          icon={BarChart3}
+          title="Analytics"
+          subtitle={`Insights for ${periodLabel(period)}`}
+          actions={<PeriodNavigator value={period} onChange={setPeriod} />}
+        />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-80 w-full rounded-xl mb-6" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <Skeleton className="h-72 w-full rounded-xl" />
+          <Skeleton className="h-72 w-full rounded-xl" />
+        </div>
+        <Skeleton className="h-72 w-full rounded-xl" />
       </div>
     );
   }
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="mb-6 lg:mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <BarChart3 size={28} /> Analytics
-          </h1>
-          <p className="text-sm lg:text-base text-gray-600 mt-1">
-            Insights for{" "}
-            <span className="font-semibold">{periodLabel(period)}</span>
-          </p>
-        </div>
-        <PeriodNavigator value={period} onChange={setPeriod} />
-      </div>
+      <PageHeader
+        icon={BarChart3}
+        title="Analytics"
+        subtitle={`Insights for ${periodLabel(period)}`}
+        actions={<PeriodNavigator value={period} onChange={setPeriod} />}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
@@ -200,8 +208,8 @@ function Analytics() {
       </div>
 
       {/* Revenue Trends */}
-      <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <TrendingUp size={22} /> Revenue Trends ({periodLabel(period)})
         </h2>
         <ResponsiveContainer width="100%" height={300}>
@@ -243,8 +251,8 @@ function Analytics() {
 
       {/* Portfolio + Payment Methods */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-4 lg:p-6">
-          <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6">
+          <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <BarChart3 size={22} /> Loan Portfolio
           </h2>
           <ResponsiveContainer width="100%" height={250}>
@@ -283,8 +291,8 @@ function Analytics() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-4 lg:p-6">
-          <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6">
+          <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <CreditCard size={22} /> Payment Methods
           </h2>
           <ResponsiveContainer width="100%" height={250}>
@@ -335,8 +343,8 @@ function Analytics() {
       </div>
 
       {/* Default Rate Trend */}
-      <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <AlertTriangle size={22} className="text-red-500" /> Default Rate Trend
         </h2>
         <ResponsiveContainer width="100%" height={250}>
@@ -348,12 +356,12 @@ function Analytics() {
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-white p-3 border-2 border-gray-200 rounded-lg shadow-lg">
-                      <p className="font-bold text-gray-800">{label}</p>
+                    <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
+                      <p className="font-bold text-gray-800 dark:text-slate-100">{label}</p>
                       <p className="text-sm text-red-600">
                         Default Rate: {payload[0].value}%
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-gray-600 dark:text-slate-400">
                         Defaulted: {payload[0].payload.defaulted_loans} of{" "}
                         {payload[0].payload.total_loans}
                       </p>
@@ -376,8 +384,8 @@ function Analytics() {
       </div>
 
       {/* Loan Size Distribution */}
-      <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <BarChart3 size={22} /> Loan Size Distribution
         </h2>
         <ResponsiveContainer width="100%" height={250}>
@@ -389,7 +397,7 @@ function Analytics() {
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-white p-3 border-2 border-gray-200 rounded-lg shadow-lg">
+                    <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
                       <p className="font-bold">{label}</p>
                       <p className="text-sm">
                         Loans: {payload[0].payload.count}
@@ -409,27 +417,35 @@ function Analytics() {
       </div>
 
       {/* Top Clients */}
-      <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Trophy size={22} className="text-yellow-500" /> Top 10 Clients by Total Borrowed
         </h2>
+        {data.topClients.length === 0 ? (
+          <EmptyState
+            icon={Trophy}
+            tone="muted"
+            title="No client activity yet"
+            description="When clients borrow in this period, your top borrowers will rank here."
+          />
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b-2">
+            <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 dark:border-slate-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   #
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Client
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Loans
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Borrowed
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Paid
                 </th>
               </tr>
@@ -438,7 +454,7 @@ function Analytics() {
               {data.topClients.map((client, idx) => (
                 <tr
                   key={client.id}
-                  className="border-b hover:bg-gray-50"
+                  className="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
                 >
                   <td className="px-4 py-3">
                     <span
@@ -456,10 +472,10 @@ function Analytics() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-gray-800">
+                    <p className="font-semibold text-gray-800 dark:text-slate-100">
                       {client.first_name} {client.last_name}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
                       {client.phone_number}
                     </p>
                   </td>
@@ -477,11 +493,12 @@ function Analytics() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Geographic Distribution */}
-      <div className="bg-white rounded-xl shadow-md p-4 lg:p-6 mb-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+        <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <MapPin size={22} /> Geographic Distribution (Top 15 Counties)
         </h2>
         <ResponsiveContainer width="100%" height={400}>
@@ -497,7 +514,7 @@ function Analytics() {
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-white p-3 border-2 border-gray-200 rounded-lg shadow-lg">
+                    <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
                       <p className="font-bold">{label}</p>
                       <p className="text-sm">
                         Clients: {payload[0].payload.client_count}

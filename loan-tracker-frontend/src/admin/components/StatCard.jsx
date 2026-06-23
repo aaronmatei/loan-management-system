@@ -32,7 +32,7 @@ export default function StatCard({
   const subSize = compact ? "text-[10px]" : "text-xs";
   return (
     <div
-      className={`relative overflow-hidden bg-white rounded-xl border border-slate-100 shadow-sm ${pad} ${className}`}
+      className={`relative overflow-hidden bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm ${pad} ${className}`}
     >
       <div
         className={`pointer-events-none absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl ${a.glow}`}
@@ -48,17 +48,17 @@ export default function StatCard({
           ) : (
             <span className={`w-2 h-2 rounded-full ${a.dot}`} />
           )}
-          <p className={`${labelSize} uppercase tracking-wide text-slate-500 truncate`}>
+          <p className={`${labelSize} uppercase tracking-wide text-slate-500 dark:text-slate-400 truncate`}>
             {label}
           </p>
         </div>
         <p
-          className={`${valSize} font-bold mt-1 whitespace-nowrap ${dark ? "text-slate-900" : a.val}`}
+          className={`${valSize} font-bold mt-1 whitespace-nowrap ${dark ? "text-slate-900 dark:text-slate-100" : a.val}`}
         >
           {value}
         </p>
         {sub != null && sub !== "" && (
-          <p className={`${subSize} text-slate-400 mt-0.5 truncate`}>{sub}</p>
+          <p className={`${subSize} text-slate-400 dark:text-slate-400 mt-0.5 truncate`}>{sub}</p>
         )}
       </div>
     </div>

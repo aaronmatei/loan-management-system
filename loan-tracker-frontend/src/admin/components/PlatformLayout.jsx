@@ -138,7 +138,7 @@ function PlatformLayout({ children }) {
         </aside>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="bg-white border-b shadow-sm">
+          <header className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 shadow-sm">
             <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -159,12 +159,12 @@ function PlatformLayout({ children }) {
                   />
                 </svg>
               </button>
-              <h1 className="text-lg font-bold text-gray-800 lg:hidden">
+              <h1 className="text-lg font-bold text-gray-800 dark:text-slate-100 lg:hidden">
                 Platform Admin
               </h1>
               <div className="flex-1 hidden lg:block" />
-              <div className="text-sm text-gray-600 flex items-center gap-1.5">
-                <Globe size={15} className="text-gray-500" /> Platform-wide view
+              <div className="text-sm text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
+                <Globe size={15} className="text-gray-500 dark:text-slate-400" /> Platform-wide view
               </div>
             </div>
           </header>

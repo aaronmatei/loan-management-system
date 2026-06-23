@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
-const fmt = (n) =>
-  `KES ${parseFloat(n || 0).toLocaleString("en-KE", {
-    maximumFractionDigits: 0,
-  })}`;
+const fmt = (n) => formatKES(n);
 
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -130,25 +130,15 @@ function Defaulted() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-8">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl lg:text-5xl font-bold text-navy-900 tracking-tight">
-            Defaulted{" "}
-            <span className="font-serif italic font-medium text-rose-700">
-              Loans
-            </span>
-          </h1>
-          <p className="text-slate-500 mt-3 leading-relaxed">
-            Loans flagged as defaulted. Reactivate to move them back onto the
-            active book (waivers and renegotiation need to land on a live
-            obligation). The list is sorted by balance at risk, largest first.
-          </p>
-        </div>
-        <div className="flex gap-3 shrink-0">
+      <PageHeader
+        icon={AlertOctagon}
+        title="Defaulted Loans"
+        subtitle="Loans flagged as defaulted. Reactivate to move them back onto the active book (waivers and renegotiation need to land on a live obligation). The list is sorted by balance at risk, largest first."
+        actions={
           <button
             onClick={() => load({ silent: true })}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
           >
             <RefreshCcw
               size={16}
@@ -156,50 +146,50 @@ function Defaulted() {
             />
             {refreshing ? "Refreshing…" : "Refresh"}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Defaulted
           </p>
-          <p className="text-3xl font-bold text-navy-900 mt-2">{totalCount}</p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-3xl font-bold text-navy-900 dark:text-slate-100 mt-2">{totalCount}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             loan{totalCount !== 1 ? "s" : ""} on the book
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Balance at Risk
           </p>
           <p className="text-3xl font-bold text-rose-700 mt-2">
             {fmt(totalAtRisk)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             still owed (post-waiver, post-cash)
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <Flame size={12} className="text-orange-600" /> Penalty Accrued
           </p>
           <p className="text-3xl font-bold text-orange-600 mt-2">
             {fmt(totalPenalty)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             outstanding fines on these loans
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Principal Lent
           </p>
           <p className="text-3xl font-bold text-amber-700 mt-2">
             {fmt(totalPrincipal)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             across {totalCount} loan{totalCount !== 1 ? "s" : ""}
             {oldest != null && ` · oldest ${oldest}d`}
           </p>
@@ -208,25 +198,33 @@ function Defaulted() {
 
       {/* List */}
       {loading ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12">
-          <Spinner centered label="Loading defaulted loans…" />
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4">
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            </div>
+          ))}
         </div>
       ) : rows.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-          <CheckCircle size={42} className="text-emerald-400 mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-slate-700">
-            No defaulted loans
-          </h3>
-          <p className="text-sm text-slate-500 mt-1">
-            Everything on the book is current or being repaid.
-          </p>
-        </div>
+        <EmptyState
+          icon={CheckCircle}
+          tone="muted"
+          title="No defaulted loans"
+          description="Everything on the book is current or being repaid."
+        />
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
           <div className="overflow-auto max-h-[calc(100vh-320px)]">
             <table className="w-full whitespace-nowrap">
-              <thead className="bg-slate-50 border-b-2 border-slate-200 sticky top-0 z-10">
-                <tr className="text-left text-xs font-semibold text-slate-600 uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+                <tr className="text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">
                   <th className="px-4 py-3">Loan</th>
                   <th className="px-4 py-3">Client</th>
                   <th className="px-4 py-3 text-right">Principal</th>
@@ -266,7 +264,7 @@ function Defaulted() {
                     return (
                       <tr
                         key={loan.id}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition"
+                        className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                       >
                         <td className="px-4 py-3">
                           <button
@@ -275,20 +273,20 @@ function Defaulted() {
                           >
                             {loan.loan_code} <ArrowUpRight size={12} />
                           </button>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                             disbursed {fmtDate(loan.disbursed_at)}
                           </p>
                         </td>
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-navy-900 text-sm">
+                          <p className="font-semibold text-navy-900 dark:text-slate-100 text-sm">
                             {loan.first_name} {loan.last_name}
                           </p>
-                          <p className="text-xs text-slate-500 font-mono">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                             {loan.client_code}
                           </p>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <p className="font-semibold text-slate-800 text-sm">
+                          <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
                             {fmt(loan.principal_amount)}
                           </p>
                         </td>
@@ -333,7 +331,7 @@ function Defaulted() {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => navigate(`/loans/${loan.id}`)}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
+                              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition"
                             >
                               <Eye size={13} /> Open
                             </button>
@@ -360,9 +358,9 @@ function Defaulted() {
       {/* Reactivate confirmation */}
       {reactivating && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <div className="flex justify-between items-start mb-3">
-              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                 <CheckCircle size={20} className="text-emerald-700" />
                 Reactivate loan?
               </h3>
@@ -372,13 +370,13 @@ function Defaulted() {
                   setActionError("");
                 }}
                 disabled={busy}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 dark:text-slate-400 hover:text-slate-600"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
               Moves loan{" "}
               <span className="font-mono">{reactivating.loan_code}</span>{" "}
               back to <strong>active</strong>. Waivers and new payments will

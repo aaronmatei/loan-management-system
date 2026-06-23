@@ -43,6 +43,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import { hasPermission, getRoleBadge } from "../utils/permissions";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./ThemeToggle";
 import IconTile from "./IconTile";
 
 // ── Sidebar nav data ────────────────────────────────────────────────
@@ -509,11 +510,11 @@ function Layout({ children }) {
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile top bar with hamburger */}
-          <header className="lg:hidden bg-white border-b border-gray-200 shadow-sm">
+          <header className="lg:hidden bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
             <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition"
                 aria-label="Open menu"
               >
                 <svg
@@ -530,16 +531,20 @@ function Layout({ children }) {
                   />
                 </svg>
               </button>
-              <h1 className="text-lg font-bold text-gray-800">
+              <h1 className="text-lg font-bold text-gray-800 dark:text-slate-100">
                 {getCurrentPageTitle()}
               </h1>
-              <NotificationBell />
+              <div className="flex items-center gap-1">
+                <ThemeToggle />
+                <NotificationBell />
+              </div>
             </div>
           </header>
 
           {/* Desktop top bar (notification bell) */}
-          <header className="hidden lg:flex bg-white border-b border-gray-200 shadow-sm">
-            <div className="flex-1 flex items-center justify-end px-8 py-3">
+          <header className="hidden lg:flex bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
+            <div className="flex-1 flex items-center justify-end gap-1 px-8 py-3">
+              <ThemeToggle />
               <NotificationBell />
             </div>
           </header>

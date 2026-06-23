@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Percent, CheckCircle, SlidersHorizontal } from "lucide-react";
 import api from "../services/api";
 import LoanPackagesSection from "../components/LoanPackagesSection";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
 // Loan-only configuration: tenant-wide policy (default rate + fee)
 // and the catalog of pre-configured loan packages. Lives under the
@@ -74,20 +76,32 @@ function LoanSettings() {
   };
 
   if (loading) {
-    return <Spinner centered className="py-20" label="Loading…" />;
+    return (
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+        <PageHeader
+          icon={SlidersHorizontal}
+          title="Loan Settings"
+          subtitle="Defaults applied to every new loan, plus the catalog of pre-configured loan products you offer."
+        />
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <Skeleton className="h-6 w-40 mb-4" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <SlidersHorizontal size={28} /> Loan Settings
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Defaults applied to every new loan, plus the catalog of
-          pre-configured loan products you offer.
-        </p>
-      </div>
+      <PageHeader
+        icon={SlidersHorizontal}
+        title="Loan Settings"
+        subtitle="Defaults applied to every new loan, plus the catalog of pre-configured loan products you offer."
+      />
 
       {policySuccess && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
@@ -96,11 +110,11 @@ function LoanSettings() {
       )}
 
       <form onSubmit={handleSavePolicy} className="space-y-6">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2">
             <Percent size={22} /> Loan Policy
           </h2>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
             Applied to every new loan and shown to customers when they
             apply. The processing fee is deducted from the amount the
             borrower receives — they still repay the full principal
@@ -108,7 +122,7 @@ function LoanSettings() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Annual Interest Rate (%)
               </label>
               <div className="relative">
@@ -118,18 +132,18 @@ function LoanSettings() {
                   step="0.01"
                   value={loanPolicy.default_interest_rate}
                   onChange={(e) => onAnnualRateChange(e.target.value)}
-                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
                   %
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Charged per year (e.g. 50 = 50% p.a.).
               </p>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Monthly Interest Rate (%)
               </label>
               <div className="relative">
@@ -139,18 +153,18 @@ function LoanSettings() {
                   step="0.01"
                   value={loanPolicy.monthly_interest_rate}
                   onChange={(e) => onMonthlyRateChange(e.target.value)}
-                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
                   %
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Syncs with annual (annual ÷ 12). Edit either one.
               </p>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Processing Fee Rate (%)
               </label>
               <div className="relative">
@@ -166,13 +180,13 @@ function LoanSettings() {
                       processing_fee_rate: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
                   %
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Deducted upfront from the disbursed amount (0 = none).
               </p>
             </div>
@@ -181,19 +195,18 @@ function LoanSettings() {
           {/* Worked example for the current rates */}
           {parseFloat(loanPolicy.processing_fee_rate) > 0 && (
             <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-              Example: on a KES 10,000 loan, a{" "}
+              Example: on a {formatKES(10000)} loan, a{" "}
               {parseFloat(loanPolicy.processing_fee_rate)}% processing fee
-              = KES{" "}
-              {(
-                (10000 * parseFloat(loanPolicy.processing_fee_rate)) /
-                100
-              ).toLocaleString()}
-              . The borrower receives KES{" "}
-              {(
+              ={" "}
+              {formatKES(
+                (10000 * parseFloat(loanPolicy.processing_fee_rate)) / 100,
+              )}
+              . The borrower receives{" "}
+              {formatKES(
                 10000 -
-                (10000 * parseFloat(loanPolicy.processing_fee_rate)) / 100
-              ).toLocaleString()}{" "}
-              and repays the full KES 10,000 plus interest.
+                  (10000 * parseFloat(loanPolicy.processing_fee_rate)) / 100,
+              )}{" "}
+              and repays the full {formatKES(10000)} plus interest.
             </div>
           )}
         </div>

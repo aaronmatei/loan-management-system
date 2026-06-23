@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { ToastProvider } from './components/Toast.jsx'
+import { ThemeProvider } from './context/ThemeContext.jsx'
 import { sentryInit } from './config/sentry.js'
 
 // Initialize Sentry first so any error during mount makes it into the
@@ -15,7 +17,11 @@ sentryInit()
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <ThemeProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

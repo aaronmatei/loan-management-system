@@ -19,7 +19,8 @@ import {
   MapPin,
   ShieldCheck,
 } from "lucide-react";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
+import EmptyState from "../../components/EmptyState";
 
 // Cross-tenant audit log for platform admins. Backed by
 // /api/platform/audit (different from the tenant-scoped /api/audit
@@ -113,10 +114,10 @@ function PlatformAuditLog() {
   return (
     <PlatformLayout>
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <BarChart3 size={28} className="text-gray-700" /> Audit Log
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+          <BarChart3 size={28} className="text-gray-700 dark:text-slate-200" /> Audit Log
         </h1>
-        <p className="text-gray-600 mt-1 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mt-1 mb-6">
           Every action across every tenant — staff, platform, system.
         </p>
 
@@ -131,10 +132,10 @@ function PlatformAuditLog() {
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow p-4 mb-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none" />
               <input
               type="text"
               placeholder="Search descriptions / users / entities"
@@ -142,7 +143,7 @@ function PlatformAuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, search: e.target.value })
               }
-              className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500"
+              className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg focus:border-ocean-500 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
             />
             </div>
             <select
@@ -150,7 +151,7 @@ function PlatformAuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, tenant_id: e.target.value })
               }
-              className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white"
+              className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
             >
               <option value="">All Tenants</option>
               {tenants.map((t) => (
@@ -164,7 +165,7 @@ function PlatformAuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, category: e.target.value })
               }
-              className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white"
+              className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
             >
               <option value="">All Categories</option>
               {Object.keys(CATEGORY_ICON_MAP).map((k) => (
@@ -178,7 +179,7 @@ function PlatformAuditLog() {
               onChange={(e) =>
                 setFilters({ ...filters, severity: e.target.value })
               }
-              className="px-3 py-2 border-2 border-gray-200 rounded-lg bg-white"
+              className="px-3 py-2 border-2 border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
             >
               <option value="">All Severities</option>
               <option value="info">Info</option>
@@ -190,28 +191,43 @@ function PlatformAuditLog() {
 
         {/* Log list */}
         {loading ? (
-          <Spinner centered className="py-8" label="Loading…" />
-        ) : logs.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
-            <ClipboardList size={48} className="mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-500">No matching log entries.</p>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden divide-y">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="p-4 flex items-start gap-3">
+                <Skeleton className="h-5 w-5 rounded shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <Skeleton className="h-4 w-64" />
+                    <Skeleton className="h-4 w-14 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-48 mt-2" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : logs.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            tone="muted"
+            title="No matching log entries"
+            description="Try clearing a filter or widening your search to see activity."
+          />
         ) : (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
             <div className="divide-y">
               {logs.map((log) => (
                 <div
                   key={log.id}
-                  className="p-4 hover:bg-gray-50 transition"
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition"
                 >
                   <div className="flex items-start gap-3">
                     {(() => {
                       const IconComp = CATEGORY_ICON_MAP[log.action_category] || ClipboardList;
-                      return <IconComp size={20} className="text-gray-400 mt-0.5 shrink-0" />;
+                      return <IconComp size={20} className="text-gray-400 dark:text-slate-400 mt-0.5 shrink-0" />;
                     })()}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-gray-800 break-words">
+                        <p className="font-semibold text-gray-800 dark:text-slate-100 break-words">
                           {log.description || log.action}
                         </p>
                         <span
@@ -220,7 +236,7 @@ function PlatformAuditLog() {
                           {log.severity || "info"}
                         </span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500 dark:text-slate-400">
                         <span className="inline-flex items-center gap-1"><User size={12} /> {log.user_name || "System"}</span>
                         {log.user_role && <span>• {log.user_role}</span>}
                         {log.is_platform_admin && (
@@ -241,7 +257,7 @@ function PlatformAuditLog() {
                           <summary className="text-xs text-ocean-600 cursor-pointer">
                             details
                           </summary>
-                          <pre className="text-xs bg-gray-50 p-2 rounded mt-1 overflow-x-auto">
+                          <pre className="text-xs bg-gray-50 dark:bg-slate-900 p-2 rounded mt-1 overflow-x-auto">
                             {JSON.stringify(
                               {
                                 ...(log.old_values && { before: log.old_values }),
@@ -262,7 +278,7 @@ function PlatformAuditLog() {
 
             {pagination.pages > 1 && (
               <div className="p-4 border-t flex justify-between items-center">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Page {pagination.page} of {pagination.pages} ·{" "}
                   {pagination.total} total
                 </p>
@@ -272,7 +288,7 @@ function PlatformAuditLog() {
                       setPagination((p) => ({ ...p, page: p.page - 1 }))
                     }
                     disabled={pagination.page === 1}
-                    className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+                    className="px-3 py-1 bg-gray-100 dark:bg-slate-700 rounded disabled:opacity-50"
                   >
                     ← Prev
                   </button>
@@ -281,7 +297,7 @@ function PlatformAuditLog() {
                       setPagination((p) => ({ ...p, page: p.page + 1 }))
                     }
                     disabled={pagination.page === pagination.pages}
-                    className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+                    className="px-3 py-1 bg-gray-100 dark:bg-slate-700 rounded disabled:opacity-50"
                   >
                     Next →
                   </button>
@@ -300,11 +316,11 @@ function Card({ label, value, color = "gray" }) {
     indigo: "text-ocean-600",
     red: "text-red-600",
     yellow: "text-yellow-600",
-    gray: "text-gray-800",
+    gray: "text-gray-800 dark:text-slate-100",
   }[color];
   return (
-    <div className="bg-white rounded-xl shadow p-4">
-      <p className="text-xs text-gray-500 uppercase">{label}</p>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+      <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">{label}</p>
       <p className={`text-2xl font-bold ${text}`}>{value ?? 0}</p>
     </div>
   );

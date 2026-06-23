@@ -48,7 +48,7 @@ export default function WelfareDashboardPanel({
     }
   };
 
-  if (loading) return <div className="bg-white rounded-xl shadow-md border border-slate-100 p-5 mb-6 text-sm text-slate-500">Loading dashboard…</div>;
+  if (loading) return <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 mb-6 text-sm text-slate-500 dark:text-slate-400">Loading dashboard…</div>;
   if (!d) return null;
 
   // Static class strings — Tailwind can't see interpolated class names.
@@ -78,15 +78,15 @@ export default function WelfareDashboardPanel({
   const pct = (v, counts) => (v == null ? null : `${v}%${counts ? ` (${counts.paid ?? counts.attended}/${counts.total ?? counts.recorded})` : ""}`);
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-100 mb-6 overflow-hidden">
-      <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2"><LayoutDashboard size={18} className="text-slate-600" /> Dashboard</h2>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
+      <div className="bg-slate-50 dark:bg-slate-900 px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><LayoutDashboard size={18} className="text-slate-600 dark:text-slate-400" /> Dashboard</h2>
         {showExports && (
           <div className="flex gap-2">
-            <button onClick={() => doExport("pdf")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+            <button onClick={() => doExport("pdf")} disabled={!!exporting} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
               <FileDown size={14} /> {exporting === "pdf" ? "…" : "Statement PDF"}
             </button>
-            <button onClick={() => doExport("csv")} disabled={!!exporting} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+            <button onClick={() => doExport("csv")} disabled={!!exporting} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
               <FileSpreadsheet size={14} /> {exporting === "csv" ? "…" : "Members CSV"}
             </button>
           </div>
@@ -164,44 +164,44 @@ function InvestmentsModal({ welfareId, client, onClose }) {
     try { await client.delete(`/welfares/${welfareId}/investments/${inv.id}`); load(); }
     catch (err) { alert(err.response?.data?.error || "Failed to delete"); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl my-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">Investments</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Investments</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>
         </div>
         <div className="p-5">
-          <p className="text-sm text-slate-500 mb-4">Record where the chama parks its funds (e.g. a Money Market Fund). Update the interest earned each month; withdraw when you take money out. Income = total interest earned.</p>
-          {loading ? <p className="text-sm text-slate-500">Loading…</p> : rows.length === 0 ? <p className="text-sm text-slate-400 mb-4">No investments yet.</p> : (
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Record where the chama parks its funds (e.g. a Money Market Fund). Update the interest earned each month; withdraw when you take money out. Income = total interest earned.</p>
+          {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p> : rows.length === 0 ? <p className="text-sm text-slate-400 dark:text-slate-400 mb-4">No investments yet.</p> : (
             <div className="space-y-3 mb-5">
               {rows.map((inv) => (
-                <div key={inv.id} className="border border-slate-100 rounded-lg px-3 py-2.5">
+                <div key={inv.id} className="border border-slate-100 dark:border-slate-700 rounded-lg px-3 py-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold text-slate-800 truncate">{inv.name}</p>
-                      <p className="text-xs text-slate-500">invested {money(inv.amount_invested)} · interest <span className="text-emerald-700 font-semibold">{money(inv.interest_earned)}</span> · current <span className="font-semibold text-slate-700">{money(inv.current_balance)}</span>{inv.withdrawn > 0 ? ` · withdrawn ${money(inv.withdrawn)}` : ""}</p>
+                      <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{inv.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">invested {money(inv.amount_invested)} · interest <span className="text-emerald-700 font-semibold">{money(inv.interest_earned)}</span> · current <span className="font-semibold text-slate-700 dark:text-slate-200">{money(inv.current_balance)}</span>{inv.withdrawn > 0 ? ` · withdrawn ${money(inv.withdrawn)}` : ""}</p>
                     </div>
-                    <button onClick={() => del(inv)} className="text-slate-400 hover:text-rose-600 shrink-0" title="Delete"><Trash2 size={16} /></button>
+                    <button onClick={() => del(inv)} className="text-slate-400 dark:text-slate-400 hover:text-rose-600 shrink-0" title="Delete"><Trash2 size={16} /></button>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
-                    <input type="number" min="0" value={amounts[inv.id] || ""} onChange={(e) => setAmounts((a) => ({ ...a, [inv.id]: e.target.value }))} placeholder="Amount (KES)" className="w-32 px-2 py-1 border border-slate-200 rounded text-sm" />
+                    <input type="number" min="0" value={amounts[inv.id] || ""} onChange={(e) => setAmounts((a) => ({ ...a, [inv.id]: e.target.value }))} placeholder="Amount (KES)" className="w-32 px-2 py-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm" />
                     <button onClick={() => act(inv, "interest")} className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Record interest</button>
                     <button onClick={() => act(inv, "withdraw")} className="px-2.5 py-1 rounded-md bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 text-xs font-semibold">Withdraw</button>
-                    <button onClick={() => act(inv, "deposit")} className="px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold">Deposit</button>
+                    <button onClick={() => act(inv, "deposit")} className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold">Deposit</button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-          <form onSubmit={add} className="border-t border-slate-100 pt-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-700">Add an investment</p>
+          <form onSubmit={add} className="border-t border-slate-100 dark:border-slate-700 pt-4 space-y-3">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Add an investment</p>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name (e.g. CIC Money Market Fund)" className={fld} />
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-semibold text-gray-700 mb-1">Amount invested</label><input type="number" value={form.amount_invested} onChange={(e) => setForm({ ...form, amount_invested: e.target.value })} className={fld} /></div>
-              <div><label className="block text-sm font-semibold text-gray-700 mb-1">Current balance</label><input type="number" value={form.current_balance} onChange={(e) => setForm({ ...form, current_balance: e.target.value })} className={fld} /></div>
+              <div><label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Amount invested</label><input type="number" value={form.amount_invested} onChange={(e) => setForm({ ...form, amount_invested: e.target.value })} className={fld} /></div>
+              <div><label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Current balance</label><input type="number" value={form.current_balance} onChange={(e) => setForm({ ...form, current_balance: e.target.value })} className={fld} /></div>
             </div>
             <div className="flex justify-end"><button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50">{busy ? "Adding…" : "Add"}</button></div>
           </form>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Trash2, Check, Mail } from "lucide-react";
+import { Bell, Trash2, Check, BellOff } from "lucide-react";
 import api from "../services/api";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
 
 function Notifications() {
   const navigate = useNavigate();
@@ -72,30 +74,27 @@ function Notifications() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <Bell size={28} /> Notifications
-          </h1>
-          <p className="text-sm lg:text-base text-gray-600 mt-1">
-            All your notifications in one place
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleMarkAllRead}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg text-sm font-semibold"
-          >
-            <Check size={15} /> Mark All Read
-          </button>
-          <button
-            onClick={handleClearOld}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold"
-          >
-            <Trash2 size={15} /> Clear Old
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Bell}
+        title="Notifications"
+        subtitle="All your notifications in one place"
+        actions={
+          <>
+            <button
+              onClick={handleMarkAllRead}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white rounded-lg text-sm font-semibold"
+            >
+              <Check size={15} /> Mark All Read
+            </button>
+            <button
+              onClick={handleClearOld}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg text-sm font-semibold"
+            >
+              <Trash2 size={15} /> Clear Old
+            </button>
+          </>
+        }
+      />
 
       <div className="flex gap-2 mb-4">
         <button
@@ -103,7 +102,7 @@ function Notifications() {
           className={`px-4 py-2 rounded-lg text-sm font-semibold ${
             filter === "all"
               ? "bg-ocean-600 text-white"
-              : "bg-white text-gray-700"
+              : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200"
           }`}
         >
           All
@@ -113,7 +112,7 @@ function Notifications() {
           className={`px-4 py-2 rounded-lg text-sm font-semibold ${
             filter === "unread"
               ? "bg-ocean-600 text-white"
-              : "bg-white text-gray-700"
+              : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200"
           }`}
         >
           Unread
@@ -121,26 +120,43 @@ function Notifications() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-xl p-12 text-center">
-          <Spinner centered label="Loading…" />
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-7 w-7" rounded="rounded-lg" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3.5 w-2/3" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : notifications.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 text-center">
-          <Mail size={56} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500">No notifications</p>
-        </div>
+        <EmptyState
+          icon={BellOff}
+          title="No notifications"
+          description={
+            filter === "unread"
+              ? "You're all caught up — no unread notifications right now."
+              : "Notifications about applications, payments and loans will show up here."
+          }
+          tone="muted"
+        />
       ) : (
         <div className="space-y-2">
           {notifications.map((notif) => (
             <div
               key={notif.id}
               onClick={() => handleClick(notif)}
-              className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
                 !notif.is_read ? "border-l-4 border-ocean-600" : ""
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className="text-2xl flex items-center">{notif.icon || <Bell size={28} className="text-gray-400" />}</div>
+                <div className="text-2xl flex items-center">{notif.icon || <Bell size={28} className="text-gray-400 dark:text-slate-400" />}</div>
                 <div className="flex-1 min-w-0">
                   <h3
                     className={`${
@@ -149,10 +165,10 @@ function Notifications() {
                   >
                     {notif.title}
                   </h3>
-                  <p className="text-gray-600 text-sm mt-1">
+                  <p className="text-gray-600 dark:text-slate-400 text-sm mt-1">
                     {notif.message}
                   </p>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-xs text-gray-400 dark:text-slate-400 mt-2">
                     {getTimeAgo(notif.created_at)}
                   </p>
                 </div>

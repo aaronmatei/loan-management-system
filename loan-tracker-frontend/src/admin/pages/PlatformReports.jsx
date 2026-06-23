@@ -22,11 +22,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { BarChart3, Download, Banknote, Trophy, Building2, Clock, Wallet } from "lucide-react";
-import Spinner from "../../components/Spinner";
+import Skeleton, { SkeletonText } from "../../components/Skeleton";
+import EmptyState from "../../components/EmptyState";
+import { formatKES } from "../../utils/money";
 import StatCard from "../components/StatCard";
 
-const fmt = (n) =>
-  `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+const fmt = (n) => formatKES(n);
 // Full figures (no K abbreviation) — e.g. 2,000,000, not 2.0K. Used by the
 // KPI cards and the revenue-trend Y-axis.
 const fmtK = (n) =>
@@ -89,7 +90,31 @@ function PlatformReports() {
   if (loading) {
     return (
       <PlatformLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
+            <div>
+              <Skeleton className="h-8 w-64 mb-2" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+                <Skeleton className="h-3 w-20 mb-3" />
+                <Skeleton className="h-7 w-28 mb-2" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ))}
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 mb-4">
+            <Skeleton className="h-5 w-56 mb-3" />
+            <Skeleton className="h-[300px] w-full rounded-lg" />
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+            <Skeleton className="h-5 w-40 mb-3" />
+            <SkeletonText lines={5} />
+          </div>
+        </div>
       </PlatformLayout>
     );
   }
@@ -102,10 +127,10 @@ function PlatformReports() {
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-              <BarChart3 size={28} className="text-gray-700" /> Platform Analytics
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+              <BarChart3 size={28} className="text-gray-700 dark:text-slate-200" /> Platform Analytics
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-slate-400 mt-1">
               Performance for {periodLabel(period)}
             </p>
           </div>
@@ -114,7 +139,7 @@ function PlatformReports() {
             <button
               onClick={() => download("pdf")}
               disabled={!!downloading}
-              className="px-3 py-2 rounded-lg border-2 border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
             >
               {downloading === "pdf" ? "…" : <span className="inline-flex items-center gap-1"><Download size={14} /> PDF</span>}
             </button>
@@ -161,10 +186,10 @@ function PlatformReports() {
         </div>
 
         {/* Revenue trend */}
-        <div className="bg-white rounded-xl shadow-md p-4 mb-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 mb-4">
           <h3 className="font-bold mb-3 flex items-center gap-2"><Banknote size={18} /> Revenue Trend (Platform Fees)</h3>
           {revenueTrend.length === 0 ? (
-            <div className="h-[300px] flex items-center justify-center text-sm text-gray-400">
+            <div className="h-[300px] flex items-center justify-center text-sm text-gray-400 dark:text-slate-400">
               No invoice payments in this window
             </div>
           ) : (
@@ -186,16 +211,19 @@ function PlatformReports() {
         </div>
 
         {/* Leaderboard */}
-        <div className="bg-white rounded-xl shadow-md p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
           <h3 className="font-bold mb-3 flex items-center gap-2"><Trophy size={18} /> Tenant Leaderboard</h3>
           {leaderboard.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
-              No paying tenants yet
-            </div>
+            <EmptyState
+              icon={Trophy}
+              tone="muted"
+              title="No paying tenants yet"
+              description="Tenants appear here once they record loan activity in this period."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-slate-900">
                   <tr>
                     <th className="text-left p-2">#</th>
                     <th className="text-left p-2">Tenant</th>
@@ -210,8 +238,8 @@ function PlatformReports() {
                 </thead>
                 <tbody>
                   {leaderboard.map((t, i) => (
-                    <tr key={t.id} className="border-b hover:bg-gray-50">
-                      <td className="p-2 font-bold text-gray-400">{i + 1}</td>
+                    <tr key={t.id} className="border-b hover:bg-gray-50 dark:hover:bg-slate-700">
+                      <td className="p-2 font-bold text-gray-400 dark:text-slate-400">{i + 1}</td>
                       <td className="p-2">
                         <div className="flex items-center gap-2">
                           <div

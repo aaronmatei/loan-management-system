@@ -25,9 +25,9 @@ export default function WelfareExpensesPanel({ welfareId }) {
   useEffect(() => { load(); }, [welfareId]);
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
       <div className="bg-amber-50 px-5 py-3 border-b border-amber-100 flex items-center justify-between">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2"><Receipt size={18} className="text-amber-600" /> Expenses</h2>
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Receipt size={18} className="text-amber-600" /> Expenses</h2>
         <div className="flex items-center gap-4">
           <div className="text-right">
             <p className="text-xs text-amber-700/70">Total spent</p>
@@ -40,15 +40,15 @@ export default function WelfareExpensesPanel({ welfareId }) {
       </div>
 
       <div className="p-5">
-        <p className="text-xs text-slate-500 mb-3">Expenses are paid from the savings (monthly-contribution) pool. Pool balance: <span className="font-semibold">{money(poolBalance)}</span>.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Expenses are paid from the savings (monthly-contribution) pool. Pool balance: <span className="font-semibold">{money(poolBalance)}</span>.</p>
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
         ) : expenses.length === 0 ? (
-          <p className="text-sm text-slate-500">No expenses recorded yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No expenses recorded yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-4 py-2">Date</th>
                   <th className="text-left px-4 py-2">Description</th>
@@ -57,9 +57,9 @@ export default function WelfareExpensesPanel({ welfareId }) {
               </thead>
               <tbody>
                 {expenses.map((e) => (
-                  <tr key={e.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 text-slate-600">{fmt(e.txn_date)}</td>
-                    <td className="px-4 py-2 text-slate-800">{e.description}</td>
+                  <tr key={e.id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{fmt(e.txn_date)}</td>
+                    <td className="px-4 py-2 text-slate-800 dark:text-slate-100">{e.description}</td>
                     <td className="px-4 py-2 text-right font-semibold text-rose-600">− {money(e.amount)}</td>
                   </tr>
                 ))}
@@ -80,8 +80,8 @@ function ExpenseModal({ welfareId, poolBalance, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   const submit = async (e) => {
     e.preventDefault();
@@ -96,19 +96,19 @@ function ExpenseModal({ welfareId, poolBalance, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(ev) => ev.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">Record expense</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(ev) => ev.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Record expense</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
-          <p className="text-xs text-slate-500">Paid from the savings pool ({money(poolBalance)} available).</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Paid from the savings pool ({money(poolBalance)} available).</p>
           <div><label className={lbl}>Amount *</label><input type="number" value={form.amount} onChange={set("amount")} className={fld} autoFocus /></div>
           <div><label className={lbl}>Description *</label><input value={form.description} onChange={set("description")} placeholder="e.g. Bank charges, stationery" className={fld} /></div>
           <div><label className={lbl}>Date</label><input type="date" max={today} value={form.txn_date} onChange={set("txn_date")} className={fld} /></div>
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
             <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Record"}</button>
           </div>
         </form>

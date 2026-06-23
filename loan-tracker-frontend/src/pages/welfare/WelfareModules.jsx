@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { FileDown, FileSpreadsheet, Save } from "lucide-react";
+import { FileDown, FileSpreadsheet, Save, Inbox } from "lucide-react";
 import { useWelfare } from "../../context/WelfareContext";
 import { downloadFile } from "../../utils/bulkExport";
 import api from "../../services/api";
@@ -20,18 +20,20 @@ import WelfareSmsPanel from "../../components/WelfareSmsPanel";
 import MemberLoanProductsPanel from "../../components/MemberLoanProductsPanel";
 import WelfareLoansPanel from "../../components/WelfareLoansPanel";
 import PermissionGate from "../../components/PermissionGate";
+import PageHeader from "../../components/PageHeader";
+import EmptyState from "../../components/EmptyState";
+import Skeleton from "../../components/Skeleton";
+import { formatKES } from "../../utils/money";
 
-const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Welfare module figures keep 2-dp precision; delegate to the shared formatter.
+const money = (v) => formatKES(v, 2);
 
-// Standard page wrapper: the welfare name as a small kicker + the module title.
+// Standard page wrapper: the welfare name as context + the module title.
 function Page({ title, children }) {
   const { welfare } = useWelfare();
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
-      <div className="mb-6">
-        <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wide">{welfare.name}</p>
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">{title}</h1>
-      </div>
+      <PageHeader title={title} subtitle={welfare.name} />
       {children}
     </div>
   );
@@ -118,19 +120,37 @@ export function WelfareReportsPage() {
 
   return (
     <Page title="Reports & Statements">
-      <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="font-bold text-slate-900">Member statements</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+          <h2 className="font-bold text-slate-900 dark:text-slate-100">Member statements</h2>
           <div className="flex gap-2">
-            <button onClick={() => doExport("pdf")} disabled={!!busy} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={14} /> {busy === "pdf" ? "…" : "Statement PDF"}</button>
-            <button onClick={() => doExport("csv")} disabled={!!busy} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileSpreadsheet size={14} /> {busy === "csv" ? "…" : "Members CSV"}</button>
+            <button onClick={() => doExport("pdf")} disabled={!!busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={14} /> {busy === "pdf" ? "…" : "Statement PDF"}</button>
+            <button onClick={() => doExport("csv")} disabled={!!busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileSpreadsheet size={14} /> {busy === "csv" ? "…" : "Members CSV"}</button>
           </div>
         </div>
         <div className="p-5">
-          {loading ? <p className="text-sm text-slate-500">Loading…</p> : rows.length === 0 ? <p className="text-sm text-slate-500">No members yet.</p> : (
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between gap-4">
+                  <Skeleton className="h-4 w-40" />
+                  <div className="flex gap-6">
+                    {Array.from({ length: 6 }).map((__, j) => <Skeleton key={j} className="h-4 w-16" />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={FileDown}
+              title="No members yet"
+              description="Member statements appear here once people join this welfare. Add members to start building their savings, contributions and loan history."
+              tone="muted"
+            />
+          ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                   <tr>
                     <th className="text-left px-3 py-2">Member</th>
                     <th className="text-right px-3 py-2">Savings</th>
@@ -143,8 +163,8 @@ export function WelfareReportsPage() {
                 </thead>
                 <tbody>
                   {rows.map((m) => (
-                    <tr key={m.member_id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" />{m.status === "inactive" && <span className="ml-1 text-xs text-slate-400">(exited)</span>}</td>
+                    <tr key={m.member_id} className="border-t border-slate-100 dark:border-slate-700">
+                      <td className="px-3 py-2 text-slate-800 dark:text-slate-100">{m.name} <span className="text-slate-400 dark:text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" />{m.status === "inactive" && <span className="ml-1 text-xs text-slate-400 dark:text-slate-400">(exited)</span>}</td>
                       <td className="px-3 py-2 text-right">{money(m.savings)}</td>
                       <td className="px-3 py-2 text-right">{money(m.contributions)}</td>
                       <td className="px-3 py-2 text-right">{money(m.dividends)}</td>
@@ -192,16 +212,25 @@ export function WelfareSettingsPage() {
     finally { setBusy(false); }
   };
 
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <Page title="Settings">
-      <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl">
-        <h2 className="font-bold text-slate-900 mb-1">Contribution & grace defaults</h2>
-        <p className="text-sm text-slate-500 mb-5">These pre-fill new contribution cycles and set the grace before late penalties accrue.</p>
-        {!form ? <p className="text-sm text-slate-500">Loading…</p> : (
-          <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit settings.</p>}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl">
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Contribution & grace defaults</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">These pre-fill new contribution cycles and set the grace before late penalties accrue.</p>
+        {!form ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500 dark:text-slate-400">You don't have permission to edit settings.</p>}>
             <form onSubmit={save} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -255,19 +284,19 @@ function LoansSwitchCard({ welfareId, on, onChange }) {
     } catch (err) { alert(err.response?.data?.error || "Failed to save"); setBusy(false); }
   };
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl mt-6">
-      <h2 className="font-bold text-slate-900 mb-1">Loans</h2>
-      <p className="text-sm text-slate-500 mb-5">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
+      <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Loans</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
         Turn the chama's loan feature on or off. When OFF, everything about loans is hidden from
         admins and members and no new loans can be created. When ON, choose who you lend to below.
       </p>
-      <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit this.</p>}>
+      <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500 dark:text-slate-400">You don't have permission to edit this.</p>}>
         <div className="flex items-center gap-3">
           <button type="button" disabled={busy} onClick={() => toggle(!on)} aria-pressed={on}
             className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50 ${on ? "bg-emerald-600" : "bg-slate-300"}`}>
             <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${on ? "translate-x-6" : "translate-x-1"}`} />
           </button>
-          <span className="text-sm font-semibold text-slate-700">{busy ? "Saving…" : on ? "Loans are ON" : "Loans are OFF"}</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{busy ? "Saving…" : on ? "Loans are ON" : "Loans are OFF"}</span>
         </div>
       </PermissionGate>
     </div>
@@ -315,23 +344,23 @@ function LoanPolicyCard({ welfareId }) {
     } catch (err) { alert(err.response?.data?.error || "Failed to save"); } finally { setBusy(false); }
   };
 
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl mt-6">
-      <h2 className="font-bold text-slate-900 mb-1">Loan policy</h2>
-      <p className="text-sm text-slate-500 mb-5">Default terms applied to every new loan and loan product. You can still override them per loan. The processing fee is deducted from what the borrower receives — they repay the full principal plus interest.</p>
-      <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit this.</p>}>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
+      <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Loan policy</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Default terms applied to every new loan and loan product. You can still override them per loan. The processing fee is deducted from what the borrower receives — they repay the full principal plus interest.</p>
+      <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500 dark:text-slate-400">You don't have permission to edit this.</p>}>
         <form onSubmit={save} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className={lbl}>Annual interest rate (%)</label><input type="number" min="0" step="0.01" value={p.default_loan_interest_rate} onChange={(e) => onAnnual(e.target.value)} className={fld} /><p className="text-xs text-gray-500 mt-1">e.g. 24 = 24% p.a.</p></div>
-            <div><label className={lbl}>Monthly interest rate (%)</label><input type="number" min="0" step="0.01" value={p.monthly} onChange={(e) => onMonthly(e.target.value)} className={fld} /><p className="text-xs text-gray-500 mt-1">Syncs with annual (÷ 12).</p></div>
+            <div><label className={lbl}>Annual interest rate (%)</label><input type="number" min="0" step="0.01" value={p.default_loan_interest_rate} onChange={(e) => onAnnual(e.target.value)} className={fld} /><p className="text-xs text-gray-500 dark:text-slate-400 mt-1">e.g. 24 = 24% p.a.</p></div>
+            <div><label className={lbl}>Monthly interest rate (%)</label><input type="number" min="0" step="0.01" value={p.monthly} onChange={(e) => onMonthly(e.target.value)} className={fld} /><p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Syncs with annual (÷ 12).</p></div>
             <div><label className={lbl}>Interest method</label><select value={p.default_loan_interest_method} onChange={(e) => setP({ ...p, default_loan_interest_method: e.target.value })} className={fld}><option value="flat">Flat</option><option value="reducing">Reducing balance</option></select></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className={lbl}>Processing fee (%)</label><input type="number" min="0" max="100" step="0.01" value={p.default_loan_processing_fee_rate} onChange={(e) => setP({ ...p, default_loan_processing_fee_rate: e.target.value })} className={fld} /><p className="text-xs text-gray-500 mt-1">Deducted upfront (0 = none).</p></div>
-            <div><label className={lbl}>Late fee (KES)</label><input type="number" min="0" step="1" value={p.default_loan_late_fee} onChange={(e) => setP({ ...p, default_loan_late_fee: e.target.value })} className={fld} /><p className="text-xs text-gray-500 mt-1">Flat fee on a missed instalment.</p></div>
-            <div><label className={lbl}>Penalty rate (%)</label><input type="number" min="0" step="0.001" value={p.default_loan_penalty_rate} onChange={(e) => setP({ ...p, default_loan_penalty_rate: e.target.value })} className={fld} /><p className="text-xs text-gray-500 mt-1">Per period on overdue balance.</p></div>
+            <div><label className={lbl}>Processing fee (%)</label><input type="number" min="0" max="100" step="0.01" value={p.default_loan_processing_fee_rate} onChange={(e) => setP({ ...p, default_loan_processing_fee_rate: e.target.value })} className={fld} /><p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Deducted upfront (0 = none).</p></div>
+            <div><label className={lbl}>Late fee (KES)</label><input type="number" min="0" step="1" value={p.default_loan_late_fee} onChange={(e) => setP({ ...p, default_loan_late_fee: e.target.value })} className={fld} /><p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Flat fee on a missed instalment.</p></div>
+            <div><label className={lbl}>Penalty rate (%)</label><input type="number" min="0" step="0.001" value={p.default_loan_penalty_rate} onChange={(e) => setP({ ...p, default_loan_penalty_rate: e.target.value })} className={fld} /><p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Per period on overdue balance.</p></div>
           </div>
           <div className="flex items-center gap-3">
             <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save loan policy"}</button>
@@ -369,15 +398,20 @@ function NonMemberLendingCard() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 max-w-2xl mt-6">
-      <h2 className="font-bold text-slate-900 mb-1">Lending to non-members</h2>
-      <p className="text-sm text-slate-500 mb-5">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
+      <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Lending to non-members</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
         Most chamas lend only to their own members. Turn this on if you also lend
         to outsiders — your welfare will then appear to borrowers in the public
         lender directory so they can request a loan.
       </p>
-      {enabled === null ? <p className="text-sm text-slate-500">Loading…</p> : (
-        <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit this.</p>}>
+      {enabled === null ? (
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-7 w-12 rounded-full" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+      ) : (
+        <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500 dark:text-slate-400">You don't have permission to edit this.</p>}>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -388,7 +422,7 @@ function NonMemberLendingCard() {
             >
               <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${enabled ? "translate-x-6" : "translate-x-1"}`} />
             </button>
-            <span className="text-sm font-semibold text-slate-700">{enabled ? "Lending to non-members is ON" : "Members only"}</span>
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{enabled ? "Lending to non-members is ON" : "Members only"}</span>
             {saved && <span className="text-sm text-emerald-600 font-semibold">Saved.</span>}
           </div>
         </PermissionGate>
@@ -460,15 +494,15 @@ export function WelfareRequestsPage() {
   };
 
   const Row = ({ kind, r, amount, extra }) => (
-    <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 last:border-0">
+    <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-700 last:border-0">
       <div>
-        <p className="font-semibold text-slate-800">{r.first_name} {r.last_name} <span className="font-mono text-xs text-slate-400">{r.member_no}</span></p>
-        <p className="text-sm text-slate-500">{money(amount)}{extra ? ` · ${extra}` : ""}</p>
+        <p className="font-semibold text-slate-800 dark:text-slate-100">{r.first_name} {r.last_name} <span className="font-mono text-xs text-slate-400 dark:text-slate-400">{r.member_no}</span></p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{money(amount)}{extra ? ` · ${extra}` : ""}</p>
       </div>
       <PermissionGate role={["admin", "manager"]}>
         <div className="flex gap-2">
           <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "approve")} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">Approve</button>
-          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "reject")} className="px-3 py-1.5 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold disabled:opacity-50">Reject</button>
+          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "reject")} className="px-3 py-1.5 bg-white dark:bg-slate-800 border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold disabled:opacity-50">Reject</button>
         </div>
       </PermissionGate>
     </div>
@@ -476,12 +510,26 @@ export function WelfareRequestsPage() {
 
   return (
     <Page title="Requests">
-      {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
+      {loading ? (
+        <div className="space-y-6 max-w-3xl">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+              <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><Skeleton className="h-4 w-44" /></div>
+              {Array.from({ length: 2 }).map((__, j) => (
+                <div key={j} className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                  <div className="space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-56" /></div>
+                  <Skeleton className="h-8 w-32" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
         <div className="space-y-6 max-w-3xl">
           {welfare?.loans_enabled && (
-            <div className="bg-white rounded-xl shadow-md border border-slate-100">
-              <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Loan requests ({loans.length})</h2></div>
-              {loans.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending loan requests.</p> :
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+              <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Loan requests ({loans.length})</h2></div>
+              {loans.length === 0 ? <div className="p-5"><EmptyState icon={Inbox} title="No pending loan requests" description="When a member asks for a loan from the pool, it lands here for an officer to approve or reject." tone="muted" /></div> :
                 loans.map((r) => <Row key={r.id} kind="loans" r={r} amount={r.principal} extra={[
                   `${r.duration_months} mo`,
                   r.interest_rate != null && r.interest_rate !== "" ? `${Number(r.interest_rate)}% p.a. (${(Number(r.interest_rate) / 12).toFixed(2)}%/mo) ${r.interest_method || "flat"}` : "rate set on approval",
@@ -490,14 +538,14 @@ export function WelfareRequestsPage() {
                 ].filter(Boolean).join(" · ")} />)}
             </div>
           )}
-          <div className="bg-white rounded-xl shadow-md border border-slate-100">
-            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Withdrawal requests ({withdrawals.length})</h2></div>
-            {withdrawals.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending withdrawal requests.</p> :
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Withdrawal requests ({withdrawals.length})</h2></div>
+            {withdrawals.length === 0 ? <div className="p-5"><EmptyState icon={Inbox} title="No pending withdrawal requests" description="Members' savings-withdrawal requests appear here for an officer to approve or reject." tone="muted" /></div> :
               withdrawals.map((r) => <Row key={r.id} kind="withdrawals" r={r} amount={r.amount} extra={r.reason} />)}
           </div>
-          <div className="bg-white rounded-xl shadow-md border border-slate-100">
-            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Event requests ({events.length})</h2></div>
-            {events.length === 0 ? <p className="px-5 py-8 text-center text-slate-500">No pending event requests.</p> :
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Event requests ({events.length})</h2></div>
+            {events.length === 0 ? <div className="p-5"><EmptyState icon={Inbox} title="No pending event requests" description="Members' event and emergency payout requests appear here for an officer to approve or reject." tone="muted" /></div> :
               events.map((r) => <Row key={r.id} kind="events" r={r} amount={r.amount} extra={[r.event_date ? `needed ${new Date(r.event_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}` : null, r.reason].filter(Boolean).join(" · ")} />)}
           </div>
         </div>

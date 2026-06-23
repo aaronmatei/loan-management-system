@@ -14,7 +14,9 @@ import {
 import api from "../services/api";
 import { getRoleBadge } from "../utils/permissions";
 import { apiErrorMessage } from "../utils/apiError";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -145,65 +147,95 @@ function UserManagement() {
     }
   };
 
-  if (loading) return <Spinner centered className="py-20" label="Loading users…" />;
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <div className="mb-6">
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="h-4 w-80 mt-3" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-8 w-12 mt-3" />
+              <Skeleton className="h-3 w-16 mt-2" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 space-y-4">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center justify-between gap-4">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const roleStats = ["admin", "manager", "loan_officer", "viewer"];
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <Users size={28} /> User Management
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Manage staff access and permissions
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
-        >
-          + Add User
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {["admin", "manager", "loan_officer", "viewer"].map((role) => {
-          const count = users.filter(
-            (u) => u.role === role && u.is_active,
-          ).length;
-          const badge = getRoleBadge(role);
-          return (
-            <div key={role} className="bg-white rounded-xl shadow-md p-6">
-              <p className="text-sm text-gray-500 uppercase">{badge.label}</p>
-              <p className="text-3xl font-bold text-gray-800 mt-2">{count}</p>
-              <p className="text-xs text-gray-500 mt-1">Active users</p>
-            </div>
-          );
-        })}
-      </div>
+      <PageHeader
+        icon={Users}
+        title="User Management"
+        subtitle="Manage staff access and permissions"
+        kpis={roleStats.map((role) => ({
+          label: getRoleBadge(role).label,
+          value: users.filter((u) => u.role === role && u.is_active).length,
+          hint: "Active users",
+        }))}
+        actions={
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+          >
+            + Add User
+          </button>
+        }
+      />
 
       {/* Users Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      {users.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No users yet"
+          description="Invite your first staff member to give them access to the app."
+          action={
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+            >
+              + Add User
+            </button>
+          }
+        />
+      ) : (
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b-2 border-gray-200">
+          <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                 User
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                 Role
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                 Phone
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                 Last Login
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                 Actions
               </th>
             </tr>
@@ -214,13 +246,13 @@ function UserManagement() {
               return (
                 <tr
                   key={user.id}
-                  className="border-b border-gray-100 hover:bg-gray-50"
+                  className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
                 >
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-gray-800">
+                    <p className="font-semibold text-gray-800 dark:text-slate-100">
                       {user.first_name} {user.last_name}
                     </p>
-                    <p className="text-sm text-gray-500">{user.email}</p>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">{user.email}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -229,10 +261,10 @@ function UserManagement() {
                       {badge.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">
+                  <td className="px-4 py-3 text-gray-700 dark:text-slate-200">
                     {user.phone_number || "-"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                     {user.last_login
                       ? new Date(user.last_login).toLocaleString("en-GB")
                       : "Never"}
@@ -298,11 +330,12 @@ function UserManagement() {
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Add User Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full">
             <h3 className="text-2xl font-bold mb-6">Add New User</h3>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -317,7 +350,7 @@ function UserManagement() {
                       setFormData({ ...formData, first_name: e.target.value })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -331,7 +364,7 @@ function UserManagement() {
                       setFormData({ ...formData, last_name: e.target.value })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -375,13 +408,13 @@ function UserManagement() {
                     }
                     required
                     minLength="12"
-                    className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 pr-10 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCreatePwd((s) => !s)}
                     aria-label={showCreatePwd ? "Hide password" : "Show password"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                   >
                     {showCreatePwd ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -403,11 +436,11 @@ function UserManagement() {
                     }
                     required
                     minLength="12"
-                    className={`w-full px-3 py-2 pr-10 border-2 rounded-lg focus:outline-none ${
+                    className={`w-full px-3 py-2 pr-10 border-2 rounded-lg focus:outline-none dark:bg-slate-900 dark:text-slate-100 ${
                       formData.confirm_password &&
                       formData.confirm_password !== formData.password
                         ? "border-rose-300 focus:border-rose-500"
-                        : "border-gray-200 focus:border-ocean-500"
+                        : "border-gray-200 dark:border-slate-600 focus:border-ocean-500"
                     }`}
                   />
                   <button
@@ -416,7 +449,7 @@ function UserManagement() {
                     aria-label={
                       showCreateConfirm ? "Hide password" : "Show password"
                     }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                   >
                     {showCreateConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -438,14 +471,14 @@ function UserManagement() {
                     setFormData({ ...formData, role: e.target.value })
                   }
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="loan_officer">Loan Officer</option>
                   <option value="manager">Manager</option>
                   <option value="viewer">Viewer</option>
                   <option value="admin">Admin</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   {formData.role === "admin" && (
                     <span className="inline-flex items-center gap-1">
                       <AlertTriangle size={12} /> Admin has full access including user management
@@ -460,7 +493,7 @@ function UserManagement() {
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
@@ -484,7 +517,7 @@ function UserManagement() {
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full">
             <h3 className="text-2xl font-bold mb-6">
               Edit User: {selectedUser.email}
             </h3>
@@ -500,7 +533,7 @@ function UserManagement() {
                     onChange={(e) =>
                       setEditData({ ...editData, first_name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -513,7 +546,7 @@ function UserManagement() {
                     onChange={(e) =>
                       setEditData({ ...editData, last_name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -537,7 +570,7 @@ function UserManagement() {
                   onChange={(e) =>
                     setEditData({ ...editData, role: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="loan_officer">Loan Officer</option>
                   <option value="manager">Manager</option>
@@ -546,7 +579,7 @@ function UserManagement() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
@@ -570,9 +603,9 @@ function UserManagement() {
       {/* Reset Password Modal */}
       {showPasswordModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-md w-full">
             <h3 className="text-2xl font-bold mb-2">Reset Password</h3>
-            <p className="text-gray-600 mb-4">For: {selectedUser.email}</p>
+            <p className="text-gray-600 dark:text-slate-400 mb-4">For: {selectedUser.email}</p>
             <form onSubmit={handleResetPassword}>
               <div className="mb-4">
                 <label className="block text-sm font-semibold mb-1">
@@ -586,18 +619,18 @@ function UserManagement() {
                     required
                     minLength="12"
                     placeholder="Min 12 chars, 1 uppercase, 1 number, 1 symbol"
-                    className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 pr-10 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowResetPwd((s) => !s)}
                     aria-label={showResetPwd ? "Hide password" : "Show password"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                   >
                     {showResetPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Click the eye to reveal · share with the user securely
                 </p>
               </div>

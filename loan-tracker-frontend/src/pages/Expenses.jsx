@@ -29,14 +29,16 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "../components/PermissionGate";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 import PeriodNavigator, {
   periodToRange,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
 
-const fmt = (n) =>
-  `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+const fmt = (n) => formatKES(n);
 const today = () => new Date().toISOString().split("T")[0];
 const ymd = (v) =>
   v ? new Date(v).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -263,8 +265,23 @@ function Expenses() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-stone-100 p-12">
-          <Spinner centered label="Loading expenses…" />
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3 mb-6">
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-11 w-11 rounded-2xl" />
+            <div>
+              <Skeleton className="h-8 w-56 mb-2" />
+              <Skeleton className="h-4 w-80" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-40 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-6">
+          <SkeletonText lines={6} />
         </div>
       </div>
     );
@@ -273,42 +290,34 @@ function Expenses() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* ── Editorial header ────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-10">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl lg:text-5xl font-bold text-stone-900 tracking-tight">
-            Expenses{" "}
-            <span className="font-serif italic font-medium text-amber-700">
-              &amp; Billing
-            </span>
-          </h1>
-          <p className="text-stone-500 mt-3 leading-relaxed">
-            The other side of the books — salaries, transport, transaction fees,
-            and the platform invoices you settle each month. Every shilling out
-            that isn't a loan disbursement.
-          </p>
-        </div>
-        <div className="flex gap-3 shrink-0">
-          <button
-            onClick={() => fetchAll({ silent: true })}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-stone-200 text-stone-700 font-semibold rounded-xl hover:bg-stone-50 transition disabled:opacity-50"
-          >
-            <RefreshCcw
-              size={16}
-              className={refreshing ? "animate-spin" : ""}
-            />
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
-          <PermissionGate role={["admin", "manager"]}>
+      <PageHeader
+        icon={Receipt}
+        title="Expenses & Billing"
+        subtitle="The other side of the books — salaries, transport, transaction fees, and the platform invoices you settle each month. Every shilling out that isn't a loan disbursement."
+        actions={
+          <>
             <button
-              onClick={openAdd}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-800 text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
+              onClick={() => fetchAll({ silent: true })}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-stone-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
             >
-              <Plus size={16} /> Record Expense
+              <RefreshCcw
+                size={16}
+                className={refreshing ? "animate-spin" : ""}
+              />
+              {refreshing ? "Refreshing…" : "Refresh"}
             </button>
-          </PermissionGate>
-        </div>
-      </div>
+            <PermissionGate role={["admin", "manager"]}>
+              <button
+                onClick={openAdd}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-800 text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
+              >
+                <Plus size={16} /> Record Expense
+              </button>
+            </PermissionGate>
+          </>
+        }
+      />
 
       {/* ── Stat cards — sunset-to-earth palette (amber → stone) ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
@@ -386,14 +395,14 @@ function Expenses() {
       </div>
 
       {/* ── Quick actions ──────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 mb-8">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-6 mb-8">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
             <Sparkles size={18} className="text-amber-600" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-stone-900">Quick actions</h2>
-            <p className="text-xs text-stone-500">
+            <h2 className="text-lg font-bold text-stone-900 dark:text-slate-100">Quick actions</h2>
+            <p className="text-xs text-stone-500 dark:text-slate-400">
               Record outflows, manage categories, settle platform billing.
             </p>
           </div>
@@ -475,34 +484,34 @@ function Expenses() {
       </div>
 
       {/* ── Filters ────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-5 mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-5 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="lg:col-span-2">
-            <label className="block text-xs font-semibold text-stone-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase mb-1">
               Search
             </label>
             <div className="relative">
               <Search
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-slate-400 pointer-events-none"
               />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Description, reference, category…"
-                className="w-full pl-9 pr-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                className="w-full pl-9 pr-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none"
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase mb-1">
               Category
             </label>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+              className="w-full px-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
             >
               <option value="all">All categories</option>
               {categories
@@ -521,15 +530,15 @@ function Expenses() {
               columns to keep the filter row balanced (Search 2 +
               Category 1 + Period 2 = 5). */}
           <div className="lg:col-span-2">
-            <label className="block text-xs font-semibold text-stone-600 uppercase mb-1">
+            <label className="block text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase mb-1">
               Period
             </label>
             <PeriodNavigator value={period} onChange={setPeriod} />
           </div>
         </div>
-        <div className="flex items-center justify-between flex-wrap gap-3 mt-3 pt-3 border-t border-stone-100">
+        <div className="flex items-center justify-between flex-wrap gap-3 mt-3 pt-3 border-t border-stone-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-stone-600 uppercase">
+            <span className="text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
               Recurring
             </span>
             {["all", "yes", "no"].map((v) => (
@@ -539,7 +548,7 @@ function Expenses() {
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
                   recurringFilter === v
                     ? "bg-amber-600 text-white"
-                    : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    : "bg-stone-100 dark:bg-slate-700 text-stone-600 dark:text-slate-200 hover:bg-stone-200 dark:hover:bg-slate-700"
                 }`}
               >
                 {v === "all" ? "All" : v === "yes" ? "Recurring" : "One-off"}
@@ -549,7 +558,7 @@ function Expenses() {
           {filtersActive && (
             <button
               onClick={clearFilters}
-              className="inline-flex items-center gap-1 text-sm text-stone-600 hover:text-stone-800"
+              className="inline-flex items-center gap-1 text-sm text-stone-600 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200"
             >
               <X size={14} /> Clear filters
             </button>
@@ -558,30 +567,30 @@ function Expenses() {
       </div>
 
       {/* ── Table ──────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 overflow-hidden">
         <div className="overflow-auto max-h-[calc(100vh-380px)]">
           <table className="w-full">
-            <thead className="bg-stone-50 border-b-2 border-stone-200 sticky top-0 z-10">
+            <thead className="bg-stone-50 dark:bg-slate-900 border-b-2 border-stone-200 dark:border-slate-700 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
                   Date
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
                   Category
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
                   Description
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-stone-600 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
                   Amount
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
                   Method
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
                   Recorded By
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-stone-600 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase">
                   Actions
                 </th>
               </tr>
@@ -589,33 +598,49 @@ function Expenses() {
             <tbody>
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="px-4 py-16 text-center text-stone-500"
-                  >
-                    {expenses.length === 0
-                      ? "No expenses recorded yet — click \"Record Expense\" to start the ledger."
-                      : "No expenses match your filters."}
+                  <td colSpan="7" className="px-4 py-10">
+                    {expenses.length === 0 ? (
+                      <EmptyState
+                        icon={Receipt}
+                        tone="muted"
+                        title="No expenses recorded yet"
+                        description="Record salaries, transport, transaction fees and other outflows to start the cash-out ledger."
+                        action={
+                          <PermissionGate role={["admin", "manager"]}>
+                            <button
+                              onClick={openAdd}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-800 text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition"
+                            >
+                              <Plus size={16} /> Record Expense
+                            </button>
+                          </PermissionGate>
+                        }
+                      />
+                    ) : (
+                      <p className="text-center text-stone-500 dark:text-slate-400">
+                        No expenses match your filters.
+                      </p>
+                    )}
                   </td>
                 </tr>
               ) : (
                 filteredExpenses.map((e) => (
                   <tr
                     key={e.id}
-                    className="border-b border-stone-100 hover:bg-stone-50/60 transition"
+                    className="border-b border-stone-100 dark:border-slate-700 hover:bg-stone-50/60 dark:hover:bg-slate-700 transition"
                   >
-                    <td className="px-4 py-3 text-sm text-stone-700">
+                    <td className="px-4 py-3 text-sm text-stone-700 dark:text-slate-200">
                       {ymd(e.expense_date)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="inline-flex items-center gap-2 flex-wrap">
-                        <Tag size={14} className="text-stone-400" />
-                        <span className="text-sm font-medium text-stone-900">
+                        <Tag size={14} className="text-stone-400 dark:text-slate-400" />
+                        <span className="text-sm font-medium text-stone-900 dark:text-slate-100">
                           {e.category_name || "—"}
                         </span>
                         {e.invoice_id && (
                           <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-200 text-stone-700"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-200 dark:bg-slate-700 text-stone-700 dark:text-slate-200"
                             title="Auto-imported from Platform Billing"
                           >
                             <Link2 size={10} /> Auto
@@ -632,10 +657,10 @@ function Expenses() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-stone-700 max-w-md">
+                    <td className="px-4 py-3 text-sm text-stone-700 dark:text-slate-200 max-w-md">
                       <p className="truncate">{e.description || "—"}</p>
                       {e.reference && (
-                        <p className="text-xs text-stone-400 font-mono">
+                        <p className="text-xs text-stone-400 dark:text-slate-400 font-mono">
                           Ref · {e.reference}
                         </p>
                       )}
@@ -645,10 +670,10 @@ function Expenses() {
                         − {fmt(e.amount)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-stone-600">
+                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-slate-400">
                       {e.payment_method || "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-stone-600">
+                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-slate-400">
                       {e.recorded_by_name || "—"}
                     </td>
                     <td className="px-4 py-3">
@@ -658,7 +683,7 @@ function Expenses() {
                           // to the Billing page where they can actually settle it.
                           <button
                             onClick={() => navigate("/billing")}
-                            className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition"
+                            className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-400 dark:text-slate-400 hover:text-stone-700 dark:hover:text-slate-200 transition"
                             title="Open the underlying invoice on Billing"
                           >
                             <Link2 size={14} />
@@ -668,7 +693,7 @@ function Expenses() {
                             <PermissionGate role={["admin", "manager"]}>
                               <button
                                 onClick={() => openEdit(e)}
-                                className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-600 hover:text-amber-700 transition"
+                                className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-600 dark:text-slate-400 hover:text-amber-700 transition"
                                 title="Edit"
                               >
                                 <Pencil size={14} />
@@ -677,7 +702,7 @@ function Expenses() {
                             <PermissionGate role="admin">
                               <button
                                 onClick={() => setShowDeleteId(e.id)}
-                                className="p-1.5 rounded-lg hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition"
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-stone-400 dark:text-slate-400 hover:text-rose-700 transition"
                                 title="Delete"
                               >
                                 <Trash2 size={14} />
@@ -692,11 +717,11 @@ function Expenses() {
               )}
             </tbody>
             {filteredExpenses.length > 0 && (
-              <tfoot className="bg-stone-50 border-t-2 border-stone-200">
+              <tfoot className="bg-stone-50 dark:bg-slate-900 border-t-2 border-stone-200 dark:border-slate-700">
                 <tr>
                   <td
                     colSpan="3"
-                    className="px-4 py-3 text-sm font-bold text-stone-800"
+                    className="px-4 py-3 text-sm font-bold text-stone-800 dark:text-slate-100"
                   >
                     TOTALS · {filteredExpenses.length} entr
                     {filteredExpenses.length === 1 ? "y" : "ies"}
@@ -717,16 +742,16 @@ function Expenses() {
       {/* ── Add/Edit Form Modal ────────────────────────────────── */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-2xl w-full my-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-2xl w-full my-8">
             <div className="flex justify-between items-start mb-5">
-              <h3 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
+              <h3 className="text-2xl font-bold text-stone-900 dark:text-slate-100 flex items-center gap-2">
                 {editing ? <Pencil size={22} /> : <Plus size={22} />}
                 {editing ? "Edit expense" : "Record expense"}
               </h3>
               <button
                 onClick={() => setShowForm(false)}
                 disabled={submitting}
-                className="text-stone-400 hover:text-stone-600"
+                className="text-stone-400 dark:text-slate-400 hover:text-stone-600 dark:hover:text-slate-200"
               >
                 <X size={22} />
               </button>
@@ -741,7 +766,7 @@ function Expenses() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-stone-700 mb-1">
+                  <label className="block text-sm font-semibold text-stone-700 dark:text-slate-200 mb-1">
                     Category *
                   </label>
                   <select
@@ -750,7 +775,7 @@ function Expenses() {
                     onChange={(e) =>
                       setForm({ ...form, category_id: e.target.value })
                     }
-                    className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
                   >
                     <option value="">Select a category…</option>
                     {categories
@@ -763,7 +788,7 @@ function Expenses() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-stone-700 mb-1">
+                  <label className="block text-sm font-semibold text-stone-700 dark:text-slate-200 mb-1">
                     Amount (KES) *
                   </label>
                   <input
@@ -776,7 +801,7 @@ function Expenses() {
                       setForm({ ...form, amount: e.target.value })
                     }
                     placeholder="e.g. 5000"
-                    className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -798,7 +823,7 @@ function Expenses() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-stone-700 mb-1">
+                  <label className="block text-sm font-semibold text-stone-700 dark:text-slate-200 mb-1">
                     Date *
                   </label>
                   <input
@@ -809,11 +834,11 @@ function Expenses() {
                       setForm({ ...form, expense_date: e.target.value })
                     }
                     max={today()}
-                    className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-stone-700 mb-1">
+                  <label className="block text-sm font-semibold text-stone-700 dark:text-slate-200 mb-1">
                     Payment Method
                   </label>
                   <select
@@ -821,7 +846,7 @@ function Expenses() {
                     onChange={(e) =>
                       setForm({ ...form, payment_method: e.target.value })
                     }
-                    className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
                   >
                     {PAYMENT_METHODS.map((m) => (
                       <option key={m} value={m}>
@@ -831,7 +856,7 @@ function Expenses() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-stone-700 mb-1">
+                  <label className="block text-sm font-semibold text-stone-700 dark:text-slate-200 mb-1">
                     Reference
                   </label>
                   <input
@@ -841,14 +866,14 @@ function Expenses() {
                       setForm({ ...form, reference: e.target.value })
                     }
                     placeholder="M-Pesa code, receipt #…"
-                    className="w-full px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="bg-stone-50 rounded-lg p-3">
+              <div className="bg-stone-50 dark:bg-slate-900 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <label className="text-sm font-semibold text-stone-700">
+                  <label className="text-sm font-semibold text-stone-700 dark:text-slate-200">
                     Recurring expense
                   </label>
                   <button
@@ -871,7 +896,7 @@ function Expenses() {
                 </div>
                 {form.is_recurring ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-stone-600">Repeats</span>
+                    <span className="text-sm text-stone-600 dark:text-slate-400">Repeats</span>
                     <select
                       value={form.recurrence_period}
                       onChange={(e) =>
@@ -880,7 +905,7 @@ function Expenses() {
                           recurrence_period: e.target.value,
                         })
                       }
-                      className="px-3 py-1 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white text-sm"
+                      className="px-3 py-1 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none bg-white text-sm"
                     >
                       {RECURRENCE_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -888,18 +913,18 @@ function Expenses() {
                         </option>
                       ))}
                     </select>
-                    <span className="text-xs text-stone-500">
+                    <span className="text-xs text-stone-500 dark:text-slate-400">
                       (tag only — each one still entered manually)
                     </span>
                   </div>
                 ) : (
-                  <p className="text-xs text-stone-500">
+                  <p className="text-xs text-stone-500 dark:text-slate-400">
                     One-off expense — won't be tagged for recurrence filters.
                   </p>
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-stone-100">
+              <div className="flex justify-end gap-3 pt-3 border-t border-stone-100 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
@@ -936,12 +961,12 @@ function Expenses() {
       {/* ── Delete Confirmation ────────────────────────────────── */}
       {showDeleteId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold text-stone-900 mb-2 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold text-stone-900 dark:text-slate-100 mb-2 flex items-center gap-2">
               <Trash2 size={20} className="text-rose-700" />
               Delete expense?
             </h3>
-            <p className="text-sm text-stone-600 mb-5">
+            <p className="text-sm text-stone-600 dark:text-slate-400 mb-5">
               This permanently removes the entry from the ledger. The capital
               pool isn't affected (Phase 2 will hook those up).
             </p>
@@ -1009,14 +1034,14 @@ function CategoriesModal({ categories, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-xl w-full my-8">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-xl w-full my-8">
         <div className="flex justify-between items-start mb-5">
-          <h3 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
+          <h3 className="text-2xl font-bold text-stone-900 dark:text-slate-100 flex items-center gap-2">
             <SettingsIcon size={22} /> Expense categories
           </h3>
           <button
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-600"
+            className="text-stone-400 dark:text-slate-400 hover:text-stone-600 dark:hover:text-slate-200"
           >
             <X size={22} />
           </button>
@@ -1030,14 +1055,14 @@ function CategoriesModal({ categories, onClose }) {
 
         <form
           onSubmit={addCustom}
-          className="flex gap-2 mb-5 pb-5 border-b border-stone-100"
+          className="flex gap-2 mb-5 pb-5 border-b border-stone-100 dark:border-slate-700"
         >
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Add a custom category…"
-            className="flex-1 px-3 py-2 border-2 border-stone-200 rounded-lg focus:border-amber-500 focus:outline-none"
+            className="flex-1 px-3 py-2 border-2 border-stone-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none"
           />
           <button
             type="submit"
@@ -1056,17 +1081,17 @@ function CategoriesModal({ categories, onClose }) {
               <div
                 key={c.id}
                 className={`flex items-center justify-between px-3 py-2 rounded-lg transition ${
-                  c.is_active ? "bg-stone-50" : "bg-stone-50/60 opacity-60"
+                  c.is_active ? "bg-stone-50 dark:bg-slate-900" : "bg-stone-50/60 dark:bg-slate-900 opacity-60"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Tag size={14} className="text-stone-400" />
-                  <span className="text-sm font-medium text-stone-900">
+                  <Tag size={14} className="text-stone-400 dark:text-slate-400" />
+                  <span className="text-sm font-medium text-stone-900 dark:text-slate-100">
                     {c.name}
                   </span>
                   {c.is_system ? (
                     <span
-                      className="px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 text-[10px] font-bold uppercase"
+                      className="px-2 py-0.5 rounded-full bg-stone-200 dark:bg-slate-700 text-stone-700 dark:text-slate-200 text-[10px] font-bold uppercase"
                       title="Auto-managed by LenderFest — populated from paid Platform Billing invoices"
                     >
                       Auto
@@ -1103,7 +1128,7 @@ function CategoriesModal({ categories, onClose }) {
             ))}
         </div>
 
-        <div className="flex justify-end gap-3 pt-5 mt-5 border-t border-stone-100">
+        <div className="flex justify-end gap-3 pt-5 mt-5 border-t border-stone-100 dark:border-slate-700">
           <button
             onClick={onClose}
             className="px-5 py-2 bg-stone-500 text-white font-semibold rounded-lg"

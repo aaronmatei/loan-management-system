@@ -10,7 +10,9 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import PromoCodesSection from "../components/PromoCodesSection";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
 
 // Refer & Earn dashboard. Every tenant has a deterministic referral
 // code stamped at signup (routes/tenants.js) and a credit balance
@@ -37,7 +39,20 @@ function Referrals() {
   };
 
   if (loading) {
-    return <Spinner centered className="py-20" label="Loading…" />;
+    return (
+      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+        <Skeleton className="h-9 w-56 mb-6" />
+        <Skeleton className="h-64 w-full mb-6" rounded="rounded-2xl" />
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full" rounded="rounded-xl" />
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <SkeletonText lines={4} />
+        </div>
+      </div>
+    );
   }
   if (!data) return null;
 
@@ -68,14 +83,11 @@ function Referrals() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <Gift size={28} /> Refer &amp; Earn
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Refer other lenders and earn free months
-          </p>
-        </div>
+        <PageHeader
+          icon={Gift}
+          title="Refer & Earn"
+          subtitle="Refer other lenders and earn free months"
+        />
 
         {/* Hero card with link + share */}
         <div className="bg-ocean-gradient text-white rounded-2xl shadow-xl p-6 lg:p-8 mb-6">
@@ -93,8 +105,8 @@ function Referrals() {
               <p className="text-xs text-ocean-200 uppercase mb-2">
                 Your Referral Link
               </p>
-              <div className="bg-white rounded-lg p-3 flex items-center gap-2">
-                <span className="flex-1 text-gray-800 text-sm font-mono truncate text-left">
+              <div className="bg-white dark:bg-slate-800 rounded-lg p-3 flex items-center gap-2">
+                <span className="flex-1 text-gray-800 dark:text-slate-100 text-sm font-mono truncate text-left">
                   {referralLink}
                 </span>
                 <button
@@ -125,21 +137,21 @@ function Referrals() {
 
         {/* Stat tiles */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-bold text-ocean-600">
               {data.stats?.total_referrals ?? 0}
             </p>
-            <p className="text-xs text-gray-500 uppercase">Total Referrals</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">Total Referrals</p>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-bold text-green-600">
               {data.stats?.qualified ?? 0}
             </p>
-            <p className="text-xs text-gray-500 uppercase">Qualified</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">Qualified</p>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-bold text-orange-600">{credits}</p>
-            <p className="text-xs text-gray-500 uppercase">Free Months</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">Free Months</p>
           </div>
         </div>
 
@@ -158,15 +170,15 @@ function Referrals() {
         )}
 
         {/* How it works */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <h3 className="font-bold text-lg mb-4">How It Works</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+          <h3 className="font-bold text-lg mb-4 dark:text-slate-100">How It Works</h3>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="w-12 h-12 mx-auto bg-ocean-100 text-ocean-600 rounded-full flex items-center justify-center text-xl font-bold mb-2">
                 1
               </div>
               <p className="font-semibold text-sm">Share Your Link</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
                 Send it to your customers via WhatsApp, SMS, or email
               </p>
             </div>
@@ -175,7 +187,7 @@ function Referrals() {
                 2
               </div>
               <p className="font-semibold text-sm">They Sign Up</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
                 Your customer creates a free borrower account
               </p>
             </div>
@@ -184,7 +196,7 @@ function Referrals() {
                 3
               </div>
               <p className="font-semibold text-sm">You Gain a Client</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
                 They're linked to you automatically and ready to borrow
               </p>
             </div>
@@ -195,25 +207,27 @@ function Referrals() {
         <PromoCodesSection />
 
         {/* Referral history */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="font-bold text-lg mb-4">Your Referrals</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <h3 className="font-bold text-lg mb-4 dark:text-slate-100">Your Referrals</h3>
           {data.referrals.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Mail size={40} className="mx-auto mb-2 text-gray-400" />
-              <p>No referrals yet. Share your link to start earning!</p>
-            </div>
+            <EmptyState
+              icon={Mail}
+              tone="muted"
+              title="No referrals yet"
+              description="Share your link to start earning free months."
+            />
           ) : (
             <div className="space-y-2">
               {data.referrals.map((ref, idx) => (
                 <div
                   key={idx}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                  className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-900 rounded-lg"
                 >
                   <div>
-                    <p className="font-semibold">
+                    <p className="font-semibold dark:text-slate-100">
                       {ref.referred_business_name}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
                       Signed up{" "}
                       {new Date(ref.signed_up_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>

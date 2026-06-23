@@ -16,10 +16,12 @@ import {
   RotateCcw,
 } from "lucide-react";
 import api from "../services/api";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
-const fmt = (n) =>
-  `KES ${parseFloat(n || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+const fmt = (n) => formatKES(n);
 
 const TABS = [
   {
@@ -177,26 +179,15 @@ function Waivers() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      {/* Editorial header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-8">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl lg:text-5xl font-bold text-navy-900 tracking-tight">
-            Waiver{" "}
-            <span className="font-serif italic font-medium text-emerald-700">
-              Approvals
-            </span>
-          </h1>
-          <p className="text-slate-500 mt-3 leading-relaxed">
-            Requests from loan officers and managers. Pending sits at the top
-            of the queue; Approved / Rejected / Reversed keep a full audit
-            trail of every decision.
-          </p>
-        </div>
-        <div className="flex gap-3 shrink-0">
+      <PageHeader
+        icon={HandCoins}
+        title="Waiver Approvals"
+        subtitle="Requests from loan officers and managers. Pending sits at the top of the queue; Approved / Rejected / Reversed keep a full audit trail of every decision."
+        actions={
           <button
             onClick={() => load({ silent: true })}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
           >
             <RefreshCcw
               size={16}
@@ -204,11 +195,11 @@ function Waivers() {
             />
             {refreshing ? "Refreshing…" : "Refresh"}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 mb-6">
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 dark:border-slate-700 mb-6">
         {TABS.map((t) => {
           const active = tab === t.key;
           const Icon = t.icon;
@@ -219,7 +210,7 @@ function Waivers() {
               className={`relative inline-flex items-center gap-2 px-4 py-2.5 -mb-px text-sm font-semibold transition border-b-2 ${
                 active
                   ? t.activeCls
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
               <Icon size={15} /> {t.label}
@@ -230,37 +221,37 @@ function Waivers() {
 
       {/* Single summary tile for the active tab */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             {TABS.find((t) => t.key === tab)?.label}
           </p>
-          <p className="text-3xl font-bold text-navy-900 mt-2">
+          <p className="text-3xl font-bold text-navy-900 dark:text-slate-100 mt-2">
             {currentTotal.count}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             waiver{currentTotal.count !== 1 ? "s" : ""}{" "}
             {tab === "pending" ? "awaiting review" : `(${tab})`}
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Total Amount
           </p>
           <p className="text-3xl font-bold text-emerald-700 mt-2">
             {fmt(currentTotal.total_amount)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             sum of {tab} waivers
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 bg-white p-5">
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+          <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Unique Loans
           </p>
-          <p className="text-3xl font-bold text-navy-900 mt-2">
+          <p className="text-3xl font-bold text-navy-900 dark:text-slate-100 mt-2">
             {new Set(rows.map((r) => r.loan_id)).size}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             different loans on this tab
           </p>
         </div>
@@ -268,27 +259,39 @@ function Waivers() {
 
       {/* List */}
       {loading ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12">
-          <Spinner centered label={`Loading ${tab} waivers…`} />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-8 w-40 mb-3" />
+              <SkeletonText lines={2} />
+            </div>
+          ))}
         </div>
       ) : rows.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-          <CheckCircle size={42} className="text-emerald-400 mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-slate-700">
-            {tab === "pending" ? "All caught up" : "Nothing here yet"}
-          </h3>
-          <p className="text-sm text-slate-500 mt-1">
-            {tab === "pending"
+        <EmptyState
+          icon={CheckCircle}
+          tone="muted"
+          title={tab === "pending" ? "All caught up" : "Nothing here yet"}
+          description={
+            tab === "pending"
               ? "No waiver requests pending review."
-              : `No ${tab} waivers on record.`}
-          </p>
-        </div>
+              : `No ${tab} waivers on record.`
+          }
+        />
       ) : (
         <div className="space-y-3">
           {rows.map((w) => (
             <div
               key={w.id}
-              className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5"
+              className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"
             >
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -299,11 +302,11 @@ function Waivers() {
                     >
                       {w.loan_code} <ArrowUpRight size={12} />
                     </button>
-                    <span className="text-slate-300">·</span>
-                    <span className="font-semibold text-navy-900">
+                    <span className="text-slate-300 dark:text-slate-400">·</span>
+                    <span className="font-semibold text-navy-900 dark:text-slate-100">
                       {w.first_name} {w.last_name}
                     </span>
-                    <span className="text-xs text-slate-500 font-mono">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                       {w.client_code}
                     </span>
                     {statusPill(w.status)}
@@ -312,21 +315,21 @@ function Waivers() {
                     <span
                       className={`font-bold text-2xl ${
                         w.status === "reversed"
-                          ? "text-slate-500 line-through"
+                          ? "text-slate-500 dark:text-slate-400 line-through"
                           : "text-emerald-700"
                       }`}
                     >
                       − {fmt(w.amount)}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold uppercase">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold uppercase">
                       {w.type}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm text-slate-700 dark:text-slate-200">
                     <strong>Reason:</strong> {w.reason}
                   </p>
                   {w.notes && (
-                    <p className="text-xs text-slate-500 mt-1 italic">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 italic">
                       "{w.notes}"
                     </p>
                   )}
@@ -336,11 +339,11 @@ function Waivers() {
                     </p>
                   )}
                   {w.reversal_reason && (
-                    <p className="text-xs text-slate-600 mt-1">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                       <strong>Reversed:</strong> {w.reversal_reason}
                     </p>
                   )}
-                  <p className="text-xs text-slate-500 mt-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                     Requested by{" "}
                     <strong>{w.requested_by_name || "—"}</strong> on{" "}
                     {new Date(w.requested_at).toLocaleString("en-KE")}
@@ -409,9 +412,9 @@ function Waivers() {
       {/* Approve / Reject / Reverse confirmation */}
       {actingOn && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <div className="flex justify-between items-start mb-3">
-              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                 {actingOn.mode === "approve" && (
                   <>
                     <CheckCircle size={20} className="text-emerald-700" />
@@ -434,13 +437,13 @@ function Waivers() {
               <button
                 onClick={closeModal}
                 disabled={busy}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
               {actingOn.mode === "approve" && (
                 <>
                   Applies{" "}
@@ -481,7 +484,7 @@ function Waivers() {
 
             {actingOn.mode === "reject" && (
               <>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Reason for rejection *
                 </label>
                 <textarea
@@ -489,7 +492,7 @@ function Waivers() {
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="e.g. Insufficient justification — please add documentation"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-rose-500 focus:outline-none mb-3"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-rose-500 focus:outline-none mb-3"
                   required
                 />
               </>
@@ -497,7 +500,7 @@ function Waivers() {
 
             {actingOn.mode === "reverse" && (
               <>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Reason for reversal *
                 </label>
                 <textarea
@@ -505,7 +508,7 @@ function Waivers() {
                   value={reverseReason}
                   onChange={(e) => setReverseReason(e.target.value)}
                   placeholder="e.g. Applied to wrong loan — reversing"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-rose-500 focus:outline-none mb-3"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-rose-500 focus:outline-none mb-3"
                   required
                 />
               </>

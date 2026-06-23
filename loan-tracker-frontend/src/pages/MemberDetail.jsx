@@ -7,7 +7,9 @@ import { useWelfare } from "../context/WelfareContext";
 import PermissionGate from "../components/PermissionGate";
 import MemberLoansPanel from "../components/MemberLoansPanel";
 import OfficerBadge from "../components/OfficerBadge";
-import Spinner from "../components/Spinner";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
 const TYPE_LABEL = {
   contribution: "Contribution",
@@ -70,7 +72,7 @@ export default function MemberDetail() {
     setExiting(true);
     try {
       const r = await api.post(`${base}/${memberId}/exit`, {});
-      alert(`Member exited. Paid out KES ${Number(r.data.payout || 0).toLocaleString()}.`);
+      alert(`Member exited. Paid out ${formatKES(r.data.payout)}.`);
       load();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to process exit");
@@ -102,12 +104,38 @@ export default function MemberDetail() {
     api.get(`${base}/${memberId}/activity?year=${year}`).then((a) => setActivity(a.data.data)).catch(() => {});
   }, [welfareId, memberId, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const money = (v) =>
-    "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (v) => formatKES(v);
   const fmt = (d) => new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" });
 
   if (loading) {
-    return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Loading member…" /></div></div>;
+    return (
+      <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+        <Skeleton className="h-5 w-32 mb-4" />
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex-1">
+            <Skeleton className="h-7 w-56" />
+            <Skeleton className="h-4 w-64 mt-3" />
+          </div>
+          <div>
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-32 mt-2" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {[0, 1].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-16 mt-2" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 space-y-3">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
+      </div>
+    );
   }
   if (error || !member) {
     return (
@@ -122,10 +150,10 @@ export default function MemberDetail() {
     <div className="p-4 lg:p-8 max-w-5xl mx-auto pb-24">
       <button onClick={() => navigate("/welfare/members")} className="mb-4 text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-2">← Back to Welfare</button>
 
-      <div className="bg-white rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><PiggyBank className="text-emerald-600" /> {member.first_name} {member.last_name} <OfficerBadge role={member.role} /></h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2"><PiggyBank className="text-emerald-600" /> {member.first_name} {member.last_name} <OfficerBadge role={member.role} /></h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             <span className="font-mono">{member.member_no}</span>
             {member.phone_number && <> · {member.phone_number}</>}
             {member.id_number && <> · ID {member.id_number}</>}
@@ -133,9 +161,9 @@ export default function MemberDetail() {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-500">Savings balance</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Savings balance</p>
           <p className="text-2xl font-bold text-emerald-700">{money(savings)}</p>
-          <button onClick={() => downloadFile(`/welfares/${welfareId}/reports/members/${memberId}/statement.pdf`, `${member.member_no}-statement.pdf`).catch(() => alert("Export failed."))} className="mt-1 text-xs text-slate-500 hover:text-slate-800 font-semibold inline-flex items-center gap-1">
+          <button onClick={() => downloadFile(`/welfares/${welfareId}/reports/members/${memberId}/statement.pdf`, `${member.member_no}-statement.pdf`).catch(() => alert("Export failed."))} className="mt-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-semibold inline-flex items-center gap-1">
             <FileDown size={13} /> Statement PDF
           </button>
         </div>
@@ -150,18 +178,18 @@ export default function MemberDetail() {
           <div className="flex flex-wrap gap-2 mb-6">
             <button onClick={() => setModal("contribution")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus size={16} /> Contribution</button>
             <PermissionGate role={["admin", "manager"]}>
-              <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
-              <button onClick={inviteToPortal} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="px-4 py-2 bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50"><Smartphone size={16} /> {inviting ? "Sending…" : portalLinked ? "Portal access ✓ — resend" : "Invite to portal"}</button>
-              <label className="inline-flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-700" title="Officers are normally elected; set directly here if needed.">
+              <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
+              <button onClick={inviteToPortal} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50"><Smartphone size={16} /> {inviting ? "Sending…" : portalLinked ? "Portal access ✓ — resend" : "Invite to portal"}</button>
+              <label className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200" title="Officers are normally elected; set directly here if needed.">
                 Role
-                <select value={member.role || "member"} onChange={(e) => changeRole(e.target.value)} className="bg-transparent outline-none cursor-pointer">
+                <select value={member.role || "member"} onChange={(e) => changeRole(e.target.value)} className="bg-transparent outline-none cursor-pointer dark:text-slate-100">
                   <option value="member">Member</option>
                   <option value="chair">Chair</option>
                   <option value="treasurer">Treasurer</option>
                   <option value="secretary">Secretary</option>
                 </select>
               </label>
-              <button onClick={exitMember} disabled={exiting} className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 ml-auto"><LogOut size={16} /> {exiting ? "Processing…" : "Exit member"}</button>
+              <button onClick={exitMember} disabled={exiting} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 ml-auto"><LogOut size={16} /> {exiting ? "Processing…" : "Exit member"}</button>
             </PermissionGate>
           </div>
         </PermissionGate>
@@ -173,14 +201,20 @@ export default function MemberDetail() {
         </MemberActivity>
       )}
 
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Activity</h2></div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Activity</h2></div>
         {txns.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No activity yet.</p>
+          <EmptyState
+            icon={PiggyBank}
+            tone="muted"
+            className="shadow-none"
+            title="No activity yet"
+            description="Contributions, withdrawals and dividends will appear here."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-5 py-2">Date</th>
                   <th className="text-left px-5 py-2">Type</th>
@@ -190,8 +224,8 @@ export default function MemberDetail() {
               </thead>
               <tbody>
                 {txns.map((tx) => (
-                  <tr key={tx.id} className="border-t border-slate-100">
-                    <td className="px-5 py-2 text-slate-600">{fmt(tx.txn_date)}</td>
+                  <tr key={tx.id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-5 py-2 text-slate-600 dark:text-slate-400">{fmt(tx.txn_date)}</td>
                     <td className="px-5 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tx.direction > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
                         {TYPE_LABEL[tx.type] || tx.type}
@@ -200,7 +234,7 @@ export default function MemberDetail() {
                     <td className={`px-5 py-2 text-right font-semibold ${tx.direction > 0 ? "text-emerald-700" : "text-red-600"}`}>
                       {tx.direction > 0 ? "+" : "−"}{money(tx.amount)}
                     </td>
-                    <td className="px-5 py-2 text-right text-slate-700">{money(tx.balance_after)}</td>
+                    <td className="px-5 py-2 text-right text-slate-700 dark:text-slate-200">{money(tx.balance_after)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -225,16 +259,16 @@ export default function MemberDetail() {
 
 const FINE_REASON = { contribution_late: "Late contribution", attendance_late: "Late to meeting", attendance_absent: "Absent", meeting_missed: "Absent", loan_late: "Late loan", manual: "Manual" };
 const Section = ({ title, children }) => (
-  <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-    <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">{title}</h2></div>
+  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden mb-6">
+    <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">{title}</h2></div>
     {children}
   </div>
 );
-const Empty = ({ children }) => <p className="p-5 text-sm text-slate-500">{children}</p>;
+const Empty = ({ children }) => <p className="p-5 text-sm text-slate-500 dark:text-slate-400">{children}</p>;
 const ActTable = ({ head, children }) => (
   <div className="overflow-x-auto max-h-96 overflow-y-auto">
     <table className="w-full text-sm">
-      <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0"><tr>{head.map((h, i) => <th key={i} className={`px-5 py-2 ${i >= 2 && i < head.length - 1 ? "text-right" : "text-left"}`}>{h}</th>)}</tr></thead>
+      <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase sticky top-0"><tr>{head.map((h, i) => <th key={i} className={`px-5 py-2 ${i >= 2 && i < head.length - 1 ? "text-right" : "text-left"}`}>{h}</th>)}</tr></thead>
       <tbody>{children}</tbody>
     </table>
   </div>
@@ -245,7 +279,7 @@ const pill = (cls, t) => <span className={`px-2 py-0.5 rounded-full text-xs font
 // Loans (year-independent) render via children, just before Contributions.
 function MemberActivity({ activity, year, setYear, money, fmt, children }) {
   const { contributions, fines, fines_outstanding, attendance } = activity;
-  const STAT = "bg-white rounded-xl shadow-md p-4";
+  const STAT = "bg-white dark:bg-slate-800 rounded-xl shadow-md p-4";
   const ASTATUS = { present: "bg-emerald-100 text-emerald-800", late: "bg-amber-100 text-amber-800", excused: "bg-sky-100 text-sky-800", absent: "bg-red-100 text-red-700" };
 
   // Group the member's cycles into ONE card per contribution (Monthly, Quarterly,
@@ -263,40 +297,40 @@ function MemberActivity({ activity, year, setYear, money, fmt, children }) {
   return (
     <>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => setYear((y) => y - 1)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><ChevronLeft size={16} /></button>
-        <span className="font-bold text-slate-800 w-16 text-center">{year}</span>
-        <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30"><ChevronRight size={16} /></button>
-        <span className="text-xs text-slate-400 ml-1">contributions, attendance &amp; fines for {year}</span>
+        <button onClick={() => setYear((y) => y - 1)} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"><ChevronLeft size={16} /></button>
+        <span className="font-bold text-slate-800 dark:text-slate-100 w-16 text-center">{year}</span>
+        <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30"><ChevronRight size={16} /></button>
+        <span className="text-xs text-slate-400 dark:text-slate-400 ml-1">contributions, attendance &amp; fines for {year}</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className={STAT}><p className="text-xs text-slate-500">Attendance</p><p className="text-xl font-bold text-sky-700">{attendance.rate == null ? "—" : `${attendance.rate}%`}</p><p className="text-xs text-slate-500">{attendance.attended}/{attendance.recorded} meetings &amp; events</p></div>
-        <div className={STAT}><p className="text-xs text-slate-500">Fines outstanding</p><p className={`text-xl font-bold ${fines_outstanding > 0 ? "text-rose-600" : "text-slate-700"}`}>{money(fines_outstanding)}</p><p className="text-xs text-slate-500">{fines.length} fine{fines.length === 1 ? "" : "s"} total</p></div>
+        <div className={STAT}><p className="text-xs text-slate-500 dark:text-slate-400">Attendance</p><p className="text-xl font-bold text-sky-700">{attendance.rate == null ? "—" : `${attendance.rate}%`}</p><p className="text-xs text-slate-500 dark:text-slate-400">{attendance.attended}/{attendance.recorded} meetings &amp; events</p></div>
+        <div className={STAT}><p className="text-xs text-slate-500 dark:text-slate-400">Fines outstanding</p><p className={`text-xl font-bold ${fines_outstanding > 0 ? "text-rose-600" : "text-slate-700 dark:text-slate-200"}`}>{money(fines_outstanding)}</p><p className="text-xs text-slate-500 dark:text-slate-400">{fines.length} fine{fines.length === 1 ? "" : "s"} total</p></div>
       </div>
 
       {children}
 
       <div className="mb-6">
-        <h2 className="font-bold text-slate-900 mb-3">Contributions</h2>
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-3">Contributions</h2>
         {cards.length === 0 ? (
-          <p className="text-sm text-slate-500 bg-white rounded-xl shadow-md p-5">No contributions in {year}.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">No contributions in {year}.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((g) => {
               const due = Math.max(0, g.expected - g.paid);
               const pct = g.expected > 0 ? Math.min(100, Math.round((g.paid / g.expected) * 100)) : 0;
               return (
-                <div key={g.name} className="bg-white rounded-xl shadow-md p-4">
+                <div key={g.name} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-slate-800 truncate">{g.name}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-100 truncate">{g.name}</span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold shrink-0">{g.oneoff ? "Emergency / one-off" : (FREQ_LABEL[g.frequency] || g.frequency)}</span>
                   </div>
-                  <p className="text-lg font-bold text-emerald-700 mt-2">{money(g.paid)} <span className="text-xs font-normal text-slate-400">/ {money(g.expected)}</span></p>
+                  <p className="text-lg font-bold text-emerald-700 mt-2">{money(g.paid)} <span className="text-xs font-normal text-slate-400 dark:text-slate-400">/ {money(g.expected)}</span></p>
                   <div className="flex items-center justify-between text-xs mt-1">
-                    <span className="text-slate-500">{g.paidCount}/{g.cycles} {g.cycles === 1 ? "paid" : "cycles paid"}</span>
+                    <span className="text-slate-500 dark:text-slate-400">{g.paidCount}/{g.cycles} {g.cycles === 1 ? "paid" : "cycles paid"}</span>
                     {due > 0 ? <span className="text-rose-600 font-semibold">{money(due)} due</span> : <span className="text-emerald-600 font-semibold">up to date</span>}
                   </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} /></div>
+                  <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full mt-2 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} /></div>
                 </div>
               );
             })}
@@ -308,10 +342,10 @@ function MemberActivity({ activity, year, setYear, money, fmt, children }) {
         {attendance.meetings.length === 0 ? <Empty>No meetings yet.</Empty> : (
           <ActTable head={["Meeting / Event", "Date", "Status"]}>
             {attendance.meetings.map((m) => (
-              <tr key={m.id} className="border-t border-slate-100">
-                <td className="px-5 py-2 text-slate-800">{m.title || "—"}</td>
-                <td className="px-5 py-2 text-slate-600">{fmt(m.meeting_date)}</td>
-                <td className="px-5 py-2">{m.status ? pill(ASTATUS[m.status] || "bg-slate-100 text-slate-600", m.status) : <span className="text-xs text-slate-400">not recorded</span>}</td>
+              <tr key={m.id} className="border-t border-slate-100 dark:border-slate-700">
+                <td className="px-5 py-2 text-slate-800 dark:text-slate-100">{m.title || "—"}</td>
+                <td className="px-5 py-2 text-slate-600 dark:text-slate-400">{fmt(m.meeting_date)}</td>
+                <td className="px-5 py-2">{m.status ? pill(ASTATUS[m.status] || "bg-slate-100 text-slate-600", m.status) : <span className="text-xs text-slate-400 dark:text-slate-400">not recorded</span>}</td>
               </tr>
             ))}
           </ActTable>
@@ -322,9 +356,9 @@ function MemberActivity({ activity, year, setYear, money, fmt, children }) {
         {fines.length === 0 ? <Empty>No fines. 🎉</Empty> : (
           <ActTable head={["For", "Reason", "Amount", "Status"]}>
             {fines.map((f) => (
-              <tr key={f.id} className="border-t border-slate-100">
-                <td className="px-5 py-2"><span className="text-slate-700">{f.source_label || "—"}</span> {f.source_kind && <span className="text-xs text-slate-400">({f.source_kind})</span>}</td>
-                <td className="px-5 py-2 text-slate-600">{FINE_REASON[f.trigger] || f.trigger}</td>
+              <tr key={f.id} className="border-t border-slate-100 dark:border-slate-700">
+                <td className="px-5 py-2"><span className="text-slate-700 dark:text-slate-200">{f.source_label || "—"}</span> {f.source_kind && <span className="text-xs text-slate-400 dark:text-slate-400">({f.source_kind})</span>}</td>
+                <td className="px-5 py-2 text-slate-600 dark:text-slate-400">{FINE_REASON[f.trigger] || f.trigger}</td>
                 <td className="px-5 py-2 text-right font-semibold">{money(f.amount)}</td>
                 <td className="px-5 py-2">{pill(f.status === "paid" ? "bg-emerald-100 text-emerald-800" : f.status === "waived" ? "bg-slate-200 text-slate-600" : "bg-rose-100 text-rose-700", f.status)}</td>
               </tr>
@@ -342,7 +376,7 @@ function TxnModal({ base, memberId, kind, max, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const isContribution = kind === "contribution";
-  const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE");
+  const money = (v) => formatKES(v);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -360,29 +394,29 @@ function TxnModal({ base, memberId, kind, max, onClose, onDone }) {
     }
   };
 
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{isContribution ? "Record Contribution" : "Record Withdrawal"}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{isContribution ? "Record Contribution" : "Record Withdrawal"}</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Amount{max != null && <span className="text-gray-500 font-normal"> (max {money(max)})</span>}
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+              Amount{max != null && <span className="text-gray-500 dark:text-slate-400 font-normal"> (max {money(max)})</span>}
             </label>
             <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={fld} autoFocus />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Notes</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Notes</label>
             <input value={notes} onChange={(e) => setNotes(e.target.value)} className={fld} />
           </div>
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
             <button type="submit" disabled={busy} className={`px-5 py-2 rounded-lg text-white font-semibold disabled:opacity-50 ${isContribution ? "bg-emerald-600 hover:bg-emerald-700" : "bg-slate-700 hover:bg-slate-800"}`}>
               {busy ? "Saving…" : "Save"}
             </button>

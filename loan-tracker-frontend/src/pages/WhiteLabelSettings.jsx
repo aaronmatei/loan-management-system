@@ -13,10 +13,12 @@ import {
   Info,
 } from "lucide-react";
 import api from "../services/api";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
 
 const fld =
-  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+  "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
 function WhiteLabelSettings() {
   const navigate = useNavigate();
@@ -49,7 +51,27 @@ function WhiteLabelSettings() {
   };
 
   if (loading)
-    return <Spinner centered className="py-20" label="Loading…" />;
+    return (
+      <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+        <PageHeader
+          icon={Palette}
+          title="White-Label Settings"
+          subtitle="Customize how your platform looks to customers"
+        />
+        <Skeleton className="h-28 w-full rounded-2xl mb-6" />
+        <div className="flex flex-wrap gap-2 mb-4">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-9 w-32" />
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6 space-y-4">
+          <Skeleton className="h-6 w-40" />
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      </div>
+    );
   if (!s) return null;
 
   const tier = s.white_label_tier || "basic";
@@ -68,14 +90,11 @@ function WhiteLabelSettings() {
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <Palette size={28} /> White-Label Settings
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Customize how your platform looks to customers
-        </p>
-      </div>
+      <PageHeader
+        icon={Palette}
+        title="White-Label Settings"
+        subtitle="Customize how your platform looks to customers"
+      />
 
       {/* Tier banner */}
       <div
@@ -133,8 +152,8 @@ function WhiteLabelSettings() {
                 tab === t.id
                   ? "bg-ocean-600 text-white"
                   : isLocked
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white text-gray-700 hover:bg-gray-100"
+                    ? "bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-slate-400 cursor-not-allowed"
+                    : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
             >
               {t.icon} {t.label} {isLocked && <Lock size={12} />}
@@ -143,11 +162,11 @@ function WhiteLabelSettings() {
         })}
       </div>
 
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6">
         {tab === "branding" && (
           <div className="space-y-4">
             <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><Palette size={20} /> Basic Branding</h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
               Available on every plan. Logo upload lives under Settings →
               Business Info.
             </p>
@@ -158,7 +177,7 @@ function WhiteLabelSettings() {
               <input
                 value={s.business_name || ""}
                 readOnly
-                className={`${fld} bg-gray-50`}
+                className={`${fld} bg-gray-50 dark:bg-slate-900`}
               />
             </div>
             <div>
@@ -167,7 +186,7 @@ function WhiteLabelSettings() {
               </label>
               <div className="flex items-center gap-3">
                 <div
-                  className="w-12 h-12 rounded-lg border-2 border-gray-200"
+                  className="w-12 h-12 rounded-lg border-2 border-gray-200 dark:border-slate-700"
                   style={{ backgroundColor: s.brand_color || "#0e8a6e" }}
                 />
                 <input
@@ -195,12 +214,12 @@ function WhiteLabelSettings() {
                   <img
                     src={s.logo_url}
                     alt="Logo"
-                    className="w-16 h-16 object-contain rounded-lg border-2 border-gray-200 bg-gray-50 p-2"
+                    className="w-16 h-16 object-contain rounded-lg border-2 border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-2"
                   />
-                  <p className="text-sm text-gray-600">Logo uploaded</p>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">Logo uploaded</p>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   No logo uploaded. Visit Settings → Business Info to upload.
                 </p>
               )}
@@ -350,7 +369,7 @@ function WhiteLabelSettings() {
               <input
                 value={`https://${s.subdomain}.lenderfest.loans`}
                 readOnly
-                className={`${fld} bg-gray-50 font-mono`}
+                className={`${fld} bg-gray-50 dark:bg-slate-900 font-mono`}
               />
             </div>
             <div>
@@ -365,7 +384,7 @@ function WhiteLabelSettings() {
                 placeholder="loans.yourcompany.com"
                 className={`${fld} font-mono`}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Needs a CNAME → <code>lenderfest.loans</code>.
               </p>
             </div>
@@ -479,15 +498,14 @@ function WhiteLabelSettings() {
 
         {((tab === "communications" || tab === "reports") && !isPro) ||
         ((tab === "domain" || tab === "portal") && !isEnt) ? (
-          <div className="text-center py-8">
-            <div className="flex justify-center mb-4"><Lock size={48} className="text-gray-400" /></div>
-            <h3 className="text-xl font-bold mb-2">Upgrade to access</h3>
-            <p className="text-gray-600 mb-4">
-              This feature needs{" "}
-              {tab === "domain" || tab === "portal" ? "Enterprise" : "Pro"}.
-              Ask your platform administrator to upgrade your plan.
-            </p>
-          </div>
+          <EmptyState
+            icon={Lock}
+            tone="muted"
+            title="Upgrade to access"
+            description={`This feature needs ${
+              tab === "domain" || tab === "portal" ? "Enterprise" : "Pro"
+            }. Ask your platform administrator to upgrade your plan.`}
+          />
         ) : null}
       </div>
     </div>
@@ -496,7 +514,7 @@ function WhiteLabelSettings() {
 
 function SaveRow({ onSave, saving }) {
   return (
-    <div className="mt-6 pt-4 border-t flex justify-end">
+    <div className="mt-6 pt-4 border-t dark:border-slate-700 flex justify-end">
       <button
         onClick={onSave}
         disabled={saving}

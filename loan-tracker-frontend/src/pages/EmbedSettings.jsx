@@ -12,7 +12,8 @@ import {
   Calculator,
 } from "lucide-react";
 import api from "../services/api";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/Skeleton";
 
 function EmbedSettings() {
   const [tenant, setTenant] = useState(null);
@@ -29,7 +30,23 @@ function EmbedSettings() {
   }, []);
 
   if (loading)
-    return <Spinner centered className="py-20" label="Loading…" />;
+    return (
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+        <PageHeader
+          icon={Calculator}
+          title="Loan Calculator Widget"
+          subtitle="Embed your branded calculator on your website"
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-40 w-full rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-96 w-full rounded-xl" />
+        </div>
+      </div>
+    );
   if (!tenant) return null;
 
   const baseUrl =
@@ -63,9 +80,9 @@ function EmbedSettings() {
   };
 
   const CopyCard = ({ title, desc, code, type }) => (
-    <div className="bg-white rounded-xl shadow p-4">
-      <h3 className="font-bold text-gray-800 mb-1">{title}</h3>
-      <p className="text-sm text-gray-600 mb-3">{desc}</p>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+      <h3 className="font-bold text-gray-800 dark:text-slate-100 mb-1">{title}</h3>
+      <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">{desc}</p>
       <pre className="bg-gray-900 text-green-400 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
         {code}
       </pre>
@@ -80,14 +97,11 @@ function EmbedSettings() {
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <Calculator size={28} /> Loan Calculator Widget
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Embed your branded calculator on your website
-        </p>
-      </div>
+      <PageHeader
+        icon={Calculator}
+        title="Loan Calculator Widget"
+        subtitle="Embed your branded calculator on your website"
+      />
 
       <div className="bg-ocean-gradient-soft rounded-2xl p-4 mb-6 border border-ocean-200">
         <h2 className="font-bold text-ocean-900 mb-2 flex items-center gap-2"><Info size={16} className="text-ocean-700" /> Why use this?</h2>
@@ -122,10 +136,10 @@ function EmbedSettings() {
             code={linkCode}
             type="link"
           />
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><Globe size={16} /> Direct URL</h3>
-            <p className="text-sm text-gray-600 mb-3">Share the widget directly.</p>
-            <div className="bg-gray-100 p-3 rounded-lg text-sm font-mono break-all">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <h3 className="font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2"><Globe size={16} /> Direct URL</h3>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">Share the widget directly.</p>
+            <div className="bg-gray-100 dark:bg-slate-700 p-3 rounded-lg text-sm font-mono break-all">
               {widgetUrl}
             </div>
             <div className="flex gap-2 mt-2">
@@ -148,16 +162,16 @@ function EmbedSettings() {
         </div>
 
         <div>
-          <div className="bg-white rounded-xl shadow p-4 sticky top-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 sticky top-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-bold text-gray-800 flex items-center gap-2"><Eye size={16} /> Live preview</h3>
+              <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Eye size={16} /> Live preview</h3>
               <div className="flex gap-1">
                 <button
                   onClick={() => setPreviewSize("mobile")}
                   className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${
                     previewSize === "mobile"
                       ? "bg-ocean-600 text-white"
-                      : "bg-gray-100"
+                      : "bg-gray-100 dark:bg-slate-700"
                   }`}
                 >
                   <Smartphone size={14} />
@@ -167,7 +181,7 @@ function EmbedSettings() {
                   className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${
                     previewSize === "desktop"
                       ? "bg-ocean-600 text-white"
-                      : "bg-gray-100"
+                      : "bg-gray-100 dark:bg-slate-700"
                   }`}
                 >
                   <Monitor size={14} />
@@ -175,7 +189,7 @@ function EmbedSettings() {
               </div>
             </div>
             <div
-              className="mx-auto bg-gray-100 rounded-lg p-2 transition-all"
+              className="mx-auto bg-gray-100 dark:bg-slate-700 rounded-lg p-2 transition-all"
               style={{ maxWidth: previewSize === "mobile" ? "375px" : "100%" }}
             >
               <iframe
@@ -187,14 +201,14 @@ function EmbedSettings() {
                 className="rounded-lg shadow"
               />
             </div>
-            <p className="text-xs text-gray-500 mt-3 text-center">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-3 text-center">
               This is what visitors will see when embedded on your website
             </p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow p-4 lg:p-6 mt-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mt-6">
         <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Info size={20} /> How to embed</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {[
@@ -204,7 +218,7 @@ function EmbedSettings() {
           ].map(([t, d]) => (
             <div key={t} className="border-l-4 border-ocean-600 pl-3">
               <p className="font-bold text-sm mb-1">{t}</p>
-              <p className="text-xs text-gray-600">{d}</p>
+              <p className="text-xs text-gray-600 dark:text-slate-400">{d}</p>
             </div>
           ))}
         </div>

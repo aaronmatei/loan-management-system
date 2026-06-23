@@ -52,9 +52,9 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
   const STATUS = { scheduled: "bg-slate-100 text-slate-700", held: "bg-emerald-100 text-emerald-800", cancelled: "bg-red-100 text-red-700" };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-indigo-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-indigo-100 mb-6 overflow-hidden">
       <div className="bg-indigo-50 px-5 py-3 border-b border-indigo-100 flex items-center justify-between">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <CalendarDays size={18} className="text-indigo-600" /> Meetings &amp; Attendance
         </h2>
         {!readOnly && (
@@ -71,13 +71,13 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
           <AttendanceOverview summary={summary} />
         )}
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
         ) : meetings.length === 0 ? (
-          <p className="text-sm text-slate-500">No meetings yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No meetings yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Date</th>
@@ -89,16 +89,16 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
               </thead>
               <tbody>
                 {meetings.map((m) => (
-                  <tr key={m.id} onClick={() => setAttend(m)} className="border-t border-slate-100 hover:bg-indigo-50/50 cursor-pointer">
-                    <td className="px-4 py-2 font-semibold text-slate-800">{m.title || <span className="text-slate-400 font-normal">—</span>}</td>
-                    <td className="px-4 py-2 text-slate-700">{fmt(m.meeting_date)}{m.start_time ? ` · ${hhmm(m.start_time)}` : ""}</td>
-                    <td className="px-4 py-2 text-slate-600">{m.location || "Home"}</td>
+                  <tr key={m.id} onClick={() => setAttend(m)} className="border-t border-slate-100 dark:border-slate-700 hover:bg-indigo-50/50 cursor-pointer">
+                    <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">{m.title || <span className="text-slate-400 dark:text-slate-400 font-normal">—</span>}</td>
+                    <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{fmt(m.meeting_date)}{m.start_time ? ` · ${hhmm(m.start_time)}` : ""}</td>
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{m.location || "Home"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
-                    <td className="px-4 py-2 text-right text-slate-700">{Number(m.present_count)}</td>
+                    <td className="px-4 py-2 text-right text-slate-700 dark:text-slate-200">{Number(m.present_count)}</td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
                       {!readOnly && (
                         <PermissionGate role={["admin", "manager", "loan_officer"]}>
-                          <button onClick={(e) => { e.stopPropagation(); setEditing(m); }} className="text-slate-400 hover:text-indigo-600 mr-2 align-middle" title="Edit meeting"><Pencil size={15} className="inline" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setEditing(m); }} className="text-slate-400 dark:text-slate-400 hover:text-indigo-600 mr-2 align-middle" title="Edit meeting"><Pencil size={15} className="inline" /></button>
                         </PermissionGate>
                       )}
                       <ChevronRight size={16} className="inline text-indigo-500" />
@@ -143,29 +143,29 @@ function AttendanceOverview({ summary }) {
     .sort((a, b) => a.rate - b.rate || a.first_name.localeCompare(b.first_name));
 
   return (
-    <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+    <div className="mb-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900 p-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <Stat label="Avg attendance" value={`${avg}%`} tone={rateCls(avg)} />
         <Stat label="Perfect (100%)" value={`${perfect}/${n}`} />
-        <Stat label="Below 75%" value={atRisk.length} tone={atRisk.length ? "text-rose-600" : "text-slate-800"} />
+        <Stat label="Below 75%" value={atRisk.length} tone={atRisk.length ? "text-rose-600" : "text-slate-800 dark:text-slate-100"} />
         <Stat label="Meetings held" value={held} />
       </div>
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-200 mb-1.5">
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700 mb-1.5">
         {buckets.map((b) => b.count > 0 && <div key={b.label} className={b.cls} style={{ width: `${(b.count / n) * 100}%` }} title={`${b.label}: ${b.count}`} />)}
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
         {buckets.map((b) => (
-          <span key={b.label} className="inline-flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${b.cls}`} /> {b.label} <strong className="text-slate-700">{b.count}</strong></span>
+          <span key={b.label} className="inline-flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${b.cls}`} /> {b.label} <strong className="text-slate-700 dark:text-slate-200">{b.count}</strong></span>
         ))}
       </div>
 
       {atRisk.length > 0 && !open && (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-slate-400">Needs attention:</span>
+          <span className="text-slate-400 dark:text-slate-400">Needs attention:</span>
           {atRisk.slice(0, 6).map((m) => (
             <span key={m.member_id} className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5">{m.first_name} {m.last_name}: <strong className="text-rose-600">{m.rate}%</strong></span>
           ))}
-          {atRisk.length > 6 && <span className="text-slate-400">+{atRisk.length - 6} more</span>}
+          {atRisk.length > 6 && <span className="text-slate-400 dark:text-slate-400">+{atRisk.length - 6} more</span>}
         </div>
       )}
 
@@ -174,27 +174,27 @@ function AttendanceOverview({ summary }) {
       </button>
       {open && (
         <div className="mt-2">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search members…" className="w-full sm:w-64 mb-2 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:border-indigo-400 focus:outline-none" />
-          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search members…" className="w-full sm:w-64 mb-2 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-indigo-400 focus:outline-none" />
+          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
             {filtered.map((m) => (
               <div key={m.member_id} className="flex items-center gap-3 px-3 py-1.5 text-sm">
-                <span className="flex-1 truncate text-slate-700">{m.first_name} {m.last_name}</span>
-                <span className="text-xs text-slate-400 tabular-nums">{m.attended}/{held}</span>
-                <div className="hidden sm:block w-24 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className={`h-full ${barCls(m.rate)}`} style={{ width: `${m.rate}%` }} /></div>
+                <span className="flex-1 truncate text-slate-700 dark:text-slate-200">{m.first_name} {m.last_name}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-400 tabular-nums">{m.attended}/{held}</span>
+                <div className="hidden sm:block w-24 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div className={`h-full ${barCls(m.rate)}`} style={{ width: `${m.rate}%` }} /></div>
                 <strong className={`w-10 text-right tabular-nums ${rateCls(m.rate)}`}>{m.rate}%</strong>
               </div>
             ))}
-            {filtered.length === 0 && <p className="px-3 py-2 text-sm text-slate-400">No members match.</p>}
+            {filtered.length === 0 && <p className="px-3 py-2 text-sm text-slate-400 dark:text-slate-400">No members match.</p>}
           </div>
         </div>
       )}
     </div>
   );
 }
-function Stat({ label, value, tone = "text-slate-800" }) {
+function Stat({ label, value, tone = "text-slate-800 dark:text-slate-100" }) {
   return (
-    <div className="rounded-lg bg-white border border-slate-200 px-3 py-2">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
+    <div className="rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2">
+      <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400">{label}</p>
       <p className={`text-lg font-bold ${tone}`}>{value}</p>
     </div>
   );
@@ -223,8 +223,8 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
       onSaved();
     } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-indigo-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
   return (
     <Shell title={editing ? "Edit meeting" : "Schedule meeting"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
@@ -236,15 +236,15 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
           <div><label className={lbl}>Start time</label><input type="time" value={form.start_time} onChange={set("start_time")} className={fld} /></div>
           <div><label className={lbl}>Grace (min)</label><input type="number" min="0" value={form.grace_minutes} onChange={set("grace_minutes")} placeholder="e.g. 15" className={fld} /></div>
         </div>
-        <p className="-mt-2 text-xs text-slate-400">Members arriving after the start time + grace are marked late automatically.</p>
+        <p className="-mt-2 text-xs text-slate-400 dark:text-slate-400">Members arriving after the start time + grace are marked late automatically.</p>
         <div><label className={lbl}>Agenda</label><textarea value={form.agenda} onChange={set("agenda")} rows="2" className={fld} /></div>
         <div>
-          <p className="text-sm font-semibold text-slate-700 mb-1">Attendance fines</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Attendance fines</p>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lbl}>Late (KES)</label><input type="number" min="0" value={form.fine_late} onChange={set("fine_late")} placeholder="e.g. 500" className={fld} /></div>
             <div><label className={lbl}>Absent (KES)</label><input type="number" min="0" value={form.fine_absent} onChange={set("fine_absent")} placeholder="e.g. 1500" className={fld} /></div>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Charged automatically when you mark a member late or absent.</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">Charged automatically when you mark a member late or absent.</p>
         </div>
         <Actions busy={busy} onClose={onClose} label={editing ? "Save changes" : "Schedule"} />
       </form>
@@ -296,13 +296,13 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
   return (
     <Shell title={m.title || "Meeting"} onClose={onClose} wide>
       {error && <div className="mb-3"><Err msg={error} /></div>}
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 mb-4">
-        <span><span className="text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
-        {m.start_time && <span><span className="text-slate-400">Start</span> {hhmm(m.start_time)}{m.grace_minutes ? ` (+${m.grace_minutes}m grace)` : ""}</span>}
-        <span><span className="text-slate-400">Location</span> {m.location || "Home"}</span>
-        <span><span className="text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <span><span className="text-slate-400 dark:text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
+        {m.start_time && <span><span className="text-slate-400 dark:text-slate-400">Start</span> {hhmm(m.start_time)}{m.grace_minutes ? ` (+${m.grace_minutes}m grace)` : ""}</span>}
+        <span><span className="text-slate-400 dark:text-slate-400">Location</span> {m.location || "Home"}</span>
+        <span><span className="text-slate-400 dark:text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
       </div>
-      {m.agenda && <p className="text-sm text-slate-600 mb-4 bg-slate-50 rounded-lg px-3 py-2">{m.agenda}</p>}
+      {m.agenda && <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-2">{m.agenda}</p>}
 
       {data?.payout && (
         <div className="mb-4 flex items-center gap-2 text-sm bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
@@ -311,27 +311,27 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
       )}
 
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold text-slate-700">Attendance</p>
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Attendance</p>
         {recorded && <span className="text-xs font-semibold text-emerald-700 inline-flex items-center gap-1"><Check size={14} /> Recorded</span>}
       </div>
-      {loading ? <p className="text-sm text-slate-500">Loading roster…</p> : roster.length === 0 ? (
-        <p className="text-sm text-slate-500">No active members.</p>
+      {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading roster…</p> : roster.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">No active members.</p>
       ) : (
         <>
-          {editable && <p className="text-xs text-slate-400 mb-2">Enter each member's arrival time. Anyone past {m.start_time ? `${hhmm(m.start_time)} + ${m.grace_minutes || 0} min grace` : "the start time"} is marked late; leave blank for a no-show, and tick <em>apology</em> to excuse them from the fine.</p>}
+          {editable && <p className="text-xs text-slate-400 dark:text-slate-400 mb-2">Enter each member's arrival time. Anyone past {m.start_time ? `${hhmm(m.start_time)} + ${m.grace_minutes || 0} min grace` : "the start time"} is marked late; leave blank for a no-show, and tick <em>apology</em> to excuse them from the fine.</p>}
           <div className="space-y-2 max-h-72 overflow-y-auto">
             {roster.map((mem) => {
               const st = editable ? deriveStatus(mem.arrival_time, mem.apology, m) : mem.attendance_status;
-              const badge = ATT.find((x) => x.v === st) || { v: "none", label: "—", cls: "bg-slate-100 text-slate-500" };
+              const badge = ATT.find((x) => x.v === st) || { v: "none", label: "—", cls: "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400" };
               return (
                 <div key={mem.member_id} className="flex items-center gap-3">
-                  <span className="flex-1 text-sm text-slate-800 truncate">{mem.first_name} {mem.last_name}</span>
+                  <span className="flex-1 text-sm text-slate-800 dark:text-slate-100 truncate">{mem.first_name} {mem.last_name}</span>
                   {!editable ? (
-                    <span className="text-xs text-slate-500 tabular-nums w-12 text-right">{hhmm(mem.arrival_time) || "—"}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums w-12 text-right">{hhmm(mem.arrival_time) || "—"}</span>
                   ) : (
                     <>
-                      <input type="time" value={mem.arrival_time || ""} onChange={(e) => setArrival(mem.member_id, e.target.value)} className="px-2 py-1 border border-slate-200 rounded text-sm" />
-                      <label className="text-xs text-slate-500 inline-flex items-center gap-1 select-none">
+                      <input type="time" value={mem.arrival_time || ""} onChange={(e) => setArrival(mem.member_id, e.target.value)} className="px-2 py-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm" />
+                      <label className="text-xs text-slate-500 dark:text-slate-400 inline-flex items-center gap-1 select-none">
                         <input type="checkbox" checked={!!mem.apology} disabled={!!mem.arrival_time} onChange={(e) => setApology(mem.member_id, e.target.checked)} /> apology
                       </label>
                     </>
@@ -356,12 +356,12 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
       )}
 
       {data?.fines?.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-slate-100">
-          <p className="text-sm font-semibold text-slate-700 mb-2">Fines from this meeting ({data.fines.length})</p>
+        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Fines from this meeting ({data.fines.length})</p>
           <div className="space-y-1">
             {data.fines.map((f) => (
               <div key={f.id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-700">{f.first_name} {f.last_name} <span className="text-xs text-slate-400">· {FT[f.trigger] || f.trigger}</span></span>
+                <span className="text-slate-700 dark:text-slate-200">{f.first_name} {f.last_name} <span className="text-xs text-slate-400 dark:text-slate-400">· {FT[f.trigger] || f.trigger}</span></span>
                 <span className={`font-semibold ${f.status === "paid" ? "text-emerald-600" : "text-rose-600"}`}>{money(f.amount)}{f.status === "paid" ? " ✓" : ""}</span>
               </div>
             ))}
@@ -375,10 +375,10 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
 function Shell({ title, onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className={`bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>
         </div>
         <div className="p-5">{children}</div>
       </div>
@@ -391,7 +391,7 @@ const Err = ({ msg }) => (
 function Actions({ busy, onClose, label }) {
   return (
     <div className="flex justify-end gap-3 pt-1">
-      <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+      <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
       <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : label}</button>
     </div>
   );

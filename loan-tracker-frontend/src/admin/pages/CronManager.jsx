@@ -125,9 +125,9 @@ function CronManager() {
             : <Clock size={20} className="text-yellow-600 mt-0.5 shrink-0" />
           }
           <div className="flex-1">
-            <p className="font-bold text-gray-800">{label}</p>
-            <p className="text-xs text-gray-600 mb-1">{c.description}</p>
-            <p className="text-xs font-mono text-gray-500">
+            <p className="font-bold text-gray-800 dark:text-slate-100">{label}</p>
+            <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">{c.description}</p>
+            <p className="text-xs font-mono text-gray-500 dark:text-slate-400">
               {c.enabled ? `Active · ${c.schedule}` : `Disabled · would run ${c.schedule}`}
             </p>
           </div>
@@ -138,10 +138,10 @@ function CronManager() {
   return (
     <PlatformLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <Clock size={28} className="text-gray-700" /> Cron Manager
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+          <Clock size={28} className="text-gray-700 dark:text-slate-200" /> Cron Manager
         </h1>
-        <p className="text-gray-600 mt-1 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mt-1 mb-6">
           Three independent cron services, each gated by its own env flag.
         </p>
 
@@ -156,9 +156,9 @@ function CronManager() {
         )}
 
         {/* Manual triggers */}
-        <div className="bg-white rounded-xl shadow p-6 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6 mb-6">
           <h2 className="font-bold text-xl mb-1 flex items-center gap-2"><Target size={20} /> Manual triggers</h2>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
             Run any task on demand. Each is idempotent — re-running on the
             same day skips already-processed rows.
           </p>
@@ -168,12 +168,12 @@ function CronManager() {
               return (
               <div
                 key={t.id}
-                className="border-2 border-gray-200 rounded-lg p-4 hover:border-ocean-300 transition"
+                className="border-2 border-gray-200 dark:border-slate-700 rounded-lg p-4 hover:border-ocean-300 transition"
               >
                 <h3 className="font-bold text-sm mb-1 flex items-center gap-1.5">
-                  <TaskIcon size={15} className="text-gray-500 shrink-0" /> {t.name}
+                  <TaskIcon size={15} className="text-gray-500 dark:text-slate-400 shrink-0" /> {t.name}
                 </h3>
-                <p className="text-xs text-gray-600 mb-3">{t.blurb}</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mb-3">{t.blurb}</p>
                 <button
                   onClick={() => trigger(t.id, t.name)}
                   disabled={running !== null}
@@ -191,9 +191,9 @@ function CronManager() {
 
         {/* Last result */}
         {last && (
-          <div className="bg-white rounded-xl shadow p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6">
             <h2 className="font-bold text-xl mb-3 flex items-center gap-2"><BarChart3 size={20} /> Last run</h2>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
               <strong>{last.prettyName}</strong> · {last.at.toLocaleTimeString()}
             </p>
             {last.error ? (

@@ -8,18 +8,15 @@ import api from "../../services/api";
 import PermissionGate from "../../components/PermissionGate";
 import PawnLoanModal from "../../components/PawnLoanModal";
 import BranchesSection from "../../components/BranchesSection";
+import PageHeader from "../../components/PageHeader";
+import EmptyState from "../../components/EmptyState";
+import Skeleton from "../../components/Skeleton";
+import { formatKES, exactKES } from "../../utils/money";
 
-const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-const money2 = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-function PageHeader({ title, action }) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-      <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">{title}</h1>
-      {action}
-    </div>
-  );
-}
+// Pawn money helpers now defer to the shared formatter so figures match the
+// rest of the app (was a local fork).
+const money = (v) => formatKES(v);
+const money2 = (v) => exactKES(v);
 
 const STATUS = {
   active: "bg-emerald-100 text-emerald-800",
@@ -33,6 +30,36 @@ const COLL = {
   sold: "bg-slate-200 text-slate-700",
 };
 
+// ── Loading placeholders ─────────────────────────────────────────────
+// Content-shaped skeletons so pages don't jump when data lands.
+function StatGridSkeleton({ count = 8 }) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-6 w-24 mt-2" />
+          <Skeleton className="h-3 w-16 mt-2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TableSkeleton({ rows = 5, cols = 5 }) {
+  return (
+    <div className="p-4 space-y-3">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex items-center gap-4">
+          {Array.from({ length: cols }).map((_, c) => (
+            <Skeleton key={c} className={`h-4 ${c === 0 ? "w-24" : "flex-1"}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Dashboard ────────────────────────────────────────────────────────
 const TONES = {
   emerald: "bg-emerald-50 text-emerald-800",
@@ -45,9 +72,9 @@ function Stat({ icon: Icon, label, value, sub, tone = "slate" }) {
   const [bg, text] = (TONES[tone] || TONES.slate).split(" ");
   return (
     <div className={`${bg} rounded-lg p-4`}>
-      <p className="text-xs text-slate-500 flex items-center gap-1"><Icon size={13} /> {label}</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Icon size={13} /> {label}</p>
       <p className={`font-bold ${text} text-xl leading-tight mt-0.5`}>{value}</p>
-      {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -71,17 +98,17 @@ export function PawnDashboard() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       <PageHeader
         title="Dashboard"
-        action={branches.length > 1 && (
-          <select value={branch} onChange={(e) => setBranch(e.target.value)} className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white text-sm">
+        actions={branches.length > 1 && (
+          <select value={branch} onChange={(e) => setBranch(e.target.value)} className="px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100 text-sm">
             <option value="all">All branches</option>
             {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         )}
       />
       {loading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <StatGridSkeleton />
       ) : !d ? (
-        <p className="text-sm text-slate-500">Couldn't load the dashboard.</p>
+        <EmptyState icon={AlertTriangle} tone="muted" title="Couldn't load the dashboard" description="Something went wrong fetching the pawn summary. Refresh to try again." />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat icon={Gem} label="Active pledges" value={d.active_pledges} sub={`${money(d.due_from_customers)} due`} tone="ocean" />
@@ -103,7 +130,7 @@ function PledgeTable({ rows, onRow }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+        <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
           <tr>
             <th className="text-left px-4 py-2">Code</th>
             <th className="text-left px-4 py-2">Customer</th>
@@ -117,11 +144,11 @@ function PledgeTable({ rows, onRow }) {
         </thead>
         <tbody>
           {rows.map((l) => (
-            <tr key={l.id} onClick={() => onRow(l)} className="border-t border-slate-100 hover:bg-ocean-50/50 cursor-pointer">
-              <td className="px-4 py-2 font-mono text-xs text-slate-600">{l.loan_code}</td>
-              <td className="px-4 py-2 font-semibold text-slate-800">{l.first_name} {l.last_name}</td>
-              <td className="px-4 py-2 text-slate-600">{l.item || "—"}{l.overdue && <span className="ml-2 text-xs font-semibold text-red-600">OVERDUE</span>}</td>
-              <td className="px-4 py-2 text-slate-500">{l.branch_name || "—"}</td>
+            <tr key={l.id} onClick={() => onRow(l)} className="border-t border-slate-100 dark:border-slate-700 hover:bg-ocean-50/50 dark:hover:bg-slate-700 cursor-pointer">
+              <td className="px-4 py-2 font-mono text-xs text-slate-600 dark:text-slate-400">{l.loan_code}</td>
+              <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">{l.first_name} {l.last_name}</td>
+              <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{l.item || "—"}{l.overdue && <span className="ml-2 text-xs font-semibold text-red-600">OVERDUE</span>}</td>
+              <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{l.branch_name || "—"}</td>
               <td className="px-4 py-2 text-right">{money(l.principal_amount)}</td>
               <td className="px-4 py-2 text-right font-semibold">{money2(l.balance)}</td>
               <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[l.status] || "bg-slate-100"}`}>{l.status}</span></td>
@@ -171,25 +198,25 @@ export function PawnPledges() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       <PageHeader
         title="Pledges"
-        action={
+        actions={
           <PermissionGate role={["admin", "manager", "loan_officer"]}>
             <button onClick={() => setShowNew(true)} className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> New Pledge</button>
           </PermissionGate>
         }
       />
-      <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search code, customer or item…" className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search code, customer or item…" className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none" />
           </div>
           {branches.length > 1 && (
-            <select value={branch} onChange={(e) => setBranch(e.target.value)} className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white">
+            <select value={branch} onChange={(e) => setBranch(e.target.value)} className="px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100">
               <option value="all">All branches</option>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           )}
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100">
             <option value="all">All</option>
             <option value="active">Active</option>
             <option value="overdue">Overdue</option>
@@ -197,8 +224,17 @@ export function PawnPledges() {
             <option value="defaulted">Forfeited</option>
           </select>
         </div>
-        {loading ? <p className="p-5 text-sm text-slate-500">Loading…</p> : filtered.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No pledges{search || status !== "all" ? " match your filter" : " yet. Take in an item to start."}.</p>
+        {loading ? <TableSkeleton cols={6} /> : filtered.length === 0 ? (
+          <EmptyState
+            icon={Gem}
+            title={search || status !== "all" ? "No pledges match your filter" : "No pledges yet"}
+            description={search || status !== "all" ? "Try a different search or status filter." : "Take in an item to start a pledge."}
+            action={!search && status === "all" && (
+              <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                <button onClick={() => setShowNew(true)} className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> New Pledge</button>
+              </PermissionGate>
+            )}
+          />
         ) : <PledgeTable rows={filtered} onRow={(l) => navigate(`/pawn/pledges/${l.id}`)} />}
       </div>
 
@@ -239,23 +275,32 @@ export function PawnAuctions() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       <PageHeader title="Auctions" />
-      {loading ? <p className="text-sm text-slate-500">Loading…</p> : (
+      {loading ? (
+        <div className="space-y-6">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><Skeleton className="h-5 w-40" /></div>
+              <TableSkeleton cols={5} />
+            </div>
+          ))}
+        </div>
+      ) : (
         <div className="space-y-6">
           {/* Eligible queue → schedule */}
-          <div className="bg-white rounded-xl shadow-md border border-amber-100 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-amber-100 overflow-hidden">
             <div className="bg-amber-50 px-5 py-3 border-b border-amber-100">
               <h2 className="font-bold text-slate-900 flex items-center gap-2"><Gavel size={18} className="text-amber-600" /> Auction queue <span className="text-sm font-normal text-slate-500">· past the notice period</span></h2>
             </div>
-            {queue.length === 0 ? <p className="p-5 text-sm text-slate-500">Nothing eligible. The queue is clear.</p> : (
+            {queue.length === 0 ? <EmptyState icon={Gavel} tone="muted" title="Queue is clear" description="No pledges are past the notice period right now." /> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Customer</th><th className="text-left px-4 py-2">Item</th><th className="text-right px-4 py-2">Owed</th><th className="px-4 py-2"></th></tr></thead>
+                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Customer</th><th className="text-left px-4 py-2">Item</th><th className="text-right px-4 py-2">Owed</th><th className="px-4 py-2"></th></tr></thead>
                   <tbody>
                     {queue.map((l) => (
-                      <tr key={l.id} className="border-t border-slate-100">
-                        <td className="px-4 py-2 font-mono text-xs text-slate-600 cursor-pointer" onClick={() => navigate(`/pawn/pledges/${l.id}`)}>{l.loan_code}</td>
-                        <td className="px-4 py-2 text-slate-800">{l.first_name} {l.last_name}</td>
-                        <td className="px-4 py-2 text-slate-600">{l.item || "—"}</td>
+                      <tr key={l.id} className="border-t border-slate-100 dark:border-slate-700">
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600 dark:text-slate-400 cursor-pointer" onClick={() => navigate(`/pawn/pledges/${l.id}`)}>{l.loan_code}</td>
+                        <td className="px-4 py-2 text-slate-800 dark:text-slate-100">{l.first_name} {l.last_name}</td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{l.item || "—"}</td>
                         <td className="px-4 py-2 text-right font-semibold">{money2(l.balance)}</td>
                         <td className="px-4 py-2 text-right">
                           <PermissionGate role={["admin", "manager"]}>
@@ -271,18 +316,18 @@ export function PawnAuctions() {
           </div>
 
           {/* Scheduled → complete / cancel */}
-          <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Scheduled</h2></div>
-            {scheduled.length === 0 ? <p className="p-5 text-sm text-slate-500">No auctions scheduled.</p> : (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Scheduled</h2></div>
+            {scheduled.length === 0 ? <EmptyState icon={Gavel} tone="muted" title="No auctions scheduled" description="Schedule an eligible pledge from the queue above." /> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Item</th><th className="text-left px-4 py-2">Date</th><th className="text-right px-4 py-2">Reserve</th><th className="px-4 py-2"></th></tr></thead>
+                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Item</th><th className="text-left px-4 py-2">Date</th><th className="text-right px-4 py-2">Reserve</th><th className="px-4 py-2"></th></tr></thead>
                   <tbody>
                     {scheduled.map((a) => (
-                      <tr key={a.id} className="border-t border-slate-100">
-                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{a.loan_code}</td>
-                        <td className="px-4 py-2 text-slate-700">{a.item || "—"}</td>
-                        <td className="px-4 py-2 text-slate-600">{a.auction_date ? new Date(a.auction_date).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" }) : "TBD"}</td>
+                      <tr key={a.id} className="border-t border-slate-100 dark:border-slate-700">
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600 dark:text-slate-400">{a.loan_code}</td>
+                        <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{a.item || "—"}</td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{a.auction_date ? new Date(a.auction_date).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" }) : "TBD"}</td>
                         <td className="px-4 py-2 text-right">{a.reserve_price != null ? money(a.reserve_price) : "—"}</td>
                         <td className="px-4 py-2 text-right whitespace-nowrap">
                           <PermissionGate role={["admin", "manager"]}>
@@ -299,17 +344,17 @@ export function PawnAuctions() {
           </div>
 
           {/* History */}
-          <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">History</h2></div>
-            {history.length === 0 ? <p className="p-5 text-sm text-slate-500">No completed or cancelled auctions yet.</p> : (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">History</h2></div>
+            {history.length === 0 ? <EmptyState icon={Gavel} tone="muted" title="No auction history yet" description="Completed and cancelled auctions will appear here." /> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Item</th><th className="text-left px-4 py-2">Outcome</th><th className="text-right px-4 py-2">Sale</th><th className="text-right px-4 py-2">Recovered</th><th className="text-right px-4 py-2">Surplus / Deficiency</th></tr></thead>
+                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase"><tr><th className="text-left px-4 py-2">Code</th><th className="text-left px-4 py-2">Item</th><th className="text-left px-4 py-2">Outcome</th><th className="text-right px-4 py-2">Sale</th><th className="text-right px-4 py-2">Recovered</th><th className="text-right px-4 py-2">Surplus / Deficiency</th></tr></thead>
                   <tbody>
                     {history.map((a) => (
-                      <tr key={a.id} className="border-t border-slate-100">
-                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{a.loan_code}</td>
-                        <td className="px-4 py-2 text-slate-700">{a.item || "—"}</td>
+                      <tr key={a.id} className="border-t border-slate-100 dark:border-slate-700">
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600 dark:text-slate-400">{a.loan_code}</td>
+                        <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{a.item || "—"}</td>
                         <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${a.status === "completed" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>{a.status}</span></td>
                         <td className="px-4 py-2 text-right">{a.sale_price != null ? money(a.sale_price) : "—"}</td>
                         <td className="px-4 py-2 text-right">{a.status === "completed" ? money(a.recovered) : "—"}</td>
@@ -342,15 +387,15 @@ function ScheduleAuctionModal({ pledge, onClose, onDone }) {
     try { await api.post(`/pawn/${pledge.id}/auction`, { reserve_price: reserve || undefined, auction_date: date || undefined }); onDone(); }
     catch (err) { setError(err.response?.data?.error || "Failed"); setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none";
   return (
     <AuctionShell title={`Schedule auction — ${pledge.item || pledge.loan_code}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
-        <p className="text-sm text-slate-600">Owed: <strong>{money2(pledge.balance)}</strong>. Scheduling defaults the pledge and forfeits the item for sale.</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400">Owed: <strong>{money2(pledge.balance)}</strong>. Scheduling defaults the pledge and forfeits the item for sale.</p>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Reserve price</label><input type="number" value={reserve} onChange={(e) => setReserve(e.target.value)} className={fld} /></div>
-          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Auction date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fld} /></div>
+          <div><label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Reserve price</label><input type="number" value={reserve} onChange={(e) => setReserve(e.target.value)} className={fld} /></div>
+          <div><label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Auction date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fld} /></div>
         </div>
         <Actions busy={busy} onClose={onClose} label="Schedule" tone="bg-amber-600 hover:bg-amber-700" />
       </form>
@@ -375,17 +420,17 @@ function CompleteAuctionModal({ auction, onClose, onDone }) {
       onDone();
     } catch (err) { setError(err.response?.data?.error || "Failed"); setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
   return (
     <AuctionShell title={`Complete sale — ${auction.item || auction.loan_code}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Sale price *</label><input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={fld} autoFocus /></div>
-          <div><label className="block text-sm font-semibold text-gray-700 mb-1">Auction fees</label><input type="number" value={fees} onChange={(e) => setFees(e.target.value)} className={fld} /></div>
+          <div><label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Sale price *</label><input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className={fld} autoFocus /></div>
+          <div><label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Auction fees</label><input type="number" value={fees} onChange={(e) => setFees(e.target.value)} className={fld} /></div>
         </div>
-        <div><label className="block text-sm font-semibold text-gray-700 mb-1">Buyer</label><input value={buyer} onChange={(e) => setBuyer(e.target.value)} placeholder="Optional" className={fld} /></div>
-        <p className="text-xs text-slate-500">What the borrower owed is recovered to the pool; any surplus is recorded as owed back to the customer.</p>
+        <div><label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Buyer</label><input value={buyer} onChange={(e) => setBuyer(e.target.value)} placeholder="Optional" className={fld} /></div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">What the borrower owed is recovered to the pool; any surplus is recorded as owed back to the customer.</p>
         <Actions busy={busy} onClose={onClose} label="Record sale" tone="bg-emerald-600 hover:bg-emerald-700" />
       </form>
     </AuctionShell>
@@ -395,10 +440,10 @@ function CompleteAuctionModal({ auction, onClose, onDone }) {
 function AuctionShell({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
         </div>
         <div className="p-5">{children}</div>
       </div>
@@ -409,7 +454,7 @@ const Err = ({ msg }) => <div className="bg-red-50 border border-red-200 text-re
 function Actions({ busy, onClose, label, tone }) {
   return (
     <div className="flex justify-end gap-3 pt-1">
-      <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+      <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
       <button type="submit" disabled={busy} className={`px-5 py-2 rounded-lg text-white font-semibold disabled:opacity-50 ${tone}`}>{busy ? "Saving…" : label}</button>
     </div>
   );
@@ -443,13 +488,13 @@ export function PawnRequests() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       <PageHeader title="Requests" />
-      <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-        {loading ? <p className="p-5 text-sm text-slate-500">Loading…</p> : rows.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No customer requests yet. Customers can request a loan against an item from their portal.</p>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+        {loading ? <TableSkeleton cols={6} /> : rows.length === 0 ? (
+          <EmptyState icon={Gem} title="No customer requests yet" description="Customers can request a loan against an item from their portal." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-4 py-2">Customer</th>
                   <th className="text-left px-4 py-2">Item</th>
@@ -461,11 +506,11 @@ export function PawnRequests() {
               </thead>
               <tbody>
                 {rows.map((a) => (
-                  <tr key={a.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-semibold text-slate-800">{a.first_name} {a.last_name}<div className="text-xs text-slate-400 font-normal">{a.phone_number}</div></td>
-                    <td className="px-4 py-2 text-slate-600">{a.secured === false ? <span className="italic text-slate-500">Cash loan (no item)</span> : <>{a.item_description}{a.item_category ? <span className="text-slate-400"> · {a.item_category}</span> : ""}</>}</td>
+                  <tr key={a.id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">{a.first_name} {a.last_name}<div className="text-xs text-slate-400 font-normal">{a.phone_number}</div></td>
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{a.secured === false ? <span className="italic text-slate-500">Cash loan (no item)</span> : <>{a.item_description}{a.item_category ? <span className="text-slate-400"> · {a.item_category}</span> : ""}</>}</td>
                     <td className="px-4 py-2 text-right">{a.requested_amount != null ? money(a.requested_amount) : "—"}</td>
-                    <td className="px-4 py-2 text-right text-slate-500">{a.estimated_value != null ? money(a.estimated_value) : "—"}</td>
+                    <td className="px-4 py-2 text-right text-slate-500 dark:text-slate-400">{a.estimated_value != null ? money(a.estimated_value) : "—"}</td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${APP_STATUS[a.status] || "bg-slate-100"}`}>{a.status}</span>
                       {a.status === "approved" && a.offered_amount != null && <span className="ml-2 text-xs text-emerald-700">offer {money(a.offered_amount)}</span>}
@@ -504,37 +549,37 @@ function ReviewModal({ application, onClose, onDone }) {
     } catch (e) { setError(e.response?.data?.error || "Failed"); setBusy(false); }
   };
 
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">Review request</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Review request</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
         </div>
         <div className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
-          <div className="text-sm text-slate-600">
-            <p className="font-semibold text-slate-800">{application.secured === false ? "Cash loan (no collateral)" : application.item_description}</p>
+          <div className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="font-semibold text-slate-800 dark:text-slate-100">{application.secured === false ? "Cash loan (no collateral)" : application.item_description}</p>
             <p>{[application.item_category, application.condition].filter(Boolean).join(" · ")}</p>
             <p className="mt-1">Requested: <strong>{application.requested_amount != null ? money(application.requested_amount) : "—"}</strong>{application.estimated_value != null ? ` · est. ${money(application.estimated_value)}` : ""}</p>
           </div>
           {Array.isArray(application.photos) && application.photos.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">Customer photos</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Customer photos</p>
               <div className="flex flex-wrap gap-2">
                 {application.photos.map((src, i) => (
-                  <a key={i} href={src} target="_blank" rel="noreferrer"><img src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200 hover:opacity-90" /></a>
+                  <a key={i} href={src} target="_blank" rel="noreferrer"><img src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700 hover:opacity-90" /></a>
                 ))}
               </div>
             </div>
           )}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Your offer (KES)</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Your offer (KES)</label>
             <input type="number" value={offer} onChange={(e) => setOffer(e.target.value)} className={fld} placeholder="Offer if approving" />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Notes</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={fld} placeholder="Optional note to the customer" />
           </div>
           <div className="flex justify-end gap-2 pt-1">
@@ -572,25 +617,31 @@ export function PawnSettings() {
     catch (err) { setError(err.response?.data?.error || "Failed to save"); }
     finally { setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto pb-24">
       <PageHeader title="Settings" />
-      <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6">
-        <h2 className="font-bold text-slate-900 mb-1">Valuation &amp; rules</h2>
-        <p className="text-sm text-slate-500 mb-5">Defaults applied to new pledges, plus how long after maturity an item becomes auction-eligible.</p>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6">
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Valuation &amp; rules</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Defaults applied to new pledges, plus how long after maturity an item becomes auction-eligible.</p>
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
-        {!form ? <p className="text-sm text-slate-500">Loading…</p> : (
-          <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500">You don't have permission to edit settings.</p>}>
+        {!form ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i}><Skeleton className="h-4 w-32" /><Skeleton className="h-10 w-full mt-1.5" /></div>
+            ))}
+          </div>
+        ) : (
+          <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500 dark:text-slate-400">You don't have permission to edit settings.</p>}>
             <form onSubmit={save} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className={lbl}>Default LTV %</label><input type="number" value={form.default_ltv_percent} onChange={set("default_ltv_percent")} className={fld} /><p className="text-xs text-slate-400 mt-1">Loan = item value × LTV%.</p></div>
-                <div><label className={lbl}>Default monthly fee %</label><input type="number" step="0.1" value={form.default_monthly_fee_percent} onChange={set("default_monthly_fee_percent")} className={fld} /><p className="text-xs text-slate-400 mt-1">Flat fee per month on the principal.</p></div>
+                <div><label className={lbl}>Default LTV %</label><input type="number" value={form.default_ltv_percent} onChange={set("default_ltv_percent")} className={fld} /><p className="text-xs text-slate-400 dark:text-slate-400 mt-1">Loan = item value × LTV%.</p></div>
+                <div><label className={lbl}>Default monthly fee %</label><input type="number" step="0.1" value={form.default_monthly_fee_percent} onChange={set("default_monthly_fee_percent")} className={fld} /><p className="text-xs text-slate-400 dark:text-slate-400 mt-1">Flat fee per month on the principal.</p></div>
                 <div><label className={lbl}>Default term (months)</label><input type="number" min="1" value={form.default_duration_months} onChange={set("default_duration_months")} className={fld} /></div>
-                <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /><p className="text-xs text-slate-400 mt-1">Days after maturity before a pledge counts as overdue.</p></div>
-                <div><label className={lbl}>Auction notice (days)</label><input type="number" min="0" value={form.auction_notice_days} onChange={set("auction_notice_days")} className={fld} /><p className="text-xs text-slate-400 mt-1">Days overdue before an item is auction-eligible.</p></div>
+                <div><label className={lbl}>Grace days</label><input type="number" min="0" value={form.grace_days} onChange={set("grace_days")} className={fld} /><p className="text-xs text-slate-400 dark:text-slate-400 mt-1">Days after maturity before a pledge counts as overdue.</p></div>
+                <div><label className={lbl}>Auction notice (days)</label><input type="number" min="0" value={form.auction_notice_days} onChange={set("auction_notice_days")} className={fld} /><p className="text-xs text-slate-400 dark:text-slate-400 mt-1">Days overdue before an item is auction-eligible.</p></div>
               </div>
               <div className="flex items-center gap-3 pt-1">
                 <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-ocean-600 hover:bg-ocean-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save settings"}</button>
@@ -630,8 +681,18 @@ export function PawnAccounting() {
   const a = data?.accounts;
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
-      <PageHeader title="Accounting" action={data && <button onClick={exportCsv} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><FileSpreadsheet size={14} /> Journal CSV</button>} />
-      {loading ? <p className="text-sm text-slate-500">Loading…</p> : !data ? <p className="text-sm text-slate-500">Couldn't load accounting.</p> : (
+      <PageHeader title="Accounting" actions={data && <button onClick={exportCsv} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><FileSpreadsheet size={14} /> Journal CSV</button>} />
+      {loading ? (
+        <div className="space-y-6">
+          <StatGridSkeleton />
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><Skeleton className="h-5 w-32" /></div>
+            <TableSkeleton cols={6} />
+          </div>
+        </div>
+      ) : !data ? (
+        <EmptyState icon={AlertTriangle} tone="muted" title="Couldn't load accounting" description="Something went wrong fetching the pawn accounts. Refresh to try again." />
+      ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat icon={Wallet} label="Cash available" value={money(a.cash_available)} tone="emerald" />
@@ -644,12 +705,12 @@ export function PawnAccounting() {
             <Stat icon={Banknote} label="Disbursed / collected" value={money(a.principal_disbursed)} sub={`${money(a.principal_collected)} collected`} tone="slate" />
           </div>
 
-          <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Journal</h2></div>
-            {data.journal.length === 0 ? <p className="p-5 text-sm text-slate-500">No cash movements yet.</p> : (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Journal</h2></div>
+            {data.journal.length === 0 ? <EmptyState icon={Banknote} tone="muted" title="No cash movements yet" description="Disbursements, repayments and auction proceeds will appear here." /> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                     <tr>
                       <th className="text-left px-4 py-2">Date</th>
                       <th className="text-left px-4 py-2">Ref</th>
@@ -661,12 +722,12 @@ export function PawnAccounting() {
                   </thead>
                   <tbody>
                     {data.journal.map((j) => (
-                      <tr key={j.id} className="border-t border-slate-100">
-                        <td className="px-4 py-2 text-slate-600 whitespace-nowrap">{new Date(j.date).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" })}</td>
-                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{j.ref}</td>
-                        <td className="px-4 py-2 text-slate-600">{j.description}</td>
-                        <td className="px-4 py-2 text-slate-700">{j.debit}</td>
-                        <td className="px-4 py-2 text-slate-700">{j.credit}</td>
+                      <tr key={j.id} className="border-t border-slate-100 dark:border-slate-700">
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">{new Date(j.date).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" })}</td>
+                        <td className="px-4 py-2 font-mono text-xs text-slate-600 dark:text-slate-400">{j.ref}</td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{j.description}</td>
+                        <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{j.debit}</td>
+                        <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{j.credit}</td>
                         <td className="px-4 py-2 text-right font-semibold">{money(j.amount)}</td>
                       </tr>
                     ))}

@@ -5,11 +5,12 @@ import PlatformLayout from "../components/PlatformLayout";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
 import { Building2, Search } from "lucide-react";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
+import EmptyState from "../../components/EmptyState";
+import { formatKES } from "../../utils/money";
 
-// Full KES figures (no K abbreviation) — e.g. KES 2,000,000, not 2.0K.
-const K = (v) =>
-  `KES ${parseFloat(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+// Full KES figures (no K abbreviation) — delegate to the shared money helper.
+const K = (v) => formatKES(v);
 
 function PlatformTenants() {
   const navigate = useNavigate();
@@ -72,28 +73,28 @@ function PlatformTenants() {
   return (
     <PlatformLayout>
       <div className="p-4 lg:p-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <Building2 size={28} className="text-gray-700" /> All Tenants
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+          <Building2 size={28} className="text-gray-700 dark:text-slate-200" /> All Tenants
         </h1>
-        <p className="text-gray-600 mt-1 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mt-1 mb-6">
           Manage all lenders on your platform
         </p>
 
-        <div className="bg-white rounded-xl shadow p-4 mb-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, subdomain, or code…"
-              className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 bg-white focus:outline-none"
+            className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 bg-white focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
           >
             <option value="all">All Statuses</option>
             <option value="active">Active</option>
@@ -104,18 +105,29 @@ function PlatformTenants() {
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-xl p-12">
-            <Spinner centered label="Loading…" />
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10" rounded="rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/4" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
           </div>
         ) : tenants.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
-            No tenants found.
-          </div>
+          <EmptyState
+            icon={Building2}
+            title="No tenants found"
+            description="No lenders match your current search or filter."
+          />
         ) : (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 dark:bg-slate-900 border-b">
                   <tr>
                     <SortableHeader
                       label="Tenant"
@@ -192,7 +204,7 @@ function PlatformTenants() {
                 </thead>
                 <tbody>
                   {sortedTenants.map((t) => (
-                    <tr key={t.id} className="border-b hover:bg-gray-50">
+                    <tr key={t.id} className="border-b hover:bg-gray-50 dark:hover:bg-slate-700">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           <div
@@ -212,7 +224,7 @@ function PlatformTenants() {
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                               {t.tenant_code}
                             </p>
                           </div>

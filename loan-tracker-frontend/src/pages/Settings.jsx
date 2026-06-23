@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Building2, Landmark, CheckCircle } from "lucide-react";
 import api from "../services/api";
 import BranchesSection from "../components/BranchesSection";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
 
 // Company-level settings only. Loan policy + Loan packages live at
 // /loan-settings (LOANS sidebar group) since they configure the loan
@@ -56,17 +57,32 @@ function Settings() {
   };
 
   if (loading) {
-    return <Spinner centered className="py-20" label="Loading…" />;
+    return (
+      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+        <PageHeader
+          icon={Building2}
+          title="Company Settings"
+          subtitle="These details appear on loan agreements and PDFs"
+        />
+        <div className="space-y-6">
+          {[0, 1].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+              <Skeleton className="h-6 w-48 mb-4" />
+              <SkeletonText lines={4} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Company Settings</h1>
-        <p className="text-gray-600 mt-2">
-          These details appear on loan agreements and PDFs
-        </p>
-      </div>
+      <PageHeader
+        icon={Building2}
+        title="Company Settings"
+        subtitle="These details appear on loan agreements and PDFs"
+      />
 
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
@@ -76,13 +92,13 @@ function Settings() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Company Info */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Building2 size={22} /> Company Information
           </h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Company Name *
               </label>
               <input
@@ -92,11 +108,11 @@ function Settings() {
                   setSettings({ ...settings, company_name: e.target.value })
                 }
                 required
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Address
               </label>
               <textarea
@@ -105,12 +121,12 @@ function Settings() {
                   setSettings({ ...settings, company_address: e.target.value })
                 }
                 rows="2"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Phone
                 </label>
                 <input
@@ -119,11 +135,11 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, company_phone: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Email
                 </label>
                 <input
@@ -132,13 +148,13 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, company_email: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Business Registration No
                 </label>
                 <input
@@ -150,11 +166,11 @@ function Settings() {
                       business_registration_number: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Tax PIN
                 </label>
                 <input
@@ -163,7 +179,7 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, tax_pin: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -171,17 +187,17 @@ function Settings() {
         </div>
 
         {/* Bank Details */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Landmark size={22} /> Payment Details
           </h2>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
             These appear on loan agreements for client payments
           </p>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   M-Pesa Paybill
                 </label>
                 <input
@@ -191,11 +207,11 @@ function Settings() {
                     setSettings({ ...settings, mpesa_paybill: e.target.value })
                   }
                   placeholder="123456"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   M-Pesa Till Number
                 </label>
                 <input
@@ -208,13 +224,13 @@ function Settings() {
                     })
                   }
                   placeholder="654321"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Bank Name
                 </label>
                 <input
@@ -223,11 +239,11 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, bank_name: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Account Number
                 </label>
                 <input
@@ -239,11 +255,11 @@ function Settings() {
                       bank_account_number: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Branch
                 </label>
                 <input
@@ -252,7 +268,7 @@ function Settings() {
                   onChange={(e) =>
                     setSettings({ ...settings, bank_branch: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
             </div>

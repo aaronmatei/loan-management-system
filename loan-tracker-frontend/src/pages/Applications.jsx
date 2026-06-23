@@ -21,7 +21,10 @@ import UnderwritingModal from "../components/UnderwritingModal";
 import PermissionGate from "../components/PermissionGate";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
 // Format a date (Date | YYYY-MM-DD string) as "DD/MM/YYYY". Native
 // <input type="date"> displays in the browser's locale, which may not
@@ -560,7 +563,7 @@ function Applications() {
       )}
       <button
         onClick={() => navigate(`/loans/${app.id}`)}
-        className={`${actBtn} bg-gray-100 hover:bg-gray-200 text-gray-700`}
+        className={`${actBtn} bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200`}
       >
         <Eye size={14} /> View
       </button>
@@ -605,23 +608,23 @@ function Applications() {
       )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div>
-          <p className="text-xs text-gray-500">Principal</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Principal</p>
           <p className="font-bold text-lg">
-            KES {parseFloat(app.principal_amount).toLocaleString()}
+            {formatKES(app.principal_amount)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Total Due</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Total Due</p>
           <p className="font-bold">
-            KES {parseFloat(app.total_amount_due).toLocaleString()}
+            {formatKES(app.total_amount_due)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Duration</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Duration</p>
           <p className="font-bold">{app.loan_duration_months} months</p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Interest Rate</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Interest Rate</p>
           <p className="font-bold">
             {(parseFloat(app.interest_rate) * 12).toFixed(2)}% p.a.
           </p>
@@ -634,16 +637,13 @@ function Applications() {
           <div>
             <p className="text-xs text-gray-500">Requested</p>
             <p className="font-bold text-gray-700">
-              KES{" "}
-              {parseFloat(
-                app.requested_amount ?? app.principal_amount,
-              ).toLocaleString()}
+              {formatKES(app.requested_amount ?? app.principal_amount)}
             </p>
           </div>
           <div>
             <p className="text-xs text-gray-500">Counter-offer</p>
             <p className="font-bold text-amber-700">
-              KES {parseFloat(app.offered_amount).toLocaleString()}
+              {formatKES(app.offered_amount)}
             </p>
           </div>
           {app.counter_offer_note && (
@@ -665,17 +665,14 @@ function Applications() {
                 Processing Fee ({parseFloat(app.processing_fee_rate)}%)
               </p>
               <p className="font-bold text-amber-700">
-                − KES {parseFloat(app.processing_fee).toLocaleString()}
+                − {formatKES(app.processing_fee)}
               </p>
             </div>
           )}
           <div>
             <p className="text-xs text-gray-500">To Disburse</p>
             <p className="font-bold text-ocean-700">
-              KES{" "}
-              {parseFloat(
-                app.net_disbursed_amount ?? app.principal_amount,
-              ).toLocaleString()}
+              {formatKES(app.net_disbursed_amount ?? app.principal_amount)}
             </p>
           </div>
         </div>
@@ -683,8 +680,8 @@ function Applications() {
 
       {app.purpose && (
         <div>
-          <p className="text-xs text-gray-500">Purpose:</p>
-          <p className="text-sm text-gray-700">{app.purpose}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Purpose:</p>
+          <p className="text-sm text-gray-700 dark:text-slate-200">{app.purpose}</p>
         </div>
       )}
 
@@ -695,7 +692,7 @@ function Applications() {
         </div>
       )}
 
-      <div className="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1 items-center">
+      <div className="text-xs text-gray-500 dark:text-slate-400 flex flex-wrap gap-x-4 gap-y-1 items-center">
         <span className="inline-flex items-center gap-1">
           <Calendar size={12} /> Applied:{" "}
           {app.application_date
@@ -721,28 +718,54 @@ function Applications() {
     </div>
   );
 
-  if (loading) return <Spinner centered className="py-20" label="Loading…" />;
+  if (loading)
+    return (
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-11 w-40 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4">
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-8 w-28 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <ClipboardList size={28}/> Loan Applications
-          </h1>
-          <p className="text-sm lg:text-base text-gray-600 mt-1">
-            Review and process loan applications
-          </p>
-        </div>
-        <PermissionGate permission="loans:create">
-          <button
-            onClick={() => navigate("/loans?newApplication=true")}
-            className="px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg w-full sm:w-auto"
-          >
-            + New Application
-          </button>
-        </PermissionGate>
-      </div>
+      <PageHeader
+        icon={ClipboardList}
+        title="Loan Applications"
+        subtitle="Review and process loan applications"
+        actions={
+          <PermissionGate permission="loans:create">
+            <button
+              onClick={() => navigate("/loans?newApplication=true")}
+              className="px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg"
+            >
+              + New Application
+            </button>
+          </PermissionGate>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
@@ -824,7 +847,7 @@ function Applications() {
             className={`px-3 py-2 text-sm font-semibold rounded-t-lg transition ${
               statusFilter === tab.value
                 ? "bg-ocean-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
             }`}
           >
             {tab.label}
@@ -834,16 +857,29 @@ function Applications() {
 
       {/* Applications list */}
       {applications.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-500">
-          No applications found
-        </div>
+        <EmptyState
+          icon={ClipboardList}
+          tone="muted"
+          title="No applications found"
+          description="No loan applications match this filter yet. Start a new application to get one into the queue."
+          action={
+            <PermissionGate permission="loans:create">
+              <button
+                onClick={() => navigate("/loans?newApplication=true")}
+                className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg"
+              >
+                + New Application
+              </button>
+            </PermissionGate>
+          }
+        />
       ) : (
         <>
           {/* Desktop table — one row per application, expand for full details */}
-          <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
             <div className="overflow-auto max-h-[calc(100vh-340px)]">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
+                <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-4 py-3 w-10">
                       <input
@@ -855,22 +891,22 @@ function Applications() {
                       />
                     </th>
                     <th className="px-3 py-3 w-10"></th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                       Loan Code
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                       Client
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                       Principal
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                       Duration
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                       Actions
                     </th>
                   </tr>
@@ -882,8 +918,8 @@ function Applications() {
                     return (
                       <React.Fragment key={app.id}>
                         <tr
-                          className={`border-b border-gray-100 hover:bg-gray-50 transition ${
-                            bulk.isSelected(app.id) ? "bg-ocean-50" : open ? "bg-gray-50" : ""
+                          className={`border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition ${
+                            bulk.isSelected(app.id) ? "bg-ocean-50" : open ? "bg-gray-50 dark:bg-slate-700" : ""
                           }`}
                         >
                           <td className="px-4 py-3">
@@ -898,7 +934,7 @@ function Applications() {
                           <td className="px-3 py-3">
                             <button
                               onClick={() => toggleExpand(app.id)}
-                              className="text-gray-400 hover:text-gray-700"
+                              className="text-gray-400 dark:text-slate-400 hover:text-gray-700"
                               aria-label={open ? "Collapse" : "Expand"}
                             >
                               {open ? (
@@ -926,27 +962,23 @@ function Applications() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <p className="font-semibold text-gray-800 text-sm">
+                            <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
                               {app.first_name} {app.last_name}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                               {app.phone_number} • {app.client_code}
                             </p>
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-gray-800 text-sm">
-                            KES{" "}
-                            {parseFloat(app.principal_amount).toLocaleString()}
+                          <td className="px-4 py-3 text-right font-bold text-gray-800 dark:text-slate-100 text-sm">
+                            {formatKES(app.principal_amount)}
                             {app.status === "counter_offered" &&
                               app.offered_amount != null && (
                                 <p className="text-xs font-semibold text-amber-700">
-                                  → KES{" "}
-                                  {parseFloat(
-                                    app.offered_amount,
-                                  ).toLocaleString()}
+                                  → {formatKES(app.offered_amount)}
                                 </p>
                               )}
                           </td>
-                          <td className="px-4 py-3 text-center text-sm text-gray-700">
+                          <td className="px-4 py-3 text-center text-sm text-gray-700 dark:text-slate-200">
                             {app.loan_duration_months} mo
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -960,7 +992,7 @@ function Applications() {
                           <td className="px-4 py-3">{renderActions(app)}</td>
                         </tr>
                         {open && (
-                          <tr className="bg-gray-50/60">
+                          <tr className="bg-gray-50/60 dark:bg-slate-900">
                             <td colSpan={8} className="px-6 pb-4 pt-1">
                               {renderDetails(app)}
                             </td>
@@ -982,7 +1014,7 @@ function Applications() {
               return (
                 <div
                   key={app.id}
-                  className={`bg-white rounded-xl shadow-md p-4 ${
+                  className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 ${
                     bulk.isSelected(app.id) ? "ring-2 ring-ocean-400" : ""
                   }`}
                 >
@@ -998,7 +1030,7 @@ function Applications() {
                       onClick={() => toggleExpand(app.id)}
                       className="flex items-start gap-2 text-left flex-1 min-w-0"
                     >
-                      <span className="text-gray-400 mt-0.5">
+                      <span className="text-gray-400 dark:text-slate-400 mt-0.5">
                         {open ? (
                           <ChevronDown size={18} />
                         ) : (
@@ -1009,10 +1041,10 @@ function Applications() {
                         <p className="font-mono text-ocean-600 text-xs font-bold">
                           {app.loan_code}
                         </p>
-                        <p className="font-semibold text-gray-800 truncate">
+                        <p className="font-semibold text-gray-800 dark:text-slate-100 truncate">
                           {app.first_name} {app.last_name}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
                           {app.phone_number}
                         </p>
                       </div>
@@ -1023,14 +1055,14 @@ function Applications() {
                       {badge.icon} {app.status.replace("_", " ").toUpperCase()}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm mt-3 pt-3 border-t border-gray-100">
-                    <span className="text-gray-500">Principal</span>
+                  <div className="flex justify-between text-sm mt-3 pt-3 border-t border-gray-100 dark:border-slate-700">
+                    <span className="text-gray-500 dark:text-slate-400">Principal</span>
                     <span className="font-bold">
-                      KES {parseFloat(app.principal_amount).toLocaleString()}
+                      {formatKES(app.principal_amount)}
                     </span>
                   </div>
                   {open && (
-                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-700 space-y-3">
                       {renderDetails(app)}
                       {renderActions(app)}
                     </div>
@@ -1098,9 +1130,9 @@ function Applications() {
       {/* Reject modal */}
       {showRejectModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><X size={20} className="text-red-600"/> Reject Application</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-slate-100"><X size={20} className="text-red-600"/> Reject Application</h3>
+            <p className="text-gray-600 dark:text-slate-400 mb-4">
               Loan: <strong>{selectedLoan.loan_code}</strong>
               <br />
               Client:{" "}
@@ -1117,9 +1149,9 @@ function Applications() {
                 onChange={(e) => setRejectReason(e.target.value)}
                 rows="4"
                 placeholder="Provide a clear reason for rejection..."
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 This will be visible in the audit log
               </p>
             </div>
@@ -1157,21 +1189,21 @@ function Applications() {
       {/* Counter-offer modal */}
       {showCounterModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Banknote size={20} className="text-amber-500"/> Counter-offer</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-slate-100"><Banknote size={20} className="text-amber-500"/> Counter-offer</h3>
+            <p className="text-gray-600 dark:text-slate-400 mb-4">
               Loan: <strong>{selectedLoan.loan_code}</strong>
               <br />
               Requested:{" "}
               <strong>
-                KES {parseFloat(selectedLoan.principal_amount).toLocaleString()}
+                {formatKES(selectedLoan.principal_amount)}
               </strong>
               {qualifiedMax != null && (
                 <>
                   <br />
                   Qualifies for ≈{" "}
                   <strong>
-                    KES {parseFloat(qualifiedMax).toLocaleString()}
+                    {formatKES(qualifiedMax)}
                   </strong>
                 </>
               )}
@@ -1180,9 +1212,9 @@ function Applications() {
                   <br />
                   Package <strong>{selectedLoan.package_name}</strong> range:{" "}
                   <strong>
-                    KES {parseFloat(selectedLoan.package_min_amount).toLocaleString()}
+                    {formatKES(selectedLoan.package_min_amount)}
                     {" – "}
-                    KES {parseFloat(selectedLoan.package_max_amount).toLocaleString()}
+                    {formatKES(selectedLoan.package_max_amount)}
                   </strong>
                 </>
               )}
@@ -1200,9 +1232,9 @@ function Applications() {
               let warn = null;
               if (Number.isFinite(amt)) {
                 if (pkgMin != null && amt < pkgMin) {
-                  warn = `Below ${selectedLoan.package_name} minimum (KES ${pkgMin.toLocaleString()})`;
+                  warn = `Below ${selectedLoan.package_name} minimum (${formatKES(pkgMin)})`;
                 } else if (pkgMax != null && amt > pkgMax) {
-                  warn = `Above ${selectedLoan.package_name} maximum (KES ${pkgMax.toLocaleString()})`;
+                  warn = `Above ${selectedLoan.package_name} maximum (${formatKES(pkgMax)})`;
                 }
               }
               return (
@@ -1217,13 +1249,13 @@ function Applications() {
                     min={pkgMin ?? 1}
                     max={pkgMax ?? undefined}
                     placeholder={pkgMin ? String(pkgMin) : "e.g. 30000"}
-                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none dark:bg-slate-900 dark:text-slate-100 ${
                       warn
                         ? "border-rose-300 focus:border-rose-500"
-                        : "border-gray-200 focus:border-amber-500"
+                        : "border-gray-200 dark:border-slate-600 focus:border-amber-500"
                     }`}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                     Must be less than the requested amount. The client accepts or
                     declines this offer in their portal.
                   </p>
@@ -1243,7 +1275,7 @@ function Applications() {
                 value={counterNote}
                 onChange={(e) => setCounterNote(e.target.value)}
                 rows="2"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-amber-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="flex justify-end gap-3">
@@ -1282,13 +1314,13 @@ function Applications() {
       {/* Disburse modal */}
       {showDisburseModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Coins size={20} className="text-ocean-600"/> Disburse Loan</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-slate-100"><Coins size={20} className="text-ocean-600"/> Disburse Loan</h3>
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 text-sm text-green-900 space-y-1">
               <div className="flex justify-between">
                 <span>Principal</span>
                 <span className="font-semibold">
-                  KES {parseFloat(selectedLoan.principal_amount).toLocaleString()}
+                  {formatKES(selectedLoan.principal_amount)}
                 </span>
               </div>
               {parseFloat(selectedLoan.processing_fee || 0) > 0 && (
@@ -1297,19 +1329,17 @@ function Applications() {
                     Processing Fee ({parseFloat(selectedLoan.processing_fee_rate)}%)
                   </span>
                   <span className="font-semibold">
-                    − KES{" "}
-                    {parseFloat(selectedLoan.processing_fee).toLocaleString()}
+                    − {formatKES(selectedLoan.processing_fee)}
                   </span>
                 </div>
               )}
               <div className="flex justify-between border-t border-green-200 pt-1">
                 <span className="font-bold">Amount to Disburse</span>
                 <span className="font-bold">
-                  KES{" "}
-                  {parseFloat(
+                  {formatKES(
                     selectedLoan.net_disbursed_amount ??
                       selectedLoan.principal_amount,
-                  ).toLocaleString()}
+                  )}
                 </span>
               </div>
               <div className="pt-1">
@@ -1338,7 +1368,7 @@ function Applications() {
                     })
                   }
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="mpesa">M-Pesa</option>
                   <option value="bank_transfer">Bank Transfer</option>
@@ -1360,7 +1390,7 @@ function Applications() {
                     })
                   }
                   placeholder="e.g., QGH5XXX or Cheque #001"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1390,9 +1420,9 @@ function Applications() {
                             .split("T")[0]
                         : undefined
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                     = {ddmmyyyy(disburseData.disbursement_date)}
                     {selectedLoan?.application_date && (
                       <>
@@ -1420,9 +1450,9 @@ function Applications() {
                       }))
                     }
                     min={disburseData.disbursement_date}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                     Default: 1 month after disbursement.{" "}
                     {disburseData.start_date_manual && (
                       <button
@@ -1473,14 +1503,14 @@ function Applications() {
       {/* Mass Disburse modal — one editable row per selected approved loan */}
       {showBulkDisburseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
             <div className="p-5 lg:p-6 border-b flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold flex items-center gap-2">
+                <h3 className="text-xl font-bold flex items-center gap-2 dark:text-slate-100">
                   <Coins size={20} className="text-ocean-600" />
                   Mass Disburse
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                   {bulkDisburseRows.length} approved loan
                   {bulkDisburseRows.length !== 1 ? "s" : ""} — set per-loan
                   method, reference and dates, then disburse.
@@ -1488,7 +1518,7 @@ function Applications() {
               </div>
               <button
                 onClick={() => setShowBulkDisburseModal(false)}
-                className="text-gray-400 hover:text-gray-700"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-700"
                 aria-label="Close"
               >
                 <X size={22} />
@@ -1500,7 +1530,7 @@ function Applications() {
             >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-xs text-gray-500 uppercase border-b">
+                  <thead className="text-xs text-gray-500 dark:text-slate-400 uppercase border-b">
                     <tr>
                       <th className="text-left py-2 pr-3">Loan</th>
                       <th className="text-right py-2 pr-3">Amount</th>
@@ -1517,15 +1547,15 @@ function Applications() {
                         className="border-b last:border-b-0 align-top"
                       >
                         <td className="py-3 pr-3">
-                          <div className="font-semibold text-gray-900">
+                          <div className="font-semibold text-gray-900 dark:text-slate-100">
                             {r.loan_code}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-slate-400">
                             {r.first_name} {r.last_name}
                           </div>
                         </td>
-                        <td className="py-3 pr-3 text-right font-semibold text-gray-900 whitespace-nowrap">
-                          KES {r.amount.toLocaleString()}
+                        <td className="py-3 pr-3 text-right font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                          {formatKES(r.amount)}
                         </td>
                         <td className="py-3 pr-3">
                           <select
@@ -1535,7 +1565,7 @@ function Applications() {
                                 disbursement_method: e.target.value,
                               })
                             }
-                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                            className="px-2 py-1.5 border border-gray-300 dark:border-slate-600 rounded-md text-sm bg-white dark:bg-slate-900 dark:text-slate-100"
                           >
                             <option value="mpesa">M-Pesa</option>
                             <option value="bank_transfer">Bank transfer</option>
@@ -1553,7 +1583,7 @@ function Applications() {
                               })
                             }
                             placeholder="optional"
-                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm w-36"
+                            className="px-2 py-1.5 border border-gray-300 dark:border-slate-600 rounded-md text-sm w-36 dark:bg-slate-900 dark:text-slate-100"
                           />
                         </td>
                         <td className="py-3 pr-3">
@@ -1565,9 +1595,9 @@ function Applications() {
                                 disbursement_date: e.target.value,
                               })
                             }
-                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                            className="px-2 py-1.5 border border-gray-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900 dark:text-slate-100"
                           />
-                          <div className="text-[11px] text-gray-400 mt-0.5">
+                          <div className="text-[11px] text-gray-400 dark:text-slate-400 mt-0.5">
                             {ddmmyyyy(r.disbursement_date)}
                           </div>
                         </td>
@@ -1580,9 +1610,9 @@ function Applications() {
                                 start_date: e.target.value,
                               })
                             }
-                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                            className="px-2 py-1.5 border border-gray-300 dark:border-slate-600 rounded-md text-sm dark:bg-slate-900 dark:text-slate-100"
                           />
-                          <div className="text-[11px] text-gray-400 mt-0.5">
+                          <div className="text-[11px] text-gray-400 dark:text-slate-400 mt-0.5">
                             {r.start_date
                               ? ddmmyyyy(r.start_date)
                               : "default: disb + 1 month"}

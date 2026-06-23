@@ -6,6 +6,8 @@ import {
   Check,
   Download,
   CheckCircle,
+  Users,
+  UserPlus,
 } from "lucide-react";
 import api from "../services/api";
 import { apiErrorMessage } from "../utils/apiError";
@@ -26,7 +28,10 @@ import PermissionGate from "../components/PermissionGate";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
 function Clients() {
   const navigate = useNavigate();
@@ -209,30 +214,24 @@ function Clients() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            Clients
-          </h1>
-          <p className="text-sm lg:text-base text-gray-600 mt-1">
-            Total: <span className="font-semibold">{clients.length}</span>{" "}
-            clients
-          </p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
-        >
-          {showForm ? <><X size={16} /> Cancel</> : <><Check size={16} className="text-white" /> Add Client</>}
-        </button>
-      </div>
-
-      {/* Search Bar (real-time, client-side) */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+      <PageHeader
+        icon={Users}
+        title="Clients"
+        subtitle={`Total: ${clients.length} clients`}
+        actions={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 lg:px-6 lg:py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+          >
+            {showForm ? <><X size={16} /> Cancel</> : <><UserPlus size={16} className="text-white" /> Add Client</>}
+          </button>
+        }
+      >
+        {/* Search Bar (real-time, client-side) */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[220px]">
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none">
                 <Search size={16} />
               </span>
               <input
@@ -240,14 +239,14 @@ function Clients() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by name, phone, email, ID, or code..."
-                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
               />
             </div>
           </div>
           {searchTerm.trim() && (
             <button
               onClick={() => setSearchTerm("")}
-              className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition"
+              className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               <X size={14} className="inline mr-1" />Clear
             </button>
@@ -255,14 +254,14 @@ function Clients() {
         </div>
 
         {searchTerm.trim() && (
-          <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
-            <span className="text-sm text-gray-500">
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+            <span className="text-sm text-gray-500 dark:text-slate-400">
               Showing{" "}
-              <span className="font-semibold text-gray-800">
+              <span className="font-semibold text-gray-800 dark:text-slate-100">
                 {filteredClients.length}
               </span>{" "}
               of{" "}
-              <span className="font-semibold text-gray-800">
+              <span className="font-semibold text-gray-800 dark:text-slate-100">
                 {clients.length}
               </span>{" "}
               clients
@@ -279,7 +278,7 @@ function Clients() {
             </span>
           </div>
         )}
-      </div>
+      </PageHeader>
 
       {/* Messages */}
       {success && (
@@ -295,15 +294,15 @@ function Clients() {
 
       {/* Add Client Form */}
       {showForm && (
-        <div className="bg-white rounded-xl shadow-md p-8 mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6">
             Add New Client
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Type — controls whether the Business Name section shows
                 and adapts its label (Group → Group Name). */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">
                 Client Type *
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -331,14 +330,14 @@ function Clients() {
                       className={`text-left p-3 rounded-lg border-2 transition ${
                         selected
                           ? "border-ocean-500 bg-ocean-50"
-                          : "border-gray-200 hover:border-gray-300 bg-white"
+                          : "border-gray-200 hover:border-gray-300 bg-white dark:border-slate-700 dark:bg-slate-800"
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-semibold text-gray-800">
+                      <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-slate-100">
                         <Icon size={16} />
                         {t.label}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                      <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                         {t.description}
                       </div>
                     </button>
@@ -349,7 +348,7 @@ function Clients() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   {isIndividual ? "First Name *" : "Contact First Name *"}
                 </label>
                 <input
@@ -358,11 +357,11 @@ function Clients() {
                   onChange={handleInputChange}
                   required
                   placeholder="John"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   {isIndividual ? "Last Name *" : "Contact Last Name *"}
                 </label>
                 <input
@@ -371,14 +370,14 @@ function Clients() {
                   onChange={handleInputChange}
                   required
                   placeholder="Mwangi"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Phone Number *
                 </label>
                 <input
@@ -387,11 +386,11 @@ function Clients() {
                   onChange={handleInputChange}
                   required
                   placeholder="0712345678"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Email
                 </label>
                 <input
@@ -400,14 +399,14 @@ function Clients() {
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="john@example.com"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   {isIndividual ? "ID Number" : "Contact ID Number"}
                 </label>
                 <input
@@ -415,20 +414,20 @@ function Clients() {
                   value={formData.id_number}
                   onChange={handleInputChange}
                   placeholder="12345678"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
               {/* Gender is a person attribute — only for individual clients. */}
               {isIndividual && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Gender
                   </label>
                   <select
                     name="gender"
                     value={formData.gender}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   >
                     <option value="">-- Select --</option>
                     <option value="male">Male</option>
@@ -443,7 +442,7 @@ function Clients() {
             {formData.client_type !== "individual" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     {businessNameLabel(formData.client_type)}
                   </label>
                   <input
@@ -455,11 +454,11 @@ function Clients() {
                         ? "Maendeleo Chama"
                         : "John's Shop"
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     {formData.client_type === "group"
                       ? "Group Activity"
                       : "Business Type"}
@@ -468,7 +467,7 @@ function Clients() {
                     name="business_type"
                     value={formData.business_type}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   >
                     <option value="">-- Select Type --</option>
                     {BUSINESS_TYPES.map((t) => (
@@ -481,7 +480,7 @@ function Clients() {
 
                 {/* Registration number — relevant to both groups and businesses. */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Registration No.
                   </label>
                   <input
@@ -489,7 +488,7 @@ function Clients() {
                     value={formData.registration_no}
                     onChange={handleInputChange}
                     placeholder={isGroup ? "e.g. SG/12345" : "e.g. PVT-2024-001"}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
 
@@ -497,14 +496,14 @@ function Clients() {
                 {isGroup && (
                   <>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                         Meeting Frequency
                       </label>
                       <select
                         name="meeting_frequency"
                         value={formData.meeting_frequency}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                       >
                         <option value="">-- Select --</option>
                         <option value="weekly">Weekly</option>
@@ -514,7 +513,7 @@ function Clients() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                         Number of Members
                       </label>
                       <input
@@ -524,7 +523,7 @@ function Clients() {
                         value={formData.member_count}
                         onChange={handleInputChange}
                         placeholder="12"
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                       />
                     </div>
                   </>
@@ -536,7 +535,7 @@ function Clients() {
               {/* Date of birth is a person attribute — only for individuals. */}
               {isIndividual && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Date of Birth
                   </label>
                   <input
@@ -545,22 +544,22 @@ function Clients() {
                     value={formData.date_of_birth}
                     onChange={handleInputChange}
                     max={new Date().toISOString().split("T")[0]}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                     Optional — powers borrower-age analytics
                   </p>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Branch
                 </label>
                 <select
                   name="branch_id"
                   value={formData.branch_id}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 >
                   <option value="">
                     {branches.length === 0
@@ -574,7 +573,7 @@ function Clients() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Add branches in Settings to assign new clients here.
                 </p>
               </div>
@@ -582,7 +581,7 @@ function Clients() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   City
                 </label>
                 <input
@@ -590,19 +589,19 @@ function Clients() {
                   value={formData.city}
                   onChange={handleInputChange}
                   placeholder="Nairobi"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   County
                 </label>
                 <select
                   name="county"
                   value={formData.county}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 >
                   <option value="">-- Select County --</option>
                   {KENYA_COUNTIES.map((county) => (
@@ -615,7 +614,7 @@ function Clients() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Address
               </label>
               <input
@@ -623,7 +622,7 @@ function Clients() {
                 value={formData.address}
                 onChange={handleInputChange}
                 placeholder="P.O Box 123-00100"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
               />
             </div>
 
@@ -655,7 +654,7 @@ function Clients() {
             <div
               key={client.id}
               onClick={() => navigate(`/clients/${client.id}/profile`)}
-              className={`bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
                 bulk.isSelected(client.id) ? "ring-2 ring-ocean-400" : ""
               }`}
             >
@@ -669,7 +668,7 @@ function Clients() {
                     className="w-5 h-5 cursor-pointer mt-1 flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-800 truncate">
+                    <h3 className="font-bold text-gray-800 dark:text-slate-100 truncate">
                       {client.first_name} {client.last_name}
                     </h3>
                     <p className="text-xs text-ocean-600 font-mono">
@@ -695,31 +694,31 @@ function Clients() {
                   className={`flex-shrink-0 inline-block px-2 py-1 rounded-full text-xs font-semibold ${
                     client.status === "active"
                       ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-700"
+                      : "bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-200"
                   }`}
                 >
                   {client.status}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm border-t border-gray-100 pt-3">
+              <div className="grid grid-cols-2 gap-2 text-sm border-t border-gray-100 dark:border-slate-700 pt-3">
                 <div>
-                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Phone</p>
                   <p className="font-semibold">{client.phone_number}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Branch</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Branch</p>
                   <p className="font-semibold truncate">
                     {client.branch_name || "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Score</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Score</p>
                   <p className="font-semibold">
                     {client.credit_score == null ? "—" : client.credit_score}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Last Activity</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Last Activity</p>
                   <p className="font-semibold truncate">
                     {timeAgo(client.last_activity)}
                   </p>
@@ -732,41 +731,53 @@ function Clients() {
 
       {/* Clients List */}
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading clients…" />
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : clients.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
-            No clients yet
-          </h3>
-          <p className="text-gray-500">
-            Click "Add Client" to add your first client
-          </p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No clients yet"
+          description="Add your first client to start tracking loans, payments, and credit scores."
+          action={
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+            >
+              <UserPlus size={16} /> Add Client
+            </button>
+          }
+        />
       ) : filteredClients.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="flex justify-center mb-4">
-            <Search size={48} className="text-gray-300" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
-            No clients match your search
-          </h3>
-          <p className="text-gray-500 mb-4">
-            Try a different name, phone, email, ID, or code
-          </p>
-          <button
-            onClick={() => setSearchTerm("")}
-            className="inline-flex items-center gap-2 px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
-          >
-            <X size={16} /> Clear Search
-          </button>
-        </div>
+        <EmptyState
+          icon={Search}
+          tone="muted"
+          title="No clients match your search"
+          description="Try a different name, phone, email, ID, or code."
+          action={
+            <button
+              onClick={() => setSearchTerm("")}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition"
+            >
+              <X size={16} /> Clear Search
+            </button>
+          }
+        />
       ) : (
-        <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
           <div className="overflow-auto max-h-[calc(100vh-280px)]">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
+              <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="px-4 py-4 w-10">
                     <input
@@ -793,7 +804,7 @@ function Clients() {
                       sortKey={key}
                       requestSort={requestSort}
                       getSortIndicator={getSortIndicator}
-                      className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase"
+                      className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase"
                     />
                   ))}
                 </tr>
@@ -803,7 +814,7 @@ function Clients() {
                   <tr
                     key={client.id}
                     onClick={() => navigate(`/clients/${client.id}/profile`)}
-                    className={`border-b border-gray-100 hover:bg-ocean-50 transition cursor-pointer ${
+                    className={`border-b border-gray-100 dark:border-slate-700 hover:bg-ocean-50 dark:hover:bg-slate-700 transition cursor-pointer ${
                       bulk.isSelected(client.id) ? "bg-ocean-50" : ""
                     }`}
                   >
@@ -821,7 +832,7 @@ function Clients() {
                     <td className="px-6 py-4 font-mono text-sm font-semibold text-ocean-600">
                       {client.client_code}
                     </td>
-                    <td className="px-6 py-4 font-semibold text-gray-800">
+                    <td className="px-6 py-4 font-semibold text-gray-800 dark:text-slate-100">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span>
                           {client.first_name} {client.last_name}
@@ -845,19 +856,19 @@ function Clients() {
                             ? "bg-violet-100 text-violet-700"
                             : client.client_type === "group"
                               ? "bg-amber-100 text-amber-700"
-                              : "bg-slate-100 text-slate-700"
+                              : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                         }`}
                       >
                         {clientTypeLabel(client.client_type)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">
                       {client.phone_number}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">
                       {client.branch_name || "—"}
                     </td>
-                    <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
+                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400 whitespace-nowrap">
                       {client.created_at
                         ? new Date(client.created_at).toLocaleDateString(
                             "en-GB",
@@ -869,9 +880,9 @@ function Clients() {
                           )
                         : "—"}
                     </td>
-                    <td className="px-6 py-4 font-semibold text-gray-700">
+                    <td className="px-6 py-4 font-semibold text-gray-700 dark:text-slate-200">
                       {client.credit_score == null ? (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-gray-400 dark:text-slate-400">—</span>
                       ) : (
                         <span
                           className={
@@ -886,7 +897,7 @@ function Clients() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
+                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400 whitespace-nowrap">
                       {timeAgo(client.last_activity)}
                     </td>
                     <td className="px-6 py-4">
@@ -907,8 +918,8 @@ function Clients() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
-              <div className="text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+              <div className="text-sm text-gray-600 dark:text-slate-400">
                 Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
                 to{" "}
                 <span className="font-semibold">
@@ -923,7 +934,7 @@ function Clients() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   ← Previous
                 </button>
@@ -943,14 +954,14 @@ function Clients() {
                       return (
                         <React.Fragment key={page}>
                           {showEllipsisBefore && (
-                            <span className="px-2 text-gray-400">...</span>
+                            <span className="px-2 text-gray-400 dark:text-slate-400">...</span>
                           )}
                           <button
                             onClick={() => setCurrentPage(page)}
                             className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                               currentPage === page
                                 ? "bg-ocean-600 text-white"
-                                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                                : "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                             }`}
                           >
                             {page}
@@ -965,7 +976,7 @@ function Clients() {
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Next →
                 </button>

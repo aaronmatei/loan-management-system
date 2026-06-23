@@ -15,12 +15,12 @@ const ksh = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFrac
 const COLORS = { collected: "#10b981", expected: "#94a3b8", pool: "#0ea5e9", quarterly: "#8b5cf6", fines: "#f59e0b", accrued: "#ef4444", finePaid: "#10b981", savings: "#6366f1", attend: "#0ea5e9" };
 
 const Card = ({ icon: Icon, title, sub, children, empty }) => (
-  <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+  <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
     <div className="mb-2">
-      <p className="text-sm font-bold text-slate-800 flex items-center gap-1.5"><Icon size={15} className="text-slate-500" /> {title}</p>
-      {sub && <p className="text-xs text-slate-400">{sub}</p>}
+      <p className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5"><Icon size={15} className="text-slate-500 dark:text-slate-400" /> {title}</p>
+      {sub && <p className="text-xs text-slate-400 dark:text-slate-400">{sub}</p>}
     </div>
-    {empty ? <div className="h-48 flex items-center justify-center text-sm text-slate-400">{empty}</div> : children}
+    {empty ? <div className="h-48 flex items-center justify-center text-sm text-slate-400 dark:text-slate-400">{empty}</div> : children}
   </div>
 );
 const axis = { tick: { fontSize: 11, fill: "#94a3b8" }, axisLine: false, tickLine: false };
@@ -35,7 +35,7 @@ export default function WelfareCharts({ welfareId, client = api, url = `/welfare
     client.get(url).then((r) => setC(r.data.data)).catch(() => {}).finally(() => setLoading(false));
   }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) return <div className="text-sm text-slate-500 px-1 py-4">Loading charts…</div>;
+  if (loading) return <div className="text-sm text-slate-500 dark:text-slate-400 px-1 py-4">Loading charts…</div>;
   if (!c) return null;
 
   const finesEmpty = !c.fines?.length;

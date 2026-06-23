@@ -54,11 +54,11 @@ import { abbreviateKES, exactKES } from "../utils/money";
 function SectionHeading({ children, hint }) {
   return (
     <div className="flex items-baseline gap-3 mt-8 mb-3 first:mt-0">
-      <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+      <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
         {children}
       </h2>
-      {hint && <span className="text-xs text-slate-400">{hint}</span>}
-      <span className="flex-1 h-px bg-slate-200/70" />
+      {hint && <span className="text-xs text-slate-400 dark:text-slate-400">{hint}</span>}
+      <span className="flex-1 h-px bg-slate-200/70 dark:bg-slate-700" />
     </div>
   );
 }
@@ -93,7 +93,7 @@ function DashboardSkeleton() {
 // Soft empty state for a chart card (fresh tenant / no data yet).
 function EmptyChart({ label }) {
   return (
-    <div className="h-[260px] flex flex-col items-center justify-center text-slate-400">
+    <div className="h-[260px] flex flex-col items-center justify-center text-slate-400 dark:text-slate-400">
       <BarChart3 size={40} className="mb-2" />
       <p className="text-sm">{label}</p>
     </div>
@@ -237,7 +237,7 @@ function Dashboard() {
   if (error) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="bg-red-50 dark:bg-slate-800 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
         </div>
       </div>
@@ -386,10 +386,10 @@ function Dashboard() {
       {/* Header */}
       <div className="mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100">
             Dashboard
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-slate-400 mt-2">
             Welcome back,{" "}
             <span className="font-semibold">{user?.first_name}</span>!
           </p>
@@ -436,7 +436,7 @@ function Dashboard() {
           header + Top up capital on top, hero numbers, utilization
           bar, then the five pastel All-time tiles all live INSIDE. */}
       {poolStatus && (
-        <div className="relative overflow-hidden rounded-3xl ring-1 ring-slate-200/60 shadow-[0_10px_40px_-20px_rgba(15,30,60,0.18)] p-6 lg:p-8 mb-6 bg-gradient-to-br from-slate-50 via-ocean-50 to-ocean-50/70">
+        <div className="relative overflow-hidden rounded-3xl ring-1 ring-slate-200/60 dark:ring-slate-700 shadow-[0_10px_40px_-20px_rgba(15,30,60,0.18)] p-6 lg:p-8 mb-6 bg-gradient-to-br from-slate-50 via-ocean-50 to-ocean-50/70 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900">
           {/* Soft tinted glows for that premium light-mode feel. */}
           <div className="pointer-events-none absolute -top-32 -right-24 w-96 h-96 rounded-full bg-ocean-200/40 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-ocean-200/30 blur-3xl" />
@@ -445,10 +445,10 @@ function Dashboard() {
               pill on the right. */}
           <div className="relative flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="relative w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-sm flex items-center justify-center">
+              <div className="relative w-11 h-11 rounded-2xl bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-700 shadow-sm flex items-center justify-center">
                 <Coins size={20} className="text-ocean-500" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                 Capital Pool
               </h2>
             </div>
@@ -472,14 +472,14 @@ function Dashboard() {
           <div className="relative mt-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-6">
             <div>
               <div className="flex flex-wrap items-end gap-x-5 gap-y-1">
-                <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-none tracking-tight">
+                <p className="text-5xl lg:text-6xl font-extrabold text-slate-900 dark:text-slate-100 leading-none tracking-tight">
                   {fmtKES(poolStatus.available_pool)}
                 </p>
-                <p className="text-sm text-slate-400 pb-1.5">
+                <p className="text-sm text-slate-400 dark:text-slate-400 pb-1.5">
                   of {fmtKES(poolStatus.initial_capital)} total pool
                 </p>
               </div>
-              <p className="text-sm text-slate-500 mt-2">Available Capital</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Available Capital</p>
             </div>
 
             {/* Net Profit pill — "catchy" hero in the centre. */}
@@ -512,7 +512,7 @@ function Dashboard() {
                         <Sparkles size={18} />
                       </div>
                       <div className="text-left">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 font-semibold">
                           Net Profit · All Time
                         </p>
                         <p
@@ -531,10 +531,10 @@ function Dashboard() {
             })()}
 
             <div className="text-right">
-              <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
+              <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-slate-100 leading-none tracking-tight">
                 {fmtKES(poolStatus.outstanding_principal)}
               </p>
-              <p className="text-sm text-slate-500 mt-2">Loaned Out</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Loaned Out</p>
             </div>
           </div>
 
@@ -544,8 +544,8 @@ function Dashboard() {
               as the pool fills". Block count rounds to nearest 10%. */}
           <div className="relative mt-7">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-500">Utilization</span>
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-xs text-slate-500 dark:text-slate-400">Utilization</span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {poolStatus.utilization_rate.toFixed(1)}%
               </span>
             </div>
@@ -564,7 +564,7 @@ function Dashboard() {
                   <div
                     key={i}
                     className={`flex-1 h-2.5 rounded-full transition-colors ${
-                      filled ? "" : "bg-slate-200/80"
+                      filled ? "" : "bg-slate-200/80 dark:bg-slate-700"
                     }`}
                     style={
                       filled
@@ -584,18 +584,18 @@ function Dashboard() {
               Pool block, sitting under the utilization bar. */}
           <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-7">
             {/* All time Disbursed — neutral slate */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-white/70 to-slate-100/40 ring-1 ring-slate-200/60 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-white/70 to-slate-100/40 dark:from-slate-800 dark:to-slate-800 ring-1 ring-slate-200/60 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-slate-200/60 flex items-center justify-center shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 ring-1 ring-slate-200/60 dark:ring-slate-700 flex items-center justify-center shadow-sm">
                   <ArrowUpRight size={15} className="text-slate-500" />
                 </div>
                 <ArrowUpRight size={12} className="text-slate-300" />
               </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 mt-3">
                 Lifetime disbursement
               </p>
               <p
-                className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap"
+                className="text-lg lg:text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-1 tracking-tight whitespace-nowrap"
                 title={exactKES(poolStatus.total_disbursed)}
               >
                 {abbreviateKES(poolStatus.total_disbursed)}
@@ -603,18 +603,18 @@ function Dashboard() {
             </div>
 
             {/* All time Collected — soft emerald */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-50/80 to-emerald-100/40 ring-1 ring-emerald-200/50 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-50/80 to-emerald-100/40 dark:from-slate-800 dark:to-slate-800 ring-1 ring-emerald-200/50 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-emerald-200/60 flex items-center justify-center shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 ring-1 ring-emerald-200/60 flex items-center justify-center shadow-sm">
                   <ArrowDownLeft size={15} className="text-emerald-600" />
                 </div>
                 <ArrowDownLeft size={12} className="text-emerald-300" />
               </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 mt-3">
                 Net collection
               </p>
               <p
-                className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap"
+                className="text-lg lg:text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-1 tracking-tight whitespace-nowrap"
                 title={exactKES(poolStatus.total_collected)}
               >
                 {abbreviateKES(poolStatus.total_collected)}
@@ -622,14 +622,14 @@ function Dashboard() {
             </div>
 
             {/* All time Interest from Loans — emerald accent */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-100/80 to-emerald-50/40 ring-1 ring-emerald-200/60 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-100/80 to-emerald-50/40 dark:from-slate-800 dark:to-slate-800 ring-1 ring-emerald-200/60 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 ring-1 ring-emerald-200/70 flex items-center justify-center shadow-sm">
                   <TrendingUp size={15} className="text-emerald-600" />
                 </div>
                 <TrendingUp size={12} className="text-emerald-300" />
               </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 mt-3">
                 Net Interest
               </p>
               <p
@@ -641,14 +641,14 @@ function Dashboard() {
             </div>
 
             {/* All time Interest from Fines — warm amber */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-50/90 to-amber-100/40 ring-1 ring-amber-200/50 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-50/90 to-amber-100/40 dark:from-slate-800 dark:to-slate-800 ring-1 ring-amber-200/50 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 ring-1 ring-amber-200/70 flex items-center justify-center shadow-sm">
                   <AlertTriangle size={15} className="text-amber-600" />
                 </div>
                 <AlertTriangle size={12} className="text-amber-300" />
               </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 mt-3">
                 Total Fines
               </p>
               <p
@@ -674,14 +674,14 @@ function Dashboard() {
                 (booked into capital_pool.total_interest_earned) but
                 surfacing it separately makes the income story
                 explicit instead of bundled into Net Interest. */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-ocean-50/80 to-violet-100/40 ring-1 ring-ocean-200/60 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-ocean-50/80 to-violet-100/40 dark:from-slate-800 dark:to-slate-800 ring-1 ring-ocean-200/60 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div className="w-8 h-8 rounded-xl bg-ocean-100 ring-1 ring-ocean-200/70 flex items-center justify-center shadow-sm">
                   <Receipt size={15} className="text-ocean-600" />
                 </div>
                 <Receipt size={12} className="text-ocean-300" />
               </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 mt-3">
                 Processing Fees
               </p>
               <p
@@ -693,20 +693,20 @@ function Dashboard() {
             </div>
 
             {/* All time Collection Rate — soft sky */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-ocean-50/90 to-ocean-50/60 ring-1 ring-ocean-200/60 backdrop-blur-sm">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-ocean-50/90 to-ocean-50/60 dark:from-slate-800 dark:to-slate-800 ring-1 ring-ocean-200/60 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white ring-1 ring-ocean-200/70 flex items-center justify-center shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 ring-1 ring-ocean-200/70 flex items-center justify-center shadow-sm">
                   <Target size={15} className="text-ocean-500" />
                 </div>
                 <Target size={12} className="text-ocean-300" />
               </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 mt-3">
                 Lifetime Collection Rate
               </p>
-              <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight">
+              <p className="text-lg lg:text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-1 tracking-tight">
                 {metrics.collection_rate}%
               </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
+              <p className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5">
                 All-time collection rate
               </p>
             </div>
@@ -721,19 +721,19 @@ function Dashboard() {
       {/* Top-up capital modal */}
       {showTopUp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <Coins size={22} /> Top up capital pool
             </h3>
             {poolStatus && (
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
                 Available now:{" "}
                 <strong>
                   KES {poolStatus.available_pool.toLocaleString()}
                 </strong>
               </p>
             )}
-            <label className="block text-sm font-semibold mb-1 text-gray-700">
+            <label className="block text-sm font-semibold mb-1 text-gray-700 dark:text-slate-200">
               Amount to add (KES) *
             </label>
             <input
@@ -742,9 +742,9 @@ function Dashboard() {
               onChange={(e) => setTopUpAmount(e.target.value)}
               min="1"
               placeholder="e.g. 500000"
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
-            <label className="block text-sm font-semibold mt-4 mb-1 text-gray-700">
+            <label className="block text-sm font-semibold mt-4 mb-1 text-gray-700 dark:text-slate-200">
               Date received
             </label>
             <input
@@ -752,9 +752,9 @@ function Dashboard() {
               value={topUpDate}
               max={new Date().toISOString().split("T")[0]}
               onChange={(e) => setTopUpDate(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Defaults to today — set an earlier date if the capital came in
               before.
             </p>
@@ -784,73 +784,73 @@ function Dashboard() {
         {/* Total Portfolio — active receivable book (principal + interest
             for currently-active loans). Matches Analytics' "Active
             Portfolio" so the two pages don't disagree. */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Total Portfolio
             </p>
             <IconTile icon={Wallet} variant="ocean" size={40} />
           </div>
           <p
-            className="text-2xl font-bold text-navy-900 mt-2"
+            className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2"
             title={exactKES(metrics.active_portfolio ?? metrics.total_amount_due)}
           >
             {abbreviateKES(metrics.active_portfolio ?? metrics.total_amount_due)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {metrics.active_loans} active • {metrics.total_loans} total
           </p>
         </div>
 
         {/* Receivable — book balance still owed (principal + interest). */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Receivable
             </p>
             <IconTile icon={Coins} variant="amber" size={40} />
           </div>
           <p
-            className="text-2xl font-bold text-navy-900 mt-2"
+            className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2"
             title={exactKES(metrics.outstanding_balance)}
           >
             {abbreviateKES(metrics.outstanding_balance)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">To be collected</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">To be collected</p>
         </div>
 
         {/* Overdue → keeps the navigation to the dedicated overdue page */}
         <button
           onClick={() => navigate("/overdue")}
-          className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-rose-200 hover:shadow transition"
+          className="text-left bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 hover:border-rose-200 hover:shadow transition"
         >
           <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Overdue
             </p>
             <IconTile icon={AlertTriangle} variant="rose" size={40} />
           </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
+          <p className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2">
             {Number(metrics.overdue_count || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {fmtKES(metrics.overdue_amount)}
             {metrics.overdue_loans > 0 && ` • ${metrics.overdue_loans} loans`}
           </p>
         </button>
 
         {/* Collection Rate — period total_collected / total_amount_due */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Collection Rate
             </p>
             <IconTile icon={TrendingUp} variant="ocean" size={40} />
           </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
+          <p className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2">
             {(metrics.collection_rate || 0).toFixed(1)}%
           </p>
-          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="mt-2 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
               className="bg-ocean-500 h-1.5 rounded-full transition-all"
               style={{
@@ -865,12 +865,12 @@ function Dashboard() {
       <SectionHeading hint="Trends & status">Insights</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Chart 1 — Collections vs Disbursements (last 6 months) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <IconTile icon={TrendingUp} variant="ocean" size={36} />
             <div>
-              <h3 className="font-bold text-navy-900">Collections Trend</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-bold text-navy-900 dark:text-slate-100">Collections Trend</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {latestCollected != null
                   ? `Latest month: ${fmtKES(latestCollected)} collected`
                   : "Last 6 months"}
@@ -947,12 +947,12 @@ function Dashboard() {
         </div>
 
         {/* Chart 2 — Portfolio Health donut */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <IconTile icon={PieChartIcon} variant="indigo" size={36} />
             <div>
-              <h3 className="font-bold text-navy-900">Portfolio Health</h3>
-              <p className="text-xs text-slate-500">Loan status breakdown</p>
+              <h3 className="font-bold text-navy-900 dark:text-slate-100">Portfolio Health</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Loan status breakdown</p>
             </div>
           </div>
           {donutTotal === 0 ? (
@@ -1001,12 +1001,12 @@ function Dashboard() {
       <SectionHeading hint="Portfolio mix">Distribution</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* Chart A — Loans by Age: borrower age × loan status */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <IconTile icon={Users} variant="ocean" size={36} />
             <div>
-              <h3 className="font-bold text-navy-900">Loans by Age</h3>
-              <p className="text-xs text-slate-500">Borrower age × status</p>
+              <h3 className="font-bold text-navy-900 dark:text-slate-100">Loans by Age</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Borrower age × status</p>
             </div>
           </div>
           {!ageHasData ? (
@@ -1072,12 +1072,12 @@ function Dashboard() {
         </div>
 
         {/* Chart B — Loan-size histogram */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <IconTile icon={BarChart3} variant="indigo" size={36} />
             <div>
-              <h3 className="font-bold text-navy-900">Loan Sizes</h3>
-              <p className="text-xs text-slate-500">Loans by principal</p>
+              <h3 className="font-bold text-navy-900 dark:text-slate-100">Loan Sizes</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Loans by principal</p>
             </div>
           </div>
           {!sizeHasData ? (
@@ -1132,12 +1132,12 @@ function Dashboard() {
         </div>
 
         {/* Chart C — Payment-method split */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <IconTile icon={CreditCard} variant="teal" size={36} />
             <div>
-              <h3 className="font-bold text-navy-900">Payment Methods</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-bold text-navy-900 dark:text-slate-100">Payment Methods</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Share of completed payments
               </p>
             </div>
@@ -1192,35 +1192,35 @@ function Dashboard() {
           stats, not hero figures. */}
       <SectionHeading hint="Supporting stats">Performance</SectionHeading>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-4">
-          <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
             Total Clients
           </p>
-          <p className="text-xl font-bold text-navy-900 mt-1">
+          <p className="text-xl font-bold text-navy-900 dark:text-slate-100 mt-1">
             {Number(metrics.total_clients || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {metrics.active_clients} active
           </p>
         </div>
-        <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-4">
-          <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
             Completed Loans
           </p>
           <p className="text-xl font-bold text-money-pos mt-1">
             {Number(metrics.completed_loans || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-slate-500 mt-1">Fully repaid</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Fully repaid</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-4">
-          <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
             Upcoming (7 days)
           </p>
           <p className="text-xl font-bold text-money-warn mt-1">
             {Number(metrics.upcoming_count || 0).toLocaleString()}
           </p>
           <p
-            className="text-xs text-slate-500 mt-1"
+            className="text-xs text-slate-500 dark:text-slate-400 mt-1"
             title={exactKES(metrics.upcoming_amount)}
           >
             {abbreviateKES(metrics.upcoming_amount)}
@@ -1233,12 +1233,12 @@ function Dashboard() {
       <SectionHeading hint="Last 6 months">Monthly activity</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Payments Trend */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Banknote size={20} /> Payments (Last 6 Months)
           </h3>
           {trends.payments_trend.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
+            <p className="text-gray-500 dark:text-slate-400 text-center py-8">
               No payment data yet
             </p>
           ) : (
@@ -1249,20 +1249,20 @@ function Dashboard() {
                 return (
                   <div key={item.month}>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-semibold text-gray-700">
+                      <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                         {item.month_label}
                       </span>
                       <span className="text-sm font-bold text-green-600">
                         KES {amount.toLocaleString()}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-3">
+                    <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-3">
                       <div
                         className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all"
                         style={{ width: `${percentage}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       {item.count} payments
                     </p>
                   </div>
@@ -1273,12 +1273,12 @@ function Dashboard() {
         </div>
 
         {/* Loans Trend */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Coins size={20} /> Loans Issued (Last 6 Months)
           </h3>
           {trends.loans_trend.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No loan data yet</p>
+            <p className="text-gray-500 dark:text-slate-400 text-center py-8">No loan data yet</p>
           ) : (
             <div className="space-y-3">
               {trends.loans_trend.map((item) => {
@@ -1287,20 +1287,20 @@ function Dashboard() {
                 return (
                   <div key={item.month}>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-semibold text-gray-700">
+                      <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                         {item.month_label}
                       </span>
                       <span className="text-sm font-bold text-ocean-600">
                         KES {amount.toLocaleString()}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-3">
+                    <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-3">
                       <div
                         className="bg-ocean-gradient h-3 rounded-full transition-all"
                         style={{ width: `${percentage}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       {item.count} loans
                     </p>
                   </div>
@@ -1315,9 +1315,9 @@ function Dashboard() {
       <SectionHeading hint="Latest events">Recent activity</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Payments */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <Banknote size={20} /> Recent Payments
             </h3>
             <button
@@ -1328,23 +1328,23 @@ function Dashboard() {
             </button>
           </div>
           {activities.recent_payments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No payments yet</div>
+            <div className="p-8 text-center text-gray-500 dark:text-slate-400">No payments yet</div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100 dark:divide-slate-700">
               {activities.recent_payments.map((payment) => (
                 <div
                   key={payment.id}
-                  className="p-4 hover:bg-gray-50 transition"
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition"
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-semibold text-gray-800">
+                      <p className="font-semibold text-gray-800 dark:text-slate-100">
                         {payment.first_name} {payment.last_name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
                         {payment.loan_code} • {payment.payment_method}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-400 dark:text-slate-400">
                         {new Date(payment.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                       </p>
                     </div>
@@ -1352,7 +1352,7 @@ function Dashboard() {
                       <p className="font-bold text-green-600">
                         KES {parseFloat(payment.amount_paid).toLocaleString()}
                       </p>
-                      <p className="text-xs text-gray-500 font-mono">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 font-mono">
                         {payment.transaction_code}
                       </p>
                     </div>
@@ -1364,9 +1364,9 @@ function Dashboard() {
         </div>
 
         {/* Recent Loans */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <ClipboardList size={20} /> Recent Loans
             </h3>
             <button
@@ -1377,26 +1377,26 @@ function Dashboard() {
             </button>
           </div>
           {activities.recent_loans.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No loans yet</div>
+            <div className="p-8 text-center text-gray-500 dark:text-slate-400">No loans yet</div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100 dark:divide-slate-700">
               {activities.recent_loans.map((loan) => (
                 <div
                   key={loan.id}
                   onClick={() => navigate(`/loans/${loan.id}`)}
-                  className="p-4 hover:bg-gray-50 cursor-pointer transition"
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition"
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-semibold text-gray-800">
+                      <p className="font-semibold text-gray-800 dark:text-slate-100">
                         {loan.first_name} {loan.last_name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
                         {loan.loan_code} • {loan.phone_number}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-gray-800">
+                      <p className="font-bold text-gray-800 dark:text-slate-100">
                         KES {parseFloat(loan.principal_amount).toLocaleString()}
                       </p>
                       <span
@@ -1405,7 +1405,7 @@ function Dashboard() {
                             ? "bg-emerald-50 text-emerald-600"
                             : loan.status === "completed"
                               ? "bg-ocean-50 text-ocean-600"
-                              : "bg-slate-100 text-slate-600"
+                              : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
                         }`}
                       >
                         {loan.status}

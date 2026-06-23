@@ -10,7 +10,8 @@ import {
   Check,
 } from "lucide-react";
 import api from "../services/api";
-import Spinner from "./Spinner";
+import Skeleton from "./Skeleton";
+import EmptyState from "./EmptyState";
 
 // Branches — per-tenant operational units. Lender adds them from
 // Settings; create-client dropdowns then offer them as options. Every
@@ -108,11 +109,11 @@ function BranchesSection() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+      <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2">
         <MapPin size={22} /> Branches
       </h2>
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
         Operational units (e.g. Westlands, CBD). Each client is assigned to
         one branch. The default branch is used when no branch is picked.
       </p>
@@ -128,28 +129,28 @@ function BranchesSection() {
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
-          className="md:col-span-3 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+          className="md:col-span-3 px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
         />
         <input
           type="text"
           placeholder="Code"
           value={form.code}
           onChange={(e) => setForm({ ...form, code: e.target.value })}
-          className="md:col-span-2 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+          className="md:col-span-2 px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
         />
         <input
           type="text"
           placeholder="Location"
           value={form.location}
           onChange={(e) => setForm({ ...form, location: e.target.value })}
-          className="md:col-span-3 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+          className="md:col-span-3 px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
         />
         <input
           type="text"
           placeholder="Phone"
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          className="md:col-span-2 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+          className="md:col-span-2 px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
         />
         <button
           type="submit"
@@ -167,14 +168,23 @@ function BranchesSection() {
 
       {/* List */}
       {loading ? (
-        <Spinner centered className="py-6" size={28} label="Loading branches…" />
+        <div className="space-y-2 py-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
       ) : rows.length === 0 ? (
-        <div className="text-gray-500 text-sm">No branches yet.</div>
+        <EmptyState
+          icon={MapPin}
+          tone="muted"
+          title="No branches yet"
+          description="Add your first branch above. Branches let you assign clients to operational units like Westlands or CBD."
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-600 border-b border-gray-200">
+              <tr className="text-left text-gray-600 dark:text-slate-400 border-b border-gray-200 dark:border-slate-700">
                 <th className="px-3 py-2 font-semibold">Name</th>
                 <th className="px-3 py-2 font-semibold">Code</th>
                 <th className="px-3 py-2 font-semibold">Location</th>
@@ -189,7 +199,7 @@ function BranchesSection() {
                 return (
                   <tr
                     key={b.id}
-                    className={`border-b border-gray-100 ${
+                    className={`border-b border-gray-100 dark:border-slate-700 text-gray-800 dark:text-slate-100 ${
                       b.active ? "" : "opacity-60"
                     }`}
                   >
@@ -201,7 +211,7 @@ function BranchesSection() {
                           onChange={(e) =>
                             setEditDraft({ ...editDraft, name: e.target.value })
                           }
-                          className="w-full px-2 py-1 border border-gray-300 rounded"
+                          className="w-full px-2 py-1 border border-gray-300 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded"
                         />
                       ) : (
                         <span className="inline-flex items-center gap-1.5">
@@ -214,7 +224,7 @@ function BranchesSection() {
                           )}
                           {b.name}
                           {!b.active && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-500 dark:text-slate-400">
                               (archived)
                             </span>
                           )}
@@ -229,7 +239,7 @@ function BranchesSection() {
                           onChange={(e) =>
                             setEditDraft({ ...editDraft, code: e.target.value })
                           }
-                          className="w-full px-2 py-1 border border-gray-300 rounded"
+                          className="w-full px-2 py-1 border border-gray-300 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded"
                         />
                       ) : (
                         b.code || "—"
@@ -246,7 +256,7 @@ function BranchesSection() {
                               location: e.target.value,
                             })
                           }
-                          className="w-full px-2 py-1 border border-gray-300 rounded"
+                          className="w-full px-2 py-1 border border-gray-300 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded"
                         />
                       ) : (
                         b.location || "—"
@@ -263,7 +273,7 @@ function BranchesSection() {
                               phone: e.target.value,
                             })
                           }
-                          className="w-full px-2 py-1 border border-gray-300 rounded"
+                          className="w-full px-2 py-1 border border-gray-300 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded"
                         />
                       ) : (
                         b.phone || "—"
@@ -283,7 +293,7 @@ function BranchesSection() {
                             </button>
                             <button
                               onClick={cancelEdit}
-                              className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+                              className="p-1 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
                               title="Cancel"
                             >
                               <X size={16} />
@@ -302,7 +312,7 @@ function BranchesSection() {
                             )}
                             <button
                               onClick={() => startEdit(b)}
-                              className="p-1 text-gray-700 hover:bg-gray-100 rounded"
+                              className="p-1 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
                               title="Edit"
                             >
                               <Pencil size={16} />

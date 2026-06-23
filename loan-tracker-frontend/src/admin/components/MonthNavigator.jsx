@@ -35,31 +35,31 @@ export default function MonthNavigator({
 
   return (
     <div
-      className={`inline-flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-1.5 py-1 ${className}`}
+      className={`inline-flex items-center gap-1 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 px-1.5 py-1 ${className}`}
     >
       <button
         type="button"
         onClick={() => step(-1)}
-        className="p-1 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition"
+        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 hover:text-gray-900 transition"
         title="Previous month"
         aria-label="Previous month"
       >
         <ChevronLeft size={16} />
       </button>
-      <span className="text-xs font-semibold text-gray-600 uppercase pl-1">
+      <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase pl-1">
         Month
       </span>
       <input
         type="month"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="text-sm focus:outline-none bg-transparent px-1"
+        className="text-sm focus:outline-none bg-transparent dark:text-slate-100 px-1"
       />
       <button
         type="button"
         onClick={() => step(+1)}
         disabled={forwardDisabled}
-        className="p-1 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 hover:text-gray-900 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
         title={
           forwardDisabled
             ? "Already at the current month"
@@ -73,7 +73,7 @@ export default function MonthNavigator({
         <button
           type="button"
           onClick={() => onChange("")}
-          className="text-xs text-gray-500 hover:text-gray-800 underline pr-1"
+          className="text-xs text-gray-500 dark:text-slate-400 hover:text-gray-800 underline pr-1"
           title="Show all months"
         >
           clear

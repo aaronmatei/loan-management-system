@@ -5,7 +5,10 @@ import api from "../services/api";
 import { useSortableTable } from "../hooks/useSortableTable";
 import SortableHeader from "../components/SortableHeader";
 import PaymentReceipt from "../components/PaymentReceipt";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
 function Payments() {
   const [payments, setPayments] = useState([]);
@@ -361,54 +364,47 @@ function Payments() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            Payments
-          </h1>
-          <p className="text-sm lg:text-base text-gray-600 mt-1">
-            Total:{" "}
-            <span className="font-semibold">
-              {payments.filter((p) => p.payment_status !== "voided").length}
-            </span>{" "}
-            payments recorded
-          </p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          disabled={loans.length === 0}
-          className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {showForm ? <span className="inline-flex items-center gap-1.5"><X size={16} /> Cancel</span> : "+ Record Payment"}
-        </button>
-      </div>
+      <PageHeader
+        icon={Coins}
+        title="Payments"
+        subtitle={`${payments.filter((p) => p.payment_status !== "voided").length} payments recorded`}
+        actions={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            disabled={loans.length === 0}
+            className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {showForm ? <span className="inline-flex items-center gap-1.5"><X size={16} /> Cancel</span> : "+ Record Payment"}
+          </button>
+        }
+      />
 
       {/* Date range filter — filters by transaction.payment_date.
           Both inputs are independent; leaving one empty leaves that
           side unbounded. Clear button only renders when something
           is set. */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-4 flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-3 mb-4 flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200">
           <Calendar size={16} /> Date range
         </span>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">From</label>
+          <label className="text-xs text-gray-500 dark:text-slate-400">From</label>
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             max={dateTo || undefined}
-            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
           />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">To</label>
+          <label className="text-xs text-gray-500 dark:text-slate-400">To</label>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             min={dateFrom || undefined}
-            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
           />
         </div>
         {(dateFrom || dateTo) && (
@@ -417,15 +413,15 @@ function Payments() {
               setDateFrom("");
               setDateTo("");
             }}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-slate-400 hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition"
           >
             <X size={14} /> Clear
           </button>
         )}
         {(dateFrom || dateTo) && (
-          <span className="ml-auto text-xs text-gray-500">
+          <span className="ml-auto text-xs text-gray-500 dark:text-slate-400">
             Showing{" "}
-            <span className="font-semibold text-gray-700">
+            <span className="font-semibold text-gray-700 dark:text-slate-200">
               {sortedGroups.length}
             </span>{" "}
             of {loanGroups.length === sortedGroups.length ? sortedGroups.length : loanGroups.length} loans
@@ -452,16 +448,16 @@ function Payments() {
 
       {/* Record Payment Form */}
       {showForm && (
-        <div className="bg-white rounded-xl shadow-md p-8 mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6">
             Record New Payment
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Searchable Loan Dropdown */}
             <div ref={dropdownRef} className="relative">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Select Loan *
-                <span className="text-gray-500 font-normal ml-2">
+                <span className="text-gray-500 dark:text-slate-400 font-normal ml-2">
                   (Search by loan code, client name, or phone)
                 </span>
               </label>
@@ -476,10 +472,8 @@ function Payments() {
                     <p className="text-sm text-green-700 flex items-center gap-1.5">
                       <Smartphone size={14} /> {selectedLoan.phone_number}
                       <span className="mx-1">•</span>
-                      <Coins size={14} /> KES{" "}
-                      {parseFloat(
-                        selectedLoan.principal_amount,
-                      ).toLocaleString()}
+                      <Coins size={14} />{" "}
+                      {formatKES(selectedLoan.principal_amount)}
                     </p>
                   </div>
                   <button
@@ -501,13 +495,13 @@ function Payments() {
                     }}
                     onFocus={() => setShowDropdown(true)}
                     placeholder="Type to search active loans..."
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
 
                   {showDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-80 overflow-y-auto">
                       {filteredLoans.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">
+                        <div className="p-4 text-center text-gray-500 dark:text-slate-400">
                           No active loans found
                         </div>
                       ) : (
@@ -516,31 +510,29 @@ function Payments() {
                             key={loan.id}
                             type="button"
                             onClick={() => handleSelectLoan(loan)}
-                            className="w-full text-left p-3 hover:bg-green-50 border-b border-gray-100 last:border-b-0 transition"
+                            className="w-full text-left p-3 hover:bg-green-50 dark:hover:bg-slate-700 border-b border-gray-100 dark:border-slate-700 last:border-b-0 transition"
                           >
                             <div className="flex justify-between items-start">
                               <div>
-                                <p className="font-semibold text-gray-800">
+                                <p className="font-semibold text-gray-800 dark:text-slate-100">
                                   {loan.loan_code}
                                 </p>
-                                <p className="text-sm text-gray-700">
+                                <p className="text-sm text-gray-700 dark:text-slate-200">
                                   {loan.first_name} {loan.last_name} •{" "}
                                   {loan.phone_number}
                                 </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Principal: KES{" "}
-                                  {parseFloat(
-                                    loan.principal_amount,
-                                  ).toLocaleString()}{" "}
-                                  • Remaining: KES{" "}
-                                  {parseFloat(
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                                  Principal:{" "}
+                                  {formatKES(loan.principal_amount)}{" "}
+                                  • Remaining:{" "}
+                                  {formatKES(
                                     loan.balance_due ??
                                       Math.max(
                                         parseFloat(loan.total_amount_due || 0) -
                                           parseFloat(loan.total_paid || 0),
                                         0,
                                       ),
-                                  ).toLocaleString()}
+                                  )}
                                 </p>
                               </div>
                               <span className="text-xs font-mono text-green-600 bg-green-100 px-2 py-1 rounded">
@@ -595,32 +587,32 @@ function Payments() {
                   </h3>
 
                   {/* Principal + interest ledger */}
-                  <div className="bg-white rounded-md p-3 text-sm space-y-1.5">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                  <div className="bg-white dark:bg-slate-800 rounded-md p-3 text-sm space-y-1.5">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">
                       Principal + interest
                     </p>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Total due</span>
-                      <span className="font-semibold text-gray-800">
+                      <span className="text-gray-600 dark:text-slate-400">Total due</span>
+                      <span className="font-semibold text-gray-800 dark:text-slate-100">
                         KES {fmt(totalDue)}
                       </span>
                     </div>
                     <div className="flex justify-between pl-4">
-                      <span className="text-gray-500">↳ Cash paid</span>
+                      <span className="text-gray-500 dark:text-slate-400">↳ Cash paid</span>
                       <span className="font-semibold text-green-700">
                         KES {fmt(cashToAmountDue)}
                       </span>
                     </div>
                     {waivedAmountDue > 0 && (
                       <div className="flex justify-between pl-4">
-                        <span className="text-gray-500">↳ Waived</span>
+                        <span className="text-gray-500 dark:text-slate-400">↳ Waived</span>
                         <span className="font-semibold text-fuchsia-700">
                           KES {fmt(waivedAmountDue)}
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between border-t border-gray-100 pt-1.5">
-                      <span className="font-semibold text-gray-700">Balance</span>
+                    <div className="flex justify-between border-t border-gray-100 dark:border-slate-700 pt-1.5">
+                      <span className="font-semibold text-gray-700 dark:text-slate-200">Balance</span>
                       <span
                         className={`font-bold ${
                           balance > 0 ? "text-orange-600" : "text-green-600"
@@ -651,12 +643,12 @@ function Payments() {
                   {/* Progress bar */}
                   <div className="mt-3">
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-600">Progress</span>
+                      <span className="text-gray-600 dark:text-slate-400">Progress</span>
                       <span className="font-semibold text-ocean-700">
                         {progress}%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full transition-all"
                         style={{ width: `${progress}%` }}
@@ -672,19 +664,19 @@ function Payments() {
                       Total to pay row below it answers "what does
                       the borrower owe me right now in cash?". */}
                   {hasPenaltyActivity && (
-                    <div className="mt-3 bg-white rounded-md p-3 text-sm space-y-1.5">
-                      <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                    <div className="mt-3 bg-white dark:bg-slate-800 rounded-md p-3 text-sm space-y-1.5">
+                      <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">
                         Penalties
                       </p>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Accrued</span>
-                        <span className="font-semibold text-gray-800">
+                        <span className="text-gray-600 dark:text-slate-400">Accrued</span>
+                        <span className="font-semibold text-gray-800 dark:text-slate-100">
                           KES {fmt(penaltyAccrued)}
                         </span>
                       </div>
                       {penaltyPaid > 0 && (
                         <div className="flex justify-between pl-4">
-                          <span className="text-gray-500">↳ Cash paid</span>
+                          <span className="text-gray-500 dark:text-slate-400">↳ Cash paid</span>
                           <span className="font-semibold text-rose-700">
                             KES {fmt(penaltyPaid)}
                           </span>
@@ -692,7 +684,7 @@ function Payments() {
                       )}
                       {penaltyWaived > 0 && (
                         <div className="flex justify-between pl-4">
-                          <span className="text-gray-500">↳ Waived</span>
+                          <span className="text-gray-500 dark:text-slate-400">↳ Waived</span>
                           <span className="font-semibold text-fuchsia-700">
                             KES {fmt(penaltyWaived)}
                           </span>
@@ -704,8 +696,8 @@ function Payments() {
                           penalty" instead of leaving them to infer
                           from missing rows. Colour shifts to green
                           when there's nothing owed. */}
-                      <div className="flex justify-between border-t border-gray-100 pt-1.5">
-                        <span className="font-semibold text-gray-700">
+                      <div className="flex justify-between border-t border-gray-100 dark:border-slate-700 pt-1.5">
+                        <span className="font-semibold text-gray-700 dark:text-slate-200">
                           Outstanding
                         </span>
                         <span
@@ -751,7 +743,7 @@ function Payments() {
             {/* Payment Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Amount Paid (KES) *
                 </label>
                 <input
@@ -763,11 +755,11 @@ function Payments() {
                   min="1"
                   step="0.01"
                   placeholder="9166.67"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Payment Date *
                 </label>
                 <input
@@ -777,14 +769,14 @@ function Payments() {
                   onChange={handleInputChange}
                   required
                   max={new Date().toISOString().split("T")[0]}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Payment Method *
                 </label>
                 <select
@@ -792,7 +784,7 @@ function Payments() {
                   value={formData.payment_method}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 >
                   <option value="M-Pesa">M-Pesa</option>
                   <option value="Cash">Cash</option>
@@ -801,7 +793,7 @@ function Payments() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Reference Number
                 </label>
                 <input
@@ -809,13 +801,13 @@ function Payments() {
                   value={formData.payment_reference}
                   onChange={handleInputChange}
                   placeholder="M-Pesa code, cheque #, etc."
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Notes
               </label>
               <textarea
@@ -824,7 +816,7 @@ function Payments() {
                 onChange={handleInputChange}
                 placeholder="Any additional notes..."
                 rows="2"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
               />
             </div>
 
@@ -858,7 +850,7 @@ function Payments() {
             <p className="text-xs uppercase tracking-wide font-bold text-emerald-700">
               Totals
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-slate-400">
               {sortedGroups.length} loan
               {sortedGroups.length !== 1 ? "s" : ""} · {totals.count} payment
               {totals.count !== 1 ? "s" : ""}
@@ -866,22 +858,22 @@ function Payments() {
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <p className="text-[11px] text-gray-500">Total Paid</p>
+              <p className="text-[11px] text-gray-500 dark:text-slate-400">Total Paid</p>
               <p className="font-bold text-green-700">
-                KES {totals.total_paid.toLocaleString()}
+                {formatKES(totals.total_paid)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] text-gray-500">Total Collected</p>
+              <p className="text-[11px] text-gray-500 dark:text-slate-400">Total Collected</p>
               <p className="font-bold text-emerald-800">
-                KES {totals.total_collected.toLocaleString()}
+                {formatKES(totals.total_collected)}
               </p>
             </div>
             {totals.overpayment > 0 && (
               <div className="col-span-2">
-                <p className="text-[11px] text-gray-500">Overpayment</p>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400">Overpayment</p>
                 <p className="font-semibold text-amber-700">
-                  KES {totals.overpayment.toLocaleString()}
+                  {formatKES(totals.overpayment)}
                 </p>
               </div>
             )}
@@ -895,13 +887,13 @@ function Payments() {
           {paginatedGroups.map((g) => {
             const open = expanded.has(g.loan_id);
             return (
-              <div key={g.loan_id} className="bg-white rounded-xl shadow-md p-4">
+              <div key={g.loan_id} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-800 truncate">
+                    <p className="font-semibold text-gray-800 dark:text-slate-100 truncate">
                       {g.first_name} {g.last_name}
                     </p>
-                    <p className="text-xs text-gray-500">{g.phone_number}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">{g.phone_number}</p>
                     <Link
                       to={`/loans/${g.loan_id}`}
                       className="block text-xs text-ocean-600 font-mono hover:underline"
@@ -913,29 +905,29 @@ function Payments() {
                     {g.count} payment{g.count !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 dark:border-slate-700 pt-3">
                   <div>
-                    <p className="text-xs text-gray-500">Total Paid</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Total Paid</p>
                     <p className="font-bold text-green-600">
-                      KES {g.total_paid.toLocaleString()}
+                      {formatKES(g.total_paid)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Total Collected</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Total Collected</p>
                     <p className="font-bold text-emerald-700">
-                      KES {g.total_collected.toLocaleString()}
+                      {formatKES(g.total_collected)}
                     </p>
                   </div>
                   {g.overpayment > 0 && (
                     <div>
-                      <p className="text-xs text-gray-500">Overpayment</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Overpayment</p>
                       <p className="font-semibold text-amber-700">
-                        KES {g.overpayment.toLocaleString()}
+                        {formatKES(g.overpayment)}
                       </p>
                     </div>
                   )}
                   <div>
-                    <p className="text-xs text-gray-500">Last Payment</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Last Payment</p>
                     <p className="font-semibold">
                       {new Date(g.last_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>
@@ -957,7 +949,7 @@ function Payments() {
                   )}
                 </button>
                 {open && (
-                  <div className="mt-2 space-y-2 border-t border-gray-100 pt-2">
+                  <div className="mt-2 space-y-2 border-t border-gray-100 dark:border-slate-700 pt-2">
                     {g.transactions.map((p) => (
                       <div
                         key={p.id}
@@ -970,16 +962,16 @@ function Payments() {
                           {p.transaction_code}
                         </button>
                         <span className="flex items-center gap-2">
-                          <span className="text-gray-500">
+                          <span className="text-gray-500 dark:text-slate-400">
                             {new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                           </span>
                           <span className="font-bold text-green-600">
-                            KES {parseFloat(p.amount_paid).toLocaleString()}
+                            {formatKES(p.amount_paid)}
                           </span>
                           <button
                             onClick={() => openEditPayment(p)}
                             title="Edit payment"
-                            className="text-gray-400 hover:text-ocean-600"
+                            className="text-gray-400 dark:text-slate-400 hover:text-ocean-600"
                           >
                             <Pencil size={13} />
                           </button>
@@ -996,24 +988,46 @@ function Payments() {
 
       {/* Payments List */}
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading payments…" />
+        <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700">
+            <Skeleton className="h-4 w-40" />
+          </div>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 px-6 py-4 border-b border-gray-100 dark:border-slate-700"
+            >
+              <Skeleton className="h-9 w-9 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
         </div>
       ) : payments.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <Coins size={56} className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
-            No payments yet
-          </h3>
-          <p className="text-gray-500">
-            Click "Record Payment" to log your first payment
-          </p>
-        </div>
+        <EmptyState
+          icon={Coins}
+          title="No payments yet"
+          description="Record a payment against an active loan and it will show up here."
+          action={
+            <button
+              onClick={() => setShowForm(true)}
+              disabled={loans.length === 0}
+              className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              + Record Payment
+            </button>
+          }
+        />
       ) : (
-        <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
           <div className="overflow-auto max-h-[calc(100vh-280px)]">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
+              <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
               <tr>
                 {[
                   ["Client", "first_name"],
@@ -1030,7 +1044,7 @@ function Payments() {
                     sortKey={key}
                     requestSort={requestSort}
                     getSortIndicator={getSortIndicator}
-                    className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase"
+                    className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase"
                   />
                 ))}
               </tr>
@@ -1038,11 +1052,26 @@ function Payments() {
             <tbody>
               {paginatedGroups.length === 0 && (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="px-6 py-10 text-center text-sm text-gray-500"
-                  >
-                    No payments match the selected date range.
+                  <td colSpan="7" className="px-6 py-8">
+                    <EmptyState
+                      icon={Calendar}
+                      tone="muted"
+                      title="No payments in this date range"
+                      description="No transactions fall in the selected window. Clear the date range to see every payment."
+                      action={
+                        (dateFrom || dateTo) && (
+                          <button
+                            onClick={() => {
+                              setDateFrom("");
+                              setDateTo("");
+                            }}
+                            className="inline-flex items-center gap-1.5 px-6 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
+                          >
+                            <X size={15} /> Clear date range
+                          </button>
+                        )
+                      }
+                    />
                   </td>
                 </tr>
               )}
@@ -1050,12 +1079,12 @@ function Payments() {
                 const open = expanded.has(g.loan_id);
                 return (
                   <React.Fragment key={g.loan_id}>
-                    <tr className="border-b border-gray-100 hover:bg-gray-50 transition">
+                    <tr className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => toggleExpand(g.loan_id)}
-                            className="text-gray-400 hover:text-gray-700 shrink-0"
+                            className="text-gray-400 dark:text-slate-400 hover:text-gray-700 shrink-0"
                             aria-label={open ? "Collapse" : "Expand"}
                           >
                             {open ? (
@@ -1065,10 +1094,10 @@ function Payments() {
                             )}
                           </button>
                           <div>
-                            <p className="font-semibold text-gray-800">
+                            <p className="font-semibold text-gray-800 dark:text-slate-100">
                               {g.first_name} {g.last_name}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                               {g.phone_number}
                             </p>
                           </div>
@@ -1085,36 +1114,36 @@ function Payments() {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => toggleExpand(g.loan_id)}
-                          className="font-semibold text-gray-800 hover:text-ocean-600"
+                          className="font-semibold text-gray-800 dark:text-slate-100 hover:text-ocean-600"
                         >
                           {g.count} payment{g.count !== 1 ? "s" : ""}
                         </button>
                       </td>
                       <td className="px-6 py-4 font-bold text-green-600">
-                        KES {g.total_paid.toLocaleString()}
+                        {formatKES(g.total_paid)}
                       </td>
                       <td className="px-6 py-4 font-bold text-emerald-700">
-                        KES {g.total_collected.toLocaleString()}
+                        {formatKES(g.total_collected)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         {g.overpayment > 0 ? (
                           <span className="font-semibold text-amber-700">
-                            KES {g.overpayment.toLocaleString()}
+                            {formatKES(g.overpayment)}
                           </span>
                         ) : (
-                          <span className="text-gray-400">—</span>
+                          <span className="text-gray-400 dark:text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-600 text-sm">
+                      <td className="px-6 py-4 text-gray-600 dark:text-slate-400 text-sm">
                         {new Date(g.last_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                       </td>
                     </tr>
                     {open && (
-                      <tr className="bg-gray-50/70">
+                      <tr className="bg-gray-50/70 dark:bg-slate-900">
                         <td colSpan="7" className="px-8 pb-4 pt-1">
                           <table className="w-full text-sm">
                             <thead>
-                              <tr className="text-[11px] uppercase tracking-wide text-gray-400">
+                              <tr className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-slate-400">
                                 <th className="text-left py-1 font-semibold">
                                   Transaction
                                 </th>
@@ -1136,7 +1165,7 @@ function Payments() {
                               {g.transactions.map((p) => (
                                 <tr
                                   key={p.id}
-                                  className="border-t border-gray-200/70"
+                                  className="border-t border-gray-200/70 dark:border-slate-700"
                                 >
                                   <td className="py-1.5">
                                     <button
@@ -1147,18 +1176,17 @@ function Payments() {
                                     </button>
                                   </td>
                                   <td className="py-1.5 font-bold text-green-600">
-                                    KES{" "}
-                                    {parseFloat(p.amount_paid).toLocaleString()}
+                                    {formatKES(p.amount_paid)}
                                   </td>
                                   <td className="py-1.5">
                                     <span className="inline-block px-2 py-0.5 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
                                       {p.payment_method}
                                     </span>
                                   </td>
-                                  <td className="py-1.5 text-gray-600">
+                                  <td className="py-1.5 text-gray-600 dark:text-slate-400">
                                     {p.payment_reference || "-"}
                                   </td>
-                                  <td className="py-1.5 text-right text-gray-600">
+                                  <td className="py-1.5 text-right text-gray-600 dark:text-slate-400">
                                     <span className="inline-flex items-center gap-2 justify-end">
                                       {new Date(
                                         p.payment_date,
@@ -1166,7 +1194,7 @@ function Payments() {
                                       <button
                                         onClick={() => openEditPayment(p)}
                                         title="Edit payment"
-                                        className="text-gray-400 hover:text-ocean-600 transition"
+                                        className="text-gray-400 dark:text-slate-400 hover:text-ocean-600 transition"
                                       >
                                         <Pencil size={13} />
                                       </button>
@@ -1184,31 +1212,31 @@ function Payments() {
               })}
             </tbody>
             {sortedGroups.length > 0 && (
-              <tfoot className="bg-gray-50 border-t-2 border-gray-200 sticky bottom-0 z-10">
+              <tfoot className="bg-gray-50 dark:bg-slate-900 border-t-2 border-gray-200 dark:border-slate-700 sticky bottom-0 z-10">
                 <tr>
-                  <td className="px-6 py-3 font-bold text-gray-800">
+                  <td className="px-6 py-3 font-bold text-gray-800 dark:text-slate-100">
                     TOTAL
                   </td>
-                  <td className="px-6 py-3 text-sm text-gray-600">
+                  <td className="px-6 py-3 text-sm text-gray-600 dark:text-slate-400">
                     {sortedGroups.length} loan
                     {sortedGroups.length !== 1 ? "s" : ""}
                   </td>
-                  <td className="px-6 py-3 font-semibold text-gray-700">
+                  <td className="px-6 py-3 font-semibold text-gray-700 dark:text-slate-200">
                     {totals.count} payment
                     {totals.count !== 1 ? "s" : ""}
                   </td>
                   <td className="px-6 py-3 font-bold text-green-700">
-                    KES {totals.total_paid.toLocaleString()}
+                    {formatKES(totals.total_paid)}
                   </td>
                   <td className="px-6 py-3 font-bold text-emerald-800">
-                    KES {totals.total_collected.toLocaleString()}
+                    {formatKES(totals.total_collected)}
                   </td>
                   <td className="px-6 py-3 font-semibold text-amber-700">
                     {totals.overpayment > 0
-                      ? `KES ${totals.overpayment.toLocaleString()}`
+                      ? formatKES(totals.overpayment)
                       : "—"}
                   </td>
-                  <td className="px-6 py-3 text-gray-400 text-sm">—</td>
+                  <td className="px-6 py-3 text-gray-400 dark:text-slate-400 text-sm">—</td>
                 </tr>
               </tfoot>
             )}
@@ -1216,8 +1244,8 @@ function Payments() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 border-t border-gray-200">
-              <div className="text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+              <div className="text-sm text-gray-600 dark:text-slate-400">
                 Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
                 to{" "}
                 <span className="font-semibold">
@@ -1231,7 +1259,7 @@ function Payments() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   ← Previous
                 </button>
@@ -1250,14 +1278,14 @@ function Payments() {
                       return (
                         <React.Fragment key={page}>
                           {showEllipsisBefore && (
-                            <span className="px-2 text-gray-400">...</span>
+                            <span className="px-2 text-gray-400 dark:text-slate-400">...</span>
                           )}
                           <button
                             onClick={() => setCurrentPage(page)}
                             className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                               currentPage === page
                                 ? "bg-green-600 text-white"
-                                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                                : "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                             }`}
                           >
                             {page}
@@ -1272,7 +1300,7 @@ function Payments() {
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Next →
                 </button>
@@ -1288,40 +1316,40 @@ function Payments() {
           onClick={() => setTxnModal(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full"
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-md w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-bold mb-1 text-gray-800 flex items-center gap-2"><Search size={20} /> Transaction</h3>
+            <h3 className="text-xl font-bold mb-1 text-gray-800 dark:text-slate-100 flex items-center gap-2"><Search size={20} /> Transaction</h3>
             <p className="font-mono text-green-600 mb-4">
               {txnModal.transaction_code}
             </p>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Loan</dt>
+                <dt className="text-gray-500 dark:text-slate-400">Loan</dt>
                 <dd className="font-mono">{txnModal.loan_code}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Client</dt>
+                <dt className="text-gray-500 dark:text-slate-400">Client</dt>
                 <dd className="font-semibold">
                   {txnModal.first_name} {txnModal.last_name}
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Amount</dt>
+                <dt className="text-gray-500 dark:text-slate-400">Amount</dt>
                 <dd className="font-bold text-green-600">
-                  KES {parseFloat(txnModal.amount_paid).toLocaleString()}
+                  {formatKES(txnModal.amount_paid)}
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Method</dt>
+                <dt className="text-gray-500 dark:text-slate-400">Method</dt>
                 <dd>{txnModal.payment_method}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Reference</dt>
+                <dt className="text-gray-500 dark:text-slate-400">Reference</dt>
                 <dd>{txnModal.payment_reference || "—"}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Date</dt>
+                <dt className="text-gray-500 dark:text-slate-400">Date</dt>
                 <dd>
                   {new Date(
                     txnModal.payment_date || txnModal.created_at,
@@ -1330,7 +1358,7 @@ function Payments() {
               </div>
               {txnModal.notes && (
                 <div>
-                  <dt className="text-gray-500">Notes</dt>
+                  <dt className="text-gray-500 dark:text-slate-400">Notes</dt>
                   <dd className="mt-1">{txnModal.notes}</dd>
                 </div>
               )}
@@ -1375,27 +1403,27 @@ function Payments() {
           onClick={() => setEditForm(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6"
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                 <Pencil size={18} className="text-ocean-600" /> Edit Payment
               </h3>
               <button
                 onClick={() => setEditForm(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-600"
               >
                 <X size={20} />
               </button>
             </div>
-            <p className="font-mono text-xs text-gray-500 mb-4">
+            <p className="font-mono text-xs text-gray-500 dark:text-slate-400 mb-4">
               {editForm.transaction_code}
             </p>
 
             <form onSubmit={submitEditPayment} className="space-y-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Amount (KES)
                 </label>
                 <input
@@ -1407,12 +1435,12 @@ function Payments() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, amount_paid: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Date
                   </label>
                   <input
@@ -1423,11 +1451,11 @@ function Payments() {
                     onChange={(e) =>
                       setEditForm({ ...editForm, payment_date: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Time
                   </label>
                   <input
@@ -1436,13 +1464,13 @@ function Payments() {
                     onChange={(e) =>
                       setEditForm({ ...editForm, payment_time: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Method
                   </label>
                   <select
@@ -1450,7 +1478,7 @@ function Payments() {
                     onChange={(e) =>
                       setEditForm({ ...editForm, payment_method: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   >
                     {["M-Pesa", "Cash", "Bank", "Cheque", "Other"].map((m) => (
                       <option key={m} value={m}>
@@ -1460,7 +1488,7 @@ function Payments() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                     Reference
                   </label>
                   <input
@@ -1472,12 +1500,12 @@ function Payments() {
                         payment_reference: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                   Notes
                 </label>
                 <textarea
@@ -1486,11 +1514,11 @@ function Payments() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, notes: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
                 Changing the amount re-derives the loan's schedule, balance and
                 capital pool automatically.
               </p>
@@ -1502,7 +1530,7 @@ function Payments() {
                 <button
                   type="button"
                   onClick={() => setEditForm(null)}
-                  className="px-5 py-2.5 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50"
+                  className="px-5 py-2.5 border border-gray-300 dark:border-slate-700 rounded-lg font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
                 >
                   Cancel
                 </button>

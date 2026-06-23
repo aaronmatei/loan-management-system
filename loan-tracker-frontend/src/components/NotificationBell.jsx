@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Trash2, Megaphone } from "lucide-react";
 import api from "../services/api";
-import Spinner from "./Spinner";
+import Skeleton from "./Skeleton";
+import EmptyState from "./EmptyState";
 
 function NotificationBell() {
   const navigate = useNavigate();
@@ -118,10 +119,10 @@ function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="relative p-2 rounded-lg hover:bg-gray-100 transition"
+        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition"
         aria-label="Notifications"
       >
-        <Bell size={24} className="text-gray-700" />
+        <Bell size={24} className="text-gray-700 dark:text-slate-200" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center animate-pulse">
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -130,7 +131,7 @@ function NotificationBell() {
       </button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 z-50 overflow-hidden">
           <div className="bg-ocean-gradient text-white p-4">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-lg flex items-center gap-2"><Bell size={18} /> Notifications</h3>
@@ -152,31 +153,41 @@ function NotificationBell() {
 
           <div className="max-h-96 overflow-y-auto">
             {loading ? (
-              <Spinner centered className="py-8" size={28} label="Loading…" />
-            ) : notifications.length === 0 ? (
-              <div className="p-8 text-center">
-                <div className="flex justify-center mb-2">
-                  <Megaphone size={36} className="text-gray-300" />
-                </div>
-                <p className="text-gray-500">No notifications yet</p>
+              <div className="p-4 space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="h-9 w-9" rounded="rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-3/4" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  </div>
+                ))}
               </div>
+            ) : notifications.length === 0 ? (
+              <EmptyState
+                icon={Megaphone}
+                tone="muted"
+                title="No notifications yet"
+                className="shadow-none p-8 lg:p-8 rounded-none max-w-none"
+              />
             ) : (
               notifications.map((notif) => (
                 <div
                   key={notif.id}
                   onClick={() => handleNotificationClick(notif)}
-                  className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition group ${
+                  className={`p-4 border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition group ${
                     !notif.is_read ? "bg-ocean-50/50" : ""
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="text-2xl flex-shrink-0 flex items-center justify-center">
-                      {notif.icon || <Megaphone size={22} className="text-gray-400" />}
+                      {notif.icon || <Megaphone size={22} className="text-gray-400 dark:text-slate-400" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <p
-                          className={`text-sm text-gray-800 ${
+                          className={`text-sm text-gray-800 dark:text-slate-100 ${
                             !notif.is_read ? "font-bold" : "font-semibold"
                           }`}
                         >
@@ -186,11 +197,11 @@ function NotificationBell() {
                           <span className="w-2 h-2 bg-ocean-600 rounded-full flex-shrink-0 mt-1.5" />
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mt-1 line-clamp-2">
                         {notif.message}
                       </p>
                       <div className="flex items-center justify-between mt-2">
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 dark:text-slate-400">
                           {getTimeAgo(notif.created_at)}
                         </p>
                         <button
@@ -209,7 +220,7 @@ function NotificationBell() {
           </div>
 
           {notifications.length > 0 && (
-            <div className="p-3 border-t bg-gray-50 text-center">
+            <div className="p-3 border-t dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-center">
               <button
                 onClick={() => {
                   navigate("/notifications");

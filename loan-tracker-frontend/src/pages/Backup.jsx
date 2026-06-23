@@ -9,7 +9,9 @@ import {
   Info,
 } from "lucide-react";
 import api from "../services/api";
-import Spinner from "../components/Spinner";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
 
 function Backup() {
   const [backups, setBackups] = useState([]);
@@ -153,39 +155,57 @@ function Backup() {
     return mb > 1 ? `${mb.toFixed(2)} MB` : `${(bytes / 1024).toFixed(2)} KB`;
   };
 
-  if (loading) return <Spinner centered className="py-20" label="Loading backups…" />;
+  if (loading)
+    return (
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-56 mt-3" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-12 w-40" />
+            <Skeleton className="h-12 w-40" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-32 w-full rounded-xl mb-6" />
+        <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
+    );
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-            <Save size={28} /> Backup &amp; Restore
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Protect your data with regular backups
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setConfirmText("");
-              setUploadFile(null);
-              setShowUploadModal(true);
-            }}
-            className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg inline-flex items-center gap-2"
-          >
-            <Upload size={16} /> Upload &amp; Restore
-          </button>
-          <button
-            onClick={handleCreateBackup}
-            disabled={creating}
-            className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg disabled:opacity-50"
-          >
-            {creating ? "Creating..." : "+ Create Backup"}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Save}
+        title="Backup & Restore"
+        subtitle="Protect your data with regular backups"
+        actions={
+          <>
+            <button
+              onClick={() => {
+                setConfirmText("");
+                setUploadFile(null);
+                setShowUploadModal(true);
+              }}
+              className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg inline-flex items-center gap-2"
+            >
+              <Upload size={16} /> Upload &amp; Restore
+            </button>
+            <button
+              onClick={handleCreateBackup}
+              disabled={creating}
+              className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg disabled:opacity-50"
+            >
+              {creating ? "Creating..." : "+ Create Backup"}
+            </button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-ocean-gradient text-white rounded-xl shadow-lg p-6">
@@ -232,36 +252,36 @@ function Backup() {
       <div className="flex justify-end mb-4">
         <button
           onClick={handleCleanup}
-          className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
+          className="text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800 inline-flex items-center gap-1"
         >
           <Trash2 size={14} /> Cleanup Old Backups
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-auto max-h-[600px]">
           <table className="w-full">
-            <thead className="bg-gray-50 sticky top-0 border-b-2">
+            <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 border-b-2 dark:border-slate-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Filename
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Type
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Size
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Created
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   By
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                   Actions
                 </th>
               </tr>
@@ -269,15 +289,28 @@ function Backup() {
             <tbody>
               {backups.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-12 text-center text-gray-500">
-                    No backups yet. Create your first backup!
+                  <td colSpan="7" className="p-6">
+                    <EmptyState
+                      icon={Save}
+                      title="No backups yet"
+                      description="Create your first database backup to protect your data."
+                      action={
+                        <button
+                          onClick={handleCreateBackup}
+                          disabled={creating}
+                          className="px-6 py-3 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg disabled:opacity-50"
+                        >
+                          {creating ? "Creating..." : "+ Create Backup"}
+                        </button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (
                 backups.map((backup) => (
                   <tr
                     key={backup.id}
-                    className="border-b hover:bg-gray-50"
+                    className="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
                   >
                     <td className="px-4 py-3 font-mono text-sm">
                       {backup.filename}
@@ -364,7 +397,7 @@ function Backup() {
 
       {showRestoreModal && selectedBackup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-md w-full">
             <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><AlertTriangle size={22} className="text-red-600" /> Restore Database</h3>
             <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-4">
               <p className="font-bold text-red-800 mb-2 flex items-center gap-1"><AlertTriangle size={14} /> WARNING</p>
@@ -375,11 +408,11 @@ function Backup() {
               </p>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-gray-600">Restore from:</p>
+              <p className="text-sm text-gray-600 dark:text-slate-400">Restore from:</p>
               <p className="font-mono text-sm font-bold">
                 {selectedBackup.filename}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
                 Created:{" "}
                 {new Date(selectedBackup.created_at).toLocaleString("en-GB")}
               </p>
@@ -387,7 +420,7 @@ function Backup() {
             <div className="mb-4">
               <label className="block text-sm font-semibold mb-2">
                 Type{" "}
-                <code className="bg-gray-100 px-2 py-1 rounded">RESTORE</code>{" "}
+                <code className="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded">RESTORE</code>{" "}
                 to confirm:
               </label>
               <input
@@ -395,7 +428,7 @@ function Backup() {
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder="Type RESTORE"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none font-mono"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-red-500 focus:outline-none font-mono"
               />
             </div>
             <div className="flex justify-end gap-3">
@@ -420,7 +453,7 @@ function Backup() {
 
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-md w-full">
             <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Upload size={22} /> Upload &amp; Restore</h3>
             <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
               <p className="text-sm text-yellow-800 flex items-start gap-1">
@@ -438,13 +471,13 @@ function Backup() {
                   accept=".sql"
                   onChange={(e) => setUploadFile(e.target.files[0])}
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg"
                 />
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-semibold mb-2">
                   Type{" "}
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded">
                     RESTORE
                   </code>{" "}
                   to confirm:
@@ -454,7 +487,7 @@ function Backup() {
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="Type RESTORE"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none font-mono"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-orange-500 focus:outline-none font-mono"
                 />
               </div>
               <div className="flex justify-end gap-3">

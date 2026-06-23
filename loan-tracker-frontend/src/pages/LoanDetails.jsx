@@ -34,7 +34,9 @@ import PermissionGate from "../components/PermissionGate";
 import PawnPanel from "../components/PawnPanel";
 import VehicleSecurityPanel from "../components/VehicleSecurityPanel";
 import SalaryDetailsPanel from "../components/SalaryDetailsPanel";
-import Spinner from "../components/Spinner";
+import Skeleton, { SkeletonText } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { formatKES, exactKES } from "../utils/money";
 
 function LoanDetails() {
   const { id } = useParams();
@@ -463,8 +465,42 @@ function LoanDetails() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading loan details…" />
+        {/* Back link placeholder */}
+        <Skeleton className="h-4 w-28 mb-6" />
+
+        {/* Identity hero placeholder */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6 dark:bg-slate-800">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-14 w-14 rounded-full" rounded="rounded-full" />
+            <div className="flex-1">
+              <Skeleton className="h-6 w-56 mb-2" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+            <Skeleton className="h-8 w-24 rounded-full" />
+          </div>
+        </div>
+
+        {/* Summary cards placeholder */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-md p-6 dark:bg-slate-800">
+              <Skeleton className="h-4 w-24 mb-3" />
+              <Skeleton className="h-7 w-32" />
+            </div>
+          ))}
+        </div>
+
+        {/* Schedule table placeholder */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden dark:bg-slate-800">
+          <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+            <Skeleton className="h-5 w-44 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonText key={i} lines={1} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -627,12 +663,12 @@ function LoanDetails() {
 
         const closeMenu = () => setActionsMenuOpen(false);
         const itemBase =
-          "w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition text-left";
+          "w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition text-left";
 
         return (
           <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5 dark:text-slate-400">
                 Reports &amp; Agreements
               </p>
               <div className="flex flex-wrap gap-2">
@@ -663,7 +699,7 @@ function LoanDetails() {
 
             {hasManagementActions && (
               <div ref={actionsMenuRef} className="relative ml-auto">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5 dark:text-slate-400">
                   Loan Management Actions
                 </p>
                 <button
@@ -671,7 +707,7 @@ function LoanDetails() {
                   onClick={() => setActionsMenuOpen((o) => !o)}
                   aria-haspopup="menu"
                   aria-expanded={actionsMenuOpen}
-                  className="px-4 py-2 bg-white border border-ocean-200 text-ocean-700 hover:bg-ocean-50 rounded-lg transition font-semibold inline-flex items-center gap-2 shadow-sm"
+                  className="px-4 py-2 bg-white border border-ocean-200 text-ocean-700 hover:bg-ocean-50 rounded-lg transition font-semibold inline-flex items-center gap-2 shadow-sm dark:bg-slate-800"
                 >
                   <Settings2 size={16} />
                   Loan Management Actions
@@ -685,7 +721,7 @@ function LoanDetails() {
                 {actionsMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute z-30 mt-1 right-0 sm:right-auto sm:left-0 min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-lg py-1 overflow-hidden"
+                    className="absolute z-30 mt-1 right-0 sm:right-auto sm:left-0 min-w-[240px] bg-white border border-slate-200 rounded-lg shadow-lg py-1 overflow-hidden dark:bg-slate-800 dark:border-slate-700"
                   >
                     {canRecordPayment && (
                       <PermissionGate role={["admin", "manager", "loan_officer"]}>
@@ -751,7 +787,7 @@ function LoanDetails() {
                       </PermissionGate>
                     )}
                     {(canDefault || canSuspend || canReactivate) && (
-                      <div className="my-1 border-t border-slate-100" />
+                      <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
                     )}
                     {canReactivate && (
                       <button
@@ -797,7 +833,7 @@ function LoanDetails() {
                     )}
                     {canDelete && (
                       <>
-                        <div className="my-1 border-t border-slate-100" />
+                        <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
                         <PermissionGate role="admin">
                           <button
                             onClick={() => {
@@ -867,74 +903,72 @@ function LoanDetails() {
           <p className="text-sm font-semibold text-yellow-900 mb-1 flex items-center gap-1">
             <StickyNote size={14}/> Notes
           </p>
-          <p className="text-gray-700 whitespace-pre-wrap">{loan.notes}</p>
+          <p className="text-gray-700 whitespace-pre-wrap dark:text-slate-200">{loan.notes}</p>
         </div>
       )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2">
+        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500 dark:bg-slate-800">
+          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
             Principal
           </p>
-          <p className="text-2xl font-bold text-gray-800">
-            KES {parseFloat(loan.principal_amount).toLocaleString()}
+          <p className="text-2xl font-bold text-gray-800 dark:text-slate-100">
+            {formatKES(loan.principal_amount)}
           </p>
           {parseFloat(loan.processing_fee || 0) > 0 && (
             <p className="text-xs text-amber-700 mt-2">
-              Less {parseFloat(loan.processing_fee_rate)}% processing fee (KES{" "}
-              {parseFloat(loan.processing_fee).toLocaleString()}) · disbursed KES{" "}
-              {parseFloat(
-                loan.net_disbursed_amount ?? loan.principal_amount,
-              ).toLocaleString()}
+              Less {parseFloat(loan.processing_fee_rate)}% processing fee (
+              {formatKES(loan.processing_fee)}) · disbursed{" "}
+              {formatKES(loan.net_disbursed_amount ?? loan.principal_amount)}
             </p>
           )}
         </div>
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2">
+        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500 dark:bg-slate-800">
+          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
             Total Due
           </p>
-          <p className="text-2xl font-bold text-gray-800">
-            KES {parseFloat(summary.total_due).toLocaleString()}
+          <p className="text-2xl font-bold text-gray-800 dark:text-slate-100">
+            {formatKES(summary.total_due)}
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2">
+        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 dark:bg-slate-800">
+          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
             Paid
           </p>
           <p className="text-2xl font-bold text-green-600">
-            KES {parseFloat(summary.total_paid).toLocaleString()}
+            {formatKES(summary.total_paid)}
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2">
+        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500 dark:bg-slate-800">
+          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
             Balance
           </p>
           <p className="text-2xl font-bold text-orange-600">
-            KES {parseFloat(summary.balance).toLocaleString()}
+            {formatKES(summary.balance)}
           </p>
         </div>
       </div>
 
       {/* Progress Bar */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-md p-6 mb-6 dark:bg-slate-800">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg font-semibold text-gray-800">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">
             Repayment Progress
           </h3>
           <span className="text-2xl font-bold text-ocean-600">
             {summary.progress_percentage}%
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden dark:bg-slate-700">
           <div
             className="bg-gradient-to-r from-green-500 to-emerald-600 h-4 rounded-full transition-all duration-500"
             style={{ width: `${summary.progress_percentage}%` }}
           ></div>
         </div>
-        <div className="flex justify-between mt-2 text-xs text-gray-500">
-          <span>KES 0</span>
-          <span>KES {parseFloat(summary.total_due).toLocaleString()}</span>
+        <div className="flex justify-between mt-2 text-xs text-gray-500 dark:text-slate-400">
+          <span>{formatKES(0)}</span>
+          <span>{formatKES(summary.total_due)}</span>
         </div>
       </div>
 
@@ -962,16 +996,16 @@ function LoanDetails() {
                   <span className="inline-flex items-center gap-2"><Coins size={20}/> Overpayment - Refund Pending</span>
                 )}
               </h3>
-              <p className="text-sm text-gray-700 mb-2">
+              <p className="text-sm text-gray-700 mb-2 dark:text-slate-200">
                 {summary.refund_status === "refunded"
                   ? "Refund has been processed for this loan."
                   : "The client paid more than the loan amount. A refund is due."}
               </p>
               <p className="text-3xl font-bold text-ocean-700">
-                KES {parseFloat(summary.overpayment).toLocaleString()}
+                {formatKES(summary.overpayment)}
               </p>
               {loan.refunded_date && (
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-gray-600 mt-2 dark:text-slate-400">
                   Refunded on:{" "}
                   {new Date(loan.refunded_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                   {loan.refund_method && ` via ${loan.refund_method}`}
@@ -992,8 +1026,8 @@ function LoanDetails() {
       )}
 
       {/* Loan Details */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+      <div className="bg-white rounded-xl shadow-md p-6 mb-6 dark:bg-slate-800">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 dark:text-slate-100">
           Loan Information
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -1001,30 +1035,30 @@ function LoanDetails() {
               custom loans (loan.package_name = null). When present,
               the loan's stored interest_method is the truth source. */}
           <div>
-            <p className="text-gray-500">Package</p>
-            <p className="font-semibold text-gray-800">
+            <p className="text-gray-500 dark:text-slate-400">Package</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               {loan.package_name ? (
                 <span className="inline-flex items-center gap-1.5">
                   {loan.package_name}
                   {loan.package_active === false && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-slate-400">
                       (archived)
                     </span>
                   )}
                 </span>
               ) : (
-                <span className="text-gray-400">Custom loan</span>
+                <span className="text-gray-400 dark:text-slate-400">Custom loan</span>
               )}
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Interest Method</p>
-            <p className="font-semibold text-gray-800">
+            <p className="text-gray-500 dark:text-slate-400">Interest Method</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               <span
                 className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                   loan.interest_method === "reducing"
                     ? "bg-ocean-100 text-ocean-700"
-                    : "bg-slate-100 text-slate-700"
+                    : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                 }`}
               >
                 {loan.interest_method === "reducing" ? "Reducing" : "Flat"}
@@ -1032,34 +1066,34 @@ function LoanDetails() {
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Interest Rate (Monthly)</p>
-            <p className="font-semibold text-gray-800">
+            <p className="text-gray-500 dark:text-slate-400">Interest Rate (Monthly)</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               {parseFloat(loan.interest_rate).toFixed(2)}%
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Duration</p>
-            <p className="font-semibold text-gray-800">
+            <p className="text-gray-500 dark:text-slate-400">Duration</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               {loan.loan_duration_months} months
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Total Interest</p>
-            <p className="font-semibold text-gray-800">
-              KES {parseFloat(loan.total_interest).toLocaleString()}
+            <p className="text-gray-500 dark:text-slate-400">Total Interest</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
+              {formatKES(loan.total_interest)}
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Start Date</p>
-            <p className="font-semibold text-gray-800">
+            <p className="text-gray-500 dark:text-slate-400">Start Date</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               {loan.start_date
                 ? new Date(loan.start_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
                 : "— (on disbursement)"}
             </p>
           </div>
           <div>
-            <p className="text-gray-500">End Date</p>
-            <p className="font-semibold text-gray-800">
+            <p className="text-gray-500 dark:text-slate-400">End Date</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               {new Date(loan.end_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </p>
           </div>
@@ -1073,8 +1107,8 @@ function LoanDetails() {
                 was misleading on nearly every row. Falls back to
                 created_at if application_date is null for older imports
                 that pre-date the column. */}
-            <p className="text-gray-500">Application Date</p>
-            <p className="font-semibold text-gray-800">
+            <p className="text-gray-500 dark:text-slate-400">Application Date</p>
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               {new Date(loan.application_date || loan.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </p>
           </div>
@@ -1096,26 +1130,24 @@ function LoanDetails() {
         const installmentsTotal = schedule.length;
         if (installmentsTotal === 0) return null;
         return (
-          <div className="bg-white rounded-xl shadow-md p-5 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl shadow-md p-5 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 dark:bg-slate-800">
             <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
                 Balance Remaining
               </p>
               <p className="text-xl font-bold text-orange-600">
-                KES {parseFloat(summary.balance).toLocaleString()}
+                {formatKES(summary.balance)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
                 Next Installment
               </p>
-              <p className="text-xl font-bold text-gray-800">
-                {next
-                  ? `KES ${parseFloat(next.amount_due).toLocaleString()}`
-                  : "—"}
+              <p className="text-xl font-bold text-gray-800 dark:text-slate-100">
+                {next ? formatKES(next.amount_due) : "—"}
               </p>
               {next && (
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5 dark:text-slate-400">
                   Due{" "}
                   {new Date(next.due_date).toLocaleDateString("en-GB", {
                     day: "2-digit",
@@ -1126,18 +1158,18 @@ function LoanDetails() {
               )}
             </div>
             <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
                 Installments Left
               </p>
-              <p className="text-xl font-bold text-gray-800">
+              <p className="text-xl font-bold text-gray-800 dark:text-slate-100">
                 {installmentsLeft}{" "}
-                <span className="text-sm font-medium text-gray-500">
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">
                   of {installmentsTotal}
                 </span>
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
                 Interest Method
               </p>
               <p className="text-xl">
@@ -1145,7 +1177,7 @@ function LoanDetails() {
                   className={`inline-block px-2.5 py-0.5 rounded-full text-sm font-semibold ${
                     loan.interest_method === "reducing"
                       ? "bg-ocean-100 text-ocean-700"
-                      : "bg-slate-100 text-slate-700"
+                      : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                   }`}
                 >
                   {loan.interest_method === "reducing"
@@ -1159,12 +1191,12 @@ function LoanDetails() {
       })()}
 
       {/* Payment Schedule */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 dark:bg-slate-800">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 dark:text-slate-100">
             <Calendar size={20}/> Payment Schedule
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
             {schedule.filter((s) => s.status === "paid").length} of{" "}
             {schedule.length} payments completed
             {(() => {
@@ -1195,24 +1227,24 @@ function LoanDetails() {
                 <>
                   <span className="text-amber-700 font-medium">
                     {" "}
-                    · KES {totalAccrued.toLocaleString()} penalty accrued
+                    · {formatKES(totalAccrued)} penalty accrued
                   </span>
                   {waived > 0 && (
                     <span className="text-fuchsia-700 font-medium">
                       {" "}
-                      · KES {waived.toLocaleString()} waived
+                      · {formatKES(waived)} waived
                     </span>
                   )}
                   {cashPaid > 0 && (
                     <span className="text-green-700 font-medium">
                       {" "}
-                      · KES {cashPaid.toLocaleString()} paid
+                      · {formatKES(cashPaid)} paid
                     </span>
                   )}
                   {outstanding > 0 && (
                     <span className="text-orange-700 font-medium">
                       {" "}
-                      · KES {outstanding.toLocaleString()} outstanding
+                      · {formatKES(outstanding)} outstanding
                     </span>
                   )}
                 </>
@@ -1222,69 +1254,69 @@ function LoanDetails() {
         </div>
         <div className="overflow-auto max-h-[calc(100vh-200px)]">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm dark:bg-slate-900 dark:border-slate-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                   #
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                   Due Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                   Amount Due
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                   Amount Paid
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
                   title="Interest portion of this installment per the amortization schedule"
                 >
                   Interest
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
                   title="Interest actually settled on this installment (cash + interest waivers)"
                 >
                   Interest Paid
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
                   title="Principal portion of this installment per the amortization schedule"
                 >
                   Principal
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
                   title="Principal balance projected after this installment"
                 >
                   Balance After
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
                   title="Flat late fee per overdue installment"
                 >
                   Late Fee
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
                   title="Penalty rate × overdue balance × months late"
                 >
                   Penalty Interest
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase"
+                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
                   title="Late fee + penalty interest actually charged on this installment"
                 >
                   Penalty Total
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                   Penalty Paid
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                   Paid Date
                 </th>
               </tr>
@@ -1293,12 +1325,12 @@ function LoanDetails() {
               {schedule.map((item) => {
                 const daysStatus = getDaysStatus(item.due_date, item.status);
                 return (
-                  <tr key={item.id} className="border-b border-gray-100">
-                    <td className="px-6 py-3 font-semibold text-gray-800">
+                  <tr key={item.id} className="border-b border-gray-100 dark:border-slate-700">
+                    <td className="px-6 py-3 font-semibold text-gray-800 dark:text-slate-100">
                       {item.payment_number}
                     </td>
                     <td className="px-6 py-3">
-                      <p className="text-gray-800">
+                      <p className="text-gray-800 dark:text-slate-100">
                         {new Date(item.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                       </p>
                       {daysStatus && (
@@ -1307,18 +1339,18 @@ function LoanDetails() {
                         </p>
                       )}
                     </td>
-                    <td className="px-6 py-3 font-semibold text-gray-800">
-                      KES {parseFloat(item.amount_due).toLocaleString()}
+                    <td className="px-6 py-3 font-semibold text-gray-800 dark:text-slate-100">
+                      {formatKES(item.amount_due)}
                     </td>
                     <td className="px-6 py-3 font-semibold text-green-600">
-                      KES {parseFloat(item.amount_paid || 0).toLocaleString()}
+                      {formatKES(item.amount_paid || 0)}
                     </td>
                     <td
                       className="px-6 py-3 text-right text-emerald-700 font-semibold"
                       title="Interest portion of this installment (declines over time on reducing balance)"
                     >
                       {parseFloat(item.interest_portion || 0) > 0
-                        ? `KES ${parseFloat(item.interest_portion).toLocaleString()}`
+                        ? formatKES(item.interest_portion)
                         : "—"}
                     </td>
                     <td
@@ -1326,7 +1358,7 @@ function LoanDetails() {
                       title="Interest actually settled on this row by cash + interest waivers"
                     >
                       {parseFloat(item.interest_paid || 0) > 0
-                        ? `KES ${parseFloat(item.interest_paid).toLocaleString()}`
+                        ? formatKES(item.interest_paid)
                         : "—"}
                     </td>
                     <td
@@ -1334,18 +1366,18 @@ function LoanDetails() {
                       title="Principal portion of this installment (rises over time on reducing balance)"
                     >
                       {parseFloat(item.principal_portion || 0) > 0
-                        ? `KES ${parseFloat(item.principal_portion).toLocaleString()}`
+                        ? formatKES(item.principal_portion)
                         : "—"}
                     </td>
                     <td
-                      className="px-6 py-3 text-right text-gray-700 font-semibold"
+                      className="px-6 py-3 text-right text-gray-700 font-semibold dark:text-slate-200"
                       title="Projected principal balance after this installment"
                     >
                       {parseFloat(item.balance_after || 0) > 0
-                        ? `KES ${parseFloat(item.balance_after).toLocaleString()}`
+                        ? formatKES(item.balance_after)
                         : item.payment_number ===
                           schedule[schedule.length - 1]?.payment_number
-                          ? "KES 0"
+                          ? formatKES(0)
                           : "—"}
                     </td>
                     {/* Late Fee + Penalty Interest sub-cells. Backend
@@ -1354,13 +1386,13 @@ function LoanDetails() {
                         live formula for installments that haven't been
                         charged yet — so these always reconcile with
                         the Penalty Total headline. */}
-                    <td className="px-6 py-3 text-right text-gray-700">
+                    <td className="px-6 py-3 text-right text-gray-700 dark:text-slate-200">
                       {parseFloat(item.penalty_total || 0) > 0
-                        ? `KES ${parseFloat(item.late_fee || 0).toLocaleString()}`
+                        ? formatKES(item.late_fee || 0)
                         : "-"}
                     </td>
                     <td
-                      className="px-6 py-3 text-right text-gray-700"
+                      className="px-6 py-3 text-right text-gray-700 dark:text-slate-200"
                       title={
                         parseFloat(item.penalty_paid || 0) === 0 &&
                         item.penalty_total > 0
@@ -1369,26 +1401,17 @@ function LoanDetails() {
                       }
                     >
                       {parseFloat(item.penalty_total || 0) > 0
-                        ? `KES ${parseFloat(item.penalty_interest || 0).toLocaleString()}`
+                        ? formatKES(item.penalty_interest || 0)
                         : "-"}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-amber-700">
                       {parseFloat(item.penalty_total || 0) > 0 ? (
                         <>
-                          <div>
-                            KES{" "}
-                            {parseFloat(
-                              item.penalty_total || 0,
-                            ).toLocaleString()}
-                          </div>
+                          <div>{formatKES(item.penalty_total || 0)}</div>
                           {parseFloat(item.penalty_outstanding || 0) > 0 &&
                             parseFloat(item.penalty_paid || 0) > 0 && (
                               <div className="text-xs text-red-600 font-normal">
-                                KES{" "}
-                                {parseFloat(
-                                  item.penalty_outstanding,
-                                ).toLocaleString()}{" "}
-                                unpaid
+                                {formatKES(item.penalty_outstanding)} unpaid
                               </div>
                             )}
                         </>
@@ -1399,13 +1422,10 @@ function LoanDetails() {
                     <td className="px-6 py-3 text-right font-semibold text-green-600">
                       {parseFloat(item.penalty_paid || 0) > 0 ? (
                         <>
-                          <div>
-                            KES{" "}
-                            {parseFloat(item.penalty_paid).toLocaleString()}
-                          </div>
+                          <div>{formatKES(item.penalty_paid)}</div>
                           {parseFloat(item.penalty_outstanding || 0) === 0 &&
                             parseFloat(item.penalty_total || 0) > 0 && (
-                              <div className="text-xs text-gray-500 font-normal">
+                              <div className="text-xs text-gray-500 font-normal dark:text-slate-400">
                                 cleared
                               </div>
                             )}
@@ -1429,7 +1449,7 @@ function LoanDetails() {
                         {item.status}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-gray-600 text-sm">
+                    <td className="px-6 py-3 text-gray-600 text-sm dark:text-slate-400">
                       {item.actual_payment_date
                         ? new Date(
                             item.actual_payment_date,
@@ -1473,23 +1493,18 @@ function LoanDetails() {
               );
               const totalPenaltyTotal = sum("penalty_total");
               const totalPenaltyPaid = sum("penalty_paid");
-              const fmt = (n) =>
-                n > 0
-                  ? `KES ${Number(n).toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}`
-                  : "—";
+              const fmt = (n) => (n > 0 ? exactKES(n) : "—");
               return (
-                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                <tfoot className="bg-gray-50 border-t-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700">
                   <tr>
                     <td
-                      className="px-6 py-3 font-bold text-gray-800 text-sm"
+                      className="px-6 py-3 font-bold text-gray-800 text-sm dark:text-slate-100"
                       colSpan={2}
                     >
                       TOTALS · {schedule.length}{" "}
                       payment{schedule.length !== 1 ? "s" : ""}
                     </td>
-                    <td className="px-6 py-3 font-bold text-gray-800 text-sm">
+                    <td className="px-6 py-3 font-bold text-gray-800 text-sm dark:text-slate-100">
                       {fmt(totalAmountDue)}
                     </td>
                     <td className="px-6 py-3 font-bold text-green-600 text-sm">
@@ -1508,13 +1523,13 @@ function LoanDetails() {
                         running balance doesn't sum the way the other
                         columns do; the value at the bottom is just
                         the projected final balance (0 by design). */}
-                    <td className="px-6 py-3 text-right font-bold text-gray-500 text-sm">
-                      KES 0
+                    <td className="px-6 py-3 text-right font-bold text-gray-500 text-sm dark:text-slate-400">
+                      {formatKES(0)}
                     </td>
-                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm">
+                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm dark:text-slate-200">
                       {fmt(totalLateFee)}
                     </td>
-                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm">
+                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm dark:text-slate-200">
                       {fmt(totalPenaltyInterest)}
                     </td>
                     <td className="px-6 py-3 text-right font-bold text-amber-700 text-sm">
@@ -1533,12 +1548,12 @@ function LoanDetails() {
       </div>
 
       {/* Transaction History */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden dark:bg-slate-800">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 dark:text-slate-100">
             <ClipboardList size={20}/> Payment History
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
             {(() => {
               const live = transactions.filter((t) => !t.voided).length;
               const reversed = transactions.length - live;
@@ -1547,37 +1562,41 @@ function LoanDetails() {
           </p>
         </div>
         {transactions.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <div className="flex justify-center mb-2"><Coins size={40} className="text-gray-300"/></div>
-            <p>No payments recorded yet</p>
+          <div className="p-6">
+            <EmptyState
+              tone="muted"
+              icon={Coins}
+              title="No payments recorded yet"
+              description="Payments recorded against this loan will appear here."
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 border-b border-gray-200 dark:bg-slate-900 dark:border-slate-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Transaction
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Method
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Reference
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Notes
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Balance After
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
                     Receipt
                   </th>
                 </tr>
@@ -1586,7 +1605,7 @@ function LoanDetails() {
                 {transactions.map((txn) => (
                   <tr
                     key={txn.id}
-                    className={`border-b border-gray-100 transition ${txn.voided ? "bg-gray-50/60 opacity-70" : "hover:bg-gray-50"}`}
+                    className={`border-b border-gray-100 dark:border-slate-700 transition ${txn.voided ? "bg-gray-50/60 opacity-70" : "hover:bg-gray-50 dark:hover:bg-slate-700"}`}
                   >
                     <td className="px-6 py-3 font-mono text-sm font-semibold text-green-600">
                       {txn.transaction_code}
@@ -1596,13 +1615,11 @@ function LoanDetails() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-gray-700">
+                    <td className="px-6 py-3 text-gray-700 dark:text-slate-200">
                       {new Date(txn.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </td>
-                    <td className={`px-6 py-3 font-bold ${txn.voided ? "text-gray-400 line-through" : "text-green-600"}`}>
-                      <div>
-                        KES {parseFloat(txn.amount_paid).toLocaleString()}
-                      </div>
+                    <td className={`px-6 py-3 font-bold ${txn.voided ? "text-gray-400 line-through dark:text-slate-400" : "text-green-600"}`}>
+                      <div>{formatKES(txn.amount_paid)}</div>
                       {!txn.voided && (() => {
                         const penalty = parseFloat(txn.penalty_portion || 0);
                         const overpay = parseFloat(
@@ -1612,23 +1629,20 @@ function LoanDetails() {
                           parseFloat(txn.amount_paid || 0) - penalty - overpay;
                         if (penalty <= 0 && overpay <= 0) return null;
                         return (
-                          <div className="text-xs font-normal text-gray-500 mt-1 space-y-0.5">
+                          <div className="text-xs font-normal text-gray-500 mt-1 space-y-0.5 dark:text-slate-400">
                             {penalty > 0 && (
                               <div className="text-amber-700">
-                                Penalty: KES {penalty.toLocaleString()}
+                                Penalty: {formatKES(penalty)}
                               </div>
                             )}
                             {towardBalance > 0 && (
-                              <div className="text-gray-600">
-                                Toward balance: KES{" "}
-                                {towardBalance.toLocaleString(undefined, {
-                                  maximumFractionDigits: 2,
-                                })}
+                              <div className="text-gray-600 dark:text-slate-400">
+                                Toward balance: {exactKES(towardBalance)}
                               </div>
                             )}
                             {overpay > 0 && (
                               <div className="text-ocean-700">
-                                Overpaid: KES {overpay.toLocaleString()}
+                                Overpaid: {formatKES(overpay)}
                               </div>
                             )}
                           </div>
@@ -1640,22 +1654,19 @@ function LoanDetails() {
                         {txn.payment_method}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-gray-600 text-sm">
+                    <td className="px-6 py-3 text-gray-600 text-sm dark:text-slate-400">
                       {txn.payment_reference || "-"}
                     </td>
-                    <td className="px-6 py-3 text-gray-500 text-sm">
+                    <td className="px-6 py-3 text-gray-500 text-sm dark:text-slate-400">
                       {txn.notes || "-"}
                     </td>
                     <td className="px-6 py-3 text-right">
                       {txn.receipt ? (
                         <div>
                           <p className="font-bold text-orange-600">
-                            KES{" "}
-                            {parseFloat(
-                              txn.receipt.remaining_balance_after_this,
-                            ).toLocaleString()}
+                            {formatKES(txn.receipt.remaining_balance_after_this)}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
                             {txn.receipt.completion_percentage_after_this}%
                             paid
                           </p>
@@ -1707,33 +1718,28 @@ function LoanDetails() {
         {/* Loan-level receipt summary (current status + next payment). */}
         {receiptSummary && transactions.length > 0 && (
           <div className="p-4 lg:p-6 border-t bg-ocean-gradient-soft">
-            <h3 className="font-bold mb-3 text-gray-800 flex items-center gap-2"><BarChart3 size={18}/> Current Status</h3>
+            <h3 className="font-bold mb-3 text-gray-800 flex items-center gap-2 dark:text-slate-100"><BarChart3 size={18}/> Current Status</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center">
               <div>
-                <p className="text-xs text-gray-500">Total Loan</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Total Loan</p>
                 <p className="font-bold">
-                  KES{" "}
-                  {parseFloat(loan.total_amount_due).toLocaleString()}
+                  {formatKES(loan.total_amount_due)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Total Paid</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Total Paid</p>
                 <p className="font-bold text-green-600">
-                  KES{" "}
-                  {parseFloat(receiptSummary.total_paid).toLocaleString()}
+                  {formatKES(receiptSummary.total_paid)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Remaining</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Remaining</p>
                 <p className="font-bold text-orange-600">
-                  KES{" "}
-                  {parseFloat(
-                    receiptSummary.remaining_balance,
-                  ).toLocaleString()}
+                  {formatKES(receiptSummary.remaining_balance)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Progress</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Progress</p>
                 <p className="font-bold text-ocean-600">
                   {receiptSummary.completion_percentage}%
                 </p>
@@ -1742,12 +1748,9 @@ function LoanDetails() {
             {receiptSummary.next_payment_date &&
               !receiptSummary.is_fully_paid && (
                 <div className="mt-3 pt-3 border-t border-ocean-200 text-center">
-                  <p className="text-xs text-gray-500 flex items-center justify-center gap-1"><Calendar size={12}/> Next Payment Due</p>
+                  <p className="text-xs text-gray-500 flex items-center justify-center gap-1 dark:text-slate-400"><Calendar size={12}/> Next Payment Due</p>
                   <p className="font-bold text-xl text-ocean-600">
-                    KES{" "}
-                    {parseFloat(
-                      receiptSummary.next_payment_amount,
-                    ).toLocaleString()}
+                    {formatKES(receiptSummary.next_payment_amount)}
                   </p>
                   <p className="text-sm text-ocean-600">
                     {new Date(
@@ -1771,24 +1774,24 @@ function LoanDetails() {
 
       {/* ── Waivers history ─────────────────────────────────────── */}
       {waivers.length > 0 && (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mt-6">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden mt-6 dark:bg-slate-800">
+          <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 dark:text-slate-100">
               <HandCoins size={20} /> Waivers
             </h3>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
               {waivers.length} record{waivers.length !== 1 ? "s" : ""} ·
               total approved:{" "}
               <span className="font-semibold text-emerald-700">
-                KES{" "}
-                {waivers
-                  .filter((w) => w.status === "approved")
-                  .reduce((s, w) => s + parseFloat(w.amount || 0), 0)
-                  .toLocaleString()}
+                {formatKES(
+                  waivers
+                    .filter((w) => w.status === "approved")
+                    .reduce((s, w) => s + parseFloat(w.amount || 0), 0),
+                )}
               </span>
             </p>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-slate-700">
             {waivers.map((w) => {
               const statusPill = {
                 pending: {
@@ -1822,10 +1825,9 @@ function LoanDetails() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-bold text-emerald-700 text-lg">
-                          − KES{" "}
-                          {parseFloat(w.amount).toLocaleString()}
+                          − {formatKES(w.amount)}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
+                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold uppercase dark:bg-slate-700 dark:text-slate-200">
                           {w.type}
                         </span>
                         <span
@@ -1834,15 +1836,15 @@ function LoanDetails() {
                           {statusPill.icon} {statusPill.label}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700">
+                      <p className="text-sm text-gray-700 dark:text-slate-200">
                         <strong>Reason:</strong> {w.reason}
                       </p>
                       {w.notes && (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 mt-1 dark:text-slate-400">
                           {w.notes}
                         </p>
                       )}
-                      <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                      <div className="mt-2 text-xs text-gray-500 space-y-0.5 dark:text-slate-400">
                         <p>
                           Requested by{" "}
                           <strong>{w.requested_by_name || "—"}</strong>{" "}
@@ -1868,7 +1870,7 @@ function LoanDetails() {
                           </p>
                         )}
                         {w.status === "reversed" && (
-                          <p className="text-gray-600">
+                          <p className="text-gray-600 dark:text-slate-400">
                             Reversed by{" "}
                             <strong>{w.reversed_by_name || "—"}</strong>{" "}
                             on{" "}
@@ -1904,8 +1906,8 @@ function LoanDetails() {
       {/* Status Update Modal */}
       {showStatusModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full dark:bg-slate-800">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4 dark:text-slate-100">
               {statusFormData.status === "defaulted" && "Mark Loan as Defaulted"}
               {statusFormData.status === "suspended" && "Suspend Loan"}
               {statusFormData.status === "active" && (
@@ -1913,7 +1915,7 @@ function LoanDetails() {
               )}
             </h3>
 
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 mb-4 dark:text-slate-400">
               {statusFormData.status === "defaulted" &&
                 "This will mark all pending payments as overdue. Client will not be able to borrow until resolved."}
               {statusFormData.status === "suspended" &&
@@ -1930,7 +1932,7 @@ function LoanDetails() {
 
             <form onSubmit={handleUpdateStatus}>
               <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Reason / Notes
                 </label>
                 <textarea
@@ -1943,7 +1945,7 @@ function LoanDetails() {
                   }
                   rows="3"
                   placeholder="Add a note explaining this action..."
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 
@@ -1978,14 +1980,14 @@ function LoanDetails() {
       {/* Refund Modal */}
       {showRefundModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full dark:bg-slate-800">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4 dark:text-slate-100">
               Process Refund
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 mb-4 dark:text-slate-400">
               Refund Amount:{" "}
               <strong className="text-ocean-600 text-xl">
-                KES {parseFloat(summary.overpayment).toLocaleString()}
+                {formatKES(summary.overpayment)}
               </strong>
             </p>
 
@@ -2008,7 +2010,7 @@ function LoanDetails() {
             >
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Refund Method *
                   </label>
                   <select
@@ -2019,7 +2021,7 @@ function LoanDetails() {
                         refund_method: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                     required
                   >
                     <option value="M-Pesa">M-Pesa</option>
@@ -2029,7 +2031,7 @@ function LoanDetails() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Reference Number
                   </label>
                   <input
@@ -2042,11 +2044,11 @@ function LoanDetails() {
                       })
                     }
                     placeholder="M-Pesa code, cheque #, etc."
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Refund Date *
                   </label>
                   <input
@@ -2059,7 +2061,7 @@ function LoanDetails() {
                       })
                     }
                     required
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
@@ -2098,13 +2100,13 @@ function LoanDetails() {
       {/* Edit Loan Modal */}
       {showEditModal && editForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-3xl w-full my-8">
+          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-3xl w-full my-8 dark:bg-slate-800">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 dark:text-slate-100">
                   <Pencil size={22} /> Edit Loan
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
                   {loan.loan_code} ·{" "}
                   <span className="font-semibold">
                     {loan.first_name} {loan.last_name}
@@ -2114,7 +2116,7 @@ function LoanDetails() {
               <button
                 onClick={() => setShowEditModal(false)}
                 disabled={editing}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:text-slate-400"
                 aria-label="Close"
               >
                 <X size={22} />
@@ -2173,7 +2175,7 @@ function LoanDetails() {
               {(() => null)()}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Principal (KES) *
                   </label>
                   <input
@@ -2188,23 +2190,22 @@ function LoanDetails() {
                         principal_amount: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                   {loan.package_name &&
                     (loan.package_min_amount != null ||
                       loan.package_max_amount != null) && (
                       <p className="text-xs text-ocean-700 mt-1">
-                        Package range: KES{" "}
-                        {Number(loan.package_min_amount || 0).toLocaleString()}
+                        Package range: {formatKES(loan.package_min_amount || 0)}
                         {" – "}
                         {loan.package_max_amount
-                          ? `KES ${Number(loan.package_max_amount).toLocaleString()}`
+                          ? formatKES(loan.package_max_amount)
                           : "no max"}
                       </p>
                     )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Annual Rate (%)
                   </label>
                   <input
@@ -2215,8 +2216,8 @@ function LoanDetails() {
                     disabled={!!loan.package_name}
                     className={`w-full px-3 py-2 border-2 rounded-lg focus:border-ocean-500 focus:outline-none ${
                       loan.package_name
-                        ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed"
-                        : "border-gray-200"
+                        ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                        : "border-gray-200 dark:border-slate-700"
                     }`}
                   />
                   {loan.package_name && (
@@ -2226,7 +2227,7 @@ function LoanDetails() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Monthly Rate (%)
                   </label>
                   <input
@@ -2237,8 +2238,8 @@ function LoanDetails() {
                     disabled={!!loan.package_name}
                     className={`w-full px-3 py-2 border-2 rounded-lg focus:border-ocean-500 focus:outline-none ${
                       loan.package_name
-                        ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed"
-                        : "border-gray-200"
+                        ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                        : "border-gray-200 dark:border-slate-700"
                     }`}
                   />
                   {loan.package_name && (
@@ -2248,7 +2249,7 @@ function LoanDetails() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Duration (months) *
                   </label>
                   <input
@@ -2263,7 +2264,7 @@ function LoanDetails() {
                         loan_duration_months: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                   {loan.package_name &&
                     (loan.package_min_duration_months != null ||
@@ -2278,7 +2279,7 @@ function LoanDetails() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Processing Fee Rate (%)
                 </label>
                 <input
@@ -2296,8 +2297,8 @@ function LoanDetails() {
                   disabled={!!loan.package_name}
                   className={`w-full md:w-1/2 px-3 py-2 border-2 rounded-lg focus:border-ocean-500 focus:outline-none ${
                     loan.package_name
-                      ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed"
-                      : "border-gray-200"
+                      ? "border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                      : "border-gray-200 dark:border-slate-700"
                   }`}
                 />
                 {loan.package_name && (
@@ -2312,7 +2313,7 @@ function LoanDetails() {
                   client-side validation runs on submit. */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Loan Creation Date
                   </label>
                   <input
@@ -2328,11 +2329,11 @@ function LoanDetails() {
                       editForm.disbursement_date ||
                       new Date().toISOString().split("T")[0]
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Disbursement Date
                   </label>
                   <input
@@ -2367,8 +2368,8 @@ function LoanDetails() {
                         "defaulted",
                         "suspended",
                       ].includes(loan.status)
-                        ? "border-gray-200 focus:border-ocean-500"
-                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                        ? "border-gray-200 focus:border-ocean-500 dark:border-slate-700"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                     }`}
                   />
                   {![
@@ -2377,13 +2378,13 @@ function LoanDetails() {
                     "defaulted",
                     "suspended",
                   ].includes(loan.status) && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-1 dark:text-slate-400">
                       Set at disbursement.
                     </p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Start Date
                   </label>
                   <input
@@ -2411,8 +2412,8 @@ function LoanDetails() {
                         "defaulted",
                         "suspended",
                       ].includes(loan.status)
-                        ? "border-gray-200 focus:border-ocean-500"
-                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                        ? "border-gray-200 focus:border-ocean-500 dark:border-slate-700"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                     }`}
                   />
                   {[
@@ -2421,7 +2422,7 @@ function LoanDetails() {
                     "defaulted",
                     "suspended",
                   ].includes(loan.status) && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-1 dark:text-slate-400">
                       Default: 1 month after disbursement.
                     </p>
                   )}
@@ -2429,7 +2430,7 @@ function LoanDetails() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Purpose
                 </label>
                 <input
@@ -2439,12 +2440,12 @@ function LoanDetails() {
                     setEditForm({ ...editForm, purpose: e.target.value })
                   }
                   placeholder="e.g. Business expansion"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-3">
-                <h4 className="font-semibold text-gray-700 mb-2 text-sm">
+              <div className="bg-gray-50 rounded-lg p-3 dark:bg-slate-900">
+                <h4 className="font-semibold text-gray-700 mb-2 text-sm dark:text-slate-200">
                   Guarantor
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -2458,7 +2459,7 @@ function LoanDetails() {
                         guarantor_name: e.target.value,
                       })
                     }
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                   <input
                     type="text"
@@ -2470,7 +2471,7 @@ function LoanDetails() {
                         guarantor_phone: e.target.value,
                       })
                     }
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                   <input
                     type="text"
@@ -2482,13 +2483,13 @@ function LoanDetails() {
                         guarantor_id_number: e.target.value,
                       })
                     }
-                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Collateral / Security
                 </label>
                 <textarea
@@ -2500,14 +2501,14 @@ function LoanDetails() {
                       collateral_description: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                    <label className="text-sm font-semibold text-gray-700 whitespace-nowrap dark:text-slate-200">
                       Late Payment Fee (KES)
                     </label>
                     {loan.package_name && (
@@ -2532,7 +2533,7 @@ function LoanDetails() {
                       }`}
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
                           editForm.late_fee_enabled
                             ? "translate-x-5"
                             : "translate-x-1"
@@ -2558,8 +2559,8 @@ function LoanDetails() {
                     }
                     className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
                       editForm.late_fee_enabled
-                        ? "border-gray-200 focus:border-ocean-500"
-                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                        ? "border-gray-200 focus:border-ocean-500 dark:border-slate-700"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                     }`}
                   />
                 </div>
@@ -2568,7 +2569,7 @@ function LoanDetails() {
                       the Late Payment Fee toggle above. Off sends 0
                       to the backend regardless of what's typed. */}
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                    <label className="text-sm font-semibold text-gray-700 whitespace-nowrap dark:text-slate-200">
                       Penalty Rate (%)
                     </label>
                     {loan.package_name && (
@@ -2598,7 +2599,7 @@ function LoanDetails() {
                       }
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
                           editForm.penalty_rate_enabled
                             ? "translate-x-5"
                             : "translate-x-1"
@@ -2624,11 +2625,11 @@ function LoanDetails() {
                     disabled={!editForm.penalty_rate_enabled}
                     className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
                       editForm.penalty_rate_enabled
-                        ? "border-gray-200 focus:border-ocean-500"
-                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                        ? "border-gray-200 focus:border-ocean-500 dark:border-slate-700"
+                        : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                     }`}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1 dark:text-slate-400">
                     {editForm.penalty_rate_enabled
                       ? "Monthly % charged on the overdue principal balance."
                       : "No penalty rate on this loan."}
@@ -2637,7 +2638,7 @@ function LoanDetails() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Notes
                 </label>
                 <textarea
@@ -2646,7 +2647,7 @@ function LoanDetails() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, notes: e.target.value })
                   }
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 
@@ -2676,11 +2677,11 @@ function LoanDetails() {
       {/* Delete Loan Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <div className="bg-white rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full dark:bg-slate-800">
+            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2 dark:text-slate-100">
               <Trash2 size={22} className="text-red-700" /> Delete loan?
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-4 dark:text-slate-400">
               This permanently removes{" "}
               <strong className="font-mono">{loan.loan_code}</strong> and any
               associated logs. The loan must be re-applied to bring it back.
@@ -2714,14 +2715,14 @@ function LoanDetails() {
       {/* Waiver Request / Record Modal */}
       {showWaiverModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-xl w-full my-8">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-xl w-full my-8 dark:bg-slate-800">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 dark:text-slate-100">
                   <HandCoins size={22} className="text-emerald-700" />
                   {isAdminRole ? "Waive Loan" : "Request Waiver"}
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
                   {loan.loan_code} ·{" "}
                   <span className="font-semibold">
                     {loan.first_name} {loan.last_name}
@@ -2731,7 +2732,7 @@ function LoanDetails() {
               <button
                 onClick={() => setShowWaiverModal(false)}
                 disabled={savingWaiver}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:text-slate-400"
               >
                 <X size={22} />
               </button>
@@ -2836,10 +2837,10 @@ function LoanDetails() {
                 badge,
               }) => (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-500">{label}</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400">{label}</span>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-semibold ${color}`}>
-                      KES {value.toLocaleString()}
+                      {formatKES(value)}
                     </span>
                     {fillType ? (
                       <button
@@ -2852,7 +2853,7 @@ function LoanDetails() {
                         use
                       </button>
                     ) : badge ? (
-                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 font-semibold">
+                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 font-semibold dark:bg-slate-700 dark:text-slate-400">
                         {badge}
                       </span>
                     ) : null}
@@ -2861,8 +2862,8 @@ function LoanDetails() {
               );
 
               return (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 space-y-1.5">
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-1">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 space-y-1.5 dark:bg-slate-900 dark:border-slate-700">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-1 dark:text-slate-400">
                     Loan snapshot
                   </p>
                   <Row
@@ -2950,7 +2951,7 @@ function LoanDetails() {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                           Type *
                         </label>
                         <select
@@ -2961,7 +2962,7 @@ function LoanDetails() {
                               type: e.target.value,
                             })
                           }
-                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white"
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                         >
                           <option value="penalty">
                             Penalty (late fees + interest on overdue)
@@ -2972,7 +2973,7 @@ function LoanDetails() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                           Amount (KES) *
                         </label>
                         <input
@@ -2992,21 +2993,21 @@ function LoanDetails() {
                           className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none ${
                             overCap
                               ? "border-rose-300 focus:border-rose-500"
-                              : "border-gray-200 focus:border-emerald-500"
+                              : "border-gray-200 focus:border-emerald-500 dark:border-slate-700"
                           }`}
                         />
                         {enteredAmount > 0 && (
                           <div className="mt-1.5">
                             <div
                               className={`text-[11px] mb-1 ${
-                                overCap ? "text-rose-700" : "text-gray-600"
+                                overCap ? "text-rose-700" : "text-gray-600 dark:text-slate-400"
                               }`}
                             >
                               {overCap
-                                ? `Exceeds KES ${cap.toLocaleString()} ${waiverForm.type} outstanding`
-                                : `Waiving ${pctOfCap.toFixed(1)}% of KES ${cap.toLocaleString()} ${waiverForm.type} outstanding`}
+                                ? `Exceeds ${formatKES(cap)} ${waiverForm.type} outstanding`
+                                : `Waiving ${pctOfCap.toFixed(1)}% of ${formatKES(cap)} ${waiverForm.type} outstanding`}
                             </div>
-                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden dark:bg-slate-700">
                               <div
                                 className={`h-1.5 rounded-full transition-all ${
                                   overCap
@@ -3028,7 +3029,7 @@ function LoanDetails() {
                 );
               })()}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Reason *
                 </label>
                 <select
@@ -3042,7 +3043,7 @@ function LoanDetails() {
                       reason: v === "other" ? "" : v,
                     });
                   }}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 >
                   <option value="" disabled>
                     Select a reason…
@@ -3064,12 +3065,12 @@ function LoanDetails() {
                       setWaiverForm({ ...waiverForm, reason: e.target.value })
                     }
                     placeholder="Enter the reason…"
-                    className="mt-2 w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                    className="mt-2 w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 )}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Notes (optional)
                 </label>
                 <textarea
@@ -3079,7 +3080,7 @@ function LoanDetails() {
                     setWaiverForm({ ...waiverForm, notes: e.target.value })
                   }
                   placeholder="Anything internal you'd like to capture…"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
 
@@ -3113,20 +3114,20 @@ function LoanDetails() {
       {/* Reverse Waiver Confirmation */}
       {reversingWaiver && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full dark:bg-slate-800">
+            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2 dark:text-slate-100">
               <RotateCcw size={20} className="text-rose-700" />
               Reverse waiver?
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-4 dark:text-slate-400">
               Restores{" "}
               <strong className="text-rose-700">
-                KES {parseFloat(reversingWaiver.amount).toLocaleString()}
+                {formatKES(reversingWaiver.amount)}
               </strong>{" "}
               back onto this loan's outstanding balance. The borrower
               will be notified.
             </p>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
               Reason for reversal *
             </label>
             <textarea
@@ -3134,7 +3135,7 @@ function LoanDetails() {
               value={reversalReason}
               onChange={(e) => setReversalReason(e.target.value)}
               placeholder="e.g. Borrower paid in cash — recorded waiver in error"
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-rose-500 focus:outline-none mb-4"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-rose-500 focus:outline-none mb-4 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
               required
             />
             <div className="flex justify-end gap-3">
@@ -3164,14 +3165,14 @@ function LoanDetails() {
       {/* Promise to Pay modal */}
       {showPromiseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full dark:bg-slate-800">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 dark:text-slate-100">
                   <Handshake size={22} className="text-amber-600" />
                   Log Promise to Pay
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
                   {loan.loan_code} ·{" "}
                   <span className="font-semibold">
                     {loan.first_name} {loan.last_name}
@@ -3181,7 +3182,7 @@ function LoanDetails() {
               <button
                 onClick={() => setShowPromiseModal(false)}
                 disabled={savingPromise}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:text-slate-400"
               >
                 <X size={22} />
               </button>
@@ -3205,7 +3206,7 @@ function LoanDetails() {
             <form onSubmit={handleSubmitPromise} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Amount (KES) *
                   </label>
                   <input
@@ -3218,11 +3219,11 @@ function LoanDetails() {
                       setPromiseForm((p) => ({ ...p, amount: e.target.value }))
                     }
                     placeholder="e.g. 5000"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                     Promised by *
                   </label>
                   <input
@@ -3236,12 +3237,12 @@ function LoanDetails() {
                         promised_date: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1 dark:text-slate-200">
                   Notes (optional)
                 </label>
                 <textarea
@@ -3251,7 +3252,7 @@ function LoanDetails() {
                     setPromiseForm((p) => ({ ...p, notes: e.target.value }))
                   }
                   placeholder="Context for the follow-up officer (e.g. 'will pay after salary on Friday')"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-3 border-t">

@@ -25,7 +25,9 @@ import WelfareDividendsPanel from "../components/WelfareDividendsPanel";
 import WelfareDashboardPanel from "../components/WelfareDashboardPanel";
 import GroupMeetingsPanel from "../components/GroupMeetingsPanel";
 import GroupCyclesPanel from "../components/GroupCyclesPanel";
-import Spinner from "../components/Spinner";
+import EmptyState from "../components/EmptyState";
+import Skeleton from "../components/Skeleton";
+import { formatKES } from "../utils/money";
 
 const ROLE_LABEL = {
   member: "Member",
@@ -78,12 +80,7 @@ export default function GroupDetail() {
     load();
   }, [id]);
 
-  const money = (v) =>
-    "KES " +
-    Number(v || 0).toLocaleString("en-KE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  const money = (v) => formatKES(v);
 
   const printGuarantee = async () => {
     try {
@@ -118,8 +115,24 @@ export default function GroupDetail() {
   if (loading) {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading group…" />
+        <Skeleton className="h-5 w-32 mb-4" />
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6">
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-4 w-72 mt-3" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-xl shadow-md p-4">
+              <Skeleton className="h-9 w-9" rounded="rounded-lg" />
+              <Skeleton className="h-3 w-16 mt-2" />
+              <Skeleton className="h-5 w-20 mt-2" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 space-y-3">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
         </div>
       </div>
     );
@@ -160,12 +173,12 @@ export default function GroupDetail() {
       </button>
 
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <UsersRound className="text-ocean-600" /> {group.name}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             <span className="font-mono">{group.group_code}</span>
             {group.registration_no && <> · Reg {group.registration_no}</>}
             {group.meeting_frequency && <> · meets {group.meeting_frequency}</>}
@@ -229,9 +242,9 @@ export default function GroupDetail() {
 
       {/* Loan-group members (capital-funded group loans) — lenders only */}
       {!isWelfare && (
-      <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="font-bold text-slate-900">Loan Group Members ({members.length})</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md mb-6 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+          <h2 className="font-bold text-slate-900 dark:text-slate-100">Loan Group Members ({members.length})</h2>
           <PermissionGate role={["admin", "manager", "loan_officer"]}>
             <button
               onClick={() => setShowAdd(true)}
@@ -242,11 +255,27 @@ export default function GroupDetail() {
           </PermissionGate>
         </div>
         {members.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No members yet.</p>
+          <EmptyState
+            icon={UserPlus}
+            tone="muted"
+            className="shadow-none"
+            title="No members yet"
+            description="Enrol clients into this group to guarantee each other's loans."
+            action={
+              <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="px-5 py-2 bg-ocean-600 hover:bg-ocean-700 text-white font-semibold rounded-lg inline-flex items-center gap-1.5"
+                >
+                  <UserPlus size={15} /> Add Member
+                </button>
+              </PermissionGate>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-5 py-2.5">Name</th>
                   <th className="text-left px-5 py-2.5">Code</th>
@@ -257,12 +286,12 @@ export default function GroupDetail() {
               </thead>
               <tbody>
                 {members.map((m) => (
-                  <tr key={m.id} className="border-t border-slate-100">
-                    <td className="px-5 py-2.5 font-semibold text-slate-800">
+                  <tr key={m.id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-5 py-2.5 font-semibold text-slate-800 dark:text-slate-100">
                       {m.first_name} {m.last_name}
                     </td>
-                    <td className="px-5 py-2.5 font-mono text-xs text-slate-500">{m.client_code}</td>
-                    <td className="px-5 py-2.5 text-slate-600">{m.phone_number}</td>
+                    <td className="px-5 py-2.5 font-mono text-xs text-slate-500 dark:text-slate-400">{m.client_code}</td>
+                    <td className="px-5 py-2.5 text-slate-600 dark:text-slate-400">{m.phone_number}</td>
                     <td className="px-5 py-2.5">
                       <PermissionGate
                         role={["admin", "manager"]}
@@ -271,7 +300,7 @@ export default function GroupDetail() {
                         <select
                           value={m.role}
                           onChange={(e) => setRole(m.id, e.target.value)}
-                          className="border border-slate-200 rounded-md px-2 py-1 text-sm"
+                          className="border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-md px-2 py-1 text-sm"
                         >
                           {Object.entries(ROLE_LABEL).map(([k, v]) => (
                             <option key={k} value={k}>
@@ -303,18 +332,22 @@ export default function GroupDetail() {
 
       {/* Member loans (capital-funded group loans) — lenders only */}
       {!isWelfare && (
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100">
-          <h2 className="font-bold text-slate-900">Member Loans ({loans.length})</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700">
+          <h2 className="font-bold text-slate-900 dark:text-slate-100">Member Loans ({loans.length})</h2>
         </div>
         {loans.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">
-            No loans yet. Create a loan with a group package, pick this group, and choose a member.
-          </p>
+          <EmptyState
+            icon={Wallet}
+            tone="muted"
+            className="shadow-none"
+            title="No loans yet"
+            description="Create a loan with a group package, pick this group, and choose a member."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-5 py-2.5">Loan</th>
                   <th className="text-left px-5 py-2.5">Member</th>
@@ -328,10 +361,10 @@ export default function GroupDetail() {
                   <tr
                     key={l.id}
                     onClick={() => navigate(`/loans/${l.id}`)}
-                    className="border-t border-slate-100 hover:bg-ocean-50 cursor-pointer"
+                    className="border-t border-slate-100 dark:border-slate-700 hover:bg-ocean-50 dark:hover:bg-slate-700 cursor-pointer"
                   >
                     <td className="px-5 py-2.5 font-mono text-xs text-ocean-700">{l.loan_code}</td>
-                    <td className="px-5 py-2.5 text-slate-800">
+                    <td className="px-5 py-2.5 text-slate-800 dark:text-slate-100">
                       {l.first_name} {l.last_name}
                     </td>
                     <td className="px-5 py-2.5 text-right">{money(l.principal_amount)}</td>
@@ -378,12 +411,12 @@ function RollupCard({ icon: Icon, color, label, value }) {
     slate: "bg-slate-50 text-slate-600",
   };
   return (
-    <div className="bg-white rounded-xl shadow-md p-4">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
       <div className={`inline-flex p-2 rounded-lg mb-2 ${C[color] || C.slate}`}>
         <Icon size={18} />
       </div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-lg font-bold text-slate-900">{value}</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   );
 }
@@ -440,15 +473,15 @@ function AddMemberModal({ groupId, existingClientIds, onClose, onAdded }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <UserPlus size={18} className="text-ocean-600" />
-            <h3 className="text-lg font-bold text-slate-900">Add Member</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add Member</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
             <X size={20} />
           </button>
         </div>
@@ -475,28 +508,28 @@ function AddMemberModal({ groupId, existingClientIds, onClose, onAdded }) {
           ) : (
             <>
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+                <Search size={16} className="absolute left-3 top-3 text-gray-400 dark:text-slate-400" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search clients…"
-                  className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
-              <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-lg">
+              <div className="max-h-56 overflow-y-auto border border-gray-100 dark:border-slate-700 rounded-lg">
                 {filtered.length === 0 ? (
-                  <p className="p-3 text-center text-gray-500 text-sm">No clients found</p>
+                  <p className="p-3 text-center text-gray-500 dark:text-slate-400 text-sm">No clients found</p>
                 ) : (
                   filtered.map((c) => (
                     <button
                       key={c.id}
                       onClick={() => setSelected(c)}
-                      className="w-full text-left p-3 hover:bg-ocean-50 border-b border-gray-100 last:border-0"
+                      className="w-full text-left p-3 hover:bg-ocean-50 dark:hover:bg-slate-700 border-b border-gray-100 dark:border-slate-700 last:border-0"
                     >
-                      <p className="font-semibold text-gray-800 text-sm">
+                      <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
                         {c.first_name} {c.last_name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
                         {c.client_code} · {c.phone_number}
                       </p>
                     </button>
@@ -506,11 +539,11 @@ function AddMemberModal({ groupId, existingClientIds, onClose, onAdded }) {
             </>
           )}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Role</label>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             >
               {Object.entries(ROLE_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -522,7 +555,7 @@ function AddMemberModal({ groupId, existingClientIds, onClose, onAdded }) {
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
