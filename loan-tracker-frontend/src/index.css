@@ -53,6 +53,15 @@
   /* Cream surfaces — page background + soft panels. */
   --color-cream-50: #fbf7ef; /* brand cream */
   --color-cream-100: #f3ecdd; /* brand cream-2 */
+
+  /* Semantic money colours (pilot — Dashboard + Loans). Lets positive,
+     negative, warning and muted amounts read consistently across the two
+     surfaces via `text-money-pos` / `text-money-neg` etc. Additive: no
+     existing token values change. */
+  --color-money-pos: #047857; /* inflow / interest / paid — emerald-700 */
+  --color-money-neg: #be123c; /* outflow / waived — rose-700 */
+  --color-money-warn: #b45309; /* balance owed / fines — amber-700 */
+  --color-money-muted: #94a3b8; /* zero / placeholder — slate-400 */
 }
 
 /* Named gradients + the signature tile shadow. Defined as plain
@@ -73,6 +82,46 @@
 }
 .shadow-tile {
   box-shadow: 0 8px 20px -6px rgba(14, 138, 110, 0.35);
+}
+
+/* Soft elevation for cards/panels (pilot — Dashboard + Loans). A lighter,
+   more premium two-layer shadow than the default Tailwind shadow-md. */
+.shadow-card {
+  box-shadow:
+    0 1px 2px rgba(15, 30, 60, 0.05),
+    0 10px 30px -18px rgba(15, 30, 60, 0.22);
+}
+
+/* Skeleton loading placeholder (pilot — Dashboard + Loans). A shimmer
+   sweeps across a neutral block while data loads. Respects
+   prefers-reduced-motion by slowing the sweep rather than freezing it. */
+.lf-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #e7edf3;
+}
+.lf-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0,
+    rgba(255, 255, 255, 0.65) 50%,
+    transparent 100%
+  );
+  animation: lf-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes lf-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lf-skeleton::after {
+    animation-duration: 3s;
+  }
 }
 
 /* Display type — the LenderFest wordmark / hero headings use Bricolage

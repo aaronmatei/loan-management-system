@@ -45,7 +45,50 @@ import PeriodNavigator, {
   periodToRange,
   usePersistentPeriod,
 } from "../components/PeriodNavigator";
-import Spinner from "../components/Spinner";
+import Skeleton from "../components/Skeleton";
+import { abbreviateKES, exactKES } from "../utils/money";
+
+// Small section label that introduces a group of cards/charts, so the
+// dashboard reads as Capital → Overview → Insights → Performance instead
+// of one flat wall of equal-weight tiles. Pure presentation.
+function SectionHeading({ children, hint }) {
+  return (
+    <div className="flex items-baseline gap-3 mt-8 mb-3 first:mt-0">
+      <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+        {children}
+      </h2>
+      {hint && <span className="text-xs text-slate-400">{hint}</span>}
+      <span className="flex-1 h-px bg-slate-200/70" />
+    </div>
+  );
+}
+
+// Skeleton shown while the dashboard's first payload is in flight. Mirrors
+// the real layout (hero panel → KPI strip → two insight charts) so content
+// doesn't jump in when data lands.
+function DashboardSkeleton() {
+  return (
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto" aria-busy="true">
+      <div className="mb-8 flex items-end justify-between gap-3">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <Skeleton className="h-9 w-40 rounded-full" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-3xl mb-6" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Skeleton className="h-72 w-full rounded-2xl" />
+        <Skeleton className="h-72 w-full rounded-2xl" />
+      </div>
+    </div>
+  );
+}
 
 // Soft empty state for a chart card (fresh tenant / no data yet).
 function EmptyChart({ label }) {
@@ -188,13 +231,7 @@ function Dashboard() {
   };
 
   if (loading) {
-    return (
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading dashboard…" />
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
@@ -557,8 +594,11 @@ function Dashboard() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
                 Lifetime disbursement
               </p>
-              <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap">
-                {fmtKES(poolStatus.total_disbursed)}
+              <p
+                className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap"
+                title={exactKES(poolStatus.total_disbursed)}
+              >
+                {abbreviateKES(poolStatus.total_disbursed)}
               </p>
             </div>
 
@@ -573,8 +613,11 @@ function Dashboard() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
                 Net collection
               </p>
-              <p className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap">
-                {fmtKES(poolStatus.total_collected)}
+              <p
+                className="text-lg lg:text-xl font-extrabold text-slate-900 mt-1 tracking-tight whitespace-nowrap"
+                title={exactKES(poolStatus.total_collected)}
+              >
+                {abbreviateKES(poolStatus.total_collected)}
               </p>
             </div>
 
@@ -589,8 +632,11 @@ function Dashboard() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
                 Net Interest
               </p>
-              <p className="text-lg lg:text-xl font-extrabold text-emerald-700 mt-1 tracking-tight whitespace-nowrap">
-                +{fmtKES(poolStatus.loan_interest_earned ?? 0)}
+              <p
+                className="text-lg lg:text-xl font-extrabold text-emerald-700 mt-1 tracking-tight whitespace-nowrap"
+                title={exactKES(poolStatus.loan_interest_earned ?? 0)}
+              >
+                +{abbreviateKES(poolStatus.loan_interest_earned ?? 0)}
               </p>
             </div>
 
@@ -605,8 +651,15 @@ function Dashboard() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
                 Total Fines
               </p>
-              <p className="text-lg lg:text-xl font-extrabold text-amber-700 mt-1 tracking-tight whitespace-nowrap">
-                +{fmtKES(
+              <p
+                className="text-lg lg:text-xl font-extrabold text-amber-700 mt-1 tracking-tight whitespace-nowrap"
+                title={exactKES(
+                  poolStatus.fines_collected_gross ??
+                    poolStatus.fines_collected ??
+                    0,
+                )}
+              >
+                +{abbreviateKES(
                   poolStatus.fines_collected_gross ??
                     poolStatus.fines_collected ??
                     0,
@@ -631,8 +684,11 @@ function Dashboard() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mt-3">
                 Processing Fees
               </p>
-              <p className="text-lg lg:text-xl font-extrabold text-ocean-700 mt-1 tracking-tight whitespace-nowrap">
-                +{fmtKES(poolStatus.processing_fees ?? 0)}
+              <p
+                className="text-lg lg:text-xl font-extrabold text-ocean-700 mt-1 tracking-tight whitespace-nowrap"
+                title={exactKES(poolStatus.processing_fees ?? 0)}
+              >
+                +{abbreviateKES(poolStatus.processing_fees ?? 0)}
               </p>
             </div>
 
@@ -723,6 +779,7 @@ function Dashboard() {
       )}
 
       {/* ── KPI strip: one tidy set of distinct KPIs, no duplicates ── */}
+      <SectionHeading hint="Current book">Portfolio overview</SectionHeading>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
         {/* Total Portfolio — active receivable book (principal + interest
             for currently-active loans). Matches Analytics' "Active
@@ -734,8 +791,11 @@ function Dashboard() {
             </p>
             <IconTile icon={Wallet} variant="ocean" size={40} />
           </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
-            {fmtKES(metrics.active_portfolio ?? metrics.total_amount_due)}
+          <p
+            className="text-2xl font-bold text-navy-900 mt-2"
+            title={exactKES(metrics.active_portfolio ?? metrics.total_amount_due)}
+          >
+            {abbreviateKES(metrics.active_portfolio ?? metrics.total_amount_due)}
           </p>
           <p className="text-xs text-slate-500 mt-1">
             {metrics.active_loans} active • {metrics.total_loans} total
@@ -750,8 +810,11 @@ function Dashboard() {
             </p>
             <IconTile icon={Coins} variant="amber" size={40} />
           </div>
-          <p className="text-2xl font-bold text-navy-900 mt-2">
-            {fmtKES(metrics.outstanding_balance)}
+          <p
+            className="text-2xl font-bold text-navy-900 mt-2"
+            title={exactKES(metrics.outstanding_balance)}
+          >
+            {abbreviateKES(metrics.outstanding_balance)}
           </p>
           <p className="text-xs text-slate-500 mt-1">To be collected</p>
         </div>
@@ -799,6 +862,7 @@ function Dashboard() {
       </div>
 
       {/* ── Insights row: trend chart + portfolio donut ─────────────── */}
+      <SectionHeading hint="Trends & status">Insights</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Chart 1 — Collections vs Disbursements (last 6 months) */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
@@ -934,6 +998,7 @@ function Dashboard() {
       </div>
 
       {/* ── Distribution charts: age, loan size, payment method ─────── */}
+      <SectionHeading hint="Portfolio mix">Distribution</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* Chart A — Loans by Age: borrower age × loan status */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
@@ -1122,42 +1187,50 @@ function Dashboard() {
       </div>
 
       {/* Secondary Metrics — Total Interest dropped; it duplicated the
-          Interest Earned KPI above (identical when there's no Capital Pool) */}
+          Interest Earned KPI above (identical when there's no Capital Pool).
+          Demoted to a "Performance" section so they read as supporting
+          stats, not hero figures. */}
+      <SectionHeading hint="Supporting stats">Performance</SectionHeading>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-ocean-500">
-          <p className="text-xs text-gray-500 uppercase font-semibold">
+        <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-4">
+          <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
             Total Clients
           </p>
-          <p className="text-xl font-bold text-gray-800 mt-1">
-            {metrics.total_clients}
+          <p className="text-xl font-bold text-navy-900 mt-1">
+            {Number(metrics.total_clients || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             {metrics.active_clients} active
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500">
-          <p className="text-xs text-gray-500 uppercase font-semibold">
+        <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-4">
+          <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
             Completed Loans
           </p>
-          <p className="text-xl font-bold text-green-600 mt-1">
-            {metrics.completed_loans}
+          <p className="text-xl font-bold text-money-pos mt-1">
+            {Number(metrics.completed_loans || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Fully repaid</p>
+          <p className="text-xs text-slate-500 mt-1">Fully repaid</p>
         </div>
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-yellow-500">
-          <p className="text-xs text-gray-500 uppercase font-semibold">
+        <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-4">
+          <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
             Upcoming (7 days)
           </p>
-          <p className="text-xl font-bold text-yellow-600 mt-1">
-            {metrics.upcoming_count}
+          <p className="text-xl font-bold text-money-warn mt-1">
+            {Number(metrics.upcoming_count || 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            KES {metrics.upcoming_amount.toLocaleString()}
+          <p
+            className="text-xs text-slate-500 mt-1"
+            title={exactKES(metrics.upcoming_amount)}
+          >
+            {abbreviateKES(metrics.upcoming_amount)}
           </p>
         </div>
       </div>
 
-      {/* Trends Section */}
+      {/* Monthly activity — per-month counts + amounts the trend chart
+          above doesn't surface numerically. */}
+      <SectionHeading hint="Last 6 months">Monthly activity</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Payments Trend */}
         <div className="bg-white rounded-xl shadow-md p-6">
@@ -1239,6 +1312,7 @@ function Dashboard() {
       </div>
 
       {/* Recent Activities */}
+      <SectionHeading hint="Latest events">Recent activity</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Payments */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">

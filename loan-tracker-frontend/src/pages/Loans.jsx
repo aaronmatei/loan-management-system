@@ -17,6 +17,12 @@ import {
   Car,
   Banknote,
   Users,
+  ChevronDown,
+  ChevronRight,
+  ArrowRight,
+  SlidersHorizontal,
+  Bookmark,
+  Trash2,
 } from "lucide-react";
 import api from "../services/api";
 import { useBulkSelection } from "../hooks/useBulkSelection";
@@ -29,7 +35,266 @@ import SortableHeader from "../components/SortableHeader";
 import { computeLoanTotals } from "../utils/loanMath";
 import { evaluatePackageEligibility } from "../utils/packageEligibility";
 import { purposesForPackage } from "../utils/loanPurposes";
-import Spinner from "../components/Spinner";
+import Skeleton from "../components/Skeleton";
+import { formatKES, exactKES } from "../utils/money";
+
+// ── Loans table column model (UX pilot) ──────────────────────────────
+// The desktop loans table is column-driven so we can offer client-side
+// presets (which columns show in the row) and push the rest into an
+// expandable detail row — without forking the rendering logic. Loan Code
+// is pinned (sticky) and rendered specially in the row, so it is NOT part
+// of this generic list. `money` columns also contribute to the totals row.
+const num = (v) => parseFloat(v || 0);
+
+const LOAN_COLUMNS = [
+  {
+    key: "first_name",
+    label: "Client",
+    align: "left",
+    cell: (l) => (
+      <div>
+        <p className="font-semibold text-gray-800 text-sm">
+          {l.first_name} {l.last_name}
+        </p>
+        <p className="text-xs text-gray-500">{l.phone_number}</p>
+      </div>
+    ),
+  },
+  {
+    key: "disbursed_at",
+    label: "Disbursed",
+    align: "left",
+    cell: (l) => (
+      <span className="text-sm text-gray-700">
+        {l.disbursed_at
+          ? new Date(l.disbursed_at).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })
+          : "—"}
+      </span>
+    ),
+  },
+  {
+    key: "principal_amount",
+    label: "Principal",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.principal_amount), 0),
+    totalClass: "text-gray-800",
+    cell: (l) => (
+      <p className="font-semibold text-gray-800 text-sm">
+        {formatKES(l.principal_amount)}
+      </p>
+    ),
+  },
+  {
+    key: "total_interest",
+    label: "Interest",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.total_interest), 0),
+    totalClass: "text-money-pos",
+    cell: (l) => (
+      <p className="font-semibold text-money-pos text-sm">
+        {formatKES(l.total_interest || 0)}
+      </p>
+    ),
+  },
+  {
+    key: "total_amount_due",
+    label: "Total to Pay",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.total_amount_due), 0),
+    totalClass: "text-ocean-700",
+    cell: (l) => (
+      <p className="font-bold text-ocean-600 text-sm">
+        {formatKES(l.total_amount_due)}
+      </p>
+    ),
+  },
+  {
+    key: "total_paid",
+    label: "Paid",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.total_paid), 0),
+    totalClass: "text-money-pos",
+    cell: (l) => (
+      <p className="font-bold text-money-pos text-sm">
+        {formatKES(l.total_paid || 0)}
+      </p>
+    ),
+  },
+  {
+    key: "total_fines_paid",
+    label: "Fines",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.total_fines_paid), 0),
+    totalClass: "text-fuchsia-700",
+    cell: (l) =>
+      num(l.total_fines_paid) > 0 ? (
+        <p className="font-semibold text-fuchsia-700 text-sm">
+          {formatKES(l.total_fines_paid)}
+        </p>
+      ) : (
+        <p className="text-money-muted text-sm">—</p>
+      ),
+  },
+  {
+    key: "total_waived",
+    label: "Waivers",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.total_waived), 0),
+    totalClass: "text-money-neg",
+    cell: (l) =>
+      num(l.total_waived) > 0 ? (
+        <p className="font-semibold text-money-neg text-sm">
+          {formatKES(l.total_waived)}
+        </p>
+      ) : (
+        <p className="text-money-muted text-sm">—</p>
+      ),
+  },
+  {
+    key: "balance",
+    label: "Balance",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.balance_due), 0),
+    totalClass: "text-money-warn",
+    cell: (l) => {
+      const b = num(l.balance_due);
+      return (
+        <p
+          className={`font-bold text-sm ${b > 0 ? "text-money-warn" : "text-money-pos"}`}
+        >
+          {formatKES(b)}
+        </p>
+      );
+    },
+  },
+  {
+    key: "overpayment_amount",
+    label: "Refund Due",
+    align: "right",
+    money: true,
+    total: (rows) => rows.reduce((s, l) => s + num(l.overpayment_amount), 0),
+    totalClass: "text-ocean-700",
+    cell: (l) => {
+      const o = num(l.overpayment_amount);
+      if (o <= 0) return <p className="text-money-muted text-sm">-</p>;
+      return (
+        <div>
+          <p className="font-bold text-ocean-600 text-sm">{formatKES(o)}</p>
+          <span
+            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
+              l.refund_status === "refunded"
+                ? "bg-green-100 text-green-700"
+                : "bg-yellow-100 text-yellow-700"
+            }`}
+          >
+            {l.refund_status === "refunded" ? (
+              <span className="inline-flex items-center gap-1">
+                <Check size={12} /> Refunded
+              </span>
+            ) : (
+              "Pending"
+            )}
+          </span>
+        </div>
+      );
+    },
+  },
+  {
+    key: "status",
+    label: "Status",
+    align: "left",
+    cell: (l) => (
+      <div className="flex flex-col gap-1 items-start">
+        <span
+          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-center ${
+            l.status === "active"
+              ? "bg-green-100 text-green-700"
+              : l.status === "completed"
+                ? "bg-ocean-100 text-ocean-700"
+                : l.status === "defaulted"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-gray-100 text-gray-700"
+          }`}
+        >
+          {l.status}
+        </span>
+        {(l.overdue_count || 0) > 0 && (
+          <span
+            className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700"
+            title={`${l.overdue_count} overdue installment${l.overdue_count !== 1 ? "s" : ""} · ${exactKES(l.overdue_amount)} (max ${l.max_days_late}d late)`}
+          >
+            <AlertTriangle size={10} />
+            {l.overdue_count} overdue
+          </span>
+        )}
+      </div>
+    ),
+  },
+];
+
+// Column presets — which keys render in the row. Loan Code is always
+// pinned and shown outside this set. Anything not visible drops into the
+// expandable detail row, so no data is ever hidden — just demoted.
+const COLUMN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["first_name", "principal_amount", "balance", "status"],
+  },
+  financials: {
+    label: "Financials",
+    keys: [
+      "first_name",
+      "principal_amount",
+      "total_interest",
+      "total_amount_due",
+      "total_paid",
+      "balance",
+      "status",
+    ],
+  },
+  full: {
+    label: "Everything",
+    keys: LOAN_COLUMNS.map((c) => c.key),
+  },
+};
+
+const PRESET_STORAGE_KEY = "loans.columnPreset";
+const SEGMENTS_STORAGE_KEY = "loans.segments";
+
+// Skeleton placeholder for the desktop loans table while the first page
+// of data loads. Mirrors the real row rhythm so nothing jumps.
+function LoansTableSkeleton({ rows = 8 }) {
+  return (
+    <div
+      className="hidden md:block bg-white rounded-xl shadow-card overflow-hidden"
+      aria-busy="true"
+    >
+      <div className="px-4 py-4 border-b border-gray-100 flex gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 flex-1" />
+        ))}
+      </div>
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="px-4 py-4 border-b border-gray-50 flex gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-5 flex-1" />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Loans() {
   const navigate = useNavigate();
@@ -54,6 +319,48 @@ function Loans() {
     disbursedTo: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
+
+  // ── Table UX state (pilot, client-side only) ──────────────────
+  // Expanded rows reveal columns demoted by the active preset.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
+  const toggleRow = (id) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  // Column preset — persisted in localStorage, never server-side.
+  const [columnPreset, setColumnPreset] = useState(() => {
+    const saved = localStorage.getItem(PRESET_STORAGE_KEY);
+    return saved && COLUMN_PRESETS[saved] ? saved : "financials";
+  });
+  useEffect(() => {
+    localStorage.setItem(PRESET_STORAGE_KEY, columnPreset);
+  }, [columnPreset]);
+
+  // Saved filter "segments" — named snapshots of search + filters, stored
+  // in localStorage only. Purely a UI convenience; no backend involvement.
+  const [segments, setSegments] = useState(() => {
+    try {
+      const raw = localStorage.getItem(SEGMENTS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem(SEGMENTS_STORAGE_KEY, JSON.stringify(segments));
+  }, [segments]);
+
+  const visibleColumnKeys = COLUMN_PRESETS[columnPreset].keys;
+  const visibleColumns = LOAN_COLUMNS.filter((c) =>
+    visibleColumnKeys.includes(c.key),
+  );
+  const hiddenColumns = LOAN_COLUMNS.filter(
+    (c) => !visibleColumnKeys.includes(c.key),
+  );
 
   // Client search state
   const [clientSearch, setClientSearch] = useState("");
@@ -650,6 +957,37 @@ function Loans() {
       disbursedTo: "",
     });
   };
+
+  // ── Saved filter segments (localStorage only) ─────────────────
+  const saveSegment = () => {
+    const name = window.prompt("Name this segment (e.g. Overdue actives)");
+    if (!name || !name.trim()) return;
+    const segment = {
+      id: `${name.trim()}-${Date.now()}`,
+      name: name.trim(),
+      searchQuery,
+      filters: { ...filters },
+    };
+    // Replace any existing segment with the same name, else append.
+    setSegments((prev) => [
+      ...prev.filter((s) => s.name !== segment.name),
+      segment,
+    ]);
+  };
+  const applySegment = (segment) => {
+    setSearchQuery(segment.searchQuery || "");
+    setFilters({
+      status: "all",
+      refundStatus: "all",
+      overdue: "all",
+      disbursedFrom: "",
+      disbursedTo: "",
+      ...segment.filters,
+    });
+    setCurrentPage(1);
+  };
+  const deleteSegment = (id) =>
+    setSegments((prev) => prev.filter((s) => s.id !== id));
 
   // Derive `balance` so it's sortable alongside the real columns
   // (the row already reads loan.total_amount_due - loan.total_paid
@@ -1926,6 +2264,51 @@ function Loans() {
             </div>
           </div>
 
+          {/* Saved segments — named search + filter snapshots, stored in
+              localStorage only (never server-side). A quick way to jump
+              back to a frequent view. */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <Bookmark size={14} /> Segments
+            </span>
+            {segments.length === 0 && (
+              <span className="text-xs text-slate-400">
+                None saved yet — set filters, then save this view.
+              </span>
+            )}
+            {segments.map((seg) => (
+              <span
+                key={seg.id}
+                className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 bg-ocean-50 text-ocean-700 rounded-full text-xs font-semibold"
+              >
+                <button
+                  type="button"
+                  onClick={() => applySegment(seg)}
+                  className="hover:text-ocean-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 rounded"
+                >
+                  {seg.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteSegment(seg.id)}
+                  aria-label={`Delete segment ${seg.name}`}
+                  className="text-ocean-400 hover:text-rose-600"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </span>
+            ))}
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={saveSegment}
+                className="inline-flex items-center gap-1 px-3 py-1 border border-dashed border-slate-300 text-slate-600 rounded-full text-xs font-semibold hover:border-ocean-400 hover:text-ocean-700 transition"
+              >
+                <Plus size={12} /> Save current
+              </button>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-end gap-4">
             {/* Status */}
             <div className="min-w-[180px]">
@@ -2175,39 +2558,32 @@ function Loans() {
                 <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
                   <div>
                     <p className="text-xs text-gray-500">Principal</p>
-                    <p className="font-bold">
-                      KES{" "}
-                      {parseFloat(loan.principal_amount).toLocaleString()}
-                    </p>
+                    <p className="font-bold">{formatKES(loan.principal_amount)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Interest</p>
-                    <p className="font-bold text-emerald-700">
-                      KES{" "}
-                      {parseFloat(loan.total_interest || 0).toLocaleString()}
+                    <p className="font-bold text-money-pos">
+                      {formatKES(loan.total_interest || 0)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Total Due</p>
-                    <p className="font-bold">
-                      KES{" "}
-                      {parseFloat(loan.total_amount_due).toLocaleString()}
-                    </p>
+                    <p className="font-bold">{formatKES(loan.total_amount_due)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Paid</p>
-                    <p className="font-bold text-green-600">
-                      KES {parseFloat(loan.total_paid || 0).toLocaleString()}
+                    <p className="font-bold text-money-pos">
+                      {formatKES(loan.total_paid || 0)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Balance</p>
                     <p
                       className={`font-bold ${
-                        balance > 0 ? "text-red-600" : "text-green-600"
+                        balance > 0 ? "text-money-warn" : "text-money-pos"
                       }`}
                     >
-                      KES {balance.toLocaleString()}
+                      {formatKES(balance)}
                     </p>
                   </div>
                 </div>
@@ -2219,372 +2595,308 @@ function Loans() {
 
       {/* Loans List */}
       {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12">
-          <Spinner centered label="Loading loans…" />
-        </div>
+        <>
+          <LoansTableSkeleton />
+          <div className="md:hidden space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl shadow-card p-4 space-y-3"
+              >
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-6 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </>
       ) : loans.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="flex justify-center mb-4"><Coins size={48} className="text-gray-300"/></div>
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
-            No loans yet
+        /* Guided empty state — static illustrative UI, no DB rows. */
+        <div className="bg-white rounded-2xl shadow-card p-10 lg:p-14 text-center max-w-xl mx-auto">
+          <div className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-ocean-gradient-soft flex items-center justify-center">
+            <Coins size={30} className="text-ocean-600" />
+          </div>
+          <h3 className="text-xl font-bold text-navy-900 mb-2">
+            No loans issued yet
           </h3>
-          <p className="text-gray-500">
-            Click "Create Loan" to issue your first loan
+          <p className="text-slate-500 mb-6">
+            When you issue a loan it shows up here with its balance, schedule
+            and repayment progress. Create your first one to get started.
           </p>
+          <PermissionGate role={["admin", "manager", "officer"]}>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-6 py-2.5 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
+            >
+              <Plus size={16} /> Create Loan
+            </button>
+          </PermissionGate>
         </div>
       ) : filteredLoans.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="flex justify-center mb-4"><Search size={48} className="text-gray-300"/></div>
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+        <div className="bg-white rounded-2xl shadow-card p-10 lg:p-14 text-center max-w-xl mx-auto">
+          <div className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
+            <Search size={30} className="text-slate-400" />
+          </div>
+          <h3 className="text-xl font-bold text-navy-900 mb-2">
             No loans match your filters
           </h3>
-          <p className="text-gray-500 mb-4">
-            Try adjusting your search or filter criteria
+          <p className="text-slate-500 mb-6">
+            Try adjusting your search or filter criteria.
           </p>
           <button
             onClick={clearFilters}
             className="px-6 py-2 bg-ocean-gradient text-white font-semibold rounded-lg hover:shadow-lg transition inline-flex items-center gap-2"
           >
-            <X size={16}/> Clear Filters
+            <X size={16} /> Clear Filters
           </button>
         </div>
       ) : (
-        <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="overflow-auto max-h-[calc(100vh-400px)]">
-            <table className="w-full whitespace-nowrap [&_tbody_td]:align-top">
-              <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-10 shadow-sm">
-                <tr>
-                  <th className="px-4 py-4 w-10">
-                    <input
-                      type="checkbox"
-                      checked={bulk.allOnPageSelected}
-                      onChange={bulk.togglePage}
-                      className="w-4 h-4 cursor-pointer"
-                    />
-                  </th>
-                  {[
-                    ["Loan Code", "loan_code", "left"],
-                    ["Client", "first_name", "left"],
-                    ["Disbursed", "disbursed_at", "left"],
-                    ["Principal", "principal_amount", "right"],
-                    ["Interest", "total_interest", "right"],
-                    ["Total to Pay", "total_amount_due", "right"],
-                    ["Paid", "total_paid", "right"],
-                    ["Fines", "total_fines_paid", "right"],
-                    ["Waivers", "total_waived", "right"],
-                    ["Balance", "balance", "right"],
-                    ["Refund Due", "overpayment_amount", "right"],
-                    ["Status", "status", "left"],
-                  ].map(([label, key, align]) => (
+        <div className="hidden md:block bg-white rounded-xl shadow-card overflow-hidden">
+          {/* Column-preset toolbar — client-side only (persisted in
+              localStorage). Switches which columns ride in the row; the
+              rest fall into each row's expandable detail panel. */}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 flex-wrap">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <SlidersHorizontal size={15} /> Columns
+            </span>
+            <div
+              className="inline-flex rounded-lg bg-gray-100 p-0.5"
+              role="group"
+              aria-label="Column preset"
+            >
+              {Object.entries(COLUMN_PRESETS).map(([key, preset]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={columnPreset === key}
+                  onClick={() => setColumnPreset(key)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 ${
+                    columnPreset === key
+                      ? "bg-white text-ocean-700 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            <div
+              className="overflow-auto max-h-[calc(100vh-400px)]"
+              role="region"
+              aria-label="Loans — scroll horizontally for more columns"
+              tabIndex={0}
+            >
+              <table className="w-full whitespace-nowrap [&_tbody_td]:align-top">
+                <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0 z-20 shadow-sm">
+                  <tr>
+                    <th className="px-4 py-4 w-10 sticky left-0 z-30 bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={bulk.allOnPageSelected}
+                        onChange={bulk.togglePage}
+                        className="w-4 h-4 cursor-pointer"
+                        aria-label="Select all loans on this page"
+                      />
+                    </th>
                     <SortableHeader
-                      key={key}
-                      label={label}
-                      sortKey={key}
+                      label="Loan Code"
+                      sortKey="loan_code"
                       requestSort={requestSort}
                       getSortIndicator={getSortIndicator}
-                      align={align}
-                      className={`px-4 py-4 text-${align} text-xs font-semibold text-gray-600 uppercase`}
+                      align="left"
+                      className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase sticky left-10 z-30 bg-gray-50 border-r border-gray-200"
                     />
-                  ))}
-                  <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
-                    View
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                    {visibleColumns.map((col) => (
+                      <SortableHeader
+                        key={col.key}
+                        label={col.label}
+                        sortKey={col.key}
+                        requestSort={requestSort}
+                        getSortIndicator={getSortIndicator}
+                        align={col.align}
+                        className={`px-4 py-4 text-${col.align} text-xs font-semibold text-gray-600 uppercase`}
+                      />
+                    ))}
+                    <th className="px-4 py-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      View
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
                 {paginatedLoans.map((loan) => {
-                  const totalPaid = parseFloat(loan.total_paid || 0);
-                  const totalDue = parseFloat(loan.total_amount_due);
-                  const balance = parseFloat(loan.balance_due || 0);
-                  const overpayment = parseFloat(loan.overpayment_amount || 0);
+                  const isSel = bulk.isSelected(loan.id);
+                  const expanded = expandedRows.has(loan.id);
+                  // Sticky identity cells need an opaque bg that still tracks
+                  // the row's hover/selected state (a transparent sticky cell
+                  // would let scrolled columns show through).
+                  const stickyBg = isSel
+                    ? "bg-ocean-50"
+                    : "bg-white group-hover:bg-ocean-50";
 
                   return (
-                    <tr
-                      key={loan.id}
-                      onClick={() => navigate(`/loans/${loan.id}`)}
-                      className={`border-b border-gray-100 hover:bg-ocean-50 transition cursor-pointer ${
-                        bulk.isSelected(loan.id) ? "bg-ocean-50" : ""
-                      }`}
-                    >
-                      <td
-                        className="px-4 py-4"
-                        onClick={(e) => e.stopPropagation()}
+                    <React.Fragment key={loan.id}>
+                      <tr
+                        onClick={() => navigate(`/loans/${loan.id}`)}
+                        className={`group border-b border-gray-100 transition cursor-pointer ${
+                          isSel ? "bg-ocean-50" : "hover:bg-ocean-50"
+                        }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={bulk.isSelected(loan.id)}
-                          onChange={() => bulk.toggle(loan.id)}
-                          className="w-4 h-4 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 font-mono text-sm font-semibold text-ocean-600">
-                        <div>{loan.loan_code}</div>
-                        {/* Package tag — only shown when the loan was
-                            applied via a published product. Off-product
-                            custom loans (package_name=null) skip the
-                            tag entirely so the column stays compact. */}
-                        {loan.package_name && (
-                          <p className="text-[10px] font-semibold text-ocean-700 bg-ocean-50 inline-block px-1.5 py-0.5 rounded mt-1 font-sans">
-                            {loan.package_name}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">
-                            {loan.first_name} {loan.last_name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {loan.phone_number}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-700">
-                        {loan.disbursed_at
-                          ? new Date(loan.disbursed_at).toLocaleDateString(
-                              "en-GB",
-                              { day: "2-digit", month: "2-digit", year: "numeric" },
-                            )
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <p className="font-semibold text-gray-800 text-sm">
-                          KES{" "}
-                          {parseFloat(loan.principal_amount).toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <p className="font-semibold text-emerald-700 text-sm">
-                          KES{" "}
-                          {parseFloat(
-                            loan.total_interest || 0,
-                          ).toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <p className="font-bold text-ocean-600 text-sm">
-                          KES {totalDue.toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <p className="font-bold text-green-600 text-sm">
-                          KES {totalPaid.toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        {parseFloat(loan.total_fines_paid || 0) > 0 ? (
-                          <p className="font-semibold text-fuchsia-700 text-sm">
-                            KES{" "}
-                            {parseFloat(
-                              loan.total_fines_paid,
-                            ).toLocaleString()}
-                          </p>
-                        ) : (
-                          <p className="text-gray-400 text-sm">—</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        {parseFloat(loan.total_waived || 0) > 0 ? (
-                          <p className="font-semibold text-rose-700 text-sm">
-                            KES{" "}
-                            {parseFloat(loan.total_waived).toLocaleString()}
-                          </p>
-                        ) : (
-                          <p className="text-gray-400 text-sm">—</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <p
-                          className={`font-bold text-sm ${balance > 0 ? "text-orange-600" : "text-green-600"}`}
+                        <td
+                          className={`px-4 py-4 sticky left-0 z-10 ${stickyBg}`}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          KES {balance.toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        {overpayment > 0 ? (
-                          <div>
-                            <p className="font-bold text-ocean-600 text-sm">
-                              KES {overpayment.toLocaleString()}
-                            </p>
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
-                                loan.refund_status === "refunded"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-yellow-100 text-yellow-700"
-                              }`}
-                            >
-                              {loan.refund_status === "refunded" ? (
-                                <span className="inline-flex items-center gap-1"><Check size={12}/> Refunded</span>
-                              ) : (
-                                "Pending"
+                          <input
+                            type="checkbox"
+                            checked={isSel}
+                            onChange={() => bulk.toggle(loan.id)}
+                            className="w-4 h-4 cursor-pointer"
+                            aria-label={`Select loan ${loan.loan_code}`}
+                          />
+                        </td>
+                        <td
+                          className={`px-4 py-4 sticky left-10 z-10 border-r border-gray-100 ${stickyBg}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            {hiddenColumns.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleRow(loan.id);
+                                }}
+                                aria-expanded={expanded}
+                                aria-label={
+                                  expanded
+                                    ? `Hide details for ${loan.loan_code}`
+                                    : `Show details for ${loan.loan_code}`
+                                }
+                                className="mt-0.5 text-gray-400 hover:text-ocean-600 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400"
+                              >
+                                {expanded ? (
+                                  <ChevronDown size={16} />
+                                ) : (
+                                  <ChevronRight size={16} />
+                                )}
+                              </button>
+                            )}
+                            <div className="font-mono text-sm font-semibold text-ocean-600">
+                              <div>{loan.loan_code}</div>
+                              {/* Package tag — only shown when the loan was
+                                  applied via a published product. */}
+                              {loan.package_name && (
+                                <p className="text-[10px] font-semibold text-ocean-700 bg-ocean-50 inline-block px-1.5 py-0.5 rounded mt-1 font-sans">
+                                  {loan.package_name}
+                                </p>
                               )}
-                            </span>
+                            </div>
                           </div>
-                        ) : (
-                          <p className="text-gray-400 text-sm">-</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-center ${
-                              loan.status === "active"
-                                ? "bg-green-100 text-green-700"
-                                : loan.status === "completed"
-                                  ? "bg-ocean-100 text-ocean-700"
-                                  : loan.status === "defaulted"
-                                    ? "bg-red-100 text-red-700"
-                                    : "bg-gray-100 text-gray-700"
-                            }`}
+                        </td>
+                        {visibleColumns.map((col) => (
+                          <td
+                            key={col.key}
+                            className={`px-4 py-4 text-${col.align}`}
                           >
-                            {loan.status}
-                          </span>
-                          {(loan.overdue_count || 0) > 0 && (
-                            <span
-                              className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700"
-                              title={`${loan.overdue_count} overdue installment${loan.overdue_count !== 1 ? "s" : ""} · KES ${Number(loan.overdue_amount || 0).toLocaleString()} (max ${loan.max_days_late}d late)`}
-                            >
-                              <AlertTriangle size={10} />
-                              {loan.overdue_count} overdue
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <span className="text-ocean-600 font-bold">→</span>
-                      </td>
-                    </tr>
+                            {col.cell(loan)}
+                          </td>
+                        ))}
+                        <td
+                          className="px-4 py-4 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/loans/${loan.id}`)}
+                            aria-label={`Open loan ${loan.loan_code}`}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-ocean-600 hover:bg-ocean-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 transition"
+                          >
+                            <ArrowRight size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                      {expanded && hiddenColumns.length > 0 && (
+                        <tr className="bg-ocean-50/40 border-b border-gray-100">
+                          <td
+                            colSpan={visibleColumns.length + 3}
+                            className="px-4 py-3"
+                          >
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3 pl-12">
+                              {hiddenColumns.map((col) => (
+                                <div key={col.key}>
+                                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">
+                                    {col.label}
+                                  </p>
+                                  {col.cell(loan)}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
 
-              {/* TOTALS ROW */}
+              {/* TOTALS ROW — driven by the same visible columns as the
+                  header so totals stay aligned across presets. */}
               <tfoot className="bg-ocean-gradient-soft border-t-2 border-ocean-200">
                 <tr>
-                  <td
-                    colSpan="4"
-                    className="px-4 py-4 font-bold text-gray-800 text-sm"
-                  >
-                    <span className="inline-flex items-center gap-2"><BarChart3 size={16}/> TOTALS ({filteredLoans.length} loans)</span>
+                  <td className="px-4 py-4 sticky left-0 z-10 bg-ocean-50" />
+                  <td className="px-4 py-4 font-bold text-gray-800 text-sm sticky left-10 z-10 bg-ocean-50 border-r border-ocean-200">
+                    <span className="inline-flex items-center gap-2">
+                      <BarChart3 size={16} /> TOTALS ({filteredLoans.length})
+                    </span>
                   </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-gray-800 text-sm">
-                      KES{" "}
-                      {filteredLoans
-                        .reduce(
-                          (sum, l) => sum + parseFloat(l.principal_amount || 0),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-emerald-700 text-sm">
-                      KES{" "}
-                      {filteredLoans
-                        .reduce(
-                          (sum, l) => sum + parseFloat(l.total_interest || 0),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-ocean-700 text-sm">
-                      KES{" "}
-                      {filteredLoans
-                        .reduce(
-                          (sum, l) => sum + parseFloat(l.total_amount_due || 0),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-green-700 text-sm">
-                      KES{" "}
-                      {filteredLoans
-                        .reduce(
-                          (sum, l) => sum + parseFloat(l.total_paid || 0),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-fuchsia-700 text-sm">
-                      KES{" "}
-                      {filteredLoans
-                        .reduce(
-                          (sum, l) =>
-                            sum + parseFloat(l.total_fines_paid || 0),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-rose-700 text-sm">
-                      KES{" "}
-                      {filteredLoans
-                        .reduce(
-                          (sum, l) => sum + parseFloat(l.total_waived || 0),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="font-bold text-orange-700 text-sm">
-                      KES{" "}
-                      {filteredLoans
-                        .reduce(
-                          (sum, l) => sum + parseFloat(l.balance_due || 0),
-                          0,
-                        )
-                        .toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div>
-                      <p className="font-bold text-ocean-700 text-sm">
-                        KES{" "}
-                        {filteredLoans
-                          .reduce(
-                            (sum, l) =>
-                              sum + parseFloat(l.overpayment_amount || 0),
-                            0,
-                          )
-                          .toLocaleString()}
-                      </p>
-                      <p className="text-xs text-ocean-600 mt-1">
-                        Pending: KES{" "}
-                        {filteredLoans
-                          .filter((l) => l.refund_status === "pending")
-                          .reduce(
-                            (sum, l) =>
-                              sum + parseFloat(l.overpayment_amount || 0),
-                            0,
-                          )
-                          .toLocaleString()}
-                      </p>
-                    </div>
-                  </td>
-                  <td colSpan="2" className="px-4 py-4">
-                    <p className="text-xs text-gray-600">
-                      Active:{" "}
-                      {filteredLoans.filter((l) => l.status === "active")
-                        .length}{" "}
-                      • Completed:{" "}
-                      {
-                        filteredLoans.filter((l) => l.status === "completed")
-                          .length
-                      }
-                    </p>
-                  </td>
+                  {visibleColumns.map((col) => (
+                    <td key={col.key} className={`px-4 py-4 text-${col.align}`}>
+                      {col.money ? (
+                        <div>
+                          <p
+                            className={`font-bold text-sm ${col.totalClass || "text-gray-800"}`}
+                          >
+                            {formatKES(col.total(filteredLoans))}
+                          </p>
+                          {col.key === "overpayment_amount" && (
+                            <p className="text-xs text-ocean-600 mt-1">
+                              Pending:{" "}
+                              {formatKES(
+                                filteredLoans
+                                  .filter((l) => l.refund_status === "pending")
+                                  .reduce(
+                                    (s, l) => s + num(l.overpayment_amount),
+                                    0,
+                                  ),
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      ) : col.key === "status" ? (
+                        <p className="text-xs text-gray-600">
+                          Active:{" "}
+                          {
+                            filteredLoans.filter((l) => l.status === "active")
+                              .length
+                          }{" "}
+                          • Completed:{" "}
+                          {
+                            filteredLoans.filter((l) => l.status === "completed")
+                              .length
+                          }
+                        </p>
+                      ) : null}
+                    </td>
+                  ))}
+                  <td className="px-4 py-4" />
                 </tr>
               </tfoot>
             </table>
+            </div>
+            {/* horizontal-scroll affordance — a soft right-edge fade hints
+                there are more columns when the table overflows. */}
+            <div className="pointer-events-none absolute top-0 right-0 h-full w-10 bg-gradient-to-l from-slate-900/5 to-transparent" />
           </div>
 
           {totalPages > 1 && (
