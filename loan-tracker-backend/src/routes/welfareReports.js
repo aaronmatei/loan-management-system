@@ -74,11 +74,16 @@ export async function buildSummary(welfare) {
       [wid],
     )).rows[0];
 
+    // Split the outstanding into principal vs interest. Member-loan repayments
+    // clear interest before principal, so interest_outstanding = the unpaid
+    // interest, and principal_outstanding is whatever's left of the balance.
     const loans = (await query(
       `SELECT COUNT(*) FILTER (WHERE status IN ('active','defaulted'))::int AS open_count,
               COALESCE(SUM(principal),0) AS disbursed,
               COALESCE(SUM(amount_paid),0) AS repaid,
-              COALESCE(SUM(total_amount_due-amount_paid) FILTER (WHERE status IN ('active','defaulted')),0) AS outstanding
+              COALESCE(SUM(total_amount_due-amount_paid) FILTER (WHERE status IN ('active','defaulted')),0) AS outstanding,
+              COALESCE(SUM(GREATEST(total_interest-amount_paid,0)) FILTER (WHERE status IN ('active','defaulted')),0) AS interest_outstanding,
+              COALESCE(SUM((total_amount_due-amount_paid) - GREATEST(total_interest-amount_paid,0)) FILTER (WHERE status IN ('active','defaulted')),0) AS principal_outstanding
          FROM member_loans WHERE ${memberFilter}`,
       [wid],
     )).rows[0];
@@ -137,7 +142,7 @@ export async function buildSummary(welfare) {
       },
       members: { active: members.active, inactive: members.inactive },
       penalties: { assessed: num(penalties.assessed), outstanding: num(penalties.outstanding), collected: num(penalties.collected) },
-      loans: { open: loans.open_count, disbursed: num(loans.disbursed), repaid: num(loans.repaid), outstanding: num(loans.outstanding) },
+      loans: { open: loans.open_count, disbursed: num(loans.disbursed), repaid: num(loans.repaid), outstanding: num(loans.outstanding), principal_outstanding: num(loans.principal_outstanding), interest_outstanding: num(loans.interest_outstanding) },
       dividends: { total: num(dividends.total), runs: dividends.runs },
       investments: { invested: num(investments.invested), current: num(investments.current), income: num(investments.income), withdrawn: num(investments.withdrawn), count: investments.count },
       compliance,

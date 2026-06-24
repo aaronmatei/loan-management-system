@@ -114,7 +114,7 @@ export default function WelfareDashboardPanel({
         <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} mine={p && p.penalties != null ? money(p.penalties) : undefined} tone="rose" to={link("penalties")} />
         <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" to={link("dividends")} />
         <Stat icon={Receipt} label="Expenses" value={money(d.pool.expenses)} sub="spent from the savings pool" tone="rose" to={link("expenses", true)} />
-        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.outstanding)} sub={`${d.loans.open} open`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" to={link("loans")} />}
+        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.principal_outstanding ?? d.loans.outstanding)} sub={`${d.loans.open} open · ${money(d.loans.interest_outstanding ?? 0)} interest`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" to={link("loans")} />}
         {d.compliance ? (
           <Stat icon={CalendarCheck} label={`Compliance · ${d.compliance.cycle || "cycle"}`} value={`${d.compliance.paid_pct}%`} sub={`${d.compliance.paid}/${d.compliance.total} paid`} mine={p ? pct(p.compliance_pct, p.compliance) : undefined} tone="emerald" to={link("contributions")} />
         ) : (
