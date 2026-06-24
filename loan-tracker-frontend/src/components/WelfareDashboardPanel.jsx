@@ -126,11 +126,12 @@ export default function WelfareDashboardPanel({
         ) : (
           <Stat icon={CalendarCheck} label="Compliance" value="—" sub="no open cycle" mine={p ? pct(p.compliance_pct, p.compliance) : undefined} to={link("contributions")} />
         )}
-        {d.attendance ? (
+        {/* Last attendance tile hidden for now — reveal later. */}
+        {false && (d.attendance ? (
           <Stat icon={Users} label="Last attendance" value={`${d.attendance.rate_pct}%`} sub={`${d.attendance.attended}/${d.attendance.recorded} present`} mine={p ? pct(p.attendance_pct, p.attendance) : undefined} tone="sky" to={link("meetings")} />
         ) : (
           <Stat icon={Users} label="Last attendance" value="—" sub="no meetings yet" mine={p ? pct(p.attendance_pct, p.attendance) : undefined} to={link("meetings")} />
-        )}
+        ))}
       </div>
       <WelfareCharts welfareId={welfareId} client={client} url={chartsUrl} />
       {showInvest && <InvestmentsModal welfareId={welfareId} client={client} onClose={() => { setShowInvest(false); loadSummary(); }} />}
