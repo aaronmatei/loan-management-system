@@ -15,6 +15,7 @@ import WelfarePenaltiesPanel from "../../components/WelfarePenaltiesPanel";
 import WelfareMeetingsPanel from "../../components/WelfareMeetingsPanel";
 import WelfareDividendsPanel from "../../components/WelfareDividendsPanel";
 import WelfareExpensesPanel from "../../components/WelfareExpensesPanel";
+import WelfareAuditPanel from "../../components/WelfareAuditPanel";
 import WelfareMpesaPanel from "../../components/WelfareMpesaPanel";
 import WelfareSmsPanel from "../../components/WelfareSmsPanel";
 import MemberLoanProductsPanel from "../../components/MemberLoanProductsPanel";
@@ -92,6 +93,10 @@ export function WelfareDividendsPage() {
 export function WelfareExpensesPage() {
   const { welfareId } = useWelfare();
   return <Page title="Expenses"><WelfareExpensesPanel welfareId={welfareId} /></Page>;
+}
+export function WelfareAuditPage() {
+  const { welfareId } = useWelfare();
+  return <Page title="Audit log"><WelfareAuditPanel welfareId={welfareId} /></Page>;
 }
 export function WelfareMpesaPage() {
   const { welfareId } = useWelfare();
