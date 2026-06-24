@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Logo from "../../components/Logo";
+import Seo from "../../components/Seo";
 import RequestDemoModal from "../components/RequestDemoModal";
 import {
   Check,
@@ -28,6 +29,11 @@ function LandingHome() {
 
   return (
     <div className="relative min-h-screen text-gray-900">
+      <Seo
+        title="LenderFest — Loan, Chama & SACCO Management Software, Kenya"
+        description="Cloud software for Kenyan lenders, chamas, SACCOs & welfare groups: manage loans, member savings, contributions, dividends, M-Pesa payments, meetings and a self-service member portal."
+        path="/"
+      />
       {/* Soft background wash + art, fixed behind everything so the page reads
           warm rather than blinding white. Transparent sections reveal it. */}
       <div

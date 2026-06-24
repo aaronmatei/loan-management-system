@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import Logo from "../components/Logo";
+import Seo from "../components/Seo";
 import { Gift, Building2, User, Lock, Phone, Rocket, Eye, EyeOff } from "lucide-react";
 import api from "../services/api";
 
@@ -120,6 +121,11 @@ function Signup() {
       className="min-h-screen bg-ocean-gradient bg-cover bg-center bg-no-repeat py-8 px-4"
       style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
     >
+      <Seo
+        title="Sign up your lending business — LenderFest"
+        description="Create a LenderFest account to manage loans, clients, M-Pesa payments and reports — with a self-service borrower portal. Free to start, built for Kenya."
+        path="/signup"
+      />
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center rounded-2xl bg-navy-gradient px-6 py-3 shadow-lg">

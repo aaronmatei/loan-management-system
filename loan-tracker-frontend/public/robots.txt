@@ -11,5 +11,6 @@ Disallow: /portal/select-tenant
 Disallow: /portal/add-lender
 Disallow: /portal/verify-identity
 Disallow: /welfare/member/select
+Disallow: /demo
 
 Sitemap: https://lenderfest.loans/sitemap.xml

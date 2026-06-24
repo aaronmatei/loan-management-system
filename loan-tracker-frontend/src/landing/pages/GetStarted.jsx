@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Building2, UserRound, UsersRound, ArrowLeft } from "lucide-react";
+import Seo from "../../components/Seo";
 
 // Account chooser — routes a visitor to the right signup / login for whichever
 // kind of account they are: lender, borrower, or welfare. (Pawnshops are just
@@ -48,6 +49,11 @@ const TONE = {
 export default function GetStarted() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-ocean-50 px-4 py-10">
+      <Seo
+        title="Get started — LenderFest for lenders, chamas & SACCOs"
+        description="Choose how to start on LenderFest: register a lending business, a chama/SACCO or welfare group, or sign in as a member. Built for Kenya with M-Pesa."
+        path="/get-started"
+      />
       <div className="max-w-4xl mx-auto">
         <Link to="/" className="inline-flex items-center gap-1.5 text-slate-600 hover:text-ocean-700 font-semibold text-sm mb-6">
           <ArrowLeft size={16} /> Back to home

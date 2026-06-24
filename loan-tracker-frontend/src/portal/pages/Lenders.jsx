@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Building2, Search, ChevronRight, Info, Link2 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
+import Seo from "../../components/Seo";
 import IconTile from "../../components/IconTile";
 import SortHeader from "../components/SortHeader";
 import Pager from "../components/Pager";
@@ -121,6 +122,11 @@ function Lenders() {
 
   return (
     <PortalLayout>
+      <Seo
+        title="Find a lender — LenderFest"
+        description="Browse lenders on LenderFest and apply for a loan online. One account to borrow from multiple lenders, with M-Pesa repayments."
+        path="/lenders"
+      />
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
         <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 mb-1 flex items-center gap-2">
           <Building2 size={28} className="text-navy-900 dark:text-slate-100" /> Lenders

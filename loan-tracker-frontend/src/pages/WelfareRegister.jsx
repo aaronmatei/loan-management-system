@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { UsersRound, AlertTriangle } from "lucide-react";
 import api from "../services/api";
 import PasswordInput from "../components/PasswordInput";
+import Seo from "../components/Seo";
 import { useAuth } from "../context/AuthContext";
 
 // Public self-registration for a welfare (chama / savings group). Creates a
@@ -68,6 +69,11 @@ export default function WelfareRegister() {
       className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 bg-cover bg-center bg-no-repeat flex items-center justify-center p-4"
       style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
     >
+      <Seo
+        title="Register your chama or SACCO — LenderFest"
+        description="Set up your chama, SACCO or welfare group on LenderFest: member savings, contributions and dividends, welfare funds, meetings, M-Pesa payments and a self-service member portal."
+        path="/welfare/register"
+      />
       <div className="w-full max-w-lg">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white text-emerald-600 shadow-md mb-3">
