@@ -842,7 +842,26 @@ router.get("/events", async (req, res) => {
         [req.member.tenant_id, req.member.id],
       )
     ).rows;
-    res.json({ success: true, data: { events: rows } });
+    // What the member has actually BENEFITED from — payouts received from the
+    // benefit pools (Event = quarterly/dowry, Emergency = oneoff) and ad-hoc
+    // events. Each carries type, amount and date.
+    const benefits = (
+      await query(
+        `SELECT pool_key, amount, txn_date, description FROM benefit_pool_ledger
+          WHERE member_id = $1 AND type = 'payout'
+         UNION ALL
+         SELECT 'event_pool' AS pool_key, amount, txn_date, description FROM welfare_event_ledger
+          WHERE member_id = $1 AND type = 'payout'
+         ORDER BY txn_date DESC`,
+        [req.member.id],
+      )
+    ).rows.map((p) => ({
+      kind: p.pool_key === "oneoff" ? "Emergency" : "Event",
+      name: p.description || (p.pool_key === "oneoff" ? "Emergency payout" : "Event payout"),
+      amount: Number(p.amount),
+      date: p.txn_date,
+    }));
+    res.json({ success: true, data: { events: rows, benefits } });
   } catch (e) {
     logger.error("member events error:", e);
     res.status(500).json({ error: "Failed to load events" });

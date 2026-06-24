@@ -848,30 +848,9 @@ export function MemberEvents() {
   const { data: contribs, reload: reloadContribs } = useFetch("/welfare/member/contributions");
   const events = data?.events || [];
   const payable = (s) => ["pending", "partial", "overdue"].includes(s.status);
-
-  // Everything the member is the BENEFICIARY of: ad-hoc events (welfare_events)
-  // + benefit-pool cycles (quarterly / emergencies). De-dupe cycles by id.
-  const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
-  const cycleBenefits = Object.values(
-    (contribs || [])
-      .filter((c) => c.i_am_beneficiary)
-      .reduce((acc, c) => {
-        acc[c.cycle_id] = { key: `c${c.cycle_id}`, kind: cap(c.frequency) || "Benefit", name: c.cycle_name };
-        return acc;
-      }, {}),
-  );
-  const benefits = [
-    ...events
-      .filter((e) => e.is_beneficiary)
-      .map((e) => ({
-        key: `e${e.event_id}`,
-        kind: "Event",
-        name: e.title,
-        amount: Number(e.disbursed_amount) > 0 ? Number(e.disbursed_amount) : Number(e.amount),
-        received: !!e.disbursed_at,
-      })),
-    ...cycleBenefits,
-  ];
+  // Payouts the member has received — each carries kind (Event/Emergency),
+  // amount and date (from the benefit/event pool ledgers).
+  const benefits = data?.benefits || [];
   // Outstanding benefit contribution dues (event/emergency plans) + ad-hoc shares.
   const benefitDue = (contribs || []).filter((c) => c.pool_key && c.pool_key !== "savings" && payable(c));
   const shareDue = events.filter((e) => Number(e.amount_due) - Number(e.amount_paid) > 0.001 && payable(e));
@@ -886,16 +865,15 @@ export function MemberEvents() {
             <Gift size={16} /> You're the beneficiary
           </p>
           <ul className="divide-y divide-emerald-100 dark:divide-emerald-800/60">
-            {benefits.map((b) => (
-              <li key={b.key} className="py-2 flex items-center justify-between gap-3 text-sm">
+            {benefits.map((b, i) => (
+              <li key={i} className="py-2 flex items-center justify-between gap-3 text-sm">
                 <span className="text-slate-800 dark:text-slate-200">
                   {b.name}
-                  <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{b.kind}</span>
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${b.kind === "Emergency" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"}`}>{b.kind}</span>
                 </span>
                 <span className="text-right whitespace-nowrap">
-                  {b.amount != null && <span className="font-semibold text-emerald-700 dark:text-emerald-400">{KES(b.amount)}</span>}
-                  {b.received === true && <span className="ml-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Received ✓</span>}
-                  {b.received === false && <span className="ml-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">Upcoming</span>}
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">{KES(b.amount)}</span>
+                  <span className="ml-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt(b.date)}</span>
                 </span>
               </li>
             ))}
