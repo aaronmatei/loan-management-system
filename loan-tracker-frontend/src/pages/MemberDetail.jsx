@@ -68,15 +68,6 @@ export default function MemberDetail() {
 
   // Officers are normally elected via decisions, but an admin can set a role
   // directly here. Assigning an officer role auto-demotes the prior holder.
-  const changeRole = async (role) => {
-    try {
-      await api.put(`${base}/${memberId}/role`, { role });
-      load();
-    } catch (err) {
-      alert(err.response?.data?.error || "Failed to set role");
-    }
-  };
-
   const inviteToPortal = async () => {
     setInviting(true);
     try {
@@ -222,25 +213,31 @@ export default function MemberDetail() {
                 {actionsOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setActionsOpen(false)} />
-                    <div className="absolute right-0 mt-1 z-20 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-1.5">
-                      <button onClick={() => { inviteToPortal(); setActionsOpen(false); }} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 inline-flex items-center gap-2 disabled:opacity-50">
-                        <Smartphone size={15} className="text-emerald-600" /> {inviting ? "Sending…" : portalLinked ? "Portal access ✓ — resend" : "Invite to portal"}
+                    <div className="absolute right-0 mt-2 z-20 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden p-2">
+                      {/* Portal access */}
+                      <button onClick={() => { inviteToPortal(); setActionsOpen(false); }} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="w-full text-left px-2.5 py-2.5 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 inline-flex items-center gap-3 disabled:opacity-50 transition group">
+                        <span className="shrink-0 w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 inline-flex items-center justify-center"><Smartphone size={17} /></span>
+                        <span className="flex-1">
+                          <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{inviting ? "Sending…" : portalLinked ? "Resend portal access" : "Invite to portal"}</span>
+                          <span className="block text-xs text-slate-400 dark:text-slate-500">{portalLinked ? "Has access ✓" : "Send a login by SMS"}</span>
+                        </span>
                       </button>
-                      <div className="px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        <span>Role</span>
-                        <select value={member.role || "member"} onChange={(e) => { changeRole(e.target.value); }} className="bg-transparent outline-none cursor-pointer dark:text-slate-100 border border-slate-200 dark:border-slate-600 rounded-md px-2 py-1">
-                          <option value="member">Member</option>
-                          <option value="chair">Chair</option>
-                          <option value="treasurer">Treasurer</option>
-                          <option value="secretary">Secretary</option>
-                        </select>
-                      </div>
-                      <button onClick={() => { toggleExempt(); setActionsOpen(false); }} disabled={exemptBusy} title="Sick/hardship: skip contribution dues & penalties while exempt" className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 inline-flex items-center gap-2 disabled:opacity-50">
-                        <AlertTriangle size={15} className="text-amber-600" /> {exemptBusy ? "Saving…" : member.contribution_exempt ? "Remove exemption" : "Mark exempt"}
+                      {/* Exempt toggle */}
+                      <button onClick={() => { toggleExempt(); setActionsOpen(false); }} disabled={exemptBusy} title="Sick/hardship: skip contribution dues & penalties while exempt" className="w-full text-left px-2.5 py-2.5 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 inline-flex items-center gap-3 disabled:opacity-50 transition">
+                        <span className="shrink-0 w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 inline-flex items-center justify-center"><AlertTriangle size={17} /></span>
+                        <span className="flex-1">
+                          <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{exemptBusy ? "Saving…" : member.contribution_exempt ? "Remove exemption" : "Mark exempt"}</span>
+                          <span className="block text-xs text-slate-400 dark:text-slate-500">Skip dues &amp; penalties (sick/hardship)</span>
+                        </span>
                       </button>
-                      <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
-                      <button onClick={() => { exitMember(); setActionsOpen(false); }} disabled={exiting} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 inline-flex items-center gap-2 disabled:opacity-50">
-                        <LogOut size={15} /> {exiting ? "Processing…" : "Exit member"}
+                      <div className="border-t border-slate-100 dark:border-slate-700 my-1.5" />
+                      {/* Destructive */}
+                      <button onClick={() => { exitMember(); setActionsOpen(false); }} disabled={exiting} className="w-full text-left px-2.5 py-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 inline-flex items-center gap-3 disabled:opacity-50 transition">
+                        <span className="shrink-0 w-9 h-9 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 inline-flex items-center justify-center"><LogOut size={17} /></span>
+                        <span className="flex-1">
+                          <span className="block text-sm font-semibold text-rose-700 dark:text-rose-300">{exiting ? "Processing…" : "Exit member"}</span>
+                          <span className="block text-xs text-rose-400/80 dark:text-rose-400/70">Remove from the welfare</span>
+                        </span>
                       </button>
                     </div>
                   </>
