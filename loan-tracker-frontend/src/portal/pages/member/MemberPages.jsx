@@ -380,32 +380,51 @@ function Table({ head, rows, render, empty }) {
   );
 }
 
-// Full ledger — every payment activity on the member's pool record
-// (contributions, withdrawals, dividends, loan disbursements/repayments,
-// penalties …). Read-only; data from GET /welfare/member/ledger.
+// Full ledger — the member's COMPLETE statement: savings, benefit
+// (quarterly/emergency) & event contributions, withdrawals, dividends, loans,
+// payments sent/received, and fines charged. Read-only; data from
+// GET /welfare/member/ledger (already unioned + sorted server-side).
+const FINE_BADGE = {
+  paid: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  outstanding: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  partial: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  waived: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+};
 export function MemberLedger() {
   const { data, loading, error } = useFetch("/welfare/member/ledger");
   const txns = data?.transactions || [];
+  const totalIn = txns.filter((t) => t.kind === "cash" && t.direction > 0).reduce((s, t) => s + t.amount, 0);
+  const totalOut = txns.filter((t) => t.kind === "cash" && t.direction < 0).reduce((s, t) => s + t.amount, 0);
   return (
     <Shell title="Full ledger" icon={ClipboardList}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Stat label="Savings balance" value={KES(data.savings_balance)} tone="text-emerald-700 dark:text-emerald-400" />
+            <Stat label="Total received" value={KES(totalIn)} tone="text-emerald-700 dark:text-emerald-400" />
+            <Stat label="Total paid" value={KES(totalOut)} tone="text-rose-600 dark:text-rose-400" />
             <Stat label="Activities" value={txns.length} />
           </div>
           <div className="mt-6">
             <Table
-              head={["Date", "Activity", "Description", "Amount", "Pool balance"]}
+              head={["Date", "Activity", "Description", "Amount"]}
               rows={txns}
               empty="No activity yet."
-              render={(t) => (
-                <tr key={t.id}>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{fmt(t.txn_date)}</td>
-                  <td className="px-4 py-3 capitalize text-slate-700 dark:text-slate-200">{t.type.replace(/_/g, " ")}</td>
+              render={(t, i) => (
+                <tr key={`${t.source}-${i}`}>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{fmt(t.date)}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{t.category}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{t.description || "—"}</td>
-                  <td className={`px-4 py-3 font-semibold whitespace-nowrap ${t.direction > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{t.direction > 0 ? "+" : "−"}{KES(t.amount)}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{KES(t.balance_after)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {t.kind === "fine" ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="font-semibold text-amber-700 dark:text-amber-400">{KES(t.amount)}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${FINE_BADGE[t.status] || FINE_BADGE.outstanding}`}>{t.status}</span>
+                      </span>
+                    ) : (
+                      <span className={`font-semibold ${t.direction > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{t.direction > 0 ? "+" : "−"}{KES(t.amount)}</span>
+                    )}
+                  </td>
                 </tr>
               )}
             />

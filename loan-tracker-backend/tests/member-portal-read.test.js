@@ -67,7 +67,8 @@ describe("member portal read API", () => {
     expect(loans.body.data[0].loan_code).toMatch(/^MBL-/);
 
     const led = await request(app).get("/api/welfare/member/ledger").set("Authorization", tok);
-    expect(led.body.data.transactions.some((x) => x.type === "contribution")).toBe(true);
+    // Unified ledger: cash rows carry a human `category` + `kind`.
+    expect(led.body.data.transactions.some((x) => x.kind === "cash" && /contribution/i.test(x.category))).toBe(true);
   });
 
   it("surfaces compliance %, attendance %, and a self statement PDF", async () => {

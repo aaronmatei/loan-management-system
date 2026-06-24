@@ -127,15 +127,89 @@ router.get("/overview", async (req, res) => {
   }
 });
 
-// GET /ledger — the member's full savings/pool ledger.
+// GET /ledger — the member's COMPLETE activity statement. Unions every place a
+// member's money/fines are recorded so nothing is missed:
+//   • member_pool_transactions  — savings pool (contributions, withdrawals,
+//                                  dividends, loans, penalty payments)
+//   • benefit_pool_ledger       — benefit pools (quarterly / emergencies)
+//   • welfare_event_ledger      — ad-hoc events
+//   • penalty_assessments       — fines charged (the payment side already shows
+//                                 as a 'penalty' pool row, so this adds the charge)
+// No source overlaps for the same cash event (savings vs benefit vs event are
+// mutually exclusive at posting time), so there's no double-counting.
+const CASH_LABELS = {
+  contribution: "Contribution",
+  withdrawal: "Withdrawal",
+  dividend: "Dividend",
+  adjustment: "Adjustment",
+  loan_disbursed: "Loan disbursed",
+  loan_repayment: "Loan repayment",
+  loan_interest: "Loan interest",
+  loan_penalty: "Loan penalty",
+  payout: "Payout",
+  bridge_in: "Bridge in",
+  bridge_repay: "Bridge repayment",
+};
+const FINE_LABELS = {
+  attendance_absent: "Fine — Absent from meeting",
+  attendance_late: "Fine — Late to meeting",
+  contribution_late: "Fine — Late contribution",
+  event_late: "Fine — Late event contribution",
+};
+const titleize = (s) => (s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 router.get("/ledger", async (req, res) => {
   try {
-    const r = await query(
-      `SELECT id, type, amount, direction, balance_after, txn_date, description, created_at
-         FROM member_pool_transactions WHERE member_id = $1 ORDER BY id DESC LIMIT 300`,
-      [req.member.id],
-    );
-    res.json({ success: true, data: { savings_balance: round2(await memberSavings(req.member.id)), transactions: r.rows } });
+    const mid = req.member.id;
+    const [savingsBal, savings, benefit, events, fines] = await Promise.all([
+      memberSavings(mid),
+      query(
+        `SELECT id, type, amount, direction, txn_date, description
+           FROM member_pool_transactions WHERE member_id = $1`,
+        [mid],
+      ),
+      query(
+        `SELECT id, type, amount, direction, txn_date, description, pool_key
+           FROM benefit_pool_ledger WHERE member_id = $1`,
+        [mid],
+      ),
+      query(
+        `SELECT id, type, amount, direction, txn_date, description
+           FROM welfare_event_ledger WHERE member_id = $1`,
+        [mid],
+      ),
+      query(
+        `SELECT id, trigger, amount, paid_amount, status, description, assessed_at
+           FROM penalty_assessments WHERE member_id = $1`,
+        [mid],
+      ),
+    ]);
+
+    const rows = [];
+    for (const t of savings.rows) {
+      // A negative 'penalty' row is a reversal/refund of a fine.
+      const label =
+        t.type === "penalty"
+          ? Number(t.direction) < 0 ? "Fine reversal (refund)" : "Penalty payment"
+          : CASH_LABELS[t.type] || titleize(t.type);
+      rows.push({ kind: "cash", source: "savings", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+    }
+    for (const t of benefit.rows) {
+      const label = `${CASH_LABELS[t.type] || titleize(t.type)} (benefit)`;
+      rows.push({ kind: "cash", source: "benefit", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+    }
+    for (const t of events.rows) {
+      const label = `${CASH_LABELS[t.type] || titleize(t.type)} (event)`;
+      rows.push({ kind: "cash", source: "event", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+    }
+    for (const f of fines.rows) {
+      if (f.status === "reversed") continue; // the refund already shows on the savings side
+      rows.push({ kind: "fine", source: "fine", category: FINE_LABELS[f.trigger] || `Fine — ${titleize(f.trigger)}`, description: f.description, amount: Number(f.amount), paid: Number(f.paid_amount), status: f.status, date: f.assessed_at, sort: `${new Date(f.assessed_at).toISOString().slice(0, 10)} ${String(f.id).padStart(9, "0")}` });
+    }
+    // Newest first; stable within a day by source id.
+    rows.sort((a, b) => (a.sort < b.sort ? 1 : a.sort > b.sort ? -1 : 0));
+
+    res.json({ success: true, data: { savings_balance: round2(savingsBal), transactions: rows.slice(0, 500) } });
   } catch (e) {
     logger.error("member ledger error:", e);
     res.status(500).json({ error: "Failed to load ledger" });
