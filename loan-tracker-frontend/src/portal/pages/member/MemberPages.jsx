@@ -317,7 +317,7 @@ export function MemberDashboard() {
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h2 className="font-bold text-slate-900 dark:text-slate-100">Recent activity</h2>
-              <Link to="/welfare/member/savings" className="text-sm text-emerald-600 font-semibold">Full ledger →</Link>
+              <Link to="/welfare/member/ledger" className="text-sm text-emerald-600 font-semibold">Full ledger →</Link>
             </div>
             {(data.recent_transactions || []).length === 0 ? (
               <p className="px-5 py-8 text-center text-slate-500 dark:text-slate-400">No activity yet.</p>
@@ -372,25 +372,32 @@ function Table({ head, rows, render, empty }) {
   );
 }
 
-export function MemberSavings() {
+// Full ledger — every payment activity on the member's pool record
+// (contributions, withdrawals, dividends, loan disbursements/repayments,
+// penalties …). Read-only; data from GET /welfare/member/ledger.
+export function MemberLedger() {
   const { data, loading, error } = useFetch("/welfare/member/ledger");
+  const txns = data?.transactions || [];
   return (
-    <Shell title="My Savings" icon={PiggyBank}>
+    <Shell title="Full ledger" icon={ClipboardList}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
-          <Stat label="Savings balance" value={KES(data.savings_balance)} tone="text-emerald-700" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <Stat label="Savings balance" value={KES(data.savings_balance)} tone="text-emerald-700 dark:text-emerald-400" />
+            <Stat label="Activities" value={txns.length} />
+          </div>
           <div className="mt-6">
             <Table
-              head={["Date", "Type", "Description", "Amount", "Balance"]}
-              rows={data.transactions}
-              empty="No transactions yet."
+              head={["Date", "Activity", "Description", "Amount", "Pool balance"]}
+              rows={txns}
+              empty="No activity yet."
               render={(t) => (
                 <tr key={t.id}>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{fmt(t.txn_date)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{fmt(t.txn_date)}</td>
                   <td className="px-4 py-3 capitalize text-slate-700 dark:text-slate-200">{t.type.replace(/_/g, " ")}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{t.description || "—"}</td>
-                  <td className={`px-4 py-3 font-semibold ${t.direction > 0 ? "text-emerald-700" : "text-rose-600"}`}>{t.direction > 0 ? "+" : "−"}{KES(t.amount)}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{KES(t.balance_after)}</td>
+                  <td className={`px-4 py-3 font-semibold whitespace-nowrap ${t.direction > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{t.direction > 0 ? "+" : "−"}{KES(t.amount)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{KES(t.balance_after)}</td>
                 </tr>
               )}
             />

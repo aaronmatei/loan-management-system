@@ -35,6 +35,7 @@ import CustomerLoanDetails from "./portal/pages/LoanDetails";
 import { PortalPledges, PortalPledgeDetail, PortalPawnRequests } from "./portal/pages/Pledges";
 import {
   MemberDashboard,
+  MemberLedger,
   MemberGroup,
   MemberContributions,
   MemberLoans,
@@ -593,8 +594,10 @@ function App() {
                 /welfare/member/* (the member's own front door), distinct from
                 the borrower portal. */}
             <Route path="/welfare/member" element={<PortalProtectedRoute><MemberDashboard /></PortalProtectedRoute>} />
-            {/* My Savings folded into the dashboard; redirect old links. */}
-            <Route path="/welfare/member/savings" element={<Navigate to="/welfare/member" replace />} />
+            {/* Full ledger — all of the member's payment activity. */}
+            <Route path="/welfare/member/ledger" element={<PortalProtectedRoute><MemberLedger /></PortalProtectedRoute>} />
+            {/* Savings was folded into the dashboard; point old links at the ledger. */}
+            <Route path="/welfare/member/savings" element={<Navigate to="/welfare/member/ledger" replace />} />
             <Route path="/welfare/member/members" element={<PortalProtectedRoute><MemberGroup /></PortalProtectedRoute>} />
             <Route path="/welfare/member/contributions" element={<PortalProtectedRoute><MemberContributions /></PortalProtectedRoute>} />
             <Route path="/welfare/member/loans" element={<PortalProtectedRoute><MemberLoans /></PortalProtectedRoute>} />
