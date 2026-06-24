@@ -1,4 +1,15 @@
 User-agent: *
 Allow: /
 
+# Authenticated app areas have no public content — keep them out of the index
+# so crawl budget goes to the marketing & sign-up pages.
+Disallow: /admin
+Disallow: /portal/dashboard
+Disallow: /portal/profile
+Disallow: /portal/apply
+Disallow: /portal/select-tenant
+Disallow: /portal/add-lender
+Disallow: /portal/verify-identity
+Disallow: /welfare/member/select
+
 Sitemap: https://lenderfest.loans/sitemap.xml
