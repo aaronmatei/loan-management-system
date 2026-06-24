@@ -237,7 +237,7 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
           <div><label className={lbl}>Grace (min)</label><input type="number" min="0" value={form.grace_minutes} onChange={set("grace_minutes")} placeholder="e.g. 15" className={fld} /></div>
         </div>
         <p className="-mt-2 text-xs text-slate-400 dark:text-slate-400">Members arriving after the start time + grace are marked late automatically.</p>
-        <div><label className={lbl}>Agenda</label><textarea value={form.agenda} onChange={set("agenda")} rows="2" className={fld} /></div>
+        <div><label className={lbl}>Agenda <span className="font-normal text-slate-400 dark:text-slate-500">(one item per line)</span></label><textarea value={form.agenda} onChange={set("agenda")} rows="4" placeholder={"Opening prayer\nMinutes of last meeting\nTreasurer's report\nAOB"} className={fld} /></div>
         <div>
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Attendance fines</p>
           <div className="grid grid-cols-2 gap-3">
@@ -262,6 +262,9 @@ function AgendaSection({ client, basePath, meetingId, items, freeText, readOnly,
   const [busy, setBusy] = useState(false);
   const isAdmin = !readOnly;
   const canEdit = (it) => isAdmin || (myMemberId != null && it.suggested_by_member === myMemberId);
+  // The free-text agenda may hold several items (one per line, or separated by
+  // " - " / ";"). Split into bullets and strip any leading bullet character.
+  const freeBullets = (freeText || "").split(/\r?\n|\s+-\s+|;/).map((s) => s.replace(/^[-*•]\s*/, "").trim()).filter(Boolean);
   const lbl = "text-sm font-semibold text-slate-700 dark:text-slate-200";
   const fld = "flex-1 px-2 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm";
   const wrap = async (fn) => { setBusy(true); try { await fn(); await onChange(); } catch (e) { alert(e.response?.data?.error || "Failed."); } finally { setBusy(false); } };
@@ -270,9 +273,14 @@ function AgendaSection({ client, basePath, meetingId, items, freeText, readOnly,
   const del = (id) => window.confirm("Remove this agenda item?") && wrap(() => client.delete(`${basePath}/meetings/${meetingId}/agenda/${id}`));
   return (
     <div className="mb-4 border-t border-slate-100 dark:border-slate-700 pt-3">
-      <p className={`${lbl} mb-2`}>Agenda{items.length ? ` (${items.length})` : ""}</p>
-      {freeText && <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 italic">{freeText}</p>}
-      {items.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-400 mb-1">No agenda items yet{isAdmin ? "" : " — suggest one below"}.</p>}
+      <p className={`${lbl} mb-2`}>Agenda</p>
+      {/* The meeting's agenda (admin-set), one bullet per line/separator. */}
+      {freeBullets.length > 0 && (
+        <ul className="list-disc pl-5 space-y-0.5 mb-2 text-sm text-slate-700 dark:text-slate-200">
+          {freeBullets.map((b, i) => <li key={i}>{b}</li>)}
+        </ul>
+      )}
+      {items.length > 0 && <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1">Member suggestions</p>}
       <ol className="space-y-1.5">
         {items.map((it, i) => (
           <li key={it.id} className="flex items-start gap-2 text-sm">
