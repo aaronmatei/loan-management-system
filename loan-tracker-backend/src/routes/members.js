@@ -99,7 +99,7 @@ router.get("/", async (req, res) => {
                      WHERE p.member_id = m.id AND p.type IN ${SAVINGS_TYPES}), 0) AS savings_balance
         FROM members m
         WHERE m.welfare_id = $1${searchClause}
-        ORDER BY m.created_at DESC`,
+        ORDER BY LOWER(m.first_name) ASC, LOWER(m.last_name) ASC`,
       params,
     );
     res.json({
