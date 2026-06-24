@@ -127,7 +127,16 @@ function PortalLayout({ children }) {
       "portal_current_tenant",
       "portal_tenants",
     ].forEach((k) => localStorage.removeItem(k));
-    navigate(isWelfare ? "/welfare/member/login" : "/portal/login");
+    const path = isWelfare ? "/welfare/member/login" : "/portal/login";
+    // A welfare member browses on their welfare's subdomain; log them out back
+    // to the apex door (lenderfest.loans/welfare/member/login), wiping that
+    // origin's own storage via ?loggedout=1. Localhost/preview just SPA-navigate.
+    const host = window.location.hostname;
+    if (isWelfare && host.endsWith(".lenderfest.loans")) {
+      window.location.href = `https://lenderfest.loans${path}?loggedout=1`;
+      return;
+    }
+    navigate(path);
   };
 
   const isActive = (item) =>

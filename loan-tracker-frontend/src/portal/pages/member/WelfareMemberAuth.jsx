@@ -7,6 +7,18 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Users, Lock, ShieldCheck } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PasswordInput from "../../components/PasswordInput";
+import { welfareSubdomainRedirect } from "../../../utils/authHandoff";
+
+// Land on the member desk — on the welfare's own subdomain when we're on a
+// lenderfest.loans host (carrying the session across), else a plain SPA nav.
+function enterMemberDesk(navigate, currentTenant) {
+  const target = welfareSubdomainRedirect(currentTenant?.subdomain);
+  if (target) {
+    window.location.replace(target);
+    return;
+  }
+  navigate("/welfare/member");
+}
 
 const SHELL =
   "min-h-screen bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center p-4";
@@ -35,7 +47,7 @@ async function landMember(navigate, data) {
       "portal_current_tenant",
       JSON.stringify(res.data.current_tenant),
     );
-    navigate("/welfare/member");
+    enterMemberDesk(navigate, res.data.current_tenant);
   } else {
     navigate("/welfare/member/select");
   }
@@ -278,7 +290,7 @@ export function WelfareMemberSelect() {
         "portal_current_tenant",
         JSON.stringify(res.data.current_tenant),
       );
-      navigate("/welfare/member");
+      enterMemberDesk(navigate, res.data.current_tenant);
     } catch {
       alert("Failed to open that chama");
       setSelecting(null);

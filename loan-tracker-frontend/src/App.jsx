@@ -128,7 +128,7 @@ import Applications from "./pages/Applications";
 import Notifications from "./pages/Notifications";
 import Referrals from "./pages/Referrals";
 import Layout from "./components/Layout";
-import { buildAuthHandoff, consumeAuthHandoff } from "./utils/authHandoff";
+import { buildAuthHandoff, consumeAuthHandoff, consumePortalHandoff } from "./utils/authHandoff";
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -143,6 +143,12 @@ function App() {
         "is_demo_session",
         "demo_session_token",
         "lenderfest:period",
+        // Portal (member/customer) session too — a welfare member logging out
+        // lands on the apex with ?loggedout=1; wipe any stale portal session.
+        "portal_token",
+        "portal_customer",
+        "portal_current_tenant",
+        "portal_tenants",
       ].forEach((k) => localStorage.removeItem(k));
       params.delete("loggedout");
       const qs = params.toString();
@@ -153,6 +159,11 @@ function App() {
       );
       return null;
     }
+
+    // Restore a member-portal session handed over from another subdomain
+    // (welfare member login → welfare subdomain). Independent of the staff
+    // user below — PortalProtectedRoute reads portal_token from localStorage.
+    consumePortalHandoff();
 
     // Hash handoff wins over localStorage so a cross-subdomain
     // redirect overwrites whatever stale session this subdomain
