@@ -171,9 +171,11 @@ const WELFARE_GROUPS = [
     ],
   },
   {
-    id: "w-loans",
-    label: "Loans & Requests",
+    id: "w-money-requests",
+    label: "Money Requests",
     variant: "amber",
+    // "Loans" only shows when the welfare's loans switch is on; the group label
+    // stays accurate ("Money Requests" = loan/withdrawal requests) either way.
     items: [
       { path: "/welfare/loans", label: "Loans", icon: HandCoins, permission: "loans:view", requiresLoans: true },
       { path: "/welfare/requests", label: "Requests", icon: ClipboardList, permission: "loans:view", badgeKey: "welfareRequests" },
