@@ -647,7 +647,7 @@ router.get("/penalties", async (req, res) => {
 router.get("/meetings", async (req, res) => {
   try {
     const r = await query(
-      `SELECT gm.id, gm.title, gm.meeting_date, gm.location, gm.agenda, gm.status, gm.start_time, gm.grace_minutes,
+      `SELECT gm.id, gm.title, gm.meeting_date, gm.location, gm.venue, gm.agenda, gm.status, gm.start_time, gm.grace_minutes,
               ma.status AS my_attendance,
               (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id AND a.status IN ('present','late'))::int AS present_count,
               (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id)::int AS recorded_count
