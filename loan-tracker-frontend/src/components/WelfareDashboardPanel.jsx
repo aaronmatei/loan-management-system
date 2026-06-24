@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LayoutDashboard, Wallet, Users, AlertTriangle, Banknote, Gift, CalendarCheck, FileDown, FileSpreadsheet, TrendingUp, Receipt, X, Trash2 } from "lucide-react";
+import { LayoutDashboard, Wallet, Users, AlertTriangle, Banknote, Gift, CalendarCheck, FileDown, FileSpreadsheet, TrendingUp, Receipt, X, Trash2, HeartHandshake } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
@@ -113,6 +113,12 @@ export default function WelfareDashboardPanel({
         <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" to={link("members")} />
         <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} mine={p && p.penalties != null ? money(p.penalties) : undefined} tone="rose" to={link("penalties")} />
         <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" to={link("dividends")} />
+        {d.benefit_pools?.active && (
+          <>
+            <Stat icon={HeartHandshake} label="Events pool" value={money(d.benefit_pools.events)} sub="contributions − payouts" tone={d.benefit_pools.events < 0 ? "rose" : "indigo"} to={link("events")} />
+            <Stat icon={HeartHandshake} label="Emergencies pool" value={money(d.benefit_pools.emergencies)} sub="contributions − payouts" tone={d.benefit_pools.emergencies < 0 ? "rose" : "indigo"} to={link("events")} />
+          </>
+        )}
         <Stat icon={Receipt} label="Expenses" value={money(d.pool.expenses)} sub="spent from the savings pool" tone="rose" to={link("expenses", true)} />
         {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.principal_outstanding ?? d.loans.outstanding)} sub={`${d.loans.open} open · ${money(d.loans.interest_outstanding ?? 0)} interest`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" to={link("loans")} />}
         {d.compliance ? (

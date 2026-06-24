@@ -90,6 +90,14 @@ export async function buildSummary(welfare) {
 
     const dividends = (await query(`SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS runs FROM dividend_distributions WHERE welfare_id=$1`, [wid])).rows[0];
 
+    // Benefit pools: recurring plan pools ('plan-*') = Events; the shared
+    // 'oneoff' pool = Emergencies. Balance = net of contributions − payouts.
+    const benefitPools = (await query(
+      `SELECT COALESCE(SUM(direction*amount) FILTER (WHERE pool_key LIKE 'plan-%'),0) AS events,
+              COALESCE(SUM(direction*amount) FILTER (WHERE pool_key = 'oneoff'),0)   AS emergencies,
+              COUNT(*)::int AS rows
+         FROM benefit_pool_ledger WHERE welfare_id=$1`, [wid])).rows[0];
+
     // Investments (e.g. MMF): income = total interest earned (independent of
     // withdrawals — a withdrawal isn't a loss).
     const investments = (await query(
@@ -144,6 +152,7 @@ export async function buildSummary(welfare) {
       penalties: { assessed: num(penalties.assessed), outstanding: num(penalties.outstanding), collected: num(penalties.collected) },
       loans: { open: loans.open_count, disbursed: num(loans.disbursed), repaid: num(loans.repaid), outstanding: num(loans.outstanding), principal_outstanding: num(loans.principal_outstanding), interest_outstanding: num(loans.interest_outstanding) },
       dividends: { total: num(dividends.total), runs: dividends.runs },
+      benefit_pools: { events: num(benefitPools.events), emergencies: num(benefitPools.emergencies), active: benefitPools.rows > 0 },
       investments: { invested: num(investments.invested), current: num(investments.current), income: num(investments.income), withdrawn: num(investments.withdrawn), count: investments.count },
       compliance,
       attendance,
