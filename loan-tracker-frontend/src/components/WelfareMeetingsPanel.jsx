@@ -9,6 +9,11 @@ const ATT = [
   { v: "excused", label: "Excused", cls: "bg-sky-100 text-sky-800" },
   { v: "absent", label: "Absent", cls: "bg-red-100 text-red-800" },
 ];
+// Usual meeting venues per town — one-tap fill on the schedule-meeting form.
+const VENUE_PRESETS = [
+  { town: "Kitengela", venue: "Doctors Plaza" },
+  { town: "Utawala", venue: "Tawala Gardens" },
+];
 const money = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFractionDigits: 0 });
 const hhmm = (t) => (t ? String(t).slice(0, 5) : "");
 const toMin = (t) => { if (!t) return null; const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
@@ -81,7 +86,7 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                 <tr>
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Date</th>
-                  <th className="text-left px-4 py-2">Location</th>
+                  <th className="text-left px-4 py-2">Venue</th>
                   <th className="text-left px-4 py-2">Status</th>
                   <th className="text-right px-4 py-2">Present</th>
                   <th className="px-4 py-2"></th>
@@ -230,7 +235,23 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
         <div><label className={lbl}>Name</label><input value={form.title} onChange={set("title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} /></div>
-        <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} className={fld} /></div>
+        <div>
+          <label className={lbl}>Venue</label>
+          <input value={form.location} onChange={set("location")} placeholder="Where the meeting is held" className={fld} />
+          {/* Quick-pick the usual venue per town. */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {VENUE_PRESETS.map((p) => (
+              <button
+                key={p.town}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, location: p.venue }))}
+                className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 transition"
+              >
+                {p.town} · {p.venue}
+              </button>
+            ))}
+          </div>
+        </div>
         <div><label className={lbl}>Date</label><input type="date" value={form.meeting_date} onChange={set("meeting_date")} className={fld} /></div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className={lbl}>Start time</label><input type="time" value={form.start_time} onChange={set("start_time")} className={fld} /></div>
