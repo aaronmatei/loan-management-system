@@ -66,7 +66,7 @@ function TenantPicker() {
               key={tenant.tenant_id}
               onClick={() => selectTenant(tenant)}
               disabled={selecting === tenant.tenant_id}
-              className="w-full bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition transform hover:-translate-y-1 disabled:opacity-50 text-left"
+              className="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition transform hover:-translate-y-1 disabled:opacity-50 text-left"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -79,10 +79,10 @@ function TenantPicker() {
                     {tenant.business_name?.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-slate-100">
                       {tenant.business_name}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-slate-400">
                       Member since{" "}
                       {new Date(tenant.linked_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </p>
@@ -92,11 +92,11 @@ function TenantPicker() {
                   <p className="text-2xl font-bold text-ocean-600">
                     {tenant.active_loans}
                   </p>
-                  <p className="text-xs text-gray-500">active loans</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">active loans</p>
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between">
+                <p className="text-sm text-gray-600 dark:text-slate-400">
                   Client Code:{" "}
                   <span className="font-mono font-semibold">
                     {tenant.client_code}

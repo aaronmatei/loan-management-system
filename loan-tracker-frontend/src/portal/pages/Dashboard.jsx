@@ -29,7 +29,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import IconTile from "../../components/IconTile";
 import { lenderColor } from "../lenderColor";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const kCompact = (v) =>
@@ -125,8 +125,8 @@ function CustomerDashboard() {
   };
   const WelfareCards = () =>
     welfareTenants.length === 0 ? null : (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-        <h2 className="font-bold text-navy-900 mb-3 flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-2">
           <PiggyBank size={18} className="text-emerald-600" /> My chamas &amp; welfares
         </h2>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -136,7 +136,7 @@ function CustomerDashboard() {
               onClick={() => openWelfare(t)}
               className="border-2 border-emerald-100 hover:border-emerald-300 rounded-xl px-4 py-3 text-left flex items-center justify-between transition"
             >
-              <span className="font-semibold text-slate-800">{t.business_name}</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-100">{t.business_name}</span>
               <span className="text-emerald-600 font-semibold inline-flex items-center gap-1">
                 Open <ArrowRight size={16} />
               </span>
@@ -149,7 +149,33 @@ function CustomerDashboard() {
   if (loading) {
     return (
       <PortalLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-10 w-40 rounded-xl" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Skeleton className="h-72 w-full rounded-2xl" />
+            <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Skeleton className="h-80 w-full rounded-2xl lg:col-span-2" />
+            <Skeleton className="h-80 w-full rounded-2xl" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+            ))}
+          </div>
+          <Skeleton className="h-48 w-full rounded-2xl" />
+        </div>
       </PortalLayout>
     );
   }
@@ -159,14 +185,14 @@ function CustomerDashboard() {
       <PortalLayout>
         <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6">
           <WelfareCards />
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
             <div className="flex justify-center mb-4">
               <IconTile icon={Building2} variant="ocean" size={64} />
             </div>
-            <h1 className="text-2xl font-bold text-navy-900 mb-2">
+            <h1 className="text-2xl font-bold text-navy-900 dark:text-slate-100 mb-2">
               Welcome{customerName ? `, ${customerName}` : ""}!
             </h1>
-            <p className="text-slate-500 mb-6 max-w-md mx-auto">
+            <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md mx-auto">
               Link your first lender to start borrowing and unlock your credit
               dashboard.
             </p>
@@ -209,10 +235,10 @@ function CustomerDashboard() {
       <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900">
+            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100">
               Hi {customerName || "there"}
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
               Your credit & borrowing overview across {stats.lenders} lender
               {stats.lenders !== 1 ? "s" : ""}
             </p>
@@ -230,8 +256,8 @@ function CustomerDashboard() {
         {/* Credit score + KPIs */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Credit score gauge */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Credit Score
             </p>
             <div className="relative h-44">
@@ -265,7 +291,7 @@ function CustomerDashboard() {
                 >
                   {rated ? credit_score : "New"}
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-400">
                   {rated ? "out of 100" : "unrated"}
                 </span>
               </div>
@@ -277,22 +303,22 @@ function CustomerDashboard() {
               {risk?.label}
             </p>
             {rated ? (
-              <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 text-center text-xs">
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 grid grid-cols-3 text-center text-xs">
                 <div>
                   <p className="font-bold text-green-600">{stats.on_time}</p>
-                  <p className="text-slate-400">on-time</p>
+                  <p className="text-slate-400 dark:text-slate-400">on-time</p>
                 </div>
                 <div>
                   <p className="font-bold text-amber-600">{stats.late}</p>
-                  <p className="text-slate-400">late</p>
+                  <p className="text-slate-400 dark:text-slate-400">late</p>
                 </div>
                 <div>
                   <p className="font-bold text-red-600">{stats.missed}</p>
-                  <p className="text-slate-400">missed</p>
+                  <p className="text-slate-400 dark:text-slate-400">missed</p>
                 </div>
               </div>
             ) : (
-              <p className="mt-3 pt-3 border-t border-slate-100 text-center text-xs text-slate-400">
+              <p className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 text-center text-xs text-slate-400 dark:text-slate-400">
                 Make your first payment to start building your score.
               </p>
             )}
@@ -303,15 +329,15 @@ function CustomerDashboard() {
             {kpis.map((k) => (
               <div
                 key={k.label}
-                className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col justify-between"
+                className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between">
-                  <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
                     {k.label}
                   </p>
                   <IconTile icon={k.icon} variant="ocean" size={36} />
                 </div>
-                <p className="font-bold text-navy-900 mt-3 text-xl lg:text-2xl">
+                <p className="font-bold text-navy-900 dark:text-slate-100 mt-3 text-xl lg:text-2xl">
                   {k.value}
                 </p>
               </div>
@@ -322,8 +348,8 @@ function CustomerDashboard() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Repayment trend */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 lg:col-span-2">
-            <h2 className="font-bold text-navy-900 mb-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 lg:col-span-2">
+            <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-4">
               Repayments — last 6 months
             </h2>
             <div className="h-64">
@@ -372,10 +398,10 @@ function CustomerDashboard() {
           </div>
 
           {/* Loan status breakdown */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h2 className="font-bold text-navy-900 mb-2">Loans by status</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+            <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-2">Loans by status</h2>
             {status_breakdown.length === 0 ? (
-              <p className="text-sm text-slate-400 py-12 text-center">
+              <p className="text-sm text-slate-400 dark:text-slate-400 py-12 text-center">
                 No loans yet.
               </p>
             ) : (
@@ -407,7 +433,7 @@ function CustomerDashboard() {
                     />
                     <Legend
                       formatter={(val) => (
-                        <span className="text-xs text-slate-600">
+                        <span className="text-xs text-slate-600 dark:text-slate-400">
                           {cap(val)}
                         </span>
                       )}
@@ -442,9 +468,9 @@ function CustomerDashboard() {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4"
+              className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4"
             >
-              <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+              <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
                 {s.label}
               </p>
               <p
@@ -458,10 +484,10 @@ function CustomerDashboard() {
         </div>
 
         {/* Loan repayment progress */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <h2 className="font-bold text-navy-900 mb-4">Loan repayment progress</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+          <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-4">Loan repayment progress</h2>
           {loan_progress.length === 0 ? (
-            <p className="text-sm text-slate-400 py-6 text-center">
+            <p className="text-sm text-slate-400 dark:text-slate-400 py-6 text-center">
               No active loans to track.
             </p>
           ) : (
@@ -484,10 +510,10 @@ function CustomerDashboard() {
                           className="w-2.5 h-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: bc }}
                         />
-                        <span className="font-mono text-sm font-semibold text-navy-900 truncate group-hover:underline">
+                        <span className="font-mono text-sm font-semibold text-navy-900 dark:text-slate-100 truncate group-hover:underline">
                           {l.loan_code}
                         </span>
-                        <span className="text-xs text-slate-400 truncate hidden sm:inline">
+                        <span className="text-xs text-slate-400 dark:text-slate-400 truncate hidden sm:inline">
                           · {l.lender}
                         </span>
                       </div>
@@ -495,13 +521,13 @@ function CustomerDashboard() {
                         {pct.toFixed(0)}%
                       </span>
                     </div>
-                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{ width: `${pct}%`, backgroundColor: bc }}
                       />
                     </div>
-                    <div className="flex justify-between mt-1 text-[11px] text-slate-400">
+                    <div className="flex justify-between mt-1 text-[11px] text-slate-400 dark:text-slate-400">
                       <span>{KES(l.paid)} repaid</span>
                       <span>{KES(l.total_due)} total</span>
                     </div>

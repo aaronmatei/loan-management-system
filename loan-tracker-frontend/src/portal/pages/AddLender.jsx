@@ -16,7 +16,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
 import { getPortalBrand } from "../brand";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 function AddLender() {
   const navigate = useNavigate();
@@ -136,10 +136,10 @@ function AddLender() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-4xl mx-auto" style={{ "--brand": brand }}>
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
-          <Plus size={28} className="text-navy-900" /> Add Another Lender
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 flex items-center gap-2">
+          <Plus size={28} className="text-navy-900 dark:text-slate-100" /> Add Another Lender
         </h1>
-        <p className="text-gray-600 mt-1 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mt-1 mb-6">
           Link your account to more lenders for one-stop loan management.
         </p>
 
@@ -202,32 +202,41 @@ function AddLender() {
           </p>
         </div>
 
-        <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+        <h2 className="text-xl font-bold text-navy-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Landmark size={22} /> Available Lenders ({available.length})
         </h2>
 
         {loading ? (
-          <div className="bg-white rounded-xl p-12">
-            <Spinner centered label="Loading…" />
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 sm:p-4">
+                <Skeleton className="h-10 w-10" rounded="rounded-full" />
+                <div className="flex-1 min-w-0">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28 mt-2" />
+                </div>
+                <Skeleton className="h-9 w-16" rounded="rounded-lg" />
+              </div>
+            ))}
           </div>
         ) : available.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-12 text-center">
             <div className="flex justify-center mb-3">
               <PartyPopper size={48} className="text-green-400" />
             </div>
-            <p className="font-semibold text-gray-800">
+            <p className="font-semibold text-gray-800 dark:text-slate-100">
               You're linked to all available lenders!
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow overflow-hidden divide-y divide-gray-100">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
             {available.map((t) => {
               const open = expanded.has(t.id);
               const accent = t.brand_color || "#0e8a6e";
               return (
                 <div key={t.id}>
                   {/* Row */}
-                  <div className="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-50 transition">
+                  <div className="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
                       style={{ backgroundColor: accent }}
@@ -238,7 +247,7 @@ function AddLender() {
                       onClick={() => toggleRow(t.id)}
                       className="flex-1 min-w-0 text-left"
                     >
-                      <p className="font-bold text-navy-900 truncate">
+                      <p className="font-bold text-navy-900 dark:text-slate-100 truncate">
                         {t.business_name}
                         {t.is_existing_client && (
                           <span className="ml-2 align-middle text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">
@@ -246,7 +255,7 @@ function AddLender() {
                           </span>
                         )}
                       </p>
-                      <p className="text-xs text-gray-500 capitalize truncate">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 capitalize truncate">
                         {t.business_type}
                         {t.city || t.county
                           ? ` · ${[t.city, t.county].filter(Boolean).join(", ")}`
@@ -256,7 +265,7 @@ function AddLender() {
                     <button
                       onClick={() => toggleRow(t.id)}
                       aria-label={open ? "Collapse" : "Expand"}
-                      className="text-gray-400 hover:text-gray-600 p-1 shrink-0"
+                      className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200 p-1 shrink-0"
                     >
                       <ChevronDown
                         size={18}
@@ -274,7 +283,7 @@ function AddLender() {
 
                   {/* Expanded detail */}
                   {open && (
-                    <div className="px-4 pb-4 pt-1 bg-gray-50/60">
+                    <div className="px-4 pb-4 pt-1 bg-gray-50/60 dark:bg-slate-900/60">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <Detail label="Interest" value={`${t.default_interest_rate}%`} />
                         <Detail
@@ -285,8 +294,8 @@ function AddLender() {
                         <Detail label="Type" value={t.business_type} capitalize />
                       </div>
                       {(t.physical_address || t.city || t.county) && (
-                        <p className="text-sm text-gray-600 mt-3 flex items-center gap-1.5">
-                          <MapPin size={14} className="text-gray-400 shrink-0" />
+                        <p className="text-sm text-gray-600 dark:text-slate-400 mt-3 flex items-center gap-1.5">
+                          <MapPin size={14} className="text-gray-400 dark:text-slate-400 shrink-0" />
                           {[t.physical_address, t.city, t.county].filter(Boolean).join(", ")}
                         </p>
                       )}
@@ -314,7 +323,7 @@ function AddLender() {
 
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6">
             <div className="text-center mb-4">
               <div
                 className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-white font-bold text-3xl"
@@ -324,10 +333,10 @@ function AddLender() {
               >
                 {selected.business_name?.charAt(0)}
               </div>
-              <h3 className="text-2xl font-bold mt-3">
+              <h3 className="text-2xl font-bold mt-3 dark:text-slate-100">
                 {selected.business_name}
               </h3>
-              <p className="text-sm text-gray-500 capitalize">
+              <p className="text-sm text-gray-500 dark:text-slate-400 capitalize">
                 {selected.business_type}
               </p>
             </div>
@@ -339,7 +348,7 @@ function AddLender() {
                 </p>
               </div>
             )}
-            <p className="text-gray-600 mb-4 text-sm">
+            <p className="text-gray-600 dark:text-slate-400 mb-4 text-sm">
               Link <strong>{selected.business_name}</strong> to your account?
               Your loans with them will show up in your portal.
             </p>
@@ -349,7 +358,7 @@ function AddLender() {
                   type="button"
                   onClick={() => setSelected(null)}
                   disabled={submitting}
-                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+                  className="flex-1 py-2 bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg font-semibold"
                 >
                   Cancel
                 </button>
@@ -375,10 +384,10 @@ function AddLender() {
 function Detail({ label, value, capitalize }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">
+      <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-slate-400 font-semibold">
         {label}
       </p>
-      <p className={`text-sm font-semibold text-gray-800 ${capitalize ? "capitalize" : ""}`}>
+      <p className={`text-sm font-semibold text-gray-800 dark:text-slate-200 ${capitalize ? "capitalize" : ""}`}>
         {value}
       </p>
     </div>

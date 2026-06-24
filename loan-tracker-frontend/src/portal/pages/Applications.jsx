@@ -13,7 +13,7 @@ import {
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import { lenderColor } from "../lenderColor";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -130,7 +130,45 @@ function CustomerApplications() {
   if (loading) {
     return (
       <PortalLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <Skeleton className="h-8 w-56" />
+              <Skeleton className="h-4 w-72 mt-2" />
+            </div>
+            <Skeleton className="h-10 w-20" rounded="rounded-lg" />
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden"
+              >
+                <div className="px-4 py-2 flex items-center gap-2">
+                  <Skeleton className="h-6 w-6" rounded="rounded-full" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="p-4 lg:p-6">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3.5 w-40 mt-2" />
+                    </div>
+                    <Skeleton className="h-6 w-28" rounded="rounded-full" />
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {Array.from({ length: 4 }).map((__, j) => (
+                      <div key={j}>
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-4 w-20 mt-1.5" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </PortalLayout>
     );
   }
@@ -140,10 +178,10 @@ function CustomerApplications() {
       <div className="p-4 lg:p-8 max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
-              <ClipboardList size={28} className="text-navy-900" /> My Applications
+            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 flex items-center gap-2">
+              <ClipboardList size={28} className="text-navy-900 dark:text-slate-100" /> My Applications
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
               Track your loan application status across all lenders
             </p>
           </div>
@@ -156,14 +194,14 @@ function CustomerApplications() {
         </div>
 
         {apps.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-12 text-center">
             <div className="flex justify-center mb-3">
-              <FileText size={48} className="text-slate-300" />
+              <FileText size={48} className="text-slate-300 dark:text-slate-400" />
             </div>
-            <p className="text-navy-900 font-semibold mb-1">
+            <p className="text-navy-900 dark:text-slate-100 font-semibold mb-1">
               No applications yet
             </p>
-            <p className="text-slate-500 text-sm mb-4">
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
               Start your loan application journey.
             </p>
             <button
@@ -182,7 +220,7 @@ function CustomerApplications() {
               return (
                 <div
                   key={a.id}
-                  className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
+                  className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden"
                 >
                   {/* Lender banner */}
                   <div
@@ -208,7 +246,7 @@ function CustomerApplications() {
                         <p className="font-mono font-bold" style={{ color: bc }}>
                           {a.loan_code}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">{a.purpose}</p>
+                        <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{a.purpose}</p>
                       </div>
                       <span
                         className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${s.color}`}
@@ -218,21 +256,21 @@ function CustomerApplications() {
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3 text-sm">
                       <div>
-                        <p className="text-xs text-gray-500">Amount</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Amount</p>
                         <p className="font-bold">{KES(a.principal_amount)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Duration</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Duration</p>
                         <p className="font-bold">
                           {a.loan_duration_months} months
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Total Due</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Total Due</p>
                         <p className="font-bold">{KES(a.total_amount_due)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Applied</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Applied</p>
                         <p className="font-bold">
                           {a.application_date
                             ? new Date(a.application_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -312,9 +350,9 @@ function CustomerApplications() {
                       </div>
                     )}
                     {a.status === "pending" && (
-                      <div className="flex justify-between items-center pt-3 border-t text-sm">
-                        <p className="text-gray-600 flex items-center gap-1.5">
-                          <Clock size={15} className="text-gray-500 shrink-0" /> Awaiting review (typically 24–48 hours)
+                      <div className="flex justify-between items-center pt-3 border-t dark:border-slate-700 text-sm">
+                        <p className="text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
+                          <Clock size={15} className="text-gray-500 dark:text-slate-400 shrink-0" /> Awaiting review (typically 24–48 hours)
                         </p>
                         <button
                           onClick={() => cancel(a)}

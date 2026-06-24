@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Calculator, Coins, BarChart3, Calendar, Lightbulb } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) =>
   `KES ${parseFloat(v || 0).toLocaleString(undefined, {
@@ -107,14 +107,32 @@ function CustomerCalculator() {
   if (loading) {
     return (
       <PortalLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+          <Skeleton className="h-8 w-60" />
+          <Skeleton className="h-4 w-80 mt-2 mb-6" />
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow overflow-hidden mb-6">
+            <Skeleton className="h-24 w-full" rounded="rounded-none" />
+            <div className="p-5 space-y-4">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-2 w-full" />
+              <Skeleton className="h-4 w-32 mt-2" />
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-11 w-full" />
+                ))}
+              </div>
+              <Skeleton className="h-12 w-full" />
+            </div>
+          </div>
+        </div>
       </PortalLayout>
     );
   }
   if (!selected) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-500">
+        <div className="p-8 text-center text-gray-500 dark:text-slate-400">
           No lender available.
         </div>
       </PortalLayout>
@@ -128,18 +146,18 @@ function CustomerCalculator() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-4xl mx-auto" style={{ "--brand": brand }}>
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
-          <Calculator size={28} className="text-navy-900" /> Loan Calculator
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 flex items-center gap-2">
+          <Calculator size={28} className="text-navy-900 dark:text-slate-100" /> Loan Calculator
         </h1>
-        <p className="text-gray-600 mt-1 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mt-1 mb-6">
           Estimate your loan payments before applying
         </p>
 
         {tenants.length > 1 && (
-          <div className="bg-white rounded-xl shadow p-4 mb-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
             <label
               htmlFor="lender-select"
-              className="block text-sm font-semibold mb-2"
+              className="block text-sm font-semibold mb-2 dark:text-slate-200"
             >
               Calculate for which lender?
             </label>
@@ -155,7 +173,7 @@ function CustomerCalculator() {
                   setCalc(null);
                 }
               }}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg bg-white focus:border-[var(--brand)] focus:outline-none font-semibold"
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none font-semibold"
             >
               {tenants.map((t) => (
                 <option key={t.tenant_id} value={t.tenant_id}>
@@ -167,7 +185,7 @@ function CustomerCalculator() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow overflow-hidden mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow overflow-hidden mb-6">
           <div
             className="p-5 text-white"
             style={{
@@ -195,7 +213,7 @@ function CustomerCalculator() {
 
           <div className="p-5 space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">
                 Loan Amount (KES)
               </label>
               <input
@@ -208,7 +226,7 @@ function CustomerCalculator() {
                 min={min}
                 max={max}
                 step="1000"
-                className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none text-3xl font-bold text-navy-900"
+                className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none text-3xl font-bold text-navy-900 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
                 style={{ borderColor: amount ? brand : "#e5e7eb" }}
               />
               <input
@@ -224,14 +242,14 @@ function CustomerCalculator() {
                 className="w-full mt-2"
                 style={{ accentColor: brand }}
               />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400 mt-1">
                 <span>KES {min.toLocaleString()}</span>
                 <span>KES {max.toLocaleString()}</span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">
                 Repayment Period
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -272,26 +290,26 @@ function CustomerCalculator() {
                     backgroundColor: `${brand}10`,
                   }}
                 >
-                  <h3 className="font-bold text-navy-900 mb-3 text-center text-lg">
+                  <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 text-center text-lg">
                     Your Loan Summary
                   </h3>
                   <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-white rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Principal</p>
-                      <p className="font-bold text-lg">{KES(calc.principal)}</p>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Principal</p>
+                      <p className="font-bold text-lg dark:text-slate-100">{KES(calc.principal)}</p>
                     </div>
-                    <div className="bg-white rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Duration</p>
-                      <p className="font-bold text-lg">{calc.months} months</p>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Duration</p>
+                      <p className="font-bold text-lg dark:text-slate-100">{calc.months} months</p>
                     </div>
-                    <div className="bg-white rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Interest Rate</p>
-                      <p className="font-bold text-lg">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Interest Rate</p>
+                      <p className="font-bold text-lg dark:text-slate-100">
                         {+(calc.annualRate / 12).toFixed(2)}% p.m.
                       </p>
                     </div>
-                    <div className="bg-white rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Total Interest</p>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Total Interest</p>
                       <p className="font-bold text-lg text-orange-600">
                         {KES(calc.totalInterest)}
                       </p>
@@ -316,19 +334,19 @@ function CustomerCalculator() {
                   >
                     Apply for This Loan →
                   </button>
-                  <p className="text-xs text-center text-gray-500 mt-3 flex items-center justify-center gap-1">
-                    <Lightbulb size={13} className="text-gray-400" /> Final terms will be confirmed by{" "}
+                  <p className="text-xs text-center text-gray-500 dark:text-slate-400 mt-3 flex items-center justify-center gap-1">
+                    <Lightbulb size={13} className="text-gray-400 dark:text-slate-400" /> Final terms will be confirmed by{" "}
                     {selected.business_name}
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl shadow p-4">
-                  <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+                  <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
                     <Calendar size={18} /> Payment Schedule
                   </h3>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
+                    <table className="w-full text-sm dark:text-slate-200">
+                      <thead className="bg-gray-50 dark:bg-slate-900">
                         <tr>
                           <th className="text-left p-2">#</th>
                           <th className="text-left p-2">Due Date</th>
@@ -337,7 +355,7 @@ function CustomerCalculator() {
                       </thead>
                       <tbody>
                         {calc.schedule.map((s) => (
-                          <tr key={s.payment_number} className="border-b">
+                          <tr key={s.payment_number} className="border-b dark:border-slate-700">
                             <td className="p-2 font-semibold">
                               {s.payment_number}
                             </td>
@@ -350,7 +368,7 @@ function CustomerCalculator() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="font-bold bg-gray-50">
+                      <tfoot className="font-bold bg-gray-50 dark:bg-slate-900">
                         <tr>
                           <td colSpan="2" className="p-2">
                             Total
@@ -365,11 +383,11 @@ function CustomerCalculator() {
                 </div>
 
                 {tenants.length > 1 && (
-                  <div className="bg-white rounded-xl shadow p-4">
-                    <h3 className="font-bold text-navy-900 mb-1 flex items-center gap-1.5">
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+                    <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
                       <BarChart3 size={18} /> Compare Lenders
                     </h3>
-                    <p className="text-xs text-gray-500 mb-3">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
                       Same loan at each lender. (Rates are placeholders
                       until per-tenant policy is configured.)
                     </p>
@@ -387,7 +405,7 @@ function CustomerCalculator() {
                             className={`flex items-center justify-between p-2 rounded-lg ${
                               isSel
                                 ? "bg-[var(--brand)]/10 border border-[var(--brand)]/30"
-                                : "bg-gray-50"
+                                : "bg-gray-50 dark:bg-slate-900"
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -401,19 +419,19 @@ function CustomerCalculator() {
                                 {t.business_name?.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-semibold text-sm">
+                                <p className="font-semibold text-sm dark:text-slate-100">
                                   {t.business_name}
                                 </p>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">
                                   {+(rate / 12).toFixed(2)}% p.m.
                                 </p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold text-sm">
+                              <p className="font-bold text-sm dark:text-slate-100">
                                 {KES(monthly)}/mo
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 dark:text-slate-400">
                                 Total: {KES(total)}
                               </p>
                             </div>

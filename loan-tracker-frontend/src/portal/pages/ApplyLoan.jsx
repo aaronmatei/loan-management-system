@@ -15,7 +15,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import { computeLoanTotals } from "../../utils/loanMath";
 import { purposesForPackage } from "../../utils/loanPurposes";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 // Tenants store the rate annually; customers think monthly.
@@ -266,14 +266,43 @@ function ApplyLoan() {
   if (loading) {
     return (
       <PortalLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+          <Skeleton className="h-4 w-32 mb-3" />
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-56 mt-2 mb-5" />
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
+            <Skeleton className="h-1.5 w-full" rounded="rounded-none" />
+            <div className="p-4 flex items-center gap-3">
+              <Skeleton className="h-11 w-11" rounded="rounded-xl" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-56 mt-2" />
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mb-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-10" rounded="rounded-full" />
+            ))}
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-6">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-12 w-full" />
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-full" />
+              ))}
+            </div>
+            <Skeleton className="h-12 w-full" />
+          </div>
+        </div>
       </PortalLayout>
     );
   }
   if (!lender || !policy) {
     return (
       <PortalLayout>
-        <div className="p-8 text-center text-gray-500">
+        <div className="p-8 text-center text-gray-500 dark:text-slate-400">
           Couldn't load this lender.{" "}
           <button
             onClick={() => navigate("/lenders")}
@@ -287,27 +316,27 @@ function ApplyLoan() {
   }
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100";
 
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto" style={{ "--brand": brand }}>
         <button
           onClick={() => navigate(`/lenders/${lender.tenant_id}`)}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-navy-900 mb-3"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-navy-900 dark:hover:text-slate-100 mb-3"
         >
           <ArrowLeft size={16} /> {lender.business_name}
         </button>
 
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
-          <FileText size={28} className="text-navy-900" /> Apply for New Loan
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 flex items-center gap-2">
+          <FileText size={28} className="text-navy-900 dark:text-slate-100" /> Apply for New Loan
         </h1>
-        <p className="text-gray-600 mt-1 mb-5">
+        <p className="text-gray-600 dark:text-slate-400 mt-1 mb-5">
           You're applying to {lender.business_name}.
         </p>
 
         {/* Preselected lender — read-only context (no picker) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
           <div className="h-1.5" style={{ backgroundColor: brand }} />
           <div className="p-4 flex items-center gap-3">
             <div
@@ -318,7 +347,7 @@ function ApplyLoan() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-bold text-navy-900 truncate">
+                <p className="font-bold text-navy-900 dark:text-slate-100 truncate">
                   {lender.business_name}
                 </p>
                 {pkg && (
@@ -330,7 +359,7 @@ function ApplyLoan() {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {KES(policy.min_amount)} – {KES(policy.max_amount)} ·{" "}
                 {PM(policy.default_interest_rate)}% p.m.
                 {pkg && form.interest_method === "reducing" && " · reducing"}
@@ -343,7 +372,7 @@ function ApplyLoan() {
             </div>
           </div>
           {pkg && (
-            <div className="px-4 pb-3 text-xs text-slate-600">
+            <div className="px-4 pb-3 text-xs text-slate-600 dark:text-slate-400">
               Rate, fee, and interest method are set by this product and
               can't be changed here.
             </div>
@@ -360,7 +389,7 @@ function ApplyLoan() {
               {i > 0 && (
                 <div
                   className={`flex-1 h-1 ${
-                    step >= s.n ? "bg-[var(--brand)]" : "bg-gray-200"
+                    step >= s.n ? "bg-[var(--brand)]" : "bg-gray-200 dark:bg-slate-700"
                   }`}
                 />
               )}
@@ -369,12 +398,12 @@ function ApplyLoan() {
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
                     step >= s.n
                       ? "bg-[var(--brand)] text-white"
-                      : "bg-gray-200 text-gray-500"
+                      : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-slate-400"
                   }`}
                 >
                   {step > s.n ? <CheckCircle size={18} /> : s.n}
                 </div>
-                <p className="text-xs mt-1 text-gray-600">{s.l}</p>
+                <p className="text-xs mt-1 text-gray-600 dark:text-slate-400">{s.l}</p>
               </div>
             </React.Fragment>
           ))}
@@ -383,7 +412,7 @@ function ApplyLoan() {
         {step === 1 && (
           <form
             onSubmit={step1}
-            className="bg-white rounded-2xl shadow p-6 lg:p-8 space-y-6"
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-6"
           >
             <h2 className="text-xl font-bold flex items-center gap-2"><Coins size={22} className="text-navy-900" /> How much do you need?</h2>
             <div>
@@ -402,7 +431,7 @@ function ApplyLoan() {
                 placeholder={`${policy.min_amount.toLocaleString()} - ${policy.max_amount.toLocaleString()}`}
                 className={`${fld} text-2xl font-bold`}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Min {KES(policy.min_amount)} • Max {KES(policy.max_amount)}
               </p>
             </div>
@@ -424,10 +453,10 @@ function ApplyLoan() {
                       }
                       className={`py-3 rounded-lg font-semibold text-sm ${
                         !inRange
-                          ? "bg-gray-50 text-gray-300 cursor-not-allowed"
+                          ? "bg-gray-50 text-gray-300 dark:bg-slate-900 dark:text-slate-600 cursor-not-allowed"
                           : form.loan_duration_months === String(m)
                             ? "bg-[var(--brand)] text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                       }`}
                     >
                       {m}mo
@@ -435,13 +464,13 @@ function ApplyLoan() {
                   );
                 })}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Allowed: {policy.min_duration}–{policy.max_duration} months
               </p>
             </div>
             {calc && (
               <div className="bg-[var(--brand)]/10 border-2 border-[var(--brand)]/30 rounded-xl p-4 text-sm space-y-2">
-                <h3 className="font-bold text-navy-900 flex items-center gap-1.5"><BarChart3 size={18} /> Loan Summary</h3>
+                <h3 className="font-bold text-navy-900 dark:text-slate-100 flex items-center gap-1.5"><BarChart3 size={18} /> Loan Summary</h3>
                 <div className="flex justify-between">
                   <span>Principal</span>
                   <span className="font-bold">{KES(calc.principal)}</span>
@@ -467,9 +496,9 @@ function ApplyLoan() {
                   </div>
                 )}
                 {calc.processingFee > 0 && (
-                  <div className="flex justify-between bg-white rounded-lg p-3 mt-2">
+                  <div className="flex justify-between bg-white dark:bg-slate-800 rounded-lg p-3 mt-2">
                     <span className="font-bold">You'll receive</span>
-                    <span className="font-bold text-navy-900">
+                    <span className="font-bold text-navy-900 dark:text-slate-100">
                       {KES(calc.netDisbursed)}
                     </span>
                   </div>
@@ -480,7 +509,7 @@ function ApplyLoan() {
                     {KES(calc.totalDue)}
                   </span>
                 </div>
-                <div className="flex justify-between bg-white rounded-lg p-3 mt-2">
+                <div className="flex justify-between bg-white dark:bg-slate-800 rounded-lg p-3 mt-2">
                   <span className="font-bold">Monthly Payment</span>
                   <span className="font-bold text-green-600">
                     {KES(Math.round(calc.monthlyPayment))}
@@ -501,7 +530,7 @@ function ApplyLoan() {
         {step === 2 && (
           <form
             onSubmit={step2}
-            className="bg-white rounded-2xl shadow p-6 lg:p-8 space-y-4"
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-4"
           >
             <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList size={22} className="text-navy-900" /> Loan Details</h2>
             <div>
@@ -512,7 +541,7 @@ function ApplyLoan() {
                 value={form.purpose}
                 onChange={(e) => setForm({ ...form, purpose: e.target.value })}
                 required
-                className={`${fld} bg-white`}
+                className={`${fld} bg-white dark:bg-slate-900`}
               >
                 <option value="">Select purpose…</option>
                 {purposesForPackage(pkg).map((p) => (
@@ -522,7 +551,7 @@ function ApplyLoan() {
                 ))}
               </select>
               {pkg && (pkg.allowed_purposes || []).length > 0 && (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   {pkg.name} only supports{" "}
                   {(pkg.allowed_purposes || []).length === 1
                     ? "this purpose"
@@ -544,8 +573,8 @@ function ApplyLoan() {
                 className={fld}
               />
             </div>
-            <div className="border-t pt-4">
-              <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+            <div className="border-t dark:border-slate-700 pt-4">
+              <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
                 <Users size={18} /> Guarantor (optional)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -576,8 +605,8 @@ function ApplyLoan() {
                 className={`${fld} mt-3`}
               />
             </div>
-            <div className="border-t pt-4">
-              <h3 className="font-bold text-navy-900 mb-3">
+            <div className="border-t dark:border-slate-700 pt-4">
+              <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3">
                 Collateral (optional)
               </h3>
               <textarea
@@ -597,7 +626,7 @@ function ApplyLoan() {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+                className="flex-1 py-3 bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg font-semibold"
               >
                 ← Back
               </button>
@@ -612,8 +641,8 @@ function ApplyLoan() {
         )}
 
         {step === 3 && calc && (
-          <div className="bg-white rounded-2xl shadow p-6 lg:p-8 space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2"><CheckCircle size={22} className="text-navy-900" /> Review &amp; Submit</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2"><CheckCircle size={22} className="text-navy-900 dark:text-slate-100" /> Review &amp; Submit</h2>
             <div className="bg-[var(--brand)]/10 rounded-xl p-4 text-sm space-y-2">
               <div className="flex justify-between">
                 <span>Lender</span>
@@ -645,13 +674,13 @@ function ApplyLoan() {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-semibold">You'll receive</span>
-                    <span className="font-bold text-navy-900">
+                    <span className="font-bold text-navy-900 dark:text-slate-100">
                       {KES(calc.netDisbursed)}
                     </span>
                   </div>
                 </>
               )}
-              <div className="flex justify-between border-t pt-2">
+              <div className="flex justify-between border-t dark:border-slate-700 pt-2">
                 <span>Total to Repay</span>
                 <span className="font-bold text-[var(--brand)]">
                   {KES(calc.totalDue)}
@@ -664,27 +693,27 @@ function ApplyLoan() {
                 </span>
               </div>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4">
-              <h3 className="font-bold text-navy-900 mb-1">Purpose</h3>
+            <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+              <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Purpose</h3>
               <p className="text-sm">{form.purpose}</p>
             </div>
             {form.review_notes && (
-              <div className="bg-gray-50 rounded-xl p-4">
-                <h3 className="font-bold text-navy-900 mb-1">Notes</h3>
+              <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+                <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Notes</h3>
                 <p className="text-sm">{form.review_notes}</p>
               </div>
             )}
             {form.guarantor_name && (
-              <div className="bg-gray-50 rounded-xl p-4">
-                <h3 className="font-bold text-navy-900 mb-1">Guarantor</h3>
+              <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+                <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Guarantor</h3>
                 <p className="text-sm">
                   {form.guarantor_name} — {form.guarantor_phone}
                 </p>
               </div>
             )}
             {form.collateral_description && (
-              <div className="bg-gray-50 rounded-xl p-4">
-                <h3 className="font-bold text-navy-900 mb-1">Collateral</h3>
+              <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+                <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Collateral</h3>
                 <p className="text-sm">{form.collateral_description}</p>
               </div>
             )}
@@ -698,7 +727,7 @@ function ApplyLoan() {
               <button
                 onClick={() => setStep(2)}
                 disabled={submitting}
-                className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+                className="flex-1 py-3 bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg font-semibold"
               >
                 ← Back
               </button>

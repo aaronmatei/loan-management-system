@@ -69,10 +69,10 @@ export default function SocialAuth({ onAuthed }) {
     <div className="space-y-3">
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-gray-200" />
+          <span className="w-full border-t border-gray-200 dark:border-slate-700" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-white px-3 text-gray-400">or continue with</span>
+          <span className="bg-white dark:bg-slate-800 px-3 text-gray-400 dark:text-slate-400">or continue with</span>
         </div>
       </div>
 
@@ -121,7 +121,7 @@ function CompleteProfile({ pending, onCancel, onDone }) {
   };
 
   const input =
-    "w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500";
+    "w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-ocean-500/40 focus:border-ocean-500";
 
   return (
     <div
@@ -129,11 +129,11 @@ function CompleteProfile({ pending, onCancel, onDone }) {
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 my-8"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 my-8"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-xl font-bold text-gray-900 mb-1">Finish your account</h3>
-        <p className="text-gray-600 text-sm mb-4">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-1">Finish your account</h3>
+        <p className="text-gray-600 dark:text-slate-400 text-sm mb-4">
           Welcome{pending.prefill.first_name ? `, ${pending.prefill.first_name}` : ""}!
           We just need your phone and national ID to set up your borrower
           account{pending.prefill.email ? ` (${pending.prefill.email})` : ""}.
@@ -147,7 +147,7 @@ function CompleteProfile({ pending, onCancel, onDone }) {
           <input required value={form.id_number} onChange={set("id_number")} placeholder="National ID number" className={input} />
           {err && <p className="text-rose-600 text-sm">{err}</p>}
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onCancel} className="px-5 py-2.5 border border-gray-300 rounded-lg font-semibold text-gray-700">
+            <button type="button" onClick={onCancel} className="px-5 py-2.5 border border-gray-300 dark:border-slate-700 rounded-lg font-semibold text-gray-700 dark:text-slate-200">
               Cancel
             </button>
             <button type="submit" disabled={busy} className="flex-1 px-5 py-2.5 bg-ocean-gradient text-white rounded-lg font-bold disabled:opacity-60">

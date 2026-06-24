@@ -106,7 +106,7 @@ function Shell({ title, icon: Icon, children }) {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-6">
           {Icon && <Icon className="text-emerald-600" />} {title}
         </h1>
         {children}
@@ -126,7 +126,7 @@ function Loading({ error }) {
           <Skeleton key={i} className="h-24 w-full rounded-xl" />
         ))}
       </div>
-      <div className="bg-white rounded-xl shadow-md border border-slate-100 p-4 space-y-3">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-4 space-y-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-10 w-full rounded-lg" />
         ))}
@@ -136,12 +136,12 @@ function Loading({ error }) {
 }
 
 function Empty({ children }) {
-  return <div className="bg-white rounded-xl shadow-md border border-slate-100 p-10 text-center text-slate-500">{children}</div>;
+  return <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-10 text-center text-slate-500 dark:text-slate-400">{children}</div>;
 }
 
-const Stat = ({ label, value, tone = "text-slate-900" }) => (
-  <div className="bg-white rounded-xl shadow-md border border-slate-100 p-5">
-    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
+const Stat = ({ label, value, tone = "text-slate-900 dark:text-slate-100" }) => (
+  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
+    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
     <p className={`text-2xl font-bold mt-1 ${tone}`}>{value}</p>
   </div>
 );
@@ -168,23 +168,23 @@ function RequestModal({ title, fields, url, onClose, onDone }) {
   };
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
         </div>
         {err && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm mb-3">{err}</div>}
         <form onSubmit={submit} className="space-y-3">
           {fields.map((f) => (
             <div key={f.name}>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">{f.label}</label>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">{f.label}</label>
               <input
                 type={f.type || "text"}
                 value={form[f.name] || ""}
                 onChange={(e) => setForm((s) => ({ ...s, [f.name]: e.target.value }))}
                 placeholder={f.placeholder}
                 min={f.min}
-                className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none"
               />
             </div>
           ))}
@@ -212,9 +212,9 @@ function RequestsList({ path, columns, title = "My requests", kind, onOpenLoan }
   };
   return (
     <div className="mt-6">
-      <button type="button" onClick={() => setShow((s) => !s)} className="flex items-center gap-1.5 font-bold text-slate-900 mb-2 hover:text-slate-700">
+      <button type="button" onClick={() => setShow((s) => !s)} className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100 mb-2 hover:text-slate-700 dark:hover:text-slate-200">
         <ChevronRight size={18} className={`transition-transform ${show ? "rotate-90" : ""}`} />
-        {title} <span className="font-normal text-slate-400">({data.length})</span>
+        {title} <span className="font-normal text-slate-400 dark:text-slate-400">({data.length})</span>
       </button>
       {show && (
         <Table
@@ -222,8 +222,8 @@ function RequestsList({ path, columns, title = "My requests", kind, onOpenLoan }
           rows={data}
           empty=""
           render={(r) => (
-            <tr key={r.id} onClick={() => handle(r)} className="cursor-pointer hover:bg-slate-50">
-              {columns.map((c) => <td key={c.key} className="px-4 py-3 text-slate-700">{c.fmt ? c.fmt(r[c.key]) : r[c.key] || "—"}</td>)}
+            <tr key={r.id} onClick={() => handle(r)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+              {columns.map((c) => <td key={c.key} className="px-4 py-3 text-slate-700 dark:text-slate-200">{c.fmt ? c.fmt(r[c.key]) : r[c.key] || "—"}</td>)}
               <td className="px-4 py-3"><Badge value={r.status} /></td>
             </tr>
           )}
@@ -238,16 +238,16 @@ function RequestsList({ path, columns, title = "My requests", kind, onOpenLoan }
 function RequestDetailModal({ request: r, columns, kind, onClose }) {
   const dt = (v) => (v ? new Date(v).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" }) : null);
   const Item = ({ label, value }) => (value == null || value === "" ? null : (
-    <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-100 last:border-0 text-sm">
-      <span className="text-slate-500 shrink-0">{label}</span><span className="font-semibold text-slate-800 text-right">{value}</span>
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-100 dark:border-slate-700 last:border-0 text-sm">
+      <span className="text-slate-500 dark:text-slate-400 shrink-0">{label}</span><span className="font-semibold text-slate-800 dark:text-slate-200 text-right">{value}</span>
     </div>
   ));
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-slate-900">{kind === "loan" ? "Loan request" : kind === "event" ? "Event request" : "Request"}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{kind === "loan" ? "Loan request" : kind === "event" ? "Event request" : "Request"}</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
         </div>
         <div className="mb-3"><Badge value={r.status} /></div>
         <div>
@@ -281,7 +281,7 @@ export function MemberDashboard() {
       {loading || error || !data ? <Loading error={error} /> : (
         <>
           <div className="flex justify-end mb-4">
-            <button onClick={downloadStatement} className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
+            <button onClick={downloadStatement} className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
           </div>
 
           {/* The same group dashboard the admin sees — members are equal owners — with
@@ -314,20 +314,20 @@ export function MemberDashboard() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow-md border border-slate-100">
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-900">Recent activity</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              <h2 className="font-bold text-slate-900 dark:text-slate-100">Recent activity</h2>
               <Link to="/welfare/member/savings" className="text-sm text-emerald-600 font-semibold">Full ledger →</Link>
             </div>
             {(data.recent_transactions || []).length === 0 ? (
-              <p className="px-5 py-8 text-center text-slate-500">No activity yet.</p>
+              <p className="px-5 py-8 text-center text-slate-500 dark:text-slate-400">No activity yet.</p>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                 {data.recent_transactions.map((t, i) => (
                   <li key={i} className="px-5 py-3 flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-slate-800 capitalize">{t.type.replace(/_/g, " ")}</p>
-                      <p className="text-xs text-slate-500">{fmt(t.txn_date)}{t.description ? ` · ${t.description}` : ""}</p>
+                      <p className="font-medium text-slate-800 dark:text-slate-200 capitalize">{t.type.replace(/_/g, " ")}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{fmt(t.txn_date)}{t.description ? ` · ${t.description}` : ""}</p>
                     </div>
                     <span className={`font-semibold ${t.direction > 0 ? "text-emerald-700" : "text-rose-600"}`}>
                       {t.direction > 0 ? "+" : "−"}{KES(t.amount)}
@@ -352,7 +352,7 @@ function GroupSection({ title, path, head, render, empty, pick }) {
   const rows = data ? (pick ? (pick(data) || []) : data) : [];
   return (
     <div className="mt-8">
-      <h3 className="text-sm font-bold text-slate-700 mb-2">{title}</h3>
+      <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">{title}</h3>
       {loading || error || !data ? <Loading error={error} /> : <Table head={head} rows={rows} render={render} empty={empty} />}
     </div>
   );
@@ -361,12 +361,12 @@ function GroupSection({ title, path, head, render, empty, pick }) {
 function Table({ head, rows, render, empty }) {
   if (rows.length === 0) return <Empty>{empty}</Empty>;
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-x-auto">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-slate-500 text-left">
+        <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-left">
           <tr>{head.map((h) => <th key={h} className="px-4 py-3 font-semibold">{h}</th>)}</tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">{rows.map(render)}</tbody>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">{rows.map(render)}</tbody>
       </table>
     </div>
   );
@@ -386,11 +386,11 @@ export function MemberSavings() {
               empty="No transactions yet."
               render={(t) => (
                 <tr key={t.id}>
-                  <td className="px-4 py-3 text-slate-600">{fmt(t.txn_date)}</td>
-                  <td className="px-4 py-3 capitalize">{t.type.replace(/_/g, " ")}</td>
-                  <td className="px-4 py-3 text-slate-600">{t.description || "—"}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{fmt(t.txn_date)}</td>
+                  <td className="px-4 py-3 capitalize text-slate-700 dark:text-slate-200">{t.type.replace(/_/g, " ")}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{t.description || "—"}</td>
                   <td className={`px-4 py-3 font-semibold ${t.direction > 0 ? "text-emerald-700" : "text-rose-600"}`}>{t.direction > 0 ? "+" : "−"}{KES(t.amount)}</td>
-                  <td className="px-4 py-3 text-slate-600">{KES(t.balance_after)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{KES(t.balance_after)}</td>
                 </tr>
               )}
             />
@@ -476,19 +476,19 @@ export function MemberLoans() {
       )}
       {loansOn && (
         <>
-          <h2 className="font-bold text-slate-900 mb-2">Approved loans</h2>
+          <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-2">Approved loans</h2>
           {loading || error || !data ? <Loading error={error} /> : (
             <Table
               head={["Loan", "Principal", "Total due", "Paid", "Balance", "Status", ""]}
               rows={data}
               empty="You have no chama loans."
               render={(l) => (
-                <tr key={l.id} onClick={() => setOpenLoan(l.id)} className="cursor-pointer hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono text-slate-700">{l.loan_code}</td>
-                  <td className="px-4 py-3">{KES(l.principal)}</td>
-                  <td className="px-4 py-3">{KES(l.total_amount_due)}</td>
-                  <td className="px-4 py-3">{KES(l.amount_paid)}</td>
-                  <td className="px-4 py-3 font-semibold">{KES(l.balance)}</td>
+                <tr key={l.id} onClick={() => setOpenLoan(l.id)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+                  <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-200">{l.loan_code}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{KES(l.principal)}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{KES(l.total_amount_due)}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{KES(l.amount_paid)}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">{KES(l.balance)}</td>
                   <td className="px-4 py-3"><Badge value={l.status} /></td>
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     {l.status === "active" && Number(l.balance) > 0 && (
@@ -515,16 +515,16 @@ export function MemberLoans() {
           />
         </>
       )}
-      <h2 className="font-bold text-slate-900 mb-2 mt-6">Approved events</h2>
+      <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-2 mt-6">Approved events</h2>
       <Table
         head={["Amount", "Event date", "Reason", "Status"]}
         rows={approvedEvents}
         empty="No approved events yet."
         render={(e) => (
-          <tr key={e.id} onClick={() => setOpenEvent(e)} className="cursor-pointer hover:bg-slate-50">
-            <td className="px-4 py-3">{KES(e.amount)}</td>
-            <td className="px-4 py-3">{fmt(e.event_date)}</td>
-            <td className="px-4 py-3 text-slate-700">{e.reason || "—"}</td>
+          <tr key={e.id} onClick={() => setOpenEvent(e)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+            <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{KES(e.amount)}</td>
+            <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{fmt(e.event_date)}</td>
+            <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{e.reason || "—"}</td>
             <td className="px-4 py-3"><Badge value={e.status} /></td>
           </tr>
         )}
@@ -588,15 +588,15 @@ function LoanApplyModal({ onClose, onDone }) {
       onDone(); onClose();
     } catch (e2) { setErr(e2.response?.data?.error || "Failed to submit"); setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-slate-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1";
   const Row = ({ label, value, strong }) => (
-    <div className="flex items-center justify-between"><span className="text-slate-500">{label}</span><span className={strong ? "font-bold text-slate-900" : "font-semibold text-slate-700"}>{value}</span></div>
+    <div className="flex items-center justify-between"><span className="text-slate-500 dark:text-slate-400">{label}</span><span className={strong ? "font-bold text-slate-900 dark:text-slate-100" : "font-semibold text-slate-700 dark:text-slate-200"}>{value}</span></div>
   );
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-900">Request Loan</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button></div>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Request Loan</h3><button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button></div>
         {err && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm mb-3">{err}</div>}
         <form onSubmit={submit} className="space-y-3">
           {hasProducts ? (
@@ -604,10 +604,10 @@ function LoanApplyModal({ onClose, onDone }) {
               <select value={form.product_id} onChange={set("product_id")} className={fld}>
                 {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} · {Number(p.annual_interest_rate)}% p.a. ({(Number(p.annual_interest_rate) / 12).toFixed(2)}%/mo) {p.interest_method}</option>)}
               </select>
-              {product && <p className="text-xs text-slate-400 mt-1">KES {Number(product.min_amount).toLocaleString()}–{Number(product.max_amount).toLocaleString()} · {product.min_duration_months}–{product.max_duration_months} mo{terms.feeRate > 0 ? ` · ${terms.feeRate}% processing fee` : ""}</p>}
+              {product && <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">KES {Number(product.min_amount).toLocaleString()}–{Number(product.max_amount).toLocaleString()} · {product.min_duration_months}–{product.max_duration_months} mo{terms.feeRate > 0 ? ` · ${terms.feeRate}% processing fee` : ""}</p>}
             </div>
           ) : (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600">
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-400">
               Standard loan (no package){terms.rate > 0 ? <> · {terms.rate}% p.a. ({(terms.rate / 12).toFixed(2)}%/mo) {terms.method}{terms.feeRate > 0 ? ` · ${terms.feeRate}% fee` : ""}</> : " · terms set by your chama admin on approval"}
             </div>
           )}
@@ -617,8 +617,8 @@ function LoanApplyModal({ onClose, onDone }) {
           </div>
           <div><label className={lbl}>Purpose</label><input value={form.purpose} onChange={set("purpose")} placeholder="What's it for?" className={fld} /></div>
           {/* Collateral (optional) — offer security with the request. */}
-          <div className="border-t border-slate-100 pt-3">
-            <p className="text-sm font-semibold text-slate-700 mb-1">Collateral <span className="font-normal text-slate-400">(optional)</span></p>
+          <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Collateral <span className="font-normal text-slate-400 dark:text-slate-400">(optional)</span></p>
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2"><input value={form.coll_description} onChange={set("coll_description")} placeholder="e.g. Title deed, TV, logbook" className={fld} /></div>
               <div><input type="number" min="0" value={form.coll_value} onChange={set("coll_value")} placeholder="Value" className={fld} /></div>
@@ -648,30 +648,30 @@ function LoanDetailModal({ loanId, onClose }) {
   const loan = data?.loan;
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-10 p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg my-10 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-slate-900">{loan ? loan.loan_code : "Loan"}</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{loan ? loan.loan_code : "Loan"}</h3>
           <div className="flex items-center gap-2">
             {loan && loan.status === "active" && Number(loan.balance) > 0 && <PayButton kind="loan" targetId={loan.id} onDone={reload} />}
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+            <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
           </div>
         </div>
         {loading || error || !data ? <Loading error={error} /> : (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
-              <span><span className="text-slate-400">Status</span> <Badge value={loan.status} /></span>
-              <span><span className="text-slate-400">Principal</span> {KES(loan.principal)}</span>
-              <span><span className="text-slate-400">Rate</span> {Number(loan.interest_rate)}% p.a. · {(Number(loan.interest_rate) / 12).toFixed(2)}%/mo {loan.interest_method}</span>
-              <span><span className="text-slate-400">Balance</span> {KES(loan.balance)}</span>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600 dark:text-slate-400">
+              <span><span className="text-slate-400 dark:text-slate-400">Status</span> <Badge value={loan.status} /></span>
+              <span><span className="text-slate-400 dark:text-slate-400">Principal</span> {KES(loan.principal)}</span>
+              <span><span className="text-slate-400 dark:text-slate-400">Rate</span> {Number(loan.interest_rate)}% p.a. · {(Number(loan.interest_rate) / 12).toFixed(2)}%/mo {loan.interest_method}</span>
+              <span><span className="text-slate-400 dark:text-slate-400">Balance</span> {KES(loan.balance)}</span>
             </div>
             {data.schedule?.length > 0 && (
               <div className="overflow-x-auto">
-                <p className="text-sm font-semibold text-slate-700 mb-1">Repayment schedule</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Repayment schedule</p>
                 <table className="w-full text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase"><tr><th className="text-left px-2 py-1">#</th><th className="text-left px-2 py-1">Due</th><th className="text-right px-2 py-1">Amount</th><th className="text-right px-2 py-1">Paid</th><th className="text-left px-2 py-1">Status</th></tr></thead>
+                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 uppercase"><tr><th className="text-left px-2 py-1">#</th><th className="text-left px-2 py-1">Due</th><th className="text-right px-2 py-1">Amount</th><th className="text-right px-2 py-1">Paid</th><th className="text-left px-2 py-1">Status</th></tr></thead>
                   <tbody>
                     {data.schedule.map((s) => (
-                      <tr key={s.payment_number} className="border-t border-slate-100">
+                      <tr key={s.payment_number} className="border-t border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200">
                         <td className="px-2 py-1">{s.payment_number}</td><td className="px-2 py-1">{fmt(s.due_date)}</td>
                         <td className="px-2 py-1 text-right">{KES(s.amount_due)}</td><td className="px-2 py-1 text-right">{KES(s.amount_paid)}</td>
                         <td className="px-2 py-1"><Badge value={s.status} /></td>
@@ -683,9 +683,9 @@ function LoanDetailModal({ loanId, onClose }) {
             )}
             {data.payments?.length > 0 && (
               <div>
-                <p className="text-sm font-semibold text-slate-700 mb-1">Payments</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Payments</p>
                 <div className="space-y-1">
-                  {data.payments.map((p, i) => <div key={i} className="flex justify-between text-xs text-slate-600"><span>{fmt(p.txn_date)} · {p.type.replace(/_/g, " ")}</span><span className="text-emerald-700">{KES(p.amount)}</span></div>)}
+                  {data.payments.map((p, i) => <div key={i} className="flex justify-between text-xs text-slate-600 dark:text-slate-400"><span>{fmt(p.txn_date)} · {p.type.replace(/_/g, " ")}</span><span className="text-emerald-700">{KES(p.amount)}</span></div>)}
                 </div>
               </div>
             )}
@@ -707,8 +707,8 @@ export function MemberGroup() {
           rows={data}
           empty="No members yet."
           render={(m) => (
-            <tr key={m.member_id}>
-              <td className="px-4 py-3 text-slate-800">{m.name} <span className="text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" /></td>
+            <tr key={m.member_id} className="text-slate-700 dark:text-slate-200">
+              <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{m.name} <span className="text-slate-400 dark:text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" /></td>
               <td className="px-4 py-3">{KES(m.savings)}</td>
               <td className="px-4 py-3">{KES(m.contributions)}</td>
               <td className="px-4 py-3">{KES(m.dividends)}</td>
@@ -726,8 +726,8 @@ export function MemberGroup() {
         empty="No expenses recorded."
         render={(e, i) => (
           <tr key={i}>
-            <td className="px-4 py-3 text-slate-700">{fmt(e.txn_date)}</td>
-            <td className="px-4 py-3 text-slate-600">{e.description}</td>
+            <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{fmt(e.txn_date)}</td>
+            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{e.description}</td>
             <td className="px-4 py-3 font-semibold text-rose-600">{KES(e.amount)}</td>
           </tr>
         )}
@@ -765,8 +765,8 @@ export function MemberDividends() {
           empty="No dividends paid out yet."
           render={(d, i) => (
             <tr key={i}>
-              <td className="px-4 py-3 text-slate-700">{fmt(d.txn_date)}</td>
-              <td className="px-4 py-3 capitalize text-slate-600">{d.basis}</td>
+              <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{fmt(d.txn_date)}</td>
+              <td className="px-4 py-3 capitalize text-slate-600 dark:text-slate-400">{d.basis}</td>
               <td className="px-4 py-3 font-semibold text-emerald-700">{KES(d.amount)}</td>
             </tr>
           )}
@@ -861,7 +861,7 @@ export function MemberPenalties() {
         {Object.keys(groups).length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {Object.entries(groups).map(([g, v]) => (
-              <span key={g} className="text-xs rounded-full border border-slate-200 bg-white px-3 py-1.5">{g}: <strong className="text-slate-800">{v.count}</strong>{v.outstanding > 0 && <span className="text-rose-600"> · {KES(v.outstanding)} due</span>}</span>
+              <span key={g} className="text-xs rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-700 dark:text-slate-200">{g}: <strong className="text-slate-800 dark:text-slate-100">{v.count}</strong>{v.outstanding > 0 && <span className="text-rose-600"> · {KES(v.outstanding)} due</span>}</span>
             ))}
           </div>
         )}
@@ -870,9 +870,9 @@ export function MemberPenalties() {
           rows={data}
           empty="No penalties — nicely done."
           render={(p) => (
-            <tr key={p.id}>
-              <td className="px-4 py-3 text-slate-700">{fmt(p.assessed_at)}</td>
-              <td className="px-4 py-3 text-slate-600">{p.description || p.trigger?.replace(/_/g, " ")}</td>
+            <tr key={p.id} className="text-slate-700 dark:text-slate-200">
+              <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{fmt(p.assessed_at)}</td>
+              <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{p.description || p.trigger?.replace(/_/g, " ")}</td>
               <td className="px-4 py-3">{KES(p.amount)}</td>
               <td className="px-4 py-3">{KES(p.paid_amount)}</td>
               <td className="px-4 py-3 font-semibold">{KES(p.balance)}</td>

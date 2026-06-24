@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Camera, IdCard, Loader2 } from "lucide-react";
 import portalApi from "../services/portalApi";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -145,7 +145,24 @@ function IdentityUploader({ onComplete, onCancel }) {
         : `Upload ${remaining} more to continue`;
 
   if (loading) {
-    return <Spinner centered className="py-12" label="Loading…" />;
+    // Content-shaped skeleton mirroring the three upload tiles + CTA button.
+    return (
+      <div className="py-2" aria-busy="true">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {SLOTS.map((slot) => (
+            <div key={slot.key} className="flex flex-col items-center gap-2">
+              <Skeleton
+                className="w-full aspect-square"
+                rounded={slot.rounded ? "rounded-full" : "rounded-xl"}
+              />
+              <Skeleton className="h-3.5 w-20" />
+              <Skeleton className="h-2.5 w-28" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full mt-7 rounded-xl" />
+      </div>
+    );
   }
 
   return (
@@ -178,7 +195,7 @@ function IdentityUploader({ onComplete, onCancel }) {
                 className={`relative w-full aspect-square overflow-hidden border-2 border-dashed transition flex items-center justify-center disabled:opacity-50 ${
                   url
                     ? "border-ocean-500"
-                    : "border-slate-300 hover:border-ocean-400 bg-slate-50"
+                    : "border-slate-300 dark:border-slate-600 hover:border-ocean-400 bg-slate-50 dark:bg-slate-900"
                 } ${slot.rounded ? "rounded-full" : "rounded-xl"}`}
               >
                 {url ? (
@@ -188,7 +205,7 @@ function IdentityUploader({ onComplete, onCancel }) {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="flex flex-col items-center gap-1 text-slate-400">
+                  <span className="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-400">
                     <Icon size={26} />
                     <span className="text-xs font-semibold">Upload</span>
                   </span>
@@ -199,10 +216,10 @@ function IdentityUploader({ onComplete, onCancel }) {
                   </span>
                 )}
               </button>
-              <p className="text-sm font-semibold text-navy-900 mt-2">
+              <p className="text-sm font-semibold text-navy-900 dark:text-slate-100 mt-2">
                 {slot.label}
               </p>
-              <p className="text-xs text-slate-400">{slot.hint}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-400">{slot.hint}</p>
             </div>
           );
         })}
@@ -220,12 +237,12 @@ function IdentityUploader({ onComplete, onCancel }) {
       {onCancel && (
         <button
           onClick={onCancel}
-          className="w-full mt-2 py-2 text-sm text-slate-500 hover:text-slate-700"
+          className="w-full mt-2 py-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
         >
           Cancel
         </button>
       )}
-      <p className="text-center text-xs text-slate-400 mt-4">
+      <p className="text-center text-xs text-slate-400 dark:text-slate-400 mt-4">
         JPG, PNG up to 5 MB each.
       </p>
     </>

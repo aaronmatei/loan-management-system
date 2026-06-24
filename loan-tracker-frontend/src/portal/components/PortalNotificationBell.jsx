@@ -115,10 +115,10 @@ function PortalNotificationBell() {
     <div className="relative" ref={ref}>
       <button
         onClick={toggle}
-        className="relative p-2 rounded-lg hover:bg-gray-100 transition"
+        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition"
         aria-label="Notifications"
       >
-        <Bell size={20} className="text-navy-900" />
+        <Bell size={20} className="text-navy-900 dark:text-slate-100" />
         {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
@@ -127,9 +127,9 @@ function PortalNotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <p className="font-bold text-navy-900">Notifications</p>
+        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+            <p className="font-bold text-navy-900 dark:text-slate-100">Notifications</p>
             {items.length > 0 && (
               <button
                 onClick={clearAll}
@@ -141,7 +141,7 @@ function PortalNotificationBell() {
           </div>
           <div className="max-h-96 overflow-auto">
             {items.length === 0 ? (
-              <p className="px-4 py-10 text-center text-sm text-slate-400">
+              <p className="px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-400">
                 Nothing yet — your payments and application updates will show
                 here.
               </p>
@@ -152,7 +152,7 @@ function PortalNotificationBell() {
                 return (
                   <div
                     key={n.id}
-                    className={`flex gap-3 px-4 py-3 border-b border-slate-50 last:border-0 ${
+                    className={`flex gap-3 px-4 py-3 border-b border-slate-50 dark:border-slate-700 last:border-0 ${
                       !n.is_read ? "bg-ocean-50" : ""
                     }`}
                   >
@@ -160,28 +160,28 @@ function PortalNotificationBell() {
                       onClick={() => openNotif(n)}
                       className="flex gap-3 flex-1 min-w-0 text-left"
                     >
-                      <span className="flex items-center justify-center w-5 h-5 mt-0.5 shrink-0 text-slate-500">
+                      <span className="flex items-center justify-center w-5 h-5 mt-0.5 shrink-0 text-slate-500 dark:text-slate-400">
                         <NIcon size={18} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-navy-900">
+                        <p className="text-sm font-semibold text-navy-900 dark:text-slate-100">
                           {m.label}
                         </p>
-                        <p className="text-xs text-slate-600">
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
                           {n.loan_code}
                           {n.amount != null ? ` · ${KES(n.amount)}` : ""}
                         </p>
                         {n.lender && (
-                          <p className="text-xs text-slate-400">{n.lender}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-400">{n.lender}</p>
                         )}
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                        <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
                           {ago(n.at)}
                         </p>
                       </div>
                     </button>
                     <button
                       onClick={() => dismiss(n.id)}
-                      className="self-start p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                      className="self-start p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                       aria-label="Dismiss"
                     >
                       <X size={14} />

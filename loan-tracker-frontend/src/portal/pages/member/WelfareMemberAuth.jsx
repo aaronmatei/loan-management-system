@@ -10,9 +10,10 @@ import PasswordInput from "../../components/PasswordInput";
 
 const SHELL =
   "min-h-screen bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center p-4";
-const CARD = "bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8";
+const CARD =
+  "bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8";
 const FIELD =
-  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+  "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
 const BTN =
   "w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold rounded-lg disabled:opacity-50";
 
@@ -87,8 +88,8 @@ export function WelfareMemberLogin() {
         <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-3">
           <Users className="text-emerald-700" size={22} />
         </div>
-        <h2 className="text-3xl font-bold text-gray-800 mb-1">Member login</h2>
-        <p className="text-gray-600 mb-6">Your chama / welfare portal</p>
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-100 mb-1">Member login</h2>
+        <p className="text-gray-600 dark:text-slate-400 mb-6">Your chama / welfare portal</p>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold mb-1">Phone Number</label>
@@ -120,7 +121,7 @@ export function WelfareMemberLogin() {
             <Link to="/welfare/member/register" className="text-emerald-700 block">
               First time / change your password
             </Link>
-            <p className="text-gray-500">
+            <p className="text-gray-500 dark:text-slate-400">
               A borrower?{" "}
               <Link to="/portal/login" className="text-emerald-700 font-semibold">
                 Borrower login
@@ -128,9 +129,9 @@ export function WelfareMemberLogin() {
             </p>
           </div>
         </form>
-        <div className="mt-6 pt-6 border-t border-gray-100">
-          <p className="text-xs text-center text-gray-500 flex items-center justify-center gap-1.5">
-            <ShieldCheck size={14} className="text-gray-400" /> Invited by your chama admin • Secure
+        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+          <p className="text-xs text-center text-gray-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={14} className="text-gray-400 dark:text-slate-400" /> Invited by your chama admin • Secure
           </p>
         </div>
       </div>
@@ -181,10 +182,10 @@ export function WelfareMemberSetPassword() {
   return (
     <div className={SHELL}>
       <div className={CARD}>
-        <h2 className="text-3xl font-bold text-gray-800 mb-1">
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-100 mb-1">
           {forced ? "Set your password" : "Set / change password"}
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mb-6">
           {forced
             ? "Choose a password to finish setting up your member account."
             : "Use the temporary password from your invite (email or SMS)."}
@@ -222,7 +223,7 @@ export function WelfareMemberSetPassword() {
               autoComplete="new-password"
               className={FIELD}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               At least 12 characters, with an uppercase letter, a number, and a symbol.
             </p>
           </div>
@@ -239,7 +240,7 @@ export function WelfareMemberSetPassword() {
           <button type="submit" disabled={submitting} className={BTN}>
             {submitting ? "Saving..." : "Save & continue"}
           </button>
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm text-gray-500 dark:text-slate-400">
             <Link to="/welfare/member/login" className="text-emerald-700">
               Back to login
             </Link>
@@ -301,7 +302,7 @@ export function WelfareMemberSelect() {
               key={t.tenant_id}
               onClick={() => select(t)}
               disabled={selecting === t.tenant_id}
-              className="w-full bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition disabled:opacity-50 text-left"
+              className="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition disabled:opacity-50 text-left"
             >
               <div className="flex items-center gap-4">
                 <div
@@ -311,8 +312,8 @@ export function WelfareMemberSelect() {
                   {t.business_name?.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">{t.business_name}</h3>
-                  <p className="text-sm text-gray-500">
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-slate-100">{t.business_name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
                     Member No: <span className="font-mono font-semibold">{t.client_code}</span>
                   </p>
                 </div>

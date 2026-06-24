@@ -188,7 +188,7 @@ function CustomerRegister() {
   };
 
   const field =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div
@@ -196,7 +196,7 @@ function CustomerRegister() {
       style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full p-6 lg:p-8 ${
+        className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full p-6 lg:p-8 ${
           step === 3 ? "max-w-xl" : "max-w-md"
         }`}
       >
@@ -214,10 +214,10 @@ function CustomerRegister() {
             sign-up to continue.
           </div>
         )}
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-100 mb-2">
           Create Account
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 dark:text-slate-400 mb-6">
           {step === 1
             ? "One account works across all your lenders"
             : step === 2
@@ -253,11 +253,11 @@ function CustomerRegister() {
                       className={`text-center p-2 rounded-lg border-2 transition ${
                         selected
                           ? "border-ocean-600 bg-ocean-50"
-                          : "border-gray-200 hover:border-gray-300 bg-white"
+                          : "border-gray-200 dark:border-slate-700 hover:border-gray-300 bg-white dark:bg-slate-800"
                       }`}
                     >
-                      <Icon size={18} className="mx-auto text-gray-700" />
-                      <div className="text-xs font-semibold text-gray-800 mt-1">
+                      <Icon size={18} className="mx-auto text-gray-700 dark:text-slate-200" />
+                      <div className="text-xs font-semibold text-gray-800 dark:text-slate-100 mt-1">
                         {t.label}
                       </div>
                     </button>
@@ -353,7 +353,7 @@ function CustomerRegister() {
               </div>
             </div>
 
-            <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-400">
               {form.client_type === "individual"
                 ? "Location (optional)"
                 : form.client_type === "group"
@@ -386,7 +386,7 @@ function CustomerRegister() {
                   <select
                     value={form.business_type}
                     onChange={set("business_type")}
-                    className={`${field} bg-white`}
+                    className={`${field} bg-white dark:bg-slate-900`}
                   >
                     <option value="">Select type…</option>
                     {BUSINESS_TYPES.map((t) => (
@@ -404,7 +404,7 @@ function CustomerRegister() {
                 <select
                   value={form.county}
                   onChange={set("county")}
-                  className={`${field} bg-white`}
+                  className={`${field} bg-white dark:bg-slate-900`}
                 >
                   <option value="">Select county…</option>
                   {KENYA_COUNTIES.map((c) => (

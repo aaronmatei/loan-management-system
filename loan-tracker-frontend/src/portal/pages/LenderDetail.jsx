@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 
@@ -109,7 +109,29 @@ function LenderDetail() {
   if (loading) {
     return (
       <PortalLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+          <Skeleton className="h-5 w-24 mb-4" />
+          {/* Header card */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
+            <Skeleton rounded="rounded-none" className="h-2 w-full" />
+            <div className="p-6 flex items-center gap-4">
+              <Skeleton rounded="rounded-2xl" className="h-16 w-16 shrink-0" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-6 w-1/2" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+          </div>
+          {/* Terms grid */}
+          <Skeleton className="h-4 w-32 mb-2" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} rounded="rounded-2xl" className="h-24 w-full" />
+            ))}
+          </div>
+          {/* Actions */}
+          <Skeleton rounded="rounded-2xl" className="h-32 w-full" />
+        </div>
       </PortalLayout>
     );
   }
@@ -174,13 +196,13 @@ function LenderDetail() {
       <div className="p-4 lg:p-8 max-w-3xl mx-auto">
         <button
           onClick={() => navigate("/lenders")}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-navy-900 mb-4"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-navy-900 mb-4"
         >
           <ArrowLeft size={16} /> Lenders
         </button>
 
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
           <div className="h-2" style={{ backgroundColor: bc }} />
           <div className="p-6">
             <div className="flex items-center gap-4">
@@ -192,7 +214,7 @@ function LenderDetail() {
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-bold text-navy-900">
+                  <h1 className="text-2xl font-bold text-navy-900 dark:text-slate-100">
                     {lender.business_name}
                   </h1>
                   {lender.is_linked && (
@@ -201,11 +223,11 @@ function LenderDetail() {
                     </span>
                   )}
                 </div>
-                <p className="text-slate-500 capitalize">
+                <p className="text-slate-500 dark:text-slate-400 capitalize">
                   {lender.business_type || "Lender"}
                 </p>
                 {lender.is_linked && lender.client_code && (
-                  <p className="text-xs text-slate-500 font-mono mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">
                     Your client code: {lender.client_code}
                   </p>
                 )}
@@ -215,7 +237,7 @@ function LenderDetail() {
         </div>
 
         {/* Terms */}
-        <h2 className="text-sm font-bold text-navy-900 uppercase tracking-wide mb-2">
+        <h2 className="text-sm font-bold text-navy-900 dark:text-slate-100 uppercase tracking-wide mb-2">
           Lending terms
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
@@ -224,15 +246,15 @@ function LenderDetail() {
             return (
               <div
                 key={t.label}
-                className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4"
+                className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
                     {t.label}
                   </p>
                   <Icon size={16} style={{ color: bc }} />
                 </div>
-                <p className="font-bold text-navy-900 mt-2">{t.value}</p>
+                <p className="font-bold text-navy-900 dark:text-slate-100 mt-2">{t.value}</p>
               </div>
             );
           })}
@@ -244,7 +266,7 @@ function LenderDetail() {
             card jumps to ApplyLoan with that package pre-selected. */}
         {lender.is_linked && packages.length > 0 && (
           <>
-            <h2 className="text-sm font-bold text-navy-900 uppercase tracking-wide mb-2">
+            <h2 className="text-sm font-bold text-navy-900 dark:text-slate-100 uppercase tracking-wide mb-2">
               Loan products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
@@ -253,10 +275,10 @@ function LenderDetail() {
                 return (
                   <div
                     key={p.id}
-                    className={`bg-white rounded-2xl shadow-sm border p-4 flex flex-col transition ${
+                    className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border p-4 flex flex-col transition ${
                       elig.eligible
-                        ? "border-slate-100"
-                        : "border-slate-100 opacity-70"
+                        ? "border-slate-100 dark:border-slate-700"
+                        : "border-slate-100 dark:border-slate-700 opacity-70"
                     }`}
                   >
                     <div className="flex items-start gap-2 mb-1">
@@ -267,7 +289,7 @@ function LenderDetail() {
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="font-bold text-navy-900 leading-tight">
+                          <p className="font-bold text-navy-900 dark:text-slate-100 leading-tight">
                             {p.name}
                           </p>
                           {elig.recommended && (
@@ -287,22 +309,22 @@ function LenderDetail() {
                           )}
                         </div>
                         {p.description && (
-                          <p className="text-xs text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                             {p.description}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 my-3">
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-200 my-3">
                       <div>
-                        <p className="text-slate-500">Rate</p>
+                        <p className="text-slate-500 dark:text-slate-400">Rate</p>
                         <p className="font-semibold">
                           {(parseFloat(p.annual_interest_rate) / 12).toFixed(2)}
                           % p.m.
                         </p>
                       </div>
                       <div>
-                        <p className="text-slate-500">Method</p>
+                        <p className="text-slate-500 dark:text-slate-400">Method</p>
                         <p className="font-semibold inline-flex items-center gap-1">
                           {p.interest_method === "reducing" && (
                             <TrendingDown
@@ -316,20 +338,20 @@ function LenderDetail() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-slate-500">Amount</p>
+                        <p className="text-slate-500 dark:text-slate-400">Amount</p>
                         <p className="font-semibold">
                           {KES(p.min_amount)} – {KES(p.max_amount)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-slate-500">Duration</p>
+                        <p className="text-slate-500 dark:text-slate-400">Duration</p>
                         <p className="font-semibold">
                           {p.min_duration_months}–{p.max_duration_months} mo
                         </p>
                       </div>
                     </div>
                     {!elig.eligible && elig.reasons?.length > 0 && (
-                      <div className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg p-2 mb-2">
+                      <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-lg p-2 mb-2">
                         {elig.reasons.map((r, i) => (
                           <div key={i} className="flex items-start gap-1.5">
                             <span className="text-slate-400 mt-0.5">•</span>
@@ -364,12 +386,12 @@ function LenderDetail() {
         {/* Contact */}
         {contact.length > 0 && (
           <>
-            <h2 className="text-sm font-bold text-navy-900 uppercase tracking-wide mb-2">
+            <h2 className="text-sm font-bold text-navy-900 dark:text-slate-100 uppercase tracking-wide mb-2">
               About this lender
             </h2>
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-5 space-y-2 text-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 mb-5 space-y-2 text-sm">
               {lender.physical_address && (
-                <p className="flex items-start gap-2 text-slate-700">
+                <p className="flex items-start gap-2 text-slate-700 dark:text-slate-200">
                   <MapPin size={16} className="mt-0.5 text-slate-400 shrink-0" />
                   {[lender.physical_address, lender.city, lender.county]
                     .filter(Boolean)
@@ -377,13 +399,13 @@ function LenderDetail() {
                 </p>
               )}
               {lender.contact_phone && (
-                <p className="flex items-center gap-2 text-slate-700">
+                <p className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                   <Phone size={16} className="text-slate-400 shrink-0" />
                   {lender.contact_phone}
                 </p>
               )}
               {lender.contact_email && (
-                <p className="flex items-center gap-2 text-slate-700">
+                <p className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                   <Mail size={16} className="text-slate-400 shrink-0" />
                   {lender.contact_email}
                 </p>
@@ -393,7 +415,7 @@ function LenderDetail() {
         )}
 
         {/* Actions */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           {lender.is_linked ? (
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
@@ -414,7 +436,7 @@ function LenderDetail() {
                 )}
                 <button
                   onClick={viewMine}
-                  className="flex-1 py-3 rounded-xl font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50"
+                  className="flex-1 py-3 rounded-xl font-semibold border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
                   {isPawn ? "View my pledges" : "View my loans"}
                 </button>
@@ -428,7 +450,7 @@ function LenderDetail() {
                   {unlinking ? "Unlinking…" : "Unlink this lender"}
                 </button>
               ) : (
-                <p className="text-center text-xs text-slate-500">
+                <p className="text-center text-xs text-slate-500 dark:text-slate-400">
                   You have {blockers.join(" and ")} here — resolve them before
                   you can unlink.
                 </p>
@@ -445,7 +467,7 @@ function LenderDetail() {
               + Link this lender
             </button>
           ) : (
-            <p className="text-center text-sm text-slate-500 py-2">
+            <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-2">
               {lender.business_name} isn't accepting new clients through the
               portal. Contact them directly to open an account.
             </p>

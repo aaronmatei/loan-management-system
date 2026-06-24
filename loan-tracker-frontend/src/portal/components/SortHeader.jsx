@@ -25,8 +25,8 @@ export default function SortHeader({
       <button
         type="button"
         onClick={() => onToggle(sortKey)}
-        className={`inline-flex items-center gap-1 font-semibold cursor-pointer select-none hover:text-navy-900 ${
-          activeCol ? "text-navy-900" : "text-slate-500"
+        className={`inline-flex items-center gap-1 font-semibold cursor-pointer select-none hover:text-navy-900 dark:hover:text-slate-100 ${
+          activeCol ? "text-navy-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"
         }`}
       >
         {label}

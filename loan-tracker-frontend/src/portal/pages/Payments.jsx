@@ -4,7 +4,7 @@ import { CreditCard, FileText, ChevronDown } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import { lenderColor } from "../lenderColor";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const fmtDate = (d) =>
@@ -125,21 +125,24 @@ function Payments() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1 flex items-center gap-2">
-          <CreditCard size={28} className="text-navy-900" /> Payments
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 mb-1 flex items-center gap-2">
+          <CreditCard size={28} className="text-navy-900 dark:text-slate-100" /> Payments
         </h1>
-        <p className="text-slate-500 mb-5">
+        <p className="text-slate-500 dark:text-slate-400 mb-5">
           Every payment you've made, grouped by loan
         </p>
 
         {loading ? (
-          <div className="bg-white rounded-xl p-12">
-            <Spinner centered label="Loading…" />
+          <div className="space-y-4">
+            <Skeleton className="h-9 w-48 rounded-lg" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+            ))}
           </div>
         ) : payments.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-12 text-center text-gray-500 dark:text-slate-400">
             <div className="flex justify-center mb-3">
-              <FileText size={48} className="text-slate-300" />
+              <FileText size={48} className="text-slate-300 dark:text-slate-600" />
             </div>
             <p>No payments yet.</p>
           </div>
@@ -152,7 +155,7 @@ function Payments() {
                   <select
                     value={lender}
                     onChange={(e) => setLender(e.target.value)}
-                    className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-9 py-2 text-sm font-semibold text-navy-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-ocean-500/40 cursor-pointer"
+                    className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg pl-3 pr-9 py-2 text-sm font-semibold text-navy-900 dark:text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-ocean-500/40 cursor-pointer"
                   >
                     <option value="all">All lenders ({payments.length})</option>
                     {lenders.map((l) => (
@@ -163,13 +166,13 @@ function Payments() {
                   </select>
                   <ChevronDown
                     size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400 pointer-events-none"
                   />
                 </div>
               ) : (
                 <span />
               )}
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {filtered.length} payment{filtered.length !== 1 ? "s" : ""} ·{" "}
                 {groups.length} loan{groups.length !== 1 ? "s" : ""}
               </p>
@@ -182,11 +185,11 @@ function Payments() {
                 return (
                   <div
                     key={g.loan_id}
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
+                    className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden"
                   >
                     <button
                       onClick={() => openLoan(g.txns[0])}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/60 text-left"
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-700 text-left"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div
@@ -196,10 +199,10 @@ function Payments() {
                           {g.tenant_name?.charAt(0)}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-mono font-semibold text-navy-900 truncate">
+                          <p className="font-mono font-semibold text-navy-900 dark:text-slate-100 truncate">
                             {g.loan_code || `Loan #${g.loan_id}`}
                           </p>
-                          <p className="text-xs text-slate-500 truncate">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                             {g.tenant_name} · {g.txns.length} payment
                             {g.txns.length !== 1 ? "s" : ""}
                           </p>
@@ -222,12 +225,12 @@ function Payments() {
                         {g.txns.map((p) => (
                           <tr
                             key={p.id}
-                            className="border-b border-slate-50 last:border-0"
+                            className="border-b border-slate-50 dark:border-slate-700 last:border-0"
                           >
-                            <td className="px-4 py-2.5 capitalize text-slate-600">
+                            <td className="px-4 py-2.5 capitalize text-slate-600 dark:text-slate-400">
                               {(p.payment_method || "—").replace("_", " ")}
                             </td>
-                            <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                               {fmtDate(p.payment_date)}
                             </td>
                             <td className="px-4 py-2.5 text-right font-semibold text-green-600 whitespace-nowrap">

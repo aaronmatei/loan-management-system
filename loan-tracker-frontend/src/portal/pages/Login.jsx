@@ -53,11 +53,11 @@ function CustomerLogin() {
       className="min-h-screen bg-gradient-to-br from-ocean-600 to-purple-700 bg-cover bg-center bg-no-repeat flex items-center justify-center p-4"
       style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8">
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-100 mb-2">
           Welcome Back
         </h2>
-        <p className="text-gray-600 mb-6">One account, many lenders</p>
+        <p className="text-gray-600 dark:text-slate-400 mb-6">One account, many lenders</p>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold mb-1">
@@ -74,7 +74,7 @@ function CustomerLogin() {
               }
               required
               placeholder="0712345678"
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <div>
@@ -88,7 +88,7 @@ function CustomerLogin() {
               }
               required
               autoComplete="current-password"
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+              className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
             />
           </div>
           <button
@@ -121,9 +121,9 @@ function CustomerLogin() {
           <SocialAuth onAuthed={handleAuthed} />
         </div>
 
-        <div className="mt-6 pt-6 border-t border-gray-100">
-          <p className="text-xs text-center text-gray-500 flex items-center justify-center gap-1.5">
-            <ShieldCheck size={14} className="text-gray-400" /> One login • Many lenders • Secure
+        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+          <p className="text-xs text-center text-gray-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={14} className="text-gray-400 dark:text-slate-400" /> One login • Many lenders • Secure
           </p>
         </div>
       </div>

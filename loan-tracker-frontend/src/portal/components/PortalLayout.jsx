@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogoMark } from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 import {
   LayoutDashboard,
   Layers,
@@ -155,20 +156,20 @@ function PortalLayout({ children }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } flex flex-col`}
       >
-        <div className="p-6 pb-4 bg-cream-50 border-b border-cream-100 flex items-center justify-between">
+        <div className="p-6 pb-4 bg-cream-50 dark:bg-slate-900 border-b border-cream-100 dark:border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <LogoMark variant="color" className="h-9 w-9 shrink-0" />
             <div>
               <span className="font-display text-xl font-extrabold tracking-tight leading-none">
-                <span className="text-navy-900">Lender</span>
+                <span className="text-navy-900 dark:text-slate-100">Lender</span>
                 <span className="text-ocean-600">Fest</span>
               </span>
-              <p className="text-slate-500 text-xs">{portalLabel}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs">{portalLabel}</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-slate-400 hover:text-slate-700"
+            className="lg:hidden text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             aria-label="Close menu"
           >
             <X size={22} />
@@ -233,12 +234,12 @@ function PortalLayout({ children }) {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-200 shadow-sm">
+        <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100"
+                className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700"
                 aria-label="Open menu"
               >
                 <svg
@@ -256,7 +257,10 @@ function PortalLayout({ children }) {
                 </svg>
               </button>
             </div>
-            <PortalNotificationBell />
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <PortalNotificationBell />
+            </div>
           </div>
         </header>
 

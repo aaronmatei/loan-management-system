@@ -15,10 +15,10 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
 import { getPortalBrand } from "../brand";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const field =
-  "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none";
+  "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-[var(--brand)] focus:outline-none dark:bg-slate-900 dark:text-slate-100";
 
 // Mirrors the backend validatePassword (>=12, upper, digit, symbol).
 const PASSWORD_RULE = "Min 12 chars, 1 uppercase, 1 number, 1 symbol";
@@ -135,7 +135,22 @@ function Profile() {
   if (loading) {
     return (
       <PortalLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-9 w-20" />
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5 grid grid-cols-2 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            ))}
+          </div>
+          <Skeleton rounded="rounded-xl" className="h-44 w-full" />
+          <Skeleton rounded="rounded-xl" className="h-40 w-full" />
+        </div>
       </PortalLayout>
     );
   }
@@ -145,8 +160,8 @@ function Profile() {
   const { brand } = getPortalBrand();
   const Row = ({ label, children }) => (
     <div>
-      <p className="text-xs text-gray-500 uppercase">{label}</p>
-      <div className="font-semibold text-gray-800">{children}</div>
+      <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">{label}</p>
+      <div className="font-semibold text-gray-800 dark:text-slate-100">{children}</div>
     </div>
   );
 
@@ -154,8 +169,8 @@ function Profile() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-4" style={{ "--brand": brand }}>
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
-            <User size={28} className="text-navy-900" /> My Profile
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 flex items-center gap-2">
+            <User size={28} className="text-navy-900 dark:text-slate-100" /> My Profile
           </h1>
           {!editing && (
             <button
@@ -167,7 +182,7 @@ function Profile() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl shadow p-5 grid grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5 grid grid-cols-2 gap-4">
           <Row label="Name">
             {customer.first_name} {customer.last_name}
           </Row>
@@ -186,8 +201,8 @@ function Profile() {
           </Row>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="font-bold text-navy-900">Personal details</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5 space-y-4">
+          <h2 className="font-bold text-navy-900 dark:text-slate-100">Personal details</h2>
           <div>
             <label className="block text-sm font-semibold mb-1">Email</label>
             {editing ? (
@@ -259,7 +274,7 @@ function Profile() {
                   load();
                 }}
                 disabled={saving}
-                className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+                className="flex-1 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
               >
                 Cancel
               </button>
@@ -274,9 +289,9 @@ function Profile() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-navy-900 flex items-center gap-1.5"><IdCard size={18} /> Identity documents</h2>
+            <h2 className="font-bold text-navy-900 dark:text-slate-100 flex items-center gap-1.5"><IdCard size={18} /> Identity documents</h2>
             <button
               onClick={() =>
                 navigate(
@@ -295,7 +310,7 @@ function Profile() {
               ["id_back_url", "ID back"],
             ].map(([k, label]) => (
               <div key={k} className="text-center">
-                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
                   {customer[k] ? (
                     <img
                       src={customer[k]}
@@ -303,18 +318,18 @@ function Profile() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs text-gray-400">Not uploaded</span>
+                    <span className="text-xs text-gray-400 dark:text-slate-400">Not uploaded</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{label}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="font-bold text-navy-900 mb-2 flex items-center gap-1.5"><FileText size={18} /> Statements</h2>
-          <p className="text-sm text-gray-600 mb-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
+          <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-2 flex items-center gap-1.5"><FileText size={18} /> Statements</h2>
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
             Download your full account statement at{" "}
             {client?.tenant_name || "this lender"}.
           </p>
@@ -327,8 +342,8 @@ function Profile() {
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-5">
-          <h2 className="font-bold text-navy-900 mb-4 flex items-center gap-1.5"><Lock size={18} /> Security</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
+          <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-4 flex items-center gap-1.5"><Lock size={18} /> Security</h2>
           {!showPwd ? (
             <button
               onClick={() => setShowPwd(true)}
@@ -378,7 +393,7 @@ function Profile() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowPwd(false)}
-                  className="flex-1 py-2 bg-gray-200 rounded-lg font-semibold"
+                  className="flex-1 py-2 bg-gray-200 dark:bg-slate-700 dark:text-slate-200 rounded-lg font-semibold"
                 >
                   Cancel
                 </button>

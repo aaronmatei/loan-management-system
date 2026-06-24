@@ -6,7 +6,7 @@ import PortalLayout from "../components/PortalLayout";
 import SortHeader from "../components/SortHeader";
 import Pager from "../components/Pager";
 import { lenderColor } from "../lenderColor";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const PAGE_SIZE = 15;
@@ -156,10 +156,10 @@ function MyLoans() {
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
         <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
           <div className="min-w-0">
-            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 flex items-center gap-2">
-              <Coins size={28} className="text-navy-900" /> My Loans
+            <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 flex items-center gap-2">
+              <Coins size={28} className="text-navy-900 dark:text-slate-100" /> My Loans
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
               Every loan across all your lenders, in one place
             </p>
           </div>
@@ -209,7 +209,7 @@ function MyLoans() {
               className={`px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition ${
                 status === t.value
                   ? "bg-ocean-gradient text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
+                  : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
             >
               {t.label}
@@ -218,13 +218,22 @@ function MyLoans() {
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-xl p-12">
-            <Spinner centered label="Loading…" />
+          <div>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-xl" />
+              ))}
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-lg" />
+              ))}
+            </div>
           </div>
         ) : sorted.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-12 text-center text-gray-500 dark:text-slate-400">
             <div className="flex justify-center mb-3">
-              <FileText size={48} className="text-slate-300" />
+              <FileText size={48} className="text-slate-300 dark:text-slate-600" />
             </div>
             <p>No loans found.</p>
           </div>
@@ -233,24 +242,24 @@ function MyLoans() {
             {/* Totals across the filtered set — the borrower's at-a-glance
                 position: what they've borrowed, repaid, and still owe. */}
             <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-                <p className="text-[11px] uppercase tracking-wide text-slate-500">
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Total borrowed
                 </p>
-                <p className="text-base lg:text-lg font-bold text-navy-900 mt-0.5">
+                <p className="text-base lg:text-lg font-bold text-navy-900 dark:text-slate-100 mt-0.5">
                   {KES(loanTotals.principal)}
                 </p>
               </div>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-                <p className="text-[11px] uppercase tracking-wide text-slate-500">
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Total repaid
                 </p>
                 <p className="text-base lg:text-lg font-bold text-green-700 mt-0.5">
                   {KES(loanTotals.paid)}
                 </p>
               </div>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-                <p className="text-[11px] uppercase tracking-wide text-slate-500">
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Outstanding
                 </p>
                 <p className="text-base lg:text-lg font-bold text-red-600 mt-0.5">
@@ -258,14 +267,14 @@ function MyLoans() {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-slate-500 mb-3">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
               {sorted.length} loan{sorted.length !== 1 ? "s" : ""} · showing{" "}
               {start + 1}–{start + paged.length}
             </p>
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                  <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
                     <SortHeader
                       label="Lender"
                       sortKey="lender"
@@ -318,7 +327,7 @@ function MyLoans() {
                       <tr
                         key={loan.id}
                         onClick={() => openLoan(loan)}
-                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 cursor-pointer"
+                        className="border-b border-slate-50 dark:border-slate-700 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-700 cursor-pointer"
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
@@ -328,22 +337,22 @@ function MyLoans() {
                             >
                               {loan.tenant_name?.charAt(0)}
                             </div>
-                            <span className="font-medium text-navy-900 truncate">
+                            <span className="font-medium text-navy-900 dark:text-slate-100 truncate">
                               {loan.tenant_name}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <p className="font-mono font-semibold text-navy-900">
+                          <p className="font-mono font-semibold text-navy-900 dark:text-slate-100">
                             {loan.loan_code || `#${loan.id}`}
                           </p>
                           {loan.purpose && (
-                            <p className="text-xs text-slate-500 truncate max-w-[14rem]">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[14rem]">
                               {loan.purpose}
                             </p>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap text-navy-900">
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-navy-900 dark:text-slate-100">
                           {KES(loan.principal_amount)}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-red-600">
@@ -359,7 +368,7 @@ function MyLoans() {
                             {String(loan.status || "").replace("_", " ")}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap text-slate-500">
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-slate-500 dark:text-slate-400">
                           {/* Same swap as staff LoanDetails — render the
                               application_date (when the borrower applied),
                               not the row's created_at (when staff entered it).
@@ -383,7 +392,7 @@ function MyLoans() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-slate-200 bg-slate-50/70 text-navy-900">
+                  <tr className="border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-navy-900 dark:text-slate-100">
                     <td className="px-4 py-3 font-semibold" colSpan={2}>
                       Total · {sorted.length} loan
                       {sorted.length !== 1 ? "s" : ""}

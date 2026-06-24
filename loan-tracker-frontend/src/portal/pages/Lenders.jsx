@@ -107,7 +107,7 @@ function Lenders() {
     );
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-600 focus:outline-none bg-white";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-600 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100";
 
   // Distinct lender types present, for the colour legend.
   const legendTypes = (() => {
@@ -122,10 +122,10 @@ function Lenders() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-6xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 mb-1 flex items-center gap-2">
-          <Building2 size={28} className="text-navy-900" /> Lenders
+        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 mb-1 flex items-center gap-2">
+          <Building2 size={28} className="text-navy-900 dark:text-slate-100" /> Lenders
         </h1>
-        <p className="text-slate-500 mb-3">
+        <p className="text-slate-500 dark:text-slate-400 mb-3">
           Browse every lender on LenderFest and compare their terms.
         </p>
         {/* Borrowing rule — front-and-centre so a customer doesn't
@@ -153,7 +153,7 @@ function Lenders() {
         {/* Filter by lender type — colour-coded cards that double as the legend. */}
         {legendTypes.length > 1 && (
           <div className="mb-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-400 mb-2">
               Browse by type
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
@@ -162,11 +162,11 @@ function Lenders() {
                 className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition ${
                   typeFilter === "all"
                     ? "border-ocean-500 bg-ocean-50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
+                    : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300"
                 }`}
               >
                 <span className="w-3.5 h-3.5 rounded-full bg-ocean-gradient shrink-0" />
-                <span className="text-sm font-semibold text-slate-800">All lenders</span>
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">All lenders</span>
               </button>
               {legendTypes.map((t) => {
                 const active = typeFilter === t.label;
@@ -175,7 +175,7 @@ function Lenders() {
                     key={t.label}
                     onClick={() => setTypeFilter(active ? "all" : t.label)}
                     className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition ${
-                      active ? "" : "border-slate-200 bg-white hover:border-slate-300"
+                      active ? "" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300"
                     }`}
                     style={active ? { borderColor: t.color, backgroundColor: `${t.color}14` } : undefined}
                   >
@@ -189,10 +189,10 @@ function Lenders() {
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 mb-5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                 Search
               </label>
               <div className="relative">
@@ -209,7 +209,7 @@ function Lenders() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                 Amount to borrow (KES)
               </label>
               <input
@@ -221,7 +221,7 @@ function Lenders() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                 Max interest (% p.m.)
               </label>
               <input
@@ -234,7 +234,7 @@ function Lenders() {
             </div>
           </div>
           <div className="mt-3 flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-slate-600">Show</span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Show</span>
             {[
               ["all", "All"],
               ["linked", "Linked"],
@@ -246,7 +246,7 @@ function Lenders() {
                 className={`px-3 py-1 rounded-full text-xs font-semibold ${
                   linkFilter === v
                     ? "bg-ocean-gradient text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    : "bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600"
                 }`}
               >
                 {label}
@@ -273,7 +273,7 @@ function Lenders() {
           </div>
         </div>
 
-        <p className="text-sm text-slate-500 mb-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
           {loading
             ? "Loading…"
             : `${filtered.length} lender${
@@ -286,19 +286,19 @@ function Lenders() {
         </p>
 
         {loading ? null : filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-12 text-center">
             <div className="flex justify-center mb-4">
               <IconTile icon={Building2} variant="ocean" size={56} />
             </div>
-            <p className="text-navy-900 font-semibold">No lenders match.</p>
-            <p className="text-slate-500 text-sm">Try widening your filters.</p>
+            <p className="text-navy-900 dark:text-slate-100 font-semibold">No lenders match.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">Try widening your filters.</p>
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                  <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
                     <SortHeader
                       label="Lender"
                       sortKey="name"
@@ -345,7 +345,7 @@ function Lenders() {
                         onClick={() =>
                           navigate(`/lenders/${l.tenant_id}`)
                         }
-                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 cursor-pointer"
+                        className="border-b border-slate-50 dark:border-slate-700 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-700 cursor-pointer"
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -357,7 +357,7 @@ function Lenders() {
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-navy-900 truncate">
+                                <span className="font-semibold text-navy-900 dark:text-slate-100 truncate">
                                   {l.business_name}
                                 </span>
                                 {l.is_linked && (
@@ -377,7 +377,7 @@ function Lenders() {
                                   {ty.label}
                                 </span>
                                 {l.city && (
-                                  <span className="text-xs text-slate-500 capitalize truncate">
+                                  <span className="text-xs text-slate-500 dark:text-slate-400 capitalize truncate">
                                     · {l.city}
                                   </span>
                                 )}
@@ -385,10 +385,10 @@ function Lenders() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap text-navy-900">
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-navy-900 dark:text-slate-100">
                           {KES(l.min_amount)}
                         </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap text-navy-900">
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-navy-900 dark:text-slate-100">
                           {KES(l.max_amount)}
                         </td>
                         <td
@@ -397,7 +397,7 @@ function Lenders() {
                         >
                           {PM(l.default_interest_rate)}% p.m.
                         </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600 dark:text-slate-400">
                           {l.default_duration} mo
                         </td>
                         <td className="px-4 py-3 text-right">

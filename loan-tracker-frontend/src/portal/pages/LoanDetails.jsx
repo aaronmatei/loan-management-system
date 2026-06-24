@@ -18,7 +18,7 @@ import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
 import MpesaPayButton from "../../components/MpesaPayButton";
 import PaymentReceipt from "../../components/PaymentReceipt";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 const day = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A");
@@ -104,7 +104,18 @@ function LoanDetails() {
   if (loading) {
     return (
       <PortalLayout>
-        <Spinner centered className="py-20" label="Loading…" />
+        <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+          <div className="flex justify-between items-center mb-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-10 w-44 rounded-lg" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-2xl mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Skeleton className="h-56 w-full rounded-xl" />
+            <Skeleton className="h-56 w-full rounded-xl" />
+          </div>
+          <Skeleton className="h-80 w-full rounded-xl" />
+        </div>
       </PortalLayout>
     );
   }
@@ -303,15 +314,15 @@ function LoanDetails() {
         {/* Overpayment & refund — shown only when the client overpaid or a
             refund is on record. */}
         {(parseFloat(loan.overpayment_amount || 0) > 0 || loan.refund_status) && (
-          <div className="bg-white rounded-xl shadow p-4 mb-6 border-l-4 border-amber-400">
-            <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-6 border-l-4 border-amber-400">
+            <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
               <RotateCcw size={18} className="text-amber-500" /> Overpayment &amp;
               Refund
             </h3>
             <div className="space-y-2 text-sm">
               {parseFloat(loan.overpayment_amount || 0) > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">You overpaid</span>
+                  <span className="text-gray-600 dark:text-slate-400">You overpaid</span>
                   <span className="font-bold text-amber-600">
                     {KES(loan.overpayment_amount)}
                   </span>
@@ -319,7 +330,7 @@ function LoanDetails() {
               )}
               {loan.refund_status && (
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Refund status</span>
+                  <span className="text-gray-600 dark:text-slate-400">Refund status</span>
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-bold capitalize ${
                       /refund|complet|paid/.test(
@@ -337,22 +348,22 @@ function LoanDetails() {
               )}
               {loan.refunded_date && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Refunded on</span>
-                  <span className="font-semibold">{day(loan.refunded_date)}</span>
+                  <span className="text-gray-600 dark:text-slate-400">Refunded on</span>
+                  <span className="font-semibold dark:text-slate-100">{day(loan.refunded_date)}</span>
                 </div>
               )}
               {loan.refund_method && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Method</span>
-                  <span className="font-semibold capitalize">
+                  <span className="text-gray-600 dark:text-slate-400">Method</span>
+                  <span className="font-semibold capitalize dark:text-slate-100">
                     {loan.refund_method}
                   </span>
                 </div>
               )}
               {loan.refund_reference && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Reference</span>
-                  <span className="font-semibold font-mono">
+                  <span className="text-gray-600 dark:text-slate-400">Reference</span>
+                  <span className="font-semibold font-mono dark:text-slate-100">
                     {loan.refund_reference}
                   </span>
                 </div>
@@ -368,8 +379,8 @@ function LoanDetails() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
               <ClipboardList size={18} /> Loan Information
             </h3>
             <div className="space-y-2 text-sm">
@@ -378,29 +389,29 @@ function LoanDetails() {
                   row out entirely so the panel stays compact. */}
               {loan.package_name && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Product</span>
-                  <span className="font-semibold text-navy-900">
+                  <span className="text-gray-600 dark:text-slate-400">Product</span>
+                  <span className="font-semibold text-navy-900 dark:text-slate-100">
                     {loan.package_name}
                   </span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-gray-600">Duration</span>
-                <span className="font-semibold">
+                <span className="text-gray-600 dark:text-slate-400">Duration</span>
+                <span className="font-semibold dark:text-slate-100">
                   {loan.loan_duration_months} months
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Interest Rate</span>
-                <span className="font-semibold">{monthlyRate}% p.m.</span>
+                <span className="text-gray-600 dark:text-slate-400">Interest Rate</span>
+                <span className="font-semibold dark:text-slate-100">{monthlyRate}% p.m.</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Interest Method</span>
+                <span className="text-gray-600 dark:text-slate-400">Interest Method</span>
                 <span
                   className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                     loan.interest_method === "reducing"
                       ? "bg-ocean-100 text-ocean-700"
-                      : "bg-slate-100 text-slate-700"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
                   }`}
                 >
                   {loan.interest_method === "reducing"
@@ -409,39 +420,39 @@ function LoanDetails() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Start Date</span>
-                <span className="font-semibold">{day(loan.start_date)}</span>
+                <span className="text-gray-600 dark:text-slate-400">Start Date</span>
+                <span className="font-semibold dark:text-slate-100">{day(loan.start_date)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">End Date</span>
-                <span className="font-semibold">{day(loan.end_date)}</span>
+                <span className="text-gray-600 dark:text-slate-400">End Date</span>
+                <span className="font-semibold dark:text-slate-100">{day(loan.end_date)}</span>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="font-bold text-navy-900 mb-3 flex items-center gap-1.5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+            <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
               <Coins size={18} /> Financial Summary
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Total Interest</span>
-                <span className="font-semibold">
+                <span className="text-gray-600 dark:text-slate-400">Total Interest</span>
+                <span className="font-semibold dark:text-slate-100">
                   {KES(loan.total_interest)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Monthly Payment</span>
-                <span className="font-semibold">{KES(monthly)}</span>
+                <span className="text-gray-600 dark:text-slate-400">Monthly Payment</span>
+                <span className="font-semibold dark:text-slate-100">{KES(monthly)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Payments Made</span>
-                <span className="font-semibold">
+                <span className="text-gray-600 dark:text-slate-400">Payments Made</span>
+                <span className="font-semibold dark:text-slate-100">
                   {(transactions || []).length}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Schedule Items</span>
-                <span className="font-semibold">
+                <span className="text-gray-600 dark:text-slate-400">Schedule Items</span>
+                <span className="font-semibold dark:text-slate-100">
                   {(schedule || []).length}
                 </span>
               </div>
@@ -449,14 +460,14 @@ function LoanDetails() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="flex border-b">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+          <div className="flex border-b dark:border-slate-700">
             <button
               onClick={() => setTab("schedule")}
               className={`flex-1 py-3 px-4 font-semibold inline-flex items-center justify-center gap-1.5 ${
                 tab === "schedule"
                   ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
-                  : "text-gray-600"
+                  : "text-gray-600 dark:text-slate-400"
               }`}
             >
               <Calendar size={16} /> Payment Schedule
@@ -466,7 +477,7 @@ function LoanDetails() {
               className={`flex-1 py-3 px-4 font-semibold inline-flex items-center justify-center gap-1.5 ${
                 tab === "history"
                   ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
-                  : "text-gray-600"
+                  : "text-gray-600 dark:text-slate-400"
               }`}
             >
               <CreditCard size={16} /> Payment History
@@ -477,7 +488,7 @@ function LoanDetails() {
                 className={`flex-1 py-3 px-4 font-semibold inline-flex items-center justify-center gap-1.5 ${
                   tab === "waivers"
                     ? "bg-[var(--brand)]/10 text-[var(--brand)] border-b-2 border-[var(--brand)]"
-                    : "text-gray-600"
+                    : "text-gray-600 dark:text-slate-400"
                 }`}
               >
                 <HandHeart size={16} /> Waivers
@@ -548,7 +559,7 @@ function LoanDetails() {
                 </div>
               )}
               {(schedule || []).length === 0 ? (
-                <p className="text-center text-gray-500 py-6">
+                <p className="text-center text-gray-500 dark:text-slate-400 py-6">
                   No schedule (loan not yet disbursed).
                 </p>
               ) : (
@@ -580,7 +591,7 @@ function LoanDetails() {
                             ? "bg-green-50"
                             : s.status === "overdue"
                               ? "bg-red-50"
-                              : "bg-gray-50"
+                              : "bg-gray-50 dark:bg-slate-900"
                         }`}
                       >
                         <div className="flex justify-between items-center">
@@ -593,38 +604,38 @@ function LoanDetails() {
                                   : <Clock size={20} className="text-yellow-500" />}
                             </span>
                             <div>
-                              <p className="font-semibold">
+                              <p className="font-semibold dark:text-slate-100">
                                 Payment #{s.payment_number}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 dark:text-slate-400">
                                 Due: {day(s.due_date)}
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold">{KES(s.amount_due)}</p>
-                            <p className="text-xs capitalize text-gray-600">
+                            <p className="font-bold dark:text-slate-100">{KES(s.amount_due)}</p>
+                            <p className="text-xs capitalize text-gray-600 dark:text-slate-400">
                               {s.status}
                             </p>
                           </div>
                         </div>
                         {hasBreakdown && (
-                          <div className="mt-2 pt-2 border-t border-gray-200/60 grid grid-cols-3 gap-2 text-xs">
+                          <div className="mt-2 pt-2 border-t border-gray-200/60 dark:border-slate-700 grid grid-cols-3 gap-2 text-xs">
                             <div>
-                              <p className="text-gray-500">Interest</p>
+                              <p className="text-gray-500 dark:text-slate-400">Interest</p>
                               <p className="font-semibold text-emerald-700">
                                 {KES(interest)}
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-500">Principal</p>
+                              <p className="text-gray-500 dark:text-slate-400">Principal</p>
                               <p className="font-semibold text-[var(--brand)]">
                                 {KES(principal)}
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-500">Balance After</p>
-                              <p className="font-semibold text-gray-700">
+                              <p className="text-gray-500 dark:text-slate-400">Balance After</p>
+                              <p className="font-semibold text-gray-700 dark:text-slate-200">
                                 {balanceAfter > 0 ? KES(balanceAfter) : "KES 0"}
                               </p>
                             </div>
@@ -633,7 +644,7 @@ function LoanDetails() {
                         {hasPenalty && (
                           <div className="mt-2 pt-2 border-t border-amber-200/60 grid grid-cols-3 gap-2 text-xs">
                             <div>
-                              <p className="text-gray-500 inline-flex items-center gap-1">
+                              <p className="text-gray-500 dark:text-slate-400 inline-flex items-center gap-1">
                                 <AlertTriangle size={11} /> Late fee
                               </p>
                               <p className="font-semibold text-amber-700">
@@ -641,13 +652,13 @@ function LoanDetails() {
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-500">Penalty interest</p>
+                              <p className="text-gray-500 dark:text-slate-400">Penalty interest</p>
                               <p className="font-semibold text-amber-700">
                                 {KES(penaltyInterest)}
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-500">
+                              <p className="text-gray-500 dark:text-slate-400">
                                 {penaltyOut > 0 ? "Penalty owed" : "Penalty paid"}
                               </p>
                               <p
@@ -707,15 +718,15 @@ function LoanDetails() {
                               const after = Math.max(0, before - totalWaived);
                               return (
                                 before > 0 && totalWaived > 0 && (
-                                  <p className="text-gray-600 pl-4">
-                                    <span className="line-through text-gray-400">
+                                  <p className="text-gray-600 dark:text-slate-400 pl-4">
+                                    <span className="line-through text-gray-400 dark:text-slate-500">
                                       {KES(before)}
                                     </span>
                                     {" "}
                                     <span className="font-semibold text-emerald-700">
                                       → {KES(after)}
                                     </span>
-                                    <span className="text-gray-500">
+                                    <span className="text-gray-500 dark:text-slate-400">
                                       {" "}you save{" "}
                                       <span className="font-semibold text-emerald-700">
                                         {KES(totalWaived)}
@@ -743,7 +754,7 @@ function LoanDetails() {
           {tab === "history" && (
             <div className="p-4 space-y-3">
               {(transactions || []).length === 0 ? (
-                <p className="text-center text-gray-500 py-6">
+                <p className="text-center text-gray-500 dark:text-slate-400 py-6">
                   No payments yet.
                 </p>
               ) : (
@@ -751,19 +762,19 @@ function LoanDetails() {
                   {transactions.map((t) => (
                     <div
                       key={t.id}
-                      className="border-2 border-gray-100 rounded-xl p-3 hover:border-[var(--brand)]/30 transition"
+                      className="border-2 border-gray-100 dark:border-slate-700 rounded-xl p-3 hover:border-[var(--brand)]/30 transition"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-bold text-green-600 text-lg">
                             +{KES(t.amount_paid)}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
                             {day(t.payment_date)} · {t.payment_method}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-gray-500 font-mono">
+                          <p className="text-xs text-gray-500 dark:text-slate-400 font-mono">
                             {t.transaction_code}
                           </p>
                           <p className="text-xs text-green-600 font-semibold capitalize">
@@ -778,14 +789,14 @@ function LoanDetails() {
                         </div>
                       </div>
                       {t.receipt && (
-                        <div className="bg-gray-50 rounded-lg p-2 mt-2">
+                        <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 mt-2">
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-gray-600">After this</span>
-                            <span className="font-bold">
+                            <span className="text-gray-600 dark:text-slate-400">After this</span>
+                            <span className="font-bold dark:text-slate-100">
                               {t.receipt.completion_percentage_after_this}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
                             <div
                               className="bg-gradient-to-r from-green-500 to-emerald-600 h-1.5 rounded-full"
                               style={{
@@ -801,14 +812,14 @@ function LoanDetails() {
                           </div>
                           <div className="grid grid-cols-2 gap-3 mt-2 text-xs">
                             <div>
-                              <p className="text-gray-500">Remaining</p>
+                              <p className="text-gray-500 dark:text-slate-400">Remaining</p>
                               <p className="font-bold text-orange-600">
                                 {KES(t.receipt.remaining_balance_after_this)}
                               </p>
                             </div>
                             <div>
                               <p
-                                className="text-gray-500"
+                                className="text-gray-500 dark:text-slate-400"
                                 title="Includes amount settled by lender waivers, not just cash"
                               >
                                 Settled
@@ -825,23 +836,23 @@ function LoanDetails() {
 
                   {receiptSummary && (
                     <div className="bg-[var(--brand)]/10 border-2 border-[var(--brand)]/30 rounded-xl p-4 mt-4">
-                      <h3 className="font-bold mb-3 text-gray-800 flex items-center gap-1.5">
+                      <h3 className="font-bold mb-3 text-gray-800 dark:text-slate-100 flex items-center gap-1.5">
                         <BarChart3 size={18} /> Current Status
                       </h3>
                       <div className="grid grid-cols-2 gap-3 text-center">
                         <div>
-                          <p className="text-xs text-gray-500">Total Paid</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">Total Paid</p>
                           <p className="font-bold text-green-600">
                             {KES(receiptSummary.total_paid)}
                           </p>
                           {waiverAmountDue > 0.01 && (
-                            <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                            <p className="text-[10px] text-gray-500 dark:text-slate-400 leading-tight mt-0.5">
                               {KES(cashAmountDuePaid)} cash + {KES(waiverAmountDue)} waived
                             </p>
                           )}
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500">Remaining</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">Remaining</p>
                           <p className="font-bold text-orange-600">
                             {KES(receiptSummary.remaining_balance)}
                           </p>
@@ -850,7 +861,7 @@ function LoanDetails() {
                       {receiptSummary.next_payment_date &&
                         !receiptSummary.is_fully_paid && (
                           <div className="mt-3 pt-3 border-t border-[var(--brand)]/30 text-center">
-                            <p className="text-xs text-gray-500 inline-flex items-center gap-1 justify-center">
+                            <p className="text-xs text-gray-500 dark:text-slate-400 inline-flex items-center gap-1 justify-center">
                               <Calendar size={12} /> Next Payment
                             </p>
                             <p className="font-bold text-lg text-ocean-600">

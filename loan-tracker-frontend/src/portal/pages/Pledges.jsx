@@ -4,7 +4,7 @@ import { Gem, ChevronRight, FileDown, Package, CalendarClock, ClipboardList, Plu
 import PortalLayout from "../components/PortalLayout";
 import portalApi from "../services/portalApi";
 import MpesaPayButton from "../../components/MpesaPayButton";
-import Spinner from "../../components/Spinner";
+import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "—");
@@ -32,26 +32,37 @@ export function PortalPledges() {
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-1 flex items-center gap-2"><Gem className="text-ocean-600" /> My Pledges</h1>
-        <p className="text-sm text-gray-500 mb-6">Items you've pawned and what's left to redeem them.</p>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2"><Gem className="text-ocean-600" /> My Pledges</h1>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">Items you've pawned and what's left to redeem them.</p>
 
         {loading ? (
-          <div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Loading pledges…" /></div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-4 flex items-center gap-4">
+                <Skeleton rounded="rounded-xl" className="w-11 h-11 shrink-0" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="h-5 w-20 shrink-0" />
+              </div>
+            ))}
+          </div>
         ) : error ? (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">{error}</div>
         ) : rows.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-8 text-center text-slate-500">No pledges yet.</div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 text-center text-slate-500 dark:text-slate-400">No pledges yet.</div>
         ) : (
           <div className="space-y-3">
             {rows.map((p) => (
-              <button key={p.id} onClick={() => navigate(`/portal/pledges/${p.id}`)} className="w-full text-left bg-white rounded-xl shadow-md border border-slate-100 p-4 hover:border-ocean-300 transition flex items-center gap-4">
+              <button key={p.id} onClick={() => navigate(`/portal/pledges/${p.id}`)} className="w-full text-left bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-4 hover:border-ocean-300 transition flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-ocean-50 text-ocean-600 flex items-center justify-center shrink-0"><Package size={20} /></div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-800 truncate">{p.item || "Pledged item"}</p>
-                  <p className="text-xs text-slate-500 font-mono">{p.loan_code}{p.overdue && <span className="ml-2 text-red-600 font-semibold">OVERDUE</span>}</p>
+                  <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{p.item || "Pledged item"}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">{p.loan_code}{p.overdue && <span className="ml-2 text-red-600 font-semibold">OVERDUE</span>}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-slate-900">{KES(p.balance)}</p>
+                  <p className="font-bold text-slate-900 dark:text-slate-100">{KES(p.balance)}</p>
                   <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${STATUS[p.status] || "bg-slate-100"}`}>{p.status === "active" ? "to redeem" : p.status}</span>
                 </div>
                 <ChevronRight size={18} className="text-ocean-400 shrink-0" />
@@ -93,7 +104,15 @@ export function PortalPledgeDetail() {
     } catch { alert("Couldn't download the ticket."); } finally { setDownloading(false); }
   };
 
-  if (loading) return <PortalLayout><div className="p-8 max-w-3xl mx-auto"><div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Loading…" /></div></div></PortalLayout>;
+  if (loading) return <PortalLayout><div className="p-4 lg:p-8 max-w-3xl mx-auto">
+    <div className="flex justify-between items-center mb-4"><Skeleton className="h-5 w-32" /><Skeleton className="h-9 w-28" /></div>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 mb-5 flex items-start gap-4">
+      <Skeleton rounded="rounded-xl" className="w-14 h-14 shrink-0" />
+      <div className="flex-1 space-y-2"><Skeleton className="h-5 w-1/2" /><Skeleton className="h-4 w-32" /></div>
+    </div>
+    <Skeleton rounded="rounded-xl" className="h-28 w-full mb-5" />
+    <Skeleton rounded="rounded-xl" className="h-40 w-full" />
+  </div></PortalLayout>;
   if (error || !data) return <PortalLayout><div className="p-8 max-w-3xl mx-auto"><div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error || "Pledge not found"}</div></div></PortalLayout>;
 
   const { loan, collateral, transactions, paid, balance } = data;
@@ -105,36 +124,36 @@ export function PortalPledgeDetail() {
       <div className="p-4 lg:p-8 max-w-3xl mx-auto" style={{ "--brand": brand }}>
         <div className="flex justify-between items-center mb-4">
           <button onClick={() => navigate("/portal/pledges")} className="text-[var(--brand)] font-semibold">← Back to Pledges</button>
-          <button onClick={downloadTicket} disabled={downloading} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={15} /> {downloading ? "…" : "Pawn ticket"}</button>
+          <button onClick={downloadTicket} disabled={downloading} className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={15} /> {downloading ? "…" : "Pawn ticket"}</button>
         </div>
 
         {/* Item card */}
-        <div className="bg-white rounded-xl shadow-md border border-slate-100 p-5 mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 mb-5">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-xl bg-ocean-50 text-ocean-600 flex items-center justify-center shrink-0"><Package size={26} /></div>
             <div className="flex-1">
-              <h1 className="text-xl font-bold text-slate-900">{collateral?.description || "Pledged item"}</h1>
-              <p className="text-sm text-slate-500">{[collateral?.category, collateral?.condition].filter(Boolean).join(" · ") || "—"}</p>
-              <p className="text-xs text-slate-400 font-mono mt-1">{loan.loan_code}</p>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{collateral?.description || "Pledged item"}</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{[collateral?.category, collateral?.condition].filter(Boolean).join(" · ") || "—"}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-400 font-mono mt-1">{loan.loan_code}</p>
             </div>
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS[loan.status] || "bg-slate-100"}`}>{loan.status}</span>
           </div>
           {photos.length > 0 && (
             <div className="flex gap-2 mt-4 overflow-x-auto">
-              {photos.map((src, i) => <img key={i} src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200" />)}
+              {photos.map((src, i) => <img key={i} src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700" />)}
             </div>
           )}
         </div>
 
         {/* Redemption summary */}
-        <div className="bg-white rounded-xl shadow-md border border-slate-100 p-5 mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 mb-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-            <div><p className="text-xs text-slate-500">Borrowed</p><p className="font-bold text-slate-900">{KES(loan.principal_amount)}</p></div>
-            <div><p className="text-xs text-slate-500">Redemption total</p><p className="font-bold text-slate-900">{KES(loan.total_amount_due)}</p></div>
-            <div><p className="text-xs text-slate-500">Paid</p><p className="font-bold text-emerald-700">{KES(paid)}</p></div>
-            <div><p className="text-xs text-slate-500">Balance to redeem</p><p className="font-bold text-slate-900">{KES(balance)}</p></div>
+            <div><p className="text-xs text-slate-500 dark:text-slate-400">Borrowed</p><p className="font-bold text-slate-900 dark:text-slate-100">{KES(loan.principal_amount)}</p></div>
+            <div><p className="text-xs text-slate-500 dark:text-slate-400">Redemption total</p><p className="font-bold text-slate-900 dark:text-slate-100">{KES(loan.total_amount_due)}</p></div>
+            <div><p className="text-xs text-slate-500 dark:text-slate-400">Paid</p><p className="font-bold text-emerald-700">{KES(paid)}</p></div>
+            <div><p className="text-xs text-slate-500 dark:text-slate-400">Balance to redeem</p><p className="font-bold text-slate-900 dark:text-slate-100">{KES(balance)}</p></div>
           </div>
-          <p className="text-xs text-slate-500 mt-4 flex items-center gap-1.5"><CalendarClock size={14} /> Redeem by <strong>{fmt(loan.end_date)}</strong>{collateral?.appraised_value ? ` · appraised at ${KES(collateral.appraised_value)}` : ""}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 flex items-center gap-1.5"><CalendarClock size={14} /> Redeem by <strong>{fmt(loan.end_date)}</strong>{collateral?.appraised_value ? ` · appraised at ${KES(collateral.appraised_value)}` : ""}</p>
 
           {loan.status === "active" && balance > 0 && (
             <div className="mt-4">
@@ -146,24 +165,24 @@ export function PortalPledgeDetail() {
                 buttonText="Redeem with M-Pesa"
                 onSuccess={load}
               />
-              <p className="text-xs text-slate-400 mt-2">Pay the full balance to clear your pledge. Collateral release is completed in person at the shop.</p>
+              <p className="text-xs text-slate-400 dark:text-slate-400 mt-2">Pay the full balance to clear your pledge. Collateral release is completed in person at the shop.</p>
             </div>
           )}
         </div>
 
         {/* Payments */}
-        <div className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100"><h2 className="font-bold text-slate-900">Payments</h2></div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Payments</h2></div>
           {transactions.length === 0 ? (
-            <p className="p-5 text-sm text-slate-500">No payments yet.</p>
+            <p className="p-5 text-sm text-slate-500 dark:text-slate-400">No payments yet.</p>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-5 py-2">Date</th><th className="text-left px-5 py-2">Method</th><th className="text-right px-5 py-2">Amount</th></tr></thead>
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase"><tr><th className="text-left px-5 py-2">Date</th><th className="text-left px-5 py-2">Method</th><th className="text-right px-5 py-2">Amount</th></tr></thead>
               <tbody>
                 {transactions.map((t) => (
-                  <tr key={t.id} className="border-t border-slate-100">
-                    <td className="px-5 py-2 text-slate-600">{fmt(t.payment_date)}</td>
-                    <td className="px-5 py-2 text-slate-600">{t.payment_method || "—"}</td>
+                  <tr key={t.id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-5 py-2 text-slate-600 dark:text-slate-400">{fmt(t.payment_date)}</td>
+                    <td className="px-5 py-2 text-slate-600 dark:text-slate-400">{t.payment_method || "—"}</td>
                     <td className="px-5 py-2 text-right font-semibold text-emerald-700">{KES(t.amount_paid)}</td>
                   </tr>
                 ))}
@@ -210,33 +229,41 @@ export function PortalPawnRequests() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto">
         <div className="flex justify-between items-center mb-1">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList className="text-ocean-600" /> Loan Requests</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><ClipboardList className="text-ocean-600" /> Loan Requests</h1>
           <button onClick={() => setShowNew(true)} className="px-4 py-2 bg-ocean-600 hover:bg-ocean-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><Plus size={15} /> New request</button>
         </div>
-        <p className="text-sm text-gray-500 mb-6">Ask for a loan against an item before bringing it in. The shop reviews and makes you an offer.</p>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">Ask for a loan against an item before bringing it in. The shop reviews and makes you an offer.</p>
 
         {loading ? (
-          <div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Loading…" /></div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-4 space-y-2">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-1/3" />
+              </div>
+            ))}
+          </div>
         ) : rows.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-8 text-center text-slate-500">No requests yet.</div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 text-center text-slate-500 dark:text-slate-400">No requests yet.</div>
         ) : (
           <div className="space-y-3">
             {rows.map((a) => (
-              <div key={a.id} className="bg-white rounded-xl shadow-md border border-slate-100 p-4">
+              <div key={a.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-slate-800">{a.item_description}</p>
-                    <p className="text-xs text-slate-500">{[a.item_category, a.condition].filter(Boolean).join(" · ")}</p>
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="font-semibold text-slate-800 dark:text-slate-100">{a.item_description}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{[a.item_category, a.condition].filter(Boolean).join(" · ")}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                       {a.requested_amount != null ? <>Requested {KES(a.requested_amount)}</> : "No amount specified"}
                       {a.status === "approved" && a.offered_amount != null && <span className="text-emerald-700 font-semibold"> · offer {KES(a.offered_amount)}</span>}
                     </p>
-                    {a.review_notes && <p className="text-xs text-slate-500 mt-1 italic">"{a.review_notes}"</p>}
+                    {a.review_notes && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 italic">"{a.review_notes}"</p>}
                   </div>
                   <div className="text-right shrink-0">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${REQ_STATUS[a.status] || "bg-slate-100"}`}>{a.status}</span>
                     {a.status === "pending" && (
-                      <button onClick={() => withdraw(a.id)} className="block mt-2 ml-auto text-xs text-slate-400 hover:text-red-600 inline-flex items-center gap-1"><Trash2 size={12} /> withdraw</button>
+                      <button onClick={() => withdraw(a.id)} className="block mt-2 ml-auto text-xs text-slate-400 dark:text-slate-400 hover:text-red-600 inline-flex items-center gap-1"><Trash2 size={12} /> withdraw</button>
                     )}
                   </div>
                 </div>
@@ -282,21 +309,21 @@ function NewRequestModal({ onClose, onDone }) {
     try { await portalApi.post("/portal/customer/pawn-applications", { ...form, secured, photos: secured ? photos : [] }); onDone(); }
     catch (err) { setError(err.response?.data?.error || "Failed to submit."); setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">Request a loan</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Request a loan</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setSecured(true)} className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold ${secured ? "border-ocean-500 bg-ocean-50 text-ocean-700" : "border-slate-200 text-slate-700"}`}>Against an item<span className="block text-xs font-normal text-slate-500">Pledge a valuable</span></button>
-            <button type="button" onClick={() => setSecured(false)} className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold ${!secured ? "border-ocean-500 bg-ocean-50 text-ocean-700" : "border-slate-200 text-slate-700"}`}>Cash loan<span className="block text-xs font-normal text-slate-500">No item needed</span></button>
+            <button type="button" onClick={() => setSecured(true)} className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold ${secured ? "border-ocean-500 bg-ocean-50 text-ocean-700" : "border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200"}`}>Against an item<span className="block text-xs font-normal text-slate-500 dark:text-slate-400">Pledge a valuable</span></button>
+            <button type="button" onClick={() => setSecured(false)} className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold ${!secured ? "border-ocean-500 bg-ocean-50 text-ocean-700" : "border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200"}`}>Cash loan<span className="block text-xs font-normal text-slate-500 dark:text-slate-400">No item needed</span></button>
           </div>
           {secured && (
             <>
@@ -310,16 +337,16 @@ function NewRequestModal({ onClose, onDone }) {
                 <div className="flex flex-wrap items-center gap-2">
                   {photos.map((src, i) => (
                     <div key={i} className="relative">
-                      <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
-                      <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white rounded-full border border-gray-200 text-slate-500 hover:text-red-600"><X size={13} /></button>
+                      <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200 dark:border-slate-700" />
+                      <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-gray-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
                     </div>
                   ))}
-                  <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
+                  <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
                     {uploading ? <span className="text-xs">…</span> : <ImagePlus size={20} />}
                     <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { uploadPhotos(e.target.files); e.target.value = ""; }} />
                   </label>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Clear photos help the shop value your item and confirm its condition.</p>
+                <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Clear photos help the shop value your item and confirm its condition.</p>
               </div>
             </>
           )}
@@ -328,7 +355,7 @@ function NewRequestModal({ onClose, onDone }) {
             <div className={secured ? "" : "col-span-2"}><label className={lbl}>Amount wanted (KES){!secured && " *"}</label><input type="number" value={form.requested_amount} onChange={set("requested_amount")} placeholder="30000" className={fld} /></div>
           </div>
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
             <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-ocean-600 hover:bg-ocean-700 text-white font-semibold disabled:opacity-50">{busy ? "Sending…" : "Send request"}</button>
           </div>
         </form>

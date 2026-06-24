@@ -17,7 +17,7 @@ function PasswordInput({ className = "", ...props }) {
         onClick={() => setShow((s) => !s)}
         aria-label={show ? "Hide password" : "Show password"}
         title={show ? "Hide password" : "Show password"}
-        className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+        className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
       >
         {show ? (
           <svg

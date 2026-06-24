@@ -18,7 +18,7 @@ export default function Pager({ page, pageCount, onChange }) {
       <button
         onClick={() => onChange(Math.max(1, page - 1))}
         disabled={page === 1}
-        className="p-2 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50"
+        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700"
         aria-label="Previous page"
       >
         <ChevronLeft size={16} />
@@ -27,11 +27,11 @@ export default function Pager({ page, pageCount, onChange }) {
         <>
           <button
             onClick={() => onChange(1)}
-            className={`${num} text-slate-600 hover:bg-slate-50`}
+            className={`${num} text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700`}
           >
             1
           </button>
-          {from > 2 && <span className="px-1 text-slate-400">…</span>}
+          {from > 2 && <span className="px-1 text-slate-400 dark:text-slate-400">…</span>}
         </>
       )}
       {pages.map((p) => (
@@ -41,7 +41,7 @@ export default function Pager({ page, pageCount, onChange }) {
           className={`${num} ${
             p === page
               ? "bg-ocean-gradient text-white"
-              : "text-slate-600 hover:bg-slate-50"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
           }`}
         >
           {p}
@@ -49,10 +49,10 @@ export default function Pager({ page, pageCount, onChange }) {
       ))}
       {to < pageCount && (
         <>
-          {to < pageCount - 1 && <span className="px-1 text-slate-400">…</span>}
+          {to < pageCount - 1 && <span className="px-1 text-slate-400 dark:text-slate-400">…</span>}
           <button
             onClick={() => onChange(pageCount)}
-            className={`${num} text-slate-600 hover:bg-slate-50`}
+            className={`${num} text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700`}
           >
             {pageCount}
           </button>
@@ -61,7 +61,7 @@ export default function Pager({ page, pageCount, onChange }) {
       <button
         onClick={() => onChange(Math.min(pageCount, page + 1))}
         disabled={page === pageCount}
-        className="p-2 rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50"
+        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700"
         aria-label="Next page"
       >
         <ChevronRight size={16} />
