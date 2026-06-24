@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
-import Spinner from "../../../components/Spinner";
+import Skeleton from "../../../components/Skeleton";
 import { computeLoanTotals } from "../../../utils/loanMath";
 import WelfareDashboardPanel from "../../../components/WelfareDashboardPanel";
 import OfficerBadge from "../../../components/OfficerBadge";
@@ -117,7 +117,22 @@ function Shell({ title, icon: Icon, children }) {
 
 function Loading({ error }) {
   if (error) return <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg">{error}</div>;
-  return <div className="bg-white rounded-xl shadow-md p-12"><Spinner centered label="Loading…" /></div>;
+  // Content-shaped skeleton (brand-neutral) — mirrors the stat strip + list
+  // most member pages render, so content doesn't jump when data lands.
+  return (
+    <div aria-busy="true">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
+      <div className="bg-white rounded-xl shadow-md border border-slate-100 p-4 space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Empty({ children }) {
