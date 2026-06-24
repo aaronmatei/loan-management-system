@@ -7,6 +7,7 @@ import { query } from "../config/database.js";
 import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
+import { loadAgenda, loadMinutes, nextPosition } from "../services/meetingAgendaService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -180,10 +181,69 @@ router.get("/meetings/:meetingId", async (req, res) => {
         WHERE l.meeting_id=$1 AND l.type='payout' LIMIT 1`,
       [m.id],
     )).rows[0] || null;
-    res.json({ success: true, data: { meeting: m, roster: roster.rows, fines, payout } });
+    const agenda = await loadAgenda(m.id);
+    const minutes = await loadMinutes(req.welfare.id, m.id);
+    res.json({ success: true, data: { meeting: m, roster: roster.rows, fines, payout, agenda, minutes } });
   } catch (e) {
     logger.error("welfare meeting get error:", e);
     res.status(500).json({ error: "Failed to load meeting" });
+  }
+});
+
+// ---------------- AGENDA (admin harmonizes — full CRUD on any item) ----------------
+
+// POST /meetings/:meetingId/agenda — add an agenda item (appended to the end).
+router.post("/meetings/:meetingId/agenda", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const m = await loadMeeting(req.welfare.id, req.params.meetingId);
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    const content = String(req.body?.content || "").trim();
+    if (!content) return res.status(400).json({ error: "Agenda item can't be empty" });
+    const r = await query(
+      `INSERT INTO meeting_agenda_items (tenant_id, welfare_id, meeting_id, content, position, suggested_by_user, author_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.welfare.tenant_id, req.welfare.id, m.id, content, await nextPosition(m.id), req.user.id, req.user.name || "Admin"],
+    );
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("agenda add error:", e);
+    res.status(500).json({ error: "Failed to add agenda item" });
+  }
+});
+
+// PUT /meetings/:meetingId/agenda/:itemId — edit/reorder ANY item (harmonize).
+router.put("/meetings/:meetingId/agenda/:itemId", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const m = await loadMeeting(req.welfare.id, req.params.meetingId);
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    const fields = [], params = [req.params.itemId, m.id];
+    if (req.body?.content !== undefined) {
+      const c = String(req.body.content).trim();
+      if (!c) return res.status(400).json({ error: "Agenda item can't be empty" });
+      params.push(c); fields.push(`content = $${params.length}`);
+    }
+    if (req.body?.position !== undefined) { params.push(parseInt(req.body.position, 10) || 0); fields.push(`position = $${params.length}`); }
+    if (!fields.length) return res.status(400).json({ error: "Nothing to update" });
+    const r = await query(`UPDATE meeting_agenda_items SET ${fields.join(", ")}, updated_at=NOW() WHERE id=$1 AND meeting_id=$2 RETURNING *`, params);
+    if (!r.rows.length) return res.status(404).json({ error: "Agenda item not found" });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("agenda edit error:", e);
+    res.status(500).json({ error: "Failed to update agenda item" });
+  }
+});
+
+// DELETE /meetings/:meetingId/agenda/:itemId — remove ANY item.
+router.delete("/meetings/:meetingId/agenda/:itemId", authorize("admin", "manager"), async (req, res) => {
+  try {
+    const m = await loadMeeting(req.welfare.id, req.params.meetingId);
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    const r = await query(`DELETE FROM meeting_agenda_items WHERE id=$1 AND meeting_id=$2 RETURNING id`, [req.params.itemId, m.id]);
+    if (!r.rows.length) return res.status(404).json({ error: "Agenda item not found" });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error("agenda delete error:", e);
+    res.status(500).json({ error: "Failed to delete agenda item" });
   }
 });
 

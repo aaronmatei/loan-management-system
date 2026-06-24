@@ -14,6 +14,7 @@ import { computeWelfareBooks } from "../../services/welfareBooksService.js";
 import { loadContributionsView, loadPlanOverview, loadCycleDetail } from "../welfareContributions.js";
 import { gateLoanWrites } from "../../services/welfareLoanFlag.js";
 import { VISIBILITIES, runDocUpload, storeDocFile, isCloudinaryConfigured, isOfficer, cleanCategory } from "../../services/welfareDocumentService.js";
+import { loadAgenda, loadMinutes, nextPosition } from "../../services/meetingAgendaService.js";
 import { VOTES, decorate, resolveIfDue, finalize, closeOutcome, resolveElectionTarget, electionTitle } from "../../services/welfareDecisionService.js";
 import logger from "../../config/logger.js";
 
@@ -193,8 +194,52 @@ router.get("/meetings/:meetingId", async (req, res) => {
         ORDER BY mem.first_name`,
       [req.welfareId, m.id],
     )).rows;
-    res.json({ success: true, data: { meeting: m, roster } });
+    const agenda = await loadAgenda(m.id);
+    const minutes = await loadMinutes(req.welfareId, m.id);
+    res.json({ success: true, data: { meeting: m, roster, agenda, minutes, my_member_id: req.member.id, can_upload_minutes: req.member.role === "secretary" } });
   } catch (e) { logger.error("member meeting detail error:", e); res.status(500).json({ error: "Failed to load meeting" }); }
+});
+
+// POST /meetings/:meetingId/agenda — a member suggests an agenda item (appended).
+router.post("/meetings/:meetingId/agenda", async (req, res) => {
+  try {
+    const m = (await query(`SELECT id FROM group_meetings WHERE id=$1 AND group_id=$2`, [req.params.meetingId, req.welfareId])).rows[0];
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    if (req.member.status !== "active") return res.status(400).json({ error: "Your membership is not active" });
+    const content = String(req.body?.content || "").trim();
+    if (!content) return res.status(400).json({ error: "Agenda item can't be empty" });
+    const r = await query(
+      `INSERT INTO meeting_agenda_items (tenant_id, welfare_id, meeting_id, content, position, suggested_by_member, author_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.member.tenant_id, req.welfareId, m.id, content, await nextPosition(m.id), req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim()],
+    );
+    res.status(201).json({ success: true, data: r.rows[0] });
+  } catch (e) { logger.error("member agenda add error:", e); res.status(500).json({ error: "Failed to add agenda item" }); }
+});
+
+// PUT/DELETE — a member may change ONLY their own suggestion (admin harmonizes the rest).
+router.put("/meetings/:meetingId/agenda/:itemId", async (req, res) => {
+  try {
+    const content = String(req.body?.content || "").trim();
+    if (!content) return res.status(400).json({ error: "Agenda item can't be empty" });
+    const r = await query(
+      `UPDATE meeting_agenda_items SET content=$1, updated_at=NOW()
+        WHERE id=$2 AND meeting_id=$3 AND suggested_by_member=$4 RETURNING *`,
+      [content, req.params.itemId, req.params.meetingId, req.member.id],
+    );
+    if (!r.rows.length) return res.status(403).json({ error: "You can only edit your own agenda items" });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) { logger.error("member agenda edit error:", e); res.status(500).json({ error: "Failed to update agenda item" }); }
+});
+router.delete("/meetings/:meetingId/agenda/:itemId", async (req, res) => {
+  try {
+    const r = await query(
+      `DELETE FROM meeting_agenda_items WHERE id=$1 AND meeting_id=$2 AND suggested_by_member=$3 RETURNING id`,
+      [req.params.itemId, req.params.meetingId, req.member.id],
+    );
+    if (!r.rows.length) return res.status(403).json({ error: "You can only remove your own agenda items" });
+    res.json({ success: true });
+  } catch (e) { logger.error("member agenda delete error:", e); res.status(500).json({ error: "Failed to delete agenda item" }); }
 });
 
 // GET /books — the welfare's Books of Accounts, same statements the admin sees
@@ -257,6 +302,12 @@ router.get("/documents", async (req, res) => {
 
 router.post("/documents", runDocUpload, async (req, res) => {
   try {
+    const category = cleanCategory(req.body?.category);
+    const meetingId = req.body?.meeting_id ? parseInt(req.body.meeting_id, 10) : null;
+    // Minutes are the secretary's responsibility — only they upload them.
+    if (category === "minutes" && req.member.role !== "secretary") {
+      return res.status(403).json({ error: "Only the secretary can upload meeting minutes." });
+    }
     if (!isCloudinaryConfigured()) return res.status(503).json({ error: "File storage is not configured yet." });
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     const title = String(req.body?.title || "").trim();
@@ -266,12 +317,12 @@ router.post("/documents", runDocUpload, async (req, res) => {
     const url = await storeDocFile(req.file, req.welfareId);
     const r = await query(
       `INSERT INTO welfare_documents
-         (tenant_id, welfare_id, title, category, visibility, file_url, file_name, mime, size_bytes, uploaded_by_member, uploaded_by_name)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+         (tenant_id, welfare_id, title, category, visibility, file_url, file_name, mime, size_bytes, meeting_id, uploaded_by_member, uploaded_by_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [
-        req.member.tenant_id, req.welfareId, title, cleanCategory(req.body?.category), visibility,
+        req.member.tenant_id, req.welfareId, title, category, visibility,
         url, req.file.originalname?.slice(0, 200) || null, req.file.mimetype, req.file.size,
-        req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim(),
+        meetingId, req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim(),
       ],
     );
     res.status(201).json({ success: true, data: r.rows[0] });

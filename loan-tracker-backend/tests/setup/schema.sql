@@ -3389,6 +3389,21 @@ CREATE TABLE public.welfare_documents ( -- migration 097
 );
 CREATE INDEX IF NOT EXISTS idx_welfare_documents_welfare ON public.welfare_documents(welfare_id, created_at DESC);
 
+CREATE TABLE public.meeting_agenda_items ( -- migration 107
+  id                  serial PRIMARY KEY,
+  tenant_id           integer NOT NULL,
+  welfare_id          integer NOT NULL,
+  meeting_id          integer NOT NULL REFERENCES public.group_meetings(id) ON DELETE CASCADE,
+  content             text NOT NULL,
+  position            integer NOT NULL DEFAULT 0,
+  suggested_by_member integer REFERENCES public.members(id) ON DELETE SET NULL,
+  suggested_by_user   integer,
+  author_name         varchar(120),
+  created_at          timestamp NOT NULL DEFAULT NOW(),
+  updated_at          timestamp NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_meeting_agenda_items ON public.meeting_agenda_items(meeting_id, position, id);
+
 CREATE TABLE public.welfare_decisions ( -- migration 098
   id               serial PRIMARY KEY,
   tenant_id        integer NOT NULL,

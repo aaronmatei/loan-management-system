@@ -252,6 +252,100 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
   );
 }
 
+// Agenda items for a meeting. Anyone (admin or member) can suggest one (it's
+// appended). A member may edit/delete only their own; the admin (the non-readOnly
+// caller) may edit/delete any — that's how they harmonize the list.
+function AgendaSection({ client, basePath, meetingId, items, freeText, readOnly, myMemberId, onChange }) {
+  const [adding, setAdding] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const isAdmin = !readOnly;
+  const canEdit = (it) => isAdmin || (myMemberId != null && it.suggested_by_member === myMemberId);
+  const lbl = "text-sm font-semibold text-slate-700 dark:text-slate-200";
+  const fld = "flex-1 px-2 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm";
+  const wrap = async (fn) => { setBusy(true); try { await fn(); await onChange(); } catch (e) { alert(e.response?.data?.error || "Failed."); } finally { setBusy(false); } };
+  const add = () => adding.trim() && wrap(async () => { await client.post(`${basePath}/meetings/${meetingId}/agenda`, { content: adding.trim() }); setAdding(""); });
+  const saveEdit = (id) => editText.trim() && wrap(async () => { await client.put(`${basePath}/meetings/${meetingId}/agenda/${id}`, { content: editText.trim() }); setEditId(null); });
+  const del = (id) => window.confirm("Remove this agenda item?") && wrap(() => client.delete(`${basePath}/meetings/${meetingId}/agenda/${id}`));
+  return (
+    <div className="mb-4 border-t border-slate-100 dark:border-slate-700 pt-3">
+      <p className={`${lbl} mb-2`}>Agenda{items.length ? ` (${items.length})` : ""}</p>
+      {freeText && <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 italic">{freeText}</p>}
+      {items.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-400 mb-1">No agenda items yet{isAdmin ? "" : " — suggest one below"}.</p>}
+      <ol className="space-y-1.5">
+        {items.map((it, i) => (
+          <li key={it.id} className="flex items-start gap-2 text-sm">
+            <span className="text-slate-400 dark:text-slate-500 w-4 shrink-0">{i + 1}.</span>
+            {editId === it.id ? (
+              <span className="flex-1 flex gap-2">
+                <input value={editText} onChange={(e) => setEditText(e.target.value)} className={fld} autoFocus />
+                <button onClick={() => saveEdit(it.id)} disabled={busy} className="text-xs font-semibold text-emerald-700">Save</button>
+                <button onClick={() => setEditId(null)} className="text-xs text-slate-400">Cancel</button>
+              </span>
+            ) : (
+              <>
+                <span className="flex-1 text-slate-800 dark:text-slate-100">{it.content} {it.author_name && <span className="text-xs text-slate-400 dark:text-slate-500">— {it.author_name}</span>}</span>
+                {canEdit(it) && (
+                  <span className="flex gap-2 shrink-0">
+                    <button onClick={() => { setEditId(it.id); setEditText(it.content); }} className="text-xs text-indigo-600 hover:text-indigo-800">edit</button>
+                    <button onClick={() => del(it.id)} className="text-xs text-rose-600 hover:text-rose-800">remove</button>
+                  </span>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ol>
+      <div className="flex gap-2 mt-2">
+        <input value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={isAdmin ? "Add an agenda item" : "Suggest an agenda item"} className={fld} />
+        <button onClick={add} disabled={busy || !adding.trim()} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-50">{isAdmin ? "Add" : "Suggest"}</button>
+      </div>
+    </div>
+  );
+}
+
+// Meeting minutes = welfare_documents linked to the meeting (category 'minutes').
+// Admin uploads from the admin app; on the member portal only the secretary can.
+function MinutesSection({ client, basePath, meetingId, minutes, readOnly, canUploadMinutes, onChange }) {
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const canUpload = !readOnly || canUploadMinutes;
+  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" }) : "");
+  const upload = async () => {
+    if (!title.trim() || !file) { alert("Add a title and choose a file."); return; }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("title", title.trim()); fd.append("category", "minutes"); fd.append("meeting_id", String(meetingId)); fd.append("file", file);
+      await client.post(`${basePath}/documents`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setTitle(""); setFile(null); await onChange();
+    } catch (e) { alert(e.response?.data?.error || "Failed to upload minutes."); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mb-4 border-t border-slate-100 dark:border-slate-700 pt-3">
+      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Minutes{minutes.length ? ` (${minutes.length})` : ""}</p>
+      {minutes.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-400 mb-1">No minutes uploaded yet.</p>}
+      <div className="space-y-1">
+        {minutes.map((d) => (
+          <div key={d.id} className="flex items-center justify-between text-sm">
+            <span className="text-slate-700 dark:text-slate-200 truncate">{d.title} <span className="text-xs text-slate-400 dark:text-slate-500">· {d.uploaded_by_name || "—"} · {fmtDate(d.created_at)}</span></span>
+            <a href={d.file_url} target="_blank" rel="noreferrer" className="text-emerald-700 hover:text-emerald-900 font-semibold text-sm shrink-0 ml-2">Open</a>
+          </div>
+        ))}
+      </div>
+      {canUpload && (
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Minutes title" className="px-2 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm" />
+          <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-xs text-slate-600 dark:text-slate-400 file:mr-2 file:px-2 file:py-1 file:rounded file:border-0 file:bg-emerald-50 file:text-emerald-700 file:font-semibold" />
+          <button onClick={upload} disabled={busy} className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-50">{busy ? "Uploading…" : "Upload minutes"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // A meeting's full detail: info + the attendance roster (markable) + the fines it
 // raised + any pool payout handed out at it.
 function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = api, basePath = `/welfares/${welfareId}`, readOnly = false }) {
@@ -302,13 +396,14 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
         <span><span className="text-slate-400 dark:text-slate-400">Location</span> {m.location || "Home"}</span>
         <span><span className="text-slate-400 dark:text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
       </div>
-      {m.agenda && <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-2">{m.agenda}</p>}
-
       {data?.payout && (
         <div className="mb-4 flex items-center gap-2 text-sm bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
           <Gift size={15} className="text-violet-600" /> Handed out <span className="font-semibold">{money(data.payout.amount)}</span> to {data.payout.first_name} {data.payout.last_name}
         </div>
       )}
+
+      {!loading && data && <AgendaSection client={client} basePath={basePath} meetingId={row.id} items={data.agenda || []} freeText={m.agenda} readOnly={readOnly} myMemberId={data.my_member_id} onChange={load} />}
+      {!loading && data && <MinutesSection client={client} basePath={basePath} meetingId={row.id} minutes={data.minutes || []} readOnly={readOnly} canUploadMinutes={data.can_upload_minutes} onChange={load} />}
 
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Attendance</p>
