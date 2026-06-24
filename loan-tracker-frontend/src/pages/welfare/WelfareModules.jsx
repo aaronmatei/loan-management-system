@@ -28,12 +28,15 @@ import { formatKES } from "../../utils/money";
 // Welfare module figures keep 2-dp precision; delegate to the shared formatter.
 const money = (v) => formatKES(v, 2);
 
-// Standard page wrapper: the welfare name as context + the module title.
-function Page({ title, children }) {
+// Standard page wrapper. Every welfare module page leads with the welfare's
+// own name (in brand colour); the module title is carried by the panel/section
+// header below, so we don't repeat it as a big page title. `title` is accepted
+// for clarity at call sites but not rendered.
+function Page({ children }) {
   const { welfare } = useWelfare();
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
-      <PageHeader title={title} subtitle={welfare.name} />
+      <PageHeader title={<span className="text-ocean-600 dark:text-ocean-300">{welfare?.name || "Welfare"}</span>} />
       {children}
     </div>
   );
@@ -41,14 +44,7 @@ function Page({ title, children }) {
 
 export function WelfareDashboardPage() {
   const { welfareId, welfare } = useWelfare();
-  // Dashboard leads with the welfare's own name (in brand colour) — the panel
-  // below already carries the "Dashboard" label, so no redundant page title.
-  return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
-      <PageHeader title={<span className="text-ocean-600 dark:text-ocean-300">{welfare?.name || "Welfare"}</span>} />
-      <WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} manage linkBase="/welfare" />
-    </div>
-  );
+  return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} manage linkBase="/welfare" /></Page>;
 }
 export function WelfareMembersPage() {
   const { welfareId } = useWelfare();
