@@ -35,6 +35,7 @@ export default function MemberDetail() {
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
   const [exiting, setExiting] = useState(false);
   const [portalLinked, setPortalLinked] = useState(false);
+  const [portalPassword, setPortalPassword] = useState(null);
   const [inviting, setInviting] = useState(false);
   const [exemptBusy, setExemptBusy] = useState(false);
 
@@ -114,6 +115,7 @@ export default function MemberDetail() {
       setSavings(r.data.data.savings_balance);
       setTxns(r.data.data.transactions || []);
       setPortalLinked(!!r.data.data.portal_linked);
+      setPortalPassword(r.data.data.portal_password || null);
       setPoolBalance(p.data?.data?.balance ?? 0);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load member");
@@ -227,6 +229,18 @@ export default function MemberDetail() {
           </div>
         </PermissionGate>
       )}
+
+      {/* Admin-only login hint — tells staff which credential FORMAT the member
+          should use (never the actual password). Highlighted when the member
+          came from another lender and so has an ID-based default. */}
+      <PermissionGate role={["admin", "manager", "loan_officer"]}>
+        {portalPassword && portalPassword.status !== "active" && (
+          <div className={`mb-6 flex items-start gap-2 rounded-lg px-4 py-3 text-sm border ${portalPassword.status === "lender_default" ? "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200" : "bg-sky-50 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 text-sky-800 dark:text-sky-200"}`}>
+            <Smartphone size={16} className="mt-0.5 shrink-0" />
+            <span><span className="font-semibold">Login help:</span> {portalPassword.label}</span>
+          </div>
+        )}
+      </PermissionGate>
 
       {activity && (
         <MemberActivity activity={activity} year={year} setYear={setYear} money={money} fmt={fmt}>
