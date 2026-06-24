@@ -51,24 +51,17 @@ async function loadMember(welfareId, id) {
   return r.rows[0] || null;
 }
 
-// Admin-only guidance on which credential a member should log in with. Returns
-// a status + human label describing the FORMAT only — never the actual password.
-// The tricky case: a member whose platform account already existed at a lender
-// has an ID-based default (initials + ID number + @year), NOT the phone-based
-// one staff use for chama-created members — so staff would otherwise tell them
-// the wrong thing.
+// Admin-only onboarding status for a member's portal login. Reports only what
+// can be known for certain — whether an account exists, whether a temp password
+// was issued, and whether they've ever signed in. It deliberately does NOT
+// assert a password FORMAT: the hash can't be inspected, and accounts have been
+// seeded/set with different conventions (phone-based, ID-based, manual), so
+// guessing the format misleads. When in doubt, staff should RESET the password.
 async function memberPasswordStatus(memberId) {
   const r = await query(
     `SELECT pc.must_change_password,
             (pc.password_hash IS NOT NULL) AS has_password,
-            (pc.last_login IS NOT NULL)    AS has_logged_in,
-            EXTRACT(YEAR FROM pc.created_at)::int AS account_year,
-            EXISTS (
-              SELECT 1 FROM customer_tenant_links l2
-              JOIN tenants t2 ON t2.id = l2.tenant_id
-              WHERE l2.platform_customer_id = pc.id
-                AND t2.kind = 'lender' AND l2.client_id IS NOT NULL
-            ) AS has_lender_account
+            (pc.last_login IS NOT NULL)    AS has_logged_in
        FROM customer_tenant_links ctl
        JOIN platform_customers pc ON pc.id = ctl.platform_customer_id
       WHERE ctl.member_id = $1
@@ -83,18 +76,11 @@ async function memberPasswordStatus(memberId) {
     return { status: "active", label: "Active — the member manages their own password." };
   }
   if (a.must_change_password) {
-    return { status: "temp", label: "Temporary password was sent to them by SMS; they set their own at first login." };
-  }
-  const yr = a.account_year || new Date().getFullYear();
-  if (a.has_lender_account) {
-    return {
-      status: "lender_default",
-      label: `This member already had an account with another lender, so their starting password is their initials + ID number + @${yr} (e.g. Jd12345678@${yr}) — NOT their phone number. Share that format with them privately.`,
-    };
+    return { status: "temp", label: "A temporary password was sent to them by SMS; they set their own at first login." };
   }
   return {
-    status: "set_default",
-    label: "Has a starting password but hasn't logged in yet. If they can't get in, reset their password from their profile.",
+    status: "set",
+    label: "Has a login but hasn't signed in yet. If they don't know their password, reset it for them rather than guessing.",
   };
 }
 
