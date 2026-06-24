@@ -126,7 +126,7 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                             className={`px-2 py-0.5 rounded-full text-xs font-semibold ${m.quorum_met ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
                             title={`Quorum needs ${m.quorum_needed} of ${m.quorum_base} members`}
                           >
-                            {Number(m.confirmed_count)}/{m.quorum_needed} confirmed{m.quorum_met ? " · quorum met" : ""}
+                            {Number(m.confirmed_count)} confirmed{m.quorum_met ? " · quorum met" : ""}
                           </span>
                           {memberConfirm && (
                             <div className="flex gap-1">
