@@ -41,7 +41,14 @@ function Page({ title, children }) {
 
 export function WelfareDashboardPage() {
   const { welfareId, welfare } = useWelfare();
-  return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} manage linkBase="/welfare" /></Page>;
+  // Dashboard leads with the welfare's own name (in brand colour) — the panel
+  // below already carries the "Dashboard" label, so no redundant page title.
+  return (
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
+      <PageHeader title={<span className="text-ocean-600 dark:text-ocean-300">{welfare?.name || "Welfare"}</span>} />
+      <WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} manage linkBase="/welfare" />
+    </div>
+  );
 }
 export function WelfareMembersPage() {
   const { welfareId } = useWelfare();
