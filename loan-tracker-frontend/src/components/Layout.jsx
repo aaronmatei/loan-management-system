@@ -153,25 +153,62 @@ const navGroups = [
 
 // A welfare account (tenant.kind === 'welfare') gets a focused, welfare-only
 // sidebar — none of the lender workflow (clients, loans, capital, billing).
+// Dashboard + Members stay top-level (most-used); everything else is grouped
+// into collapsible sections so the welfare sidebar isn't one long list.
 const WELFARE_STANDALONE = [
   { path: "/welfare", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", permission: "loans:view", exact: true },
   { path: "/welfare/members", label: "Members", icon: Users, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/contributions", label: "Contributions", icon: Coins, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/events", label: "Events & Emergencies", icon: HeartHandshake, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/loans", label: "Loans", icon: HandCoins, variant: "ocean", permission: "loans:view", requiresLoans: true },
-  { path: "/welfare/penalties", label: "Penalties", icon: AlertTriangle, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/documents", label: "Documents", icon: FileText, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/decisions", label: "Decisions", icon: Gavel, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/requests", label: "Requests", icon: ClipboardList, variant: "ocean", permission: "loans:view", badgeKey: "welfareRequests" },
-  { path: "/welfare/dividends", label: "Dividends", icon: Gift, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/expenses", label: "Expenses", icon: Receipt, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/mpesa", label: "M-Pesa", icon: Smartphone, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/sms", label: "SMS", icon: MessageSquare, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/reports", label: "Reports", icon: BarChart3, variant: "ocean", permission: "loans:view" },
-  { path: "/welfare/books", label: "Books of Accounts", icon: BookOpen, variant: "ocean", permission: "loans:view" },
 ];
 const WELFARE_GROUPS = [
+  {
+    id: "w-contributions",
+    label: "Contributions & Payouts",
+    variant: "ocean",
+    items: [
+      { path: "/welfare/contributions", label: "Contributions", icon: Coins, permission: "loans:view" },
+      { path: "/welfare/events", label: "Events & Emergencies", icon: HeartHandshake, permission: "loans:view" },
+      { path: "/welfare/dividends", label: "Dividends", icon: Gift, permission: "loans:view" },
+    ],
+  },
+  {
+    id: "w-loans",
+    label: "Loans & Requests",
+    variant: "amber",
+    items: [
+      { path: "/welfare/loans", label: "Loans", icon: HandCoins, permission: "loans:view", requiresLoans: true },
+      { path: "/welfare/requests", label: "Requests", icon: ClipboardList, permission: "loans:view", badgeKey: "welfareRequests" },
+    ],
+  },
+  {
+    id: "w-governance",
+    label: "Governance",
+    variant: "indigo",
+    items: [
+      { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, permission: "loans:view" },
+      { path: "/welfare/decisions", label: "Decisions", icon: Gavel, permission: "loans:view" },
+      { path: "/welfare/documents", label: "Documents", icon: FileText, permission: "loans:view" },
+      { path: "/welfare/penalties", label: "Penalties", icon: AlertTriangle, permission: "loans:view" },
+    ],
+  },
+  {
+    id: "w-finance",
+    label: "Finance & Reports",
+    variant: "teal",
+    items: [
+      { path: "/welfare/mpesa", label: "M-Pesa", icon: Smartphone, permission: "loans:view" },
+      { path: "/welfare/expenses", label: "Expenses", icon: Receipt, permission: "loans:view" },
+      { path: "/welfare/reports", label: "Reports", icon: BarChart3, permission: "loans:view" },
+      { path: "/welfare/books", label: "Books of Accounts", icon: BookOpen, permission: "loans:view" },
+    ],
+  },
+  {
+    id: "w-comms",
+    label: "Communications",
+    variant: "rose",
+    items: [
+      { path: "/welfare/sms", label: "SMS", icon: MessageSquare, permission: "loans:view" },
+    ],
+  },
   {
     id: "account",
     label: "Account",
@@ -289,7 +326,9 @@ function Layout({ children }) {
   const visibleGroups = baseGroups
     .map((g) => ({
       ...g,
-      items: g.items.filter((it) => itemVisible(it, user?.role)),
+      items: g.items
+        .filter((it) => itemVisible(it, user?.role))
+        .filter((it) => !it.requiresLoans || welfareLoansOn), // hide Loans when the switch is off
     }))
     .filter((g) => g.items.length > 0);
 
