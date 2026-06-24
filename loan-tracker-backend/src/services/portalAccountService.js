@@ -26,14 +26,26 @@ function normalizePhone(phone) {
   return "+" + c;
 }
 
-// Per-client default portal password, e.g. John Doe + ID 29094964 ->
-// "Jd29094964@2026". Staff share it with the client, who resets on first login.
-// Falls back to the shared default when name/ID are missing.
+// Phone digits in the local 0-prefixed form used in default passwords:
+// "+254708750249" / "254708750249" / "708750249" -> "0708750249".
+function localPhoneDigits(phone) {
+  if (!phone) return "";
+  let c = String(phone).replace(/\D/g, "");
+  if (c.startsWith("254")) c = "0" + c.slice(3);
+  else if (c.length === 9) c = "0" + c; // bare 7XXXXXXXX
+  return c;
+}
+
+// Per-client default portal password, e.g. John Doe + phone 0712345678 ->
+// "Jd0712345678@2026". Staff share it with the client, who resets on first
+// login. Uses the PHONE (not ID) so it matches the convention members already
+// use across the platform. Falls back to the shared default when name/phone are
+// missing.
 function clientDefaultPassword(client) {
   const fi = (client.first_name || "").trim().charAt(0).toUpperCase();
   const li = (client.last_name || "").trim().charAt(0).toLowerCase();
-  const id = (client.id_number || "").replace(/\s/g, "");
-  if (fi && li && id) return `${fi}${li}${id}@${new Date().getFullYear()}`;
+  const phone = localPhoneDigits(client.phone_number);
+  if (fi && li && phone) return `${fi}${li}${phone}@${new Date().getFullYear()}`;
   return DEFAULT_PORTAL_PASSWORD;
 }
 
