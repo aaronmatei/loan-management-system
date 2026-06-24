@@ -327,20 +327,26 @@ function Profile() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
-          <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-2 flex items-center gap-1.5"><FileText size={18} /> Statements</h2>
-          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-            Download your full account statement at{" "}
-            {client?.tenant_name || "this lender"}.
-          </p>
-          <button
-            onClick={downloadStatement}
-            disabled={dl}
-            className="px-4 py-2 bg-[var(--brand)] hover:brightness-95 text-white rounded-lg font-semibold disabled:opacity-50"
-          >
-            {dl ? "Preparing…" : <span className="inline-flex items-center gap-1.5"><Download size={15} /> Download Account Statement</span>}
-          </button>
-        </div>
+        {/* Borrower account statement — only for customers who actually have a
+            lender (client) record. A pure welfare/chama member has no borrower
+            account here, so this PDF would 404; they get their statement from
+            the member dashboard instead. */}
+        {client && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
+            <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-2 flex items-center gap-1.5"><FileText size={18} /> Statements</h2>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+              Download your full account statement at{" "}
+              {client?.tenant_name || "this lender"}.
+            </p>
+            <button
+              onClick={downloadStatement}
+              disabled={dl}
+              className="px-4 py-2 bg-[var(--brand)] hover:brightness-95 text-white rounded-lg font-semibold disabled:opacity-50"
+            >
+              {dl ? "Preparing…" : <span className="inline-flex items-center gap-1.5"><Download size={15} /> Download Account Statement</span>}
+            </button>
+          </div>
+        )}
 
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
           <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-4 flex items-center gap-1.5"><Lock size={18} /> Security</h2>
