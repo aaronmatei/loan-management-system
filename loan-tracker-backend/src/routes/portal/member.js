@@ -158,6 +158,19 @@ const FINE_LABELS = {
 };
 const titleize = (s) => (s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+// From the MEMBER's perspective (not the pool's): "in" = money the member
+// received, "out" = money the member paid. Pool `direction` is pool-centric
+// (a contribution is +1 into the pool but the member PAID it), so map by type.
+const MEMBER_IN = new Set(["withdrawal", "dividend", "loan_disbursed", "payout"]);
+const MEMBER_OUT = new Set(["contribution", "loan_repayment", "loan_interest", "loan_penalty"]);
+function memberFlow(type, direction) {
+  if (type === "penalty") return direction < 0 ? "in" : "out"; // refund vs payment
+  if (MEMBER_IN.has(type)) return "in";
+  if (MEMBER_OUT.has(type)) return "out";
+  if (type === "adjustment") return direction > 0 ? "in" : "out"; // credit vs debit
+  return direction > 0 ? "out" : "in"; // fallback: pool +1 ⇒ member paid in
+}
+
 router.get("/ledger", async (req, res) => {
   try {
     const mid = req.member.id;
@@ -192,15 +205,15 @@ router.get("/ledger", async (req, res) => {
         t.type === "penalty"
           ? Number(t.direction) < 0 ? "Fine reversal (refund)" : "Penalty payment"
           : CASH_LABELS[t.type] || titleize(t.type);
-      rows.push({ kind: "cash", source: "savings", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+      rows.push({ kind: "cash", source: "savings", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
     }
     for (const t of benefit.rows) {
       const label = `${CASH_LABELS[t.type] || titleize(t.type)} (benefit)`;
-      rows.push({ kind: "cash", source: "benefit", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+      rows.push({ kind: "cash", source: "benefit", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
     }
     for (const t of events.rows) {
       const label = `${CASH_LABELS[t.type] || titleize(t.type)} (event)`;
-      rows.push({ kind: "cash", source: "event", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+      rows.push({ kind: "cash", source: "event", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
     }
     for (const f of fines.rows) {
       if (f.status === "reversed") continue; // the refund already shows on the savings side

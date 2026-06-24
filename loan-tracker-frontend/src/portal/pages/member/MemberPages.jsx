@@ -393,8 +393,10 @@ const FINE_BADGE = {
 export function MemberLedger() {
   const { data, loading, error } = useFetch("/welfare/member/ledger");
   const txns = data?.transactions || [];
-  const totalIn = txns.filter((t) => t.kind === "cash" && t.direction > 0).reduce((s, t) => s + t.amount, 0);
-  const totalOut = txns.filter((t) => t.kind === "cash" && t.direction < 0).reduce((s, t) => s + t.amount, 0);
+  // "flow" is the MEMBER's perspective: in = money they received, out = money
+  // they paid (a contribution is +1 into the pool but it's money the member paid).
+  const totalIn = txns.filter((t) => t.kind === "cash" && t.flow === "in").reduce((s, t) => s + t.amount, 0);
+  const totalOut = txns.filter((t) => t.kind === "cash" && t.flow === "out").reduce((s, t) => s + t.amount, 0);
   return (
     <Shell title="Full ledger" icon={ClipboardList}>
       {loading || error || !data ? <Loading error={error} /> : (
@@ -422,7 +424,7 @@ export function MemberLedger() {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${FINE_BADGE[t.status] || FINE_BADGE.outstanding}`}>{t.status}</span>
                       </span>
                     ) : (
-                      <span className={`font-semibold ${t.direction > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{t.direction > 0 ? "+" : "−"}{KES(t.amount)}</span>
+                      <span className={`font-semibold ${t.flow === "in" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{t.flow === "in" ? "+" : "−"}{KES(t.amount)}</span>
                     )}
                   </td>
                 </tr>
