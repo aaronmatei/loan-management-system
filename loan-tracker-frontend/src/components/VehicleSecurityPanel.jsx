@@ -91,9 +91,9 @@ export default function VehicleSecurityPanel({ loanId, loanCode, loanStatus, onC
     : "";
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+        <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Car size={18} className="text-sky-600" /> Vehicle Security (Logbook)
         </h3>
         {vehicle && (
@@ -108,10 +108,10 @@ export default function VehicleSecurityPanel({ loanId, loanCode, loanStatus, onC
 
       <div className="p-5">
         {loading ? (
-          <p className="text-sm text-slate-500">Loading vehicle…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading vehicle…</p>
         ) : !vehicle ? (
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               No vehicle on file yet for this logbook loan.
             </p>
             <PermissionGate role={["admin", "manager", "loan_officer"]}>
@@ -127,8 +127,8 @@ export default function VehicleSecurityPanel({ loanId, loanCode, loanStatus, onC
           <>
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <p className="text-lg font-bold text-slate-900">{vehicleName}</p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-600">
+                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{vehicleName}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-600 dark:text-slate-400">
                   <span className="font-mono font-semibold">
                     {vehicle.registration_number}
                   </span>
@@ -150,29 +150,29 @@ export default function VehicleSecurityPanel({ loanId, loanCode, loanStatus, onC
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-500">Valuation</p>
-                <p className="font-bold text-slate-900">{money(vehicle.valuation)}</p>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Valuation</p>
+                <p className="font-bold text-slate-900 dark:text-slate-100">{money(vehicle.valuation)}</p>
               </div>
               {vehicle.logbook_number && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs text-slate-500">Logbook no.</p>
-                  <p className="font-bold text-slate-900 font-mono text-xs">
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Logbook no.</p>
+                  <p className="font-bold text-slate-900 dark:text-slate-100 font-mono text-xs">
                     {vehicle.logbook_number}
                   </p>
                 </div>
               )}
               {vehicle.chassis_number && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs text-slate-500">Chassis</p>
-                  <p className="font-bold text-slate-900 font-mono text-xs">
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Chassis</p>
+                  <p className="font-bold text-slate-900 dark:text-slate-100 font-mono text-xs">
                     {vehicle.chassis_number}
                   </p>
                 </div>
               )}
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-500">Logbook</p>
-                <p className="font-bold text-slate-900">
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Logbook</p>
+                <p className="font-bold text-slate-900 dark:text-slate-100">
                   {vehicle.logbook_held ? "Held by lender" : "With borrower"}
                 </p>
               </div>
@@ -281,8 +281,8 @@ function VehicleFormModal({ loanId, existing, onClose, onSaved }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-sky-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-sky-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <div
@@ -290,17 +290,17 @@ function VehicleFormModal({ loanId, existing, onClose, onSaved }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-xl my-8"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl my-8"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Car size={18} className="text-sky-600" />
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {existing ? "Edit Vehicle" : "Add Vehicle"}
             </h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">
             <X size={20} />
           </button>
         </div>
@@ -386,7 +386,7 @@ function VehicleFormModal({ loanId, existing, onClose, onSaved }) {
               className={fld}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
             <input
               type="checkbox"
               checked={!!form.logbook_held}
@@ -398,7 +398,7 @@ function VehicleFormModal({ loanId, existing, onClose, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -424,21 +424,21 @@ function ConfirmModal({ kind, loanCode, busy, onCancel, onConfirm }) {
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-12"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-12"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           {isRelease ? (
             <ShieldCheck size={18} className="text-emerald-600" />
           ) : (
             <KeyRound size={18} className="text-red-600" />
           )}
-          <h3 className="text-lg font-bold text-slate-900">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             {isRelease ? "Release Lien" : "Repossess Vehicle"}
           </h3>
         </div>
         <div className="p-5 space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             {isRelease ? (
               <>
                 Confirm the loan <strong>{loanCode}</strong> is settled. The lien is
@@ -454,7 +454,7 @@ function ConfirmModal({ kind, loanCode, busy, onCancel, onConfirm }) {
           <div className="flex justify-end gap-3">
             <button
               onClick={onCancel}
-              className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>

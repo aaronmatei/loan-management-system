@@ -206,12 +206,12 @@ export default function PeriodNavigator({
 
   return (
     <div
-      className={`inline-flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-2 py-1.5 shadow-sm ${className}`}
+      className={`inline-flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-2 py-1.5 shadow-sm ${className}`}
     >
       {/* Mode toggle — hidden when only one mode is allowed. */}
       {showModeToggle && (
         <>
-          <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
+          <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-700 p-0.5">
             {[
               { v: "month", l: "Month" },
               { v: "year", l: "Year" },
@@ -224,8 +224,8 @@ export default function PeriodNavigator({
                   onClick={() => switchMode(t.v)}
                   className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
                     value.mode === t.v
-                      ? "bg-white text-ocean-700 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-white dark:bg-slate-800 text-ocean-700 shadow-sm"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                   }`}
                 >
                   {t.l}
@@ -233,7 +233,7 @@ export default function PeriodNavigator({
               ))}
           </div>
 
-          <div className="w-px h-5 bg-slate-200" />
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
         </>
       )}
 
@@ -241,7 +241,7 @@ export default function PeriodNavigator({
       <button
         type="button"
         onClick={() => onChange(steppedPeriod(value, -1))}
-        className="p-1 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
+        className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 transition"
         title={value.mode === "year" ? "Previous year" : "Previous month"}
       >
         <ChevronLeft size={16} />
@@ -249,7 +249,7 @@ export default function PeriodNavigator({
 
       {/* Native picker — month or year */}
       <div className="inline-flex items-center gap-1.5">
-        <Calendar size={14} className="text-slate-400" />
+        <Calendar size={14} className="text-slate-400 dark:text-slate-400" />
         {value.mode === "year" ? (
           <input
             type="number"
@@ -260,7 +260,7 @@ export default function PeriodNavigator({
               e.target.value &&
               onChange({ mode: "year", value: e.target.value })
             }
-            className="w-16 text-sm font-semibold text-slate-800 bg-transparent focus:outline-none"
+            className="w-16 text-sm font-semibold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none"
           />
         ) : (
           <input
@@ -270,7 +270,7 @@ export default function PeriodNavigator({
               e.target.value &&
               onChange({ mode: "month", value: e.target.value })
             }
-            className="text-sm font-semibold text-slate-800 bg-transparent focus:outline-none"
+            className="text-sm font-semibold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none"
           />
         )}
       </div>
@@ -280,7 +280,7 @@ export default function PeriodNavigator({
         type="button"
         onClick={() => onChange(steppedPeriod(value, +1))}
         disabled={forwardDisabled}
-        className="p-1 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
         title={
           forwardDisabled
             ? "Already at the current period"

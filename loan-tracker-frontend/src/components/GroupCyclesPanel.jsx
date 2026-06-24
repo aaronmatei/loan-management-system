@@ -40,9 +40,9 @@ export default function GroupCyclesPanel({ groupId, onChange }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
       <div className="bg-amber-50 px-5 py-3 border-b border-amber-100 flex items-center justify-between">
-        <h2 className="font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <RefreshCw size={18} className="text-amber-600" /> Lending Cycles
         </h2>
         <PermissionGate role={["admin", "manager"]}>
@@ -57,15 +57,15 @@ export default function GroupCyclesPanel({ groupId, onChange }) {
 
       <div className="p-5">
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
         ) : cycles.length === 0 ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             No cycles yet. Open a cycle to group a round of member loans.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-4 py-2">#</th>
                   <th className="text-left px-4 py-2">Name</th>
@@ -78,10 +78,10 @@ export default function GroupCyclesPanel({ groupId, onChange }) {
               </thead>
               <tbody>
                 {cycles.map((c) => (
-                  <tr key={c.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-semibold text-slate-800">{c.cycle_number}</td>
-                    <td className="px-4 py-2 text-slate-700">{c.name}</td>
-                    <td className="px-4 py-2 text-slate-600">
+                  <tr key={c.id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">{c.cycle_number}</td>
+                    <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{c.name}</td>
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
                       {fmt(c.start_date)} – {fmt(c.end_date)}
                     </td>
                     <td className="px-4 py-2 text-right">{c.loan_count}</td>
@@ -102,7 +102,7 @@ export default function GroupCyclesPanel({ groupId, onChange }) {
                         <PermissionGate role={["admin", "manager"]}>
                           <button
                             onClick={() => close(c)}
-                            className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 text-sm font-semibold"
+                            className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1 text-sm font-semibold"
                           >
                             <Lock size={14} /> Close
                           </button>
@@ -151,15 +151,15 @@ function NewCycleModal({ groupId, onClose, onCreated }) {
     }
   };
 
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">New Lending Cycle</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">New Lending Cycle</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">
             <X size={20} />
           </button>
         </div>
@@ -170,7 +170,7 @@ function NewCycleModal({ groupId, onClose, onCreated }) {
             </div>
           )}
           <div>
-            <label className={lbl}>Name <span className="text-gray-500 font-normal">(optional)</span></label>
+            <label className={lbl}>Name <span className="text-gray-500 dark:text-slate-400 font-normal">(optional)</span></label>
             <input value={form.name} onChange={set("name")} placeholder="e.g. Q1 2026" className={fld} />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -184,7 +184,7 @@ function NewCycleModal({ groupId, onClose, onCreated }) {
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">
               Cancel
             </button>
             <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50">

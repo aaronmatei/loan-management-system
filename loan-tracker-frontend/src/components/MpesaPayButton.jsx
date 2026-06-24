@@ -115,15 +115,15 @@ function MpesaPayButton({
 
       {open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg">Pay with M-Pesa</h3>
+              <h3 className="font-bold text-lg dark:text-slate-100">Pay with M-Pesa</h3>
               <button
                 onClick={() => {
                   reset();
                   setOpen(false);
                 }}
-                className="text-gray-400 text-xl"
+                className="text-gray-400 dark:text-slate-400 text-xl"
                 aria-label="Close"
               >
                 ×
@@ -132,8 +132,8 @@ function MpesaPayButton({
 
             {amountLabel && (
               <div className="text-center mb-4">
-                <p className="text-xs text-gray-500 uppercase">Amount</p>
-                <p className="text-3xl font-bold text-gray-800">{amountLabel}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">Amount</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-slate-100">{amountLabel}</p>
               </div>
             )}
 
@@ -147,7 +147,7 @@ function MpesaPayButton({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0712345678"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-green-500 mb-3"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-green-500 mb-3"
                 />
                 {message && stage === "failed" && (
                   <p className="text-sm text-red-600 mb-3">{message}</p>
@@ -159,7 +159,7 @@ function MpesaPayButton({
                 >
                   <Smartphone size={16} /> Send STK Push
                 </button>
-                <p className="text-xs text-gray-400 text-center mt-3">
+                <p className="text-xs text-gray-400 dark:text-slate-400 text-center mt-3">
                   A prompt will appear on your phone. Enter your M-Pesa PIN to
                   confirm.
                 </p>
@@ -169,7 +169,7 @@ function MpesaPayButton({
             {stage === "sending" && (
               <div className="text-center py-6">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto mb-3"></div>
-                <p className="text-gray-600">Sending request…</p>
+                <p className="text-gray-600 dark:text-slate-400">Sending request…</p>
               </div>
             )}
 
@@ -178,9 +178,9 @@ function MpesaPayButton({
                 <div className="animate-pulse flex justify-center mb-3">
                   <Smartphone size={48} className="text-green-500" />
                 </div>
-                <p className="font-semibold text-gray-800">Check your phone</p>
-                <p className="text-sm text-gray-600 mt-1">{message}</p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+                <p className="font-semibold text-gray-800 dark:text-slate-100">Check your phone</p>
+                <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{message}</p>
+                <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-slate-400">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
                   Waiting for confirmation…
                 </div>
@@ -198,7 +198,7 @@ function MpesaPayButton({
                     reset();
                     setOpen(false);
                   }}
-                  className="mt-4 w-full py-2 bg-gray-100 rounded-lg font-semibold"
+                  className="mt-4 w-full py-2 bg-gray-100 dark:bg-slate-700 dark:text-slate-100 rounded-lg font-semibold"
                 >
                   Done
                 </button>

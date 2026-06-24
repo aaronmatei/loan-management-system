@@ -95,9 +95,9 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
   const isActive = loanStatus === "active";
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
       <div className="bg-amber-50 px-5 py-3 border-b border-amber-100 flex items-center justify-between">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+        <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Gem size={18} className="text-amber-600" /> Pawned Collateral
         </h3>
         <button
@@ -110,17 +110,17 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
 
       <div className="p-5">
         {loading ? (
-          <p className="text-sm text-slate-500">Loading collateral…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading collateral…</p>
         ) : !collateral ? (
-          <p className="text-sm text-slate-500">No collateral record found.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No collateral record found.</p>
         ) : (
           <>
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <p className="text-lg font-bold text-slate-900">
+                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                   {collateral.description}
                 </p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-600">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-600 dark:text-slate-400">
                   {collateral.category && (
                     <span className="inline-flex items-center gap-1">
                       <Tag size={13} /> {collateral.category}
@@ -148,36 +148,36 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-500">Appraised value</p>
-                <p className="font-bold text-slate-900">
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Appraised value</p>
+                <p className="font-bold text-slate-900 dark:text-slate-100">
                   {money(collateral.appraised_value)}
                 </p>
               </div>
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-500">LTV</p>
-                <p className="font-bold text-slate-900">
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">LTV</p>
+                <p className="font-bold text-slate-900 dark:text-slate-100">
                   {parseFloat(collateral.ltv_percent || 0)}%
                 </p>
               </div>
               {collateral.condition && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs text-slate-500">Condition</p>
-                  <p className="font-bold text-slate-900">{collateral.condition}</p>
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Condition</p>
+                  <p className="font-bold text-slate-900 dark:text-slate-100">{collateral.condition}</p>
                 </div>
               )}
               {collateral.status === "sold" && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs text-slate-500">Sold for</p>
-                  <p className="font-bold text-slate-900">
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Sold for</p>
+                  <p className="font-bold text-slate-900 dark:text-slate-100">
                     {money(collateral.sale_amount)} · {fmtDate(collateral.sale_date)}
                   </p>
                 </div>
               )}
               {collateral.returned_at && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs text-slate-500">Returned</p>
-                  <p className="font-bold text-slate-900">
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Returned</p>
+                  <p className="font-bold text-slate-900 dark:text-slate-100">
                     {fmtDate(collateral.returned_at)}
                   </p>
                 </div>
@@ -186,15 +186,15 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
 
             {/* Item photos */}
             <div className="mt-4">
-              <p className="text-xs text-slate-500 mb-2">Photos</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Photos</p>
               <div className="flex flex-wrap items-center gap-2">
                 {(Array.isArray(collateral.photos) ? collateral.photos : []).map((src, i) => (
                   <a key={i} href={src} target="_blank" rel="noreferrer">
-                    <img src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200 hover:opacity-90" />
+                    <img src={src} alt="" className="h-20 w-20 object-cover rounded-lg border border-slate-200 dark:border-slate-700 hover:opacity-90" />
                   </a>
                 ))}
                 <PermissionGate role={["admin", "manager", "loan_officer"]}>
-                  <label className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
+                  <label className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 flex items-center justify-center text-slate-400 dark:text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
                     {uploading ? <span className="text-xs">…</span> : <ImagePlus size={22} />}
                     <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { addPhotos(e.target.files); e.target.value = ""; }} />
                   </label>
@@ -227,20 +227,20 @@ export default function PawnPanel({ loanId, loanCode, loanStatus, onChange }) {
 
         {/* Redemption window — grace + auction notice, editable per pledge. */}
         {terms && (
-          <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <div className="flex gap-8 text-sm">
               <div>
-                <p className="text-xs text-slate-500">Grace period</p>
-                <p className="font-semibold text-slate-800">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Grace period</p>
+                <p className="font-semibold text-slate-800 dark:text-slate-100">
                   {terms.grace_days} day{terms.grace_days === 1 ? "" : "s"}
-                  {terms.grace_days_override == null && <span className="text-xs text-slate-400 font-normal"> · default</span>}
+                  {terms.grace_days_override == null && <span className="text-xs text-slate-400 dark:text-slate-400 font-normal"> · default</span>}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Auction notice</p>
-                <p className="font-semibold text-slate-800">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Auction notice</p>
+                <p className="font-semibold text-slate-800 dark:text-slate-100">
                   {terms.auction_notice_days} day{terms.auction_notice_days === 1 ? "" : "s"}
-                  {terms.auction_notice_days_override == null && <span className="text-xs text-slate-400 font-normal"> · default</span>}
+                  {terms.auction_notice_days_override == null && <span className="text-xs text-slate-400 dark:text-slate-400 font-normal"> · default</span>}
                 </p>
               </div>
             </div>
@@ -294,15 +294,15 @@ function ModalShell({ title, icon: Icon, accent, onClose, children }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Icon size={18} className={accent} />
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">
             <X size={20} />
           </button>
         </div>
@@ -326,30 +326,30 @@ function TermsModal({ loanId, terms, onClose, onDone }) {
       onDone();
     } catch (err) { setError(err.response?.data?.error || "Failed to save."); setBusy(false); }
   };
-  const fld = "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+  const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">Pledge terms</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Pledge terms</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100"><X size={20} /></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
-          <p className="text-sm text-slate-500">Leave blank to use the shop default. These control when this pledge becomes overdue and auction-eligible.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Leave blank to use the shop default. These control when this pledge becomes overdue and auction-eligible.</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Grace period (days)</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Grace period (days)</label>
               <input type="number" min="0" value={grace} onChange={(e) => setGrace(e.target.value)} placeholder={`default ${terms.grace_days_default}`} className={fld} />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Auction notice (days)</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Auction notice (days)</label>
               <input type="number" min="0" value={notice} onChange={(e) => setNotice(e.target.value)} placeholder={`default ${terms.auction_notice_days_default}`} className={fld} />
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
             <button type="submit" disabled={busy} className="px-5 py-2 rounded-lg bg-ocean-600 hover:bg-ocean-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save terms"}</button>
           </div>
         </form>
@@ -385,8 +385,8 @@ function RedeemModal({ loanId, onClose, onDone }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <ModalShell
@@ -396,7 +396,7 @@ function RedeemModal({ loanId, onClose, onDone }) {
       onClose={onClose}
     >
       <form onSubmit={submit} className="space-y-4">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Record the redemption payment. Leave the amount blank to settle the full
           outstanding balance. The item is marked returned once the loan is fully
           paid.
@@ -451,7 +451,7 @@ function RedeemModal({ loanId, onClose, onDone }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
           >
             Cancel
           </button>
@@ -489,7 +489,7 @@ function ForfeitModal({ loanId, loanCode, onClose, onDone }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-red-500 focus:outline-none";
 
   return (
     <ModalShell title="Forfeit Collateral" icon={Gavel} accent="text-red-600" onClose={onClose}>
@@ -507,7 +507,7 @@ function ForfeitModal({ loanId, loanCode, onClose, onDone }) {
           </div>
         )}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
             Sale amount (optional)
           </label>
           <input
@@ -519,7 +519,7 @@ function ForfeitModal({ loanId, loanCode, onClose, onDone }) {
             placeholder="If the item was sold to recover capital"
             className={fld}
           />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Enter an amount only if you've sold the item — it's booked as capital
             recovered. Leave blank to simply keep the item.
           </p>
@@ -528,7 +528,7 @@ function ForfeitModal({ loanId, loanCode, onClose, onDone }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
           >
             Cancel
           </button>

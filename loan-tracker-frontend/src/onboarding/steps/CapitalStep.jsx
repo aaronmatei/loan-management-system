@@ -33,17 +33,17 @@ function CapitalStep({ onNext, onBack }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
+      <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3"><Coins size={48} className="text-ocean-500" /></div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Fund Your Capital Pool
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-slate-400">
             This is the money you lend out. Loans can only be approved and
             disbursed against available capital — you can top up anytime from
             the dashboard.
@@ -63,7 +63,7 @@ function CapitalStep({ onNext, onBack }) {
               className={fld}
               autoFocus
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Leave blank to skip and add it later.
             </p>
           </div>
@@ -71,14 +71,14 @@ function CapitalStep({ onNext, onBack }) {
             <button
               type="button"
               onClick={onBack}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
             >
               ← Back
             </button>
             <button
               type="button"
               onClick={() => onNext()}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
             >
               Skip
             </button>

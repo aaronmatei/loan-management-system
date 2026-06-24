@@ -28,17 +28,17 @@ function BusinessProfileStep({ data, onNext, onBack }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
+      <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3"><Building2 size={48} className="text-ocean-500" /></div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Tell Us About Your Business
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-slate-400">
             This information appears on receipts and customer communications
           </p>
         </div>
@@ -74,7 +74,7 @@ function BusinessProfileStep({ data, onNext, onBack }) {
               <select
                 value={form.county}
                 onChange={(e) => setForm({ ...form, county: e.target.value })}
-                className={`${fld} bg-white`}
+                className={`${fld} bg-white dark:bg-slate-900`}
               >
                 {[
                   "Nairobi",
@@ -127,7 +127,7 @@ function BusinessProfileStep({ data, onNext, onBack }) {
             <button
               type="button"
               onClick={onBack}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
             >
               ← Back
             </button>

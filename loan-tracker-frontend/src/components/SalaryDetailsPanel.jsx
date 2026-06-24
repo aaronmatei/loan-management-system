@@ -89,9 +89,9 @@ export default function SalaryDetailsPanel({ loanId, loanCode, onChange }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-violet-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-violet-100 mb-6 overflow-hidden">
       <div className="bg-violet-50 px-5 py-3 border-b border-violet-100 flex items-center justify-between">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+        <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Banknote size={18} className="text-violet-600" /> Salary Check-off
         </h3>
         {details && (
@@ -106,10 +106,10 @@ export default function SalaryDetailsPanel({ loanId, loanCode, onChange }) {
 
       <div className="p-5">
         {loading ? (
-          <p className="text-sm text-slate-500">Loading salary details…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading salary details…</p>
         ) : !details ? (
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               No employer / check-off details on file yet.
             </p>
             <PermissionGate role={["admin", "manager", "loan_officer"]}>
@@ -125,8 +125,8 @@ export default function SalaryDetailsPanel({ loanId, loanCode, onChange }) {
           <>
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <p className="text-lg font-bold text-slate-900">{details.employer_name}</p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-600">
+                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{details.employer_name}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-slate-600 dark:text-slate-400">
                   {details.staff_number && <span>Staff no. {details.staff_number}</span>}
                   {details.employer_contact && <span>{details.employer_contact}</span>}
                   {details.payday_day && <span>Payday: {details.payday_day} of month</span>}
@@ -261,8 +261,8 @@ function SalaryFormModal({ loanId, existing, onClose, onSaved }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-violet-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <div
@@ -270,17 +270,17 @@ function SalaryFormModal({ loanId, existing, onClose, onSaved }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg my-8"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Banknote size={18} className="text-violet-600" />
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {existing ? "Edit Salary Details" : "Add Salary Details"}
             </h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">
             <X size={20} />
           </button>
         </div>
@@ -355,7 +355,7 @@ function SalaryFormModal({ loanId, existing, onClose, onSaved }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>

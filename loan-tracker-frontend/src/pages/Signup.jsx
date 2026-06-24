@@ -147,17 +147,17 @@ function Signup() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 mb-2">
             Start Your 14-Day Free Trial
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-slate-400 mb-6">
             No credit card required • Cancel anytime
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                 <Building2 size={20} /> Business Information
               </h3>
               <div className="space-y-4">
@@ -171,7 +171,7 @@ function Signup() {
                     onChange={set("business_name")}
                     required
                     placeholder="e.g., ABC Lenders Ltd"
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                    className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -182,7 +182,7 @@ function Signup() {
                     <select
                       value={formData.business_type}
                       onChange={set("business_type")}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none bg-white"
+                      className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-500 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100"
                     >
                       <option value="private">Private Lender</option>
                       <option value="bank">Bank</option>
@@ -215,14 +215,14 @@ function Signup() {
                         }
                         required
                         placeholder="abclenders"
-                        className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-l-lg focus:border-ocean-500 focus:outline-none"
+                        className="flex-1 px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-l-lg focus:border-ocean-500 focus:outline-none"
                       />
-                      <span className="px-3 py-2 bg-gray-100 border-2 border-l-0 border-gray-200 rounded-r-lg text-sm text-gray-600">
+                      <span className="px-3 py-2 bg-gray-100 dark:bg-slate-700 border-2 border-l-0 border-gray-200 dark:border-slate-600 rounded-r-lg text-sm text-gray-600 dark:text-slate-400">
                         .lenderfest.loans
                       </span>
                     </div>
                     {subdomainStatus === "checking" && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                         Checking availability...
                       </p>
                     )}
@@ -242,7 +242,7 @@ function Signup() {
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                 <User size={20} /> Admin Account
               </h3>
               <div className="space-y-4">
@@ -260,7 +260,7 @@ function Signup() {
                         /^./,
                         (c) => c.toUpperCase(),
                       )}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -273,7 +273,7 @@ function Signup() {
                       onChange={set("last_name")}
                       required
                       placeholder="Admin"
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -288,7 +288,7 @@ function Signup() {
                       onChange={set("contact_email")}
                       required
                       placeholder={`${formData.subdomain || "yourcompany"}@admin.com`}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -301,7 +301,7 @@ function Signup() {
                       onChange={set("contact_phone")}
                       required
                       placeholder="+254712345678"
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                      className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -318,13 +318,13 @@ function Signup() {
                         required
                         minLength="12"
                         placeholder="Min 12 chars, 1 upper, 1 number, 1 symbol"
-                        className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                        className="w-full px-3 py-2 pr-10 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((s) => !s)}
                         aria-label={showPassword ? "Hide password" : "Show password"}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
@@ -340,13 +340,13 @@ function Signup() {
                         value={formData.confirm_password}
                         onChange={set("confirm_password")}
                         required
-                        className="w-full px-3 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                        className="w-full px-3 py-2 pr-10 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirm((s) => !s)}
                         aria-label={showConfirm ? "Hide password" : "Show password"}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                       >
                         {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
@@ -356,7 +356,7 @@ function Signup() {
               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 dark:bg-slate-900 p-4 rounded-lg">
               <label className="flex items-start gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -364,7 +364,7 @@ function Signup() {
                   onChange={set("agree_terms")}
                   className="mt-1"
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-700 dark:text-slate-200">
                   I agree to the{" "}
                   <a href="#" className="text-ocean-600 underline">
                     Terms of Service
@@ -389,7 +389,7 @@ function Signup() {
                 : <span className="inline-flex items-center gap-2"><Rocket size={18} /> Start Free Trial</span>}
             </button>
 
-            <p className="text-center text-gray-600 text-sm">
+            <p className="text-center text-gray-600 dark:text-slate-400 text-sm">
               Already have an account?{" "}
               <Link to="/login" className="text-ocean-600 font-semibold">
                 Sign In

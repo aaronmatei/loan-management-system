@@ -48,23 +48,23 @@ function InviteTeamStep({ onNext, onBack }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
+      <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3"><Users size={48} className="text-ocean-500" /></div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Invite Your Team
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-slate-400">
             Add team members or skip this step (you can always add later)
           </p>
         </div>
         <form onSubmit={submit} className="space-y-4">
           {invites.map((invite, idx) => (
-            <div key={idx} className="bg-gray-50 rounded-lg p-3 space-y-2">
+            <div key={idx} className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3 space-y-2">
               <div className="flex justify-between items-center">
                 <p className="font-semibold text-sm">Team Member #{idx + 1}</p>
                 {invites.length > 1 && (
@@ -103,7 +103,7 @@ function InviteTeamStep({ onNext, onBack }) {
               <select
                 value={invite.role}
                 onChange={(e) => update(idx, "role", e.target.value)}
-                className={`${fld} bg-white`}
+                className={`${fld} bg-white dark:bg-slate-900`}
               >
                 <option value="loan_officer">Loan Officer</option>
                 <option value="manager">Manager</option>
@@ -129,7 +129,7 @@ function InviteTeamStep({ onNext, onBack }) {
           >
             + Add Another Team Member
           </button>
-          <p className="text-xs text-gray-500 text-center flex items-start justify-center gap-1">
+          <p className="text-xs text-gray-500 dark:text-slate-400 text-center flex items-start justify-center gap-1">
             <Lightbulb size={12} className="text-ocean-400 mt-0.5 shrink-0" /> Default temporary password{" "}
             <span className="font-mono">{TEMP_PASSWORD}</span> — share securely
             and ask each member to reset on first login.
@@ -138,14 +138,14 @@ function InviteTeamStep({ onNext, onBack }) {
             <button
               type="button"
               onClick={onBack}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
             >
               ← Back
             </button>
             <button
               type="button"
               onClick={() => onNext()}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
             >
               Skip
             </button>

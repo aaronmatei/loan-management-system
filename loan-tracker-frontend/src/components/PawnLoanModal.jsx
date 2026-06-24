@@ -187,8 +187,8 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-amber-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-amber-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <div
@@ -196,15 +196,15 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-6"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl my-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-amber-50 rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-amber-50 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Gem size={20} className="text-amber-600" />
             <h3 className="text-lg font-bold text-slate-900">New Pawn Loan</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700">
             <X size={20} />
           </button>
         </div>
@@ -218,13 +218,13 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
 
           {/* Secured pledge vs unsecured cash loan. */}
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setMode("pledge")} className={`rounded-xl border-2 px-4 py-3 text-left transition ${!isCash ? "border-ocean-500 bg-ocean-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-              <p className="font-semibold text-slate-800 text-sm flex items-center gap-1.5"><Gem size={15} /> Pledge (with item)</p>
-              <p className="text-xs text-slate-500 mt-0.5">Cash against a collateral item, capped at LTV%.</p>
+            <button type="button" onClick={() => setMode("pledge")} className={`rounded-xl border-2 px-4 py-3 text-left transition ${!isCash ? "border-ocean-500 bg-ocean-50" : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-slate-300"}`}>
+              <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-1.5"><Gem size={15} /> Pledge (with item)</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cash against a collateral item, capped at LTV%.</p>
             </button>
-            <button type="button" onClick={() => setMode("cash")} className={`rounded-xl border-2 px-4 py-3 text-left transition ${isCash ? "border-ocean-500 bg-ocean-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-              <p className="font-semibold text-slate-800 text-sm">💵 Cash loan</p>
-              <p className="text-xs text-slate-500 mt-0.5">Unsecured — no collateral held.</p>
+            <button type="button" onClick={() => setMode("cash")} className={`rounded-xl border-2 px-4 py-3 text-left transition ${isCash ? "border-ocean-500 bg-ocean-50" : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-slate-300"}`}>
+              <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">💵 Cash loan</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Unsecured — no collateral held.</p>
             </button>
           </div>
 
@@ -262,7 +262,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                 <div className="relative">
                   <Search
                     size={16}
-                    className="absolute left-3 top-3 text-gray-400"
+                    className="absolute left-3 top-3 text-gray-400 dark:text-slate-400"
                   />
                   <input
                     type="text"
@@ -277,9 +277,9 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                   />
                 </div>
                 {showDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
                     {filteredClients.length === 0 ? (
-                      <div className="p-3 text-center text-gray-500 text-sm">
+                      <div className="p-3 text-center text-gray-500 dark:text-slate-400 text-sm">
                         {clients.length === 0
                           ? "No clients yet — add a client first."
                           : `No clients found matching "${clientSearch}"`}
@@ -294,12 +294,12 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                             setShowDropdown(false);
                             setClientSearch("");
                           }}
-                          className="w-full text-left p-3 hover:bg-amber-50 border-b border-gray-100 last:border-0"
+                          className="w-full text-left p-3 hover:bg-amber-50 border-b border-gray-100 dark:border-slate-700 last:border-0"
                         >
-                          <p className="font-semibold text-gray-800 text-sm">
+                          <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">
                             {c.first_name} {c.last_name}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
                             {c.client_code} • {c.phone_number}
                           </p>
                         </button>
@@ -328,7 +328,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                 ))}
               </select>
               {pkg && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Flat fee ≈ {(parseFloat(pkg.annual_interest_rate) / 12).toFixed(2)}
                   % of principal per month.
                 </p>
@@ -346,7 +346,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                   placeholder="e.g. 10"
                   className={fld}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   Fee charged per month on the amount advanced.
                 </p>
               </div>
@@ -386,16 +386,16 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
               <div className="flex flex-wrap items-center gap-2">
                 {photos.map((src, i) => (
                   <div key={i} className="relative">
-                    <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
-                    <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white rounded-full border border-gray-200 text-slate-500 hover:text-red-600"><X size={13} /></button>
+                    <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200 dark:border-slate-700" />
+                    <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-gray-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
                   </div>
                 ))}
-                <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
+                <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
                   {uploading ? <span className="text-xs">…</span> : <ImagePlus size={20} />}
                   <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { uploadPhotos(e.target.files); e.target.value = ""; }} />
                 </label>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Up to 6 images, 5 MB each. The customer sees these in their portal.</p>
+              <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Up to 6 images, 5 MB each. The customer sees these in their portal.</p>
             </div>
           )}
 
@@ -421,7 +421,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
             </div>
             <div className="sm:col-span-2">
               <label className={lbl}>
-                Loan Amount{!isCash && <span className="text-gray-500 font-normal"> (max {money(calc.maxLoan)} at {calc.ltv}% LTV)</span>}
+                Loan Amount{!isCash && <span className="text-gray-500 dark:text-slate-400 font-normal"> (max {money(calc.maxLoan)} at {calc.ltv}% LTV)</span>}
               </label>
               <input type="number" min="0" value={form.principal_amount} onChange={set("principal_amount")} placeholder={isCash ? "e.g. 10000" : String(calc.maxLoan || "")} className={fld} />
             </div>
@@ -440,19 +440,19 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
 
           {/* Summary */}
           {calc.monthlyFeePct > 0 && calc.principal > 0 && calc.months > 0 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5 text-sm">
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Loan amount (advanced)</span>
+                <span className="text-gray-600 dark:text-slate-400">Loan amount (advanced)</span>
                 <span className="font-semibold">{money(calc.principal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">
+                <span className="text-gray-600 dark:text-slate-400">
                   Pawn fee ({calc.monthlyFeePct.toFixed(2)}% × {calc.months} mo)
                 </span>
                 <span className="font-semibold">{money(calc.fee)}</span>
               </div>
-              <div className="flex justify-between pt-1.5 border-t border-slate-200">
-                <span className="font-bold text-gray-800">
+              <div className="flex justify-between pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                <span className="font-bold text-gray-800 dark:text-slate-100">
                   Redemption total (due at maturity)
                 </span>
                 <span className="font-bold text-amber-700">
@@ -466,7 +466,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
             >
               Cancel
             </button>

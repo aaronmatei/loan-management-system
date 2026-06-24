@@ -60,8 +60,8 @@ export default function WelfareRegister() {
     }
   };
 
-  const fld = "w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
-  const lbl = "block text-sm font-semibold text-gray-700 mb-1";
+  const fld = "w-full px-3 py-2.5 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
+  const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
 
   return (
     <div
@@ -79,7 +79,7 @@ export default function WelfareRegister() {
           </p>
         </div>
 
-        <form onSubmit={submit} className="bg-white rounded-2xl shadow-xl p-6 space-y-4">
+        <form onSubmit={submit} className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
               <AlertTriangle size={15} className="flex-shrink-0" /> {error}
@@ -98,7 +98,7 @@ export default function WelfareRegister() {
                 placeholder="umoja-welfare"
                 className={fld + " rounded-r-none"}
               />
-              <span className="px-3 py-2.5 border-2 border-l-0 border-gray-200 rounded-r-lg bg-gray-50 text-gray-500 text-sm">.lenderfest.loans</span>
+              <span className="px-3 py-2.5 border-2 border-l-0 border-gray-200 dark:border-slate-600 rounded-r-lg bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 text-sm">.lenderfest.loans</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -110,7 +110,7 @@ export default function WelfareRegister() {
           <div>
             <label className={lbl}>Password *</label>
             <PasswordInput value={form.admin_password} onChange={set("admin_password")} placeholder="At least 12 characters" autoComplete="new-password" className={fld} />
-            <p className="text-xs text-gray-500 mt-1">12+ chars with an uppercase letter, a number and a special character.</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">12+ chars with an uppercase letter, a number and a special character.</p>
           </div>
           <div>
             <label className={lbl}>Confirm password *</label>
@@ -119,7 +119,7 @@ export default function WelfareRegister() {
           <button type="submit" disabled={busy} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition disabled:opacity-50">
             {busy ? "Creating your welfare…" : "Create Welfare Account"}
           </button>
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-gray-600 dark:text-slate-400">
             Already registered? <Link to="/welfare/login" className="text-emerald-700 font-semibold hover:underline">Log in</Link>
           </p>
         </form>

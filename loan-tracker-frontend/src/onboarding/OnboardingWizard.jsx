@@ -10,7 +10,7 @@ import FirstClientStep from "./steps/FirstClientStep";
 import FirstLoanStep from "./steps/FirstLoanStep";
 import InviteTeamStep from "./steps/InviteTeamStep";
 import CompletionStep from "./steps/CompletionStep";
-import Spinner from "../components/Spinner";
+import Skeleton from "../components/Skeleton";
 
 const STEPS = [
   { component: WelcomeStep, title: "Welcome" },
@@ -84,8 +84,25 @@ function OnboardingWizard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner centered size={48} label="Loading…" />
+      <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-ocean-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 py-8">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 lg:p-10">
+            <div className="flex flex-col items-center mb-6">
+              <Skeleton className="h-12 w-12 mb-3" rounded="rounded-full" />
+              <Skeleton className="h-8 w-2/3 mb-2" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <div className="flex gap-2 pt-4">
+                <Skeleton className="h-12 w-24" />
+                <Skeleton className="h-12 flex-1" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -93,17 +110,17 @@ function OnboardingWizard() {
   const Current = STEPS[currentStep].component;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-ocean-50">
+    <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-ocean-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
       {currentStep > 0 && currentStep < STEPS.length - 1 && (
-        <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="bg-white dark:bg-slate-800 shadow-sm border-b dark:border-slate-700 sticky top-0 z-10">
           <div className="max-w-4xl mx-auto px-4 py-3">
             <div className="flex justify-between items-center mb-3">
-              <h2 className="font-bold text-gray-800">
+              <h2 className="font-bold text-gray-800 dark:text-slate-100">
                 Setup Progress: Step {currentStep} of {STEPS.length - 2}
               </h2>
               <button
                 onClick={handleSkipAll}
-                className="text-sm text-gray-500 hover:text-gray-700"
+                className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700"
               >
                 Skip Setup
               </button>
@@ -117,12 +134,12 @@ function OnboardingWizard() {
                       ? "bg-green-500"
                       : idx === currentStep - 1
                         ? "bg-ocean-600"
-                        : "bg-gray-200"
+                        : "bg-gray-200 dark:bg-slate-700"
                   }`}
                 />
               ))}
             </div>
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
+            <div className="flex justify-between mt-2 text-xs text-gray-500 dark:text-slate-400">
               {STEPS.slice(1, -1).map((s, idx) => (
                 <span
                   key={idx}

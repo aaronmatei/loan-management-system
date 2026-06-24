@@ -102,27 +102,27 @@ export default function UnderwritingModal({ loan, onClose }) {
       onClick={() => onClose(false)}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-6"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl my-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <ShieldCheck size={20} className="text-ocean-600" />
-            <h3 className="text-lg font-bold text-slate-900">Underwriting</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Underwriting</h3>
             {data && (
-              <span className="text-sm text-slate-500">
+              <span className="text-sm text-slate-500 dark:text-slate-400">
                 · {data.client.name} · {data.loan.loan_code}
               </span>
             )}
           </div>
-          <button onClick={() => onClose(false)} className="text-slate-400 hover:text-slate-600">
+          <button onClick={() => onClose(false)} className="text-slate-400 dark:text-slate-400 hover:text-slate-600">
             <X size={20} />
           </button>
         </div>
 
         {loading ? (
-          <div className="p-10 text-center text-slate-500">Loading worksheet…</div>
+          <div className="p-10 text-center text-slate-500 dark:text-slate-400">Loading worksheet…</div>
         ) : !data ? (
           <div className="p-10 text-center text-rose-600">{error || "Not found"}</div>
         ) : (
@@ -130,15 +130,15 @@ export default function UnderwritingModal({ loan, onClose }) {
             {/* Risk summary cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Card icon={Gauge} label="Internal score" tint="ocean">
-                <span className="text-2xl font-bold text-slate-900">
+                <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {data.client.credit_score ?? "—"}
                 </span>
               </Card>
               <Card icon={Layers} label="Current exposure" tint="violet">
-                <span className="text-2xl font-bold text-slate-900">
+                <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   {data.exposure.active_loans}
                 </span>
-                <span className="block text-xs text-slate-500">
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
                   {money(data.exposure.active_principal)} out
                 </span>
               </Card>
@@ -148,20 +148,20 @@ export default function UnderwritingModal({ loan, onClose }) {
                 </span>
               </Card>
               <Card icon={AlertTriangle} label="History" tint="slate">
-                <span className="text-sm font-semibold text-slate-800">
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                   {data.history.loans_completed} done · {data.history.loans_defaulted} default
                 </span>
-                <span className="block text-xs text-slate-500">
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
                   {data.history.overdue_installments} overdue inst.
                 </span>
               </Card>
             </div>
 
             {/* CRB section */}
-            <div className="border border-slate-200 rounded-xl p-4">
+            <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-slate-800">Credit Reference Bureau</h4>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100">Credit Reference Bureau</h4>
                   <span
                     className={`text-[11px] px-2 py-0.5 rounded-full ${
                       data.crb.connected
@@ -182,7 +182,7 @@ export default function UnderwritingModal({ loan, onClose }) {
                   </button>
                   <button
                     onClick={() => setManualOpen((v) => !v)}
-                    className="text-sm font-semibold text-slate-500 hover:text-slate-700"
+                    className="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700"
                   >
                     Enter manually
                   </button>
@@ -191,7 +191,7 @@ export default function UnderwritingModal({ loan, onClose }) {
 
               {cc ? (
                 <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <span className="text-3xl font-bold text-slate-900">{cc.score ?? "—"}</span>
+                  <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">{cc.score ?? "—"}</span>
                   {cc.grade && (
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${GRADE_COLOR[cc.grade] || "bg-slate-100"}`}>
                       Grade {cc.grade}
@@ -200,7 +200,7 @@ export default function UnderwritingModal({ loan, onClose }) {
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[cc.status] || "bg-slate-100"}`}>
                     {cc.status}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 dark:text-slate-400">
                     {cc.source === "estimate"
                       ? "internal estimate"
                       : cc.source === "manual"
@@ -210,24 +210,24 @@ export default function UnderwritingModal({ loan, onClose }) {
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   No CRB check yet. Run one, or enter a result from your bureau portal.
                 </p>
               )}
 
               {manualOpen && (
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-700 pt-3">
                   <input
                     type="number"
                     placeholder="Score"
                     value={manual.score}
                     onChange={(e) => setManual({ ...manual, score: e.target.value })}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="px-3 py-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg text-sm"
                   />
                   <select
                     value={manual.status}
                     onChange={(e) => setManual({ ...manual, status: e.target.value })}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="px-3 py-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg text-sm"
                   >
                     {["clear", "listed", "defaulted", "no_hit"].map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -237,7 +237,7 @@ export default function UnderwritingModal({ loan, onClose }) {
                     placeholder="Reference"
                     value={manual.reference}
                     onChange={(e) => setManual({ ...manual, reference: e.target.value })}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="px-3 py-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg text-sm"
                   />
                   <button
                     onClick={() => runCrb({ manual: true, ...manual })}
@@ -253,7 +253,7 @@ export default function UnderwritingModal({ loan, onClose }) {
             {/* Decision */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
                   Risk grade
                 </label>
                 <div className="flex gap-1.5">
@@ -264,7 +264,7 @@ export default function UnderwritingModal({ loan, onClose }) {
                       className={`w-9 h-9 rounded-lg font-bold text-sm ${
                         grade === g
                           ? GRADE_COLOR[g] + " ring-2 ring-offset-1 ring-slate-300"
-                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                          : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200"
                       }`}
                     >
                       {g}
@@ -273,7 +273,7 @@ export default function UnderwritingModal({ loan, onClose }) {
                 </div>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
                   Underwriting notes
                 </label>
                 <textarea
@@ -281,7 +281,7 @@ export default function UnderwritingModal({ loan, onClose }) {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Affordability, collateral, references, recommendation…"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg text-sm"
                 />
               </div>
             </div>
@@ -291,7 +291,7 @@ export default function UnderwritingModal({ loan, onClose }) {
             <div className="flex justify-end gap-3 pt-1">
               <button
                 onClick={() => onClose(false)}
-                className="px-5 py-2.5 border border-slate-300 rounded-lg font-semibold text-slate-700 hover:bg-slate-50"
+                className="px-5 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
               >
                 Close
               </button>
@@ -319,12 +319,12 @@ function Card({ icon: Icon, label, tint, children }) {
     slate: "bg-slate-100 text-slate-600",
   };
   return (
-    <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
+    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-3 shadow-sm">
       <div className="flex items-center gap-1.5 mb-1">
         <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg ${tints[tint] || tints.slate}`}>
           <Icon size={13} />
         </span>
-        <span className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
+        <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">
           {label}
         </span>
       </div>

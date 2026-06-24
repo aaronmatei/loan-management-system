@@ -61,19 +61,19 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
     });
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-3xl mx-auto px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
+      <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3">
             <User size={48} className="text-ocean-500" />
           </div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Add Your First Client
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-slate-400">
             Add a real client or use sample data to explore
           </p>
         </div>
@@ -101,14 +101,14 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
                     className={`text-left p-3 rounded-lg border-2 transition ${
                       selected
                         ? "border-ocean-500 bg-ocean-50"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
+                        : "border-gray-200 dark:border-slate-600 hover:border-gray-300 bg-white dark:bg-slate-900"
                     }`}
                   >
-                    <div className="flex items-center gap-2 font-semibold text-gray-800 text-sm">
+                    <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-slate-100 text-sm">
                       <Icon size={14} />
                       {t.label}
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                       {t.description}
                     </div>
                   </button>
@@ -175,7 +175,7 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
             <select
               value={form.gender}
               onChange={setField("gender")}
-              className={`${fld} bg-white`}
+              className={`${fld} bg-white dark:bg-slate-900`}
             >
               <option value="">Select…</option>
               <option value="female">Female</option>
@@ -209,7 +209,7 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
                 <select
                   value={form.business_type}
                   onChange={setField("business_type")}
-                  className={`${fld} bg-white`}
+                  className={`${fld} bg-white dark:bg-slate-900`}
                 >
                   <option value="">Select type…</option>
                   {BUSINESS_TYPES.map((t) => (
@@ -244,7 +244,7 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
             <select
               value={form.county}
               onChange={setField("county")}
-              className={`${fld} bg-white`}
+              className={`${fld} bg-white dark:bg-slate-900`}
             >
               {KENYA_COUNTIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -255,7 +255,7 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
             <button
               type="button"
               onClick={onBack}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
             >
               ← Back
             </button>

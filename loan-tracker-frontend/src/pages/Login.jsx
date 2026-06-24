@@ -75,7 +75,7 @@ function Login() {
       className="min-h-screen flex items-center justify-center bg-ocean-gradient bg-cover bg-center bg-no-repeat p-4"
       style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
     >
-      <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
           <Logo
             variant="default"
@@ -83,7 +83,7 @@ function Login() {
             textClassName="text-3xl"
             className="justify-center mb-3"
           />
-          <h2 className="text-slate-500">Login to your account</h2>
+          <h2 className="text-slate-500 dark:text-slate-400">Login to your account</h2>
         </div>
 
         {error && (
@@ -94,7 +94,7 @@ function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">
               Email Address
             </label>
             <input
@@ -105,12 +105,12 @@ function Login() {
               required
               autoFocus
               disabled={loading}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none disabled:bg-gray-100 transition"
+              className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-slate-700 transition"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2">
               Password
             </label>
             <PasswordInput
@@ -120,7 +120,7 @@ function Login() {
               required
               disabled={loading}
               autoComplete="current-password"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none disabled:bg-gray-100 transition"
+              className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none disabled:bg-gray-100 dark:disabled:bg-slate-700 transition"
             />
           </div>
 
@@ -133,7 +133,7 @@ function Login() {
           </button>
         </form>
         {variant === "welfare" ? (
-          <p className="text-center mt-4 text-sm text-gray-600">
+          <p className="text-center mt-4 text-sm text-gray-600 dark:text-slate-400">
             Don't have an account?{' '}
             <Link to="/welfare/register" className="text-emerald-700 font-semibold">
               Register a welfare
@@ -141,13 +141,13 @@ function Login() {
           </p>
         ) : (
           <>
-            <p className="text-center mt-4 text-sm text-gray-600">
+            <p className="text-center mt-4 text-sm text-gray-600 dark:text-slate-400">
               Don't have an account?{' '}
               <Link to="/signup" className="text-ocean-600 font-semibold">
                 Sign up free
               </Link>
             </p>
-            <p className="text-center mt-1 text-sm text-gray-600">
+            <p className="text-center mt-1 text-sm text-gray-600 dark:text-slate-400">
               Other account types?{' '}
               <Link to="/get-started" className="text-ocean-600 font-semibold">
                 Get started

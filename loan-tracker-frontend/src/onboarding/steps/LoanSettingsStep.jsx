@@ -71,19 +71,19 @@ function LoanSettingsStep({ data, onNext, onBack }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
     <div className="max-w-2xl mx-auto px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-6 lg:p-10">
+      <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3">
             <BarChart3 size={48} className="text-ocean-500" />
           </div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Set Your Loan Defaults
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-slate-400">
             These become the default values when creating new loans
           </p>
         </div>
@@ -102,7 +102,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
                 required
                 className={fld}
               />
-              <p className="text-xs text-gray-500 mt-1">e.g. 50 = 50% p.a.</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">e.g. 50 = 50% p.a.</p>
             </div>
             <div>
               <label className="block text-sm font-semibold mb-1">
@@ -117,7 +117,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
                 required
                 className={fld}
               />
-              <p className="text-xs text-gray-500 mt-1">Synced with annual.</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Synced with annual.</p>
             </div>
           </div>
 
@@ -136,7 +136,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
               }
               className={fld}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Deducted from the disbursed amount (0 = none).
             </p>
           </div>
@@ -188,7 +188,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
                     default_duration_months: parseInt(e.target.value, 10),
                   })
                 }
-                className={`${fld} bg-white`}
+                className={`${fld} bg-white dark:bg-slate-900`}
               >
                 {[1, 3, 6, 12, 18, 24].map((m) => (
                   <option key={m} value={m}>
@@ -267,7 +267,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
             <button
               type="button"
               onClick={onBack}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg font-semibold"
             >
               ← Back
             </button>

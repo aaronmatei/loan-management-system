@@ -58,7 +58,7 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-emerald-100 mb-6 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-emerald-100 mb-6 overflow-hidden">
       <div className="bg-emerald-50 px-5 py-3 border-b border-emerald-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 flex items-center gap-2">
           <PiggyBank size={18} className="text-emerald-600" /> Group Savings
@@ -81,7 +81,7 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
             <PermissionGate role={["admin", "manager"]}>
               <button
                 onClick={() => setModal("withdrawal")}
-                className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-semibold inline-flex items-center gap-2"
+                className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2"
               >
                 <Minus size={16} /> Withdrawal
               </button>
@@ -109,10 +109,10 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
             {data.members.map((m) => (
               <span
                 key={m.client_id}
-                className="text-xs bg-slate-50 border border-slate-200 rounded-full px-3 py-1"
+                className="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1"
               >
                 {m.first_name} {m.last_name}:{" "}
-                <strong className="text-slate-800">{money(m.balance)}</strong>
+                <strong className="text-slate-800 dark:text-slate-100">{money(m.balance)}</strong>
               </span>
             ))}
           </div>
@@ -120,13 +120,13 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
 
         {/* Ledger */}
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
         ) : data.transactions.length === 0 ? (
-          <p className="text-sm text-slate-500">No savings activity yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No savings activity yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
                 <tr>
                   <th className="text-left px-4 py-2">Date</th>
                   <th className="text-left px-4 py-2">Type</th>
@@ -137,8 +137,8 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
               </thead>
               <tbody>
                 {data.transactions.map((tx) => (
-                  <tr key={tx.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 text-slate-600">
+                  <tr key={tx.id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
                       {new Date(tx.txn_date).toLocaleDateString("en-KE", {
                         year: "numeric",
                         month: "short",
@@ -158,7 +158,7 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
                         {TYPE_LABEL[tx.type] || tx.type}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-slate-600">
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
                       {tx.loan_code
                         ? tx.loan_code
                         : tx.first_name
@@ -173,7 +173,7 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
                       {tx.direction > 0 ? "+" : "−"}
                       {money(tx.amount)}
                     </td>
-                    <td className="px-4 py-2 text-right text-slate-700">
+                    <td className="px-4 py-2 text-right text-slate-700 dark:text-slate-200">
                       {money(tx.balance_after)}
                     </td>
                   </tr>
@@ -252,7 +252,7 @@ function SavingsModal({ title, accent, groupId, endpoint, members, max, onClose,
       ? "bg-emerald-600 hover:bg-emerald-700"
       : "bg-slate-700 hover:bg-slate-800";
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
 
   return (
     <ModalShell title={title} onClose={onClose}>
@@ -263,8 +263,8 @@ function SavingsModal({ title, accent, groupId, endpoint, members, max, onClose,
           </div>
         )}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Amount{max != null && <span className="text-gray-500 font-normal"> (max {money(max)})</span>}
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+            Amount{max != null && <span className="text-gray-500 dark:text-slate-400 font-normal"> (max {money(max)})</span>}
           </label>
           <input
             type="number"
@@ -277,8 +277,8 @@ function SavingsModal({ title, accent, groupId, endpoint, members, max, onClose,
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Member <span className="text-gray-500 font-normal">(optional)</span>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+            Member <span className="text-gray-500 dark:text-slate-400 font-normal">(optional)</span>
           </label>
           <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={fld}>
             <option value="">Group-level (no member)</option>
@@ -290,14 +290,14 @@ function SavingsModal({ title, accent, groupId, endpoint, members, max, onClose,
           </select>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Notes</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Notes</label>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} className={fld} />
         </div>
         <div className="flex justify-end gap-3 pt-1">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
           >
             Cancel
           </button>
@@ -341,12 +341,12 @@ function CoverModal({ groupId, balance, loans, onClose, onDone }) {
   };
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-violet-500 focus:outline-none";
+    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-violet-500 focus:outline-none";
 
   return (
     <ModalShell title="Cover a Loan from Savings" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Apply group savings (balance <strong>{money(balance)}</strong>) toward a member's
           outstanding loan. This is recorded as a repayment on the loan.
         </p>
@@ -356,7 +356,7 @@ function CoverModal({ groupId, balance, loans, onClose, onDone }) {
           </div>
         )}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Loan</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">Loan</label>
           <select value={loanId} onChange={(e) => setLoanId(e.target.value)} className={fld}>
             {loans.map((l) => (
               <option key={l.id} value={l.id}>
@@ -366,8 +366,8 @@ function CoverModal({ groupId, balance, loans, onClose, onDone }) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Amount <span className="text-gray-500 font-normal">(blank = max {money(maxForLoan)})</span>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+            Amount <span className="text-gray-500 dark:text-slate-400 font-normal">(blank = max {money(maxForLoan)})</span>
           </label>
           <input
             type="number"
@@ -383,7 +383,7 @@ function CoverModal({ groupId, balance, loans, onClose, onDone }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
           >
             Cancel
           </button>
@@ -407,12 +407,12 @@ function ModalShell({ title, onClose, children }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-10"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">
             <X size={20} />
           </button>
         </div>

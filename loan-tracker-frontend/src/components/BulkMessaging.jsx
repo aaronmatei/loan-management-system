@@ -83,9 +83,9 @@ function BulkMessaging({ clientIds, onComplete }) {
 
       {showSMS && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full text-gray-800">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full text-gray-800 dark:text-slate-100">
             <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Smartphone size={22} /> Bulk SMS</h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-slate-400 mb-4">
               Sending to <strong>{count}</strong> selected client(s)
             </p>
             <form onSubmit={handleBulkSMS}>
@@ -95,10 +95,10 @@ function BulkMessaging({ clientIds, onComplete }) {
                 rows="5"
                 maxLength="160"
                 placeholder="Type your message... Use {first_name} for personalization"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 {smsMessage.length}/160 chars • {"{first_name}"} /{" "}
                 {"{last_name}"} are personalized
               </p>
@@ -131,9 +131,9 @@ function BulkMessaging({ clientIds, onComplete }) {
 
       {showEmail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto text-gray-800">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto text-gray-800 dark:text-slate-100">
             <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Mail size={22} /> Bulk Email</h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-slate-400 mb-4">
               Sending to <strong>{count}</strong> selected client(s)
             </p>
             <form onSubmit={handleBulkEmail} className="space-y-4">
@@ -148,7 +148,7 @@ function BulkMessaging({ clientIds, onComplete }) {
                     setEmailData({ ...emailData, subject: e.target.value })
                   }
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -163,13 +163,13 @@ function BulkMessaging({ clientIds, onComplete }) {
                   rows="8"
                   placeholder="Type your message... Use {first_name} for personalization"
                   required
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none"
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                   {"{first_name}"} / {"{last_name}"} are personalized
                 </p>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setShowEmail(false)}
