@@ -88,15 +88,17 @@ export default function WelfareCharts({ welfareId, client = api, url = `/welfare
         </ResponsiveContainer>
       </Card>
 
-      {/* 4. Attendance */}
-      <Card icon={Users} title="Meeting attendance" sub="Present rate per meeting" empty={attEmpty ? "No meetings recorded yet" : null}>
+      {/* 4. Attendance — normal meetings vs event meetings */}
+      <Card icon={Users} title="Meeting attendance" sub="Present rate — normal meetings vs events" empty={attEmpty ? "No meetings recorded yet" : null}>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={c.attendance} margin={{ left: -10, right: 8, top: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="label" {...axis} minTickGap={24} />
             <YAxis {...axis} domain={[0, 100]} tickFormatter={(v) => `${v}%`} width={42} />
             <Tooltip contentStyle={tip.contentStyle} formatter={(v) => `${v}%`} />
-            <Line type="monotone" dataKey="rate" stroke={COLORS.attend} strokeWidth={2} dot={{ r: 3 }} name="Attendance" />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Line type="monotone" dataKey="meetingRate" stroke={COLORS.attend} strokeWidth={2} dot={{ r: 3 }} name="Meetings" connectNulls />
+            <Line type="monotone" dataKey="eventRate" stroke={COLORS.quarterly} strokeWidth={2} dot={{ r: 3 }} name="Events" connectNulls />
           </LineChart>
         </ResponsiveContainer>
       </Card>

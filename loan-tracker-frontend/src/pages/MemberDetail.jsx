@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown, Smartphone, ChevronLeft, ChevronRight } from "lucide-react";
+import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown, Smartphone, ChevronLeft, ChevronRight, ChevronDown, MoreHorizontal } from "lucide-react";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
 import { useWelfare } from "../context/WelfareContext";
@@ -38,6 +38,7 @@ export default function MemberDetail() {
   const [portalPassword, setPortalPassword] = useState(null);
   const [inviting, setInviting] = useState(false);
   const [exemptBusy, setExemptBusy] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const base = `/welfares/${welfareId}/members`;
 
@@ -207,24 +208,44 @@ export default function MemberDetail() {
         </div>
       ) : (
         <PermissionGate role={["admin", "manager", "loan_officer"]}>
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
+            {/* Primary money actions stay visible; everything else lives in the
+                "More" menu to keep the header uncluttered. */}
             <button onClick={() => setModal("contribution")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus size={16} /> Contribution</button>
             <PermissionGate role={["admin", "manager"]}>
               <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
-              <button onClick={inviteToPortal} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50"><Smartphone size={16} /> {inviting ? "Sending…" : portalLinked ? "Portal access ✓ — resend" : "Invite to portal"}</button>
-              <label className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200" title="Officers are normally elected; set directly here if needed.">
-                Role
-                <select value={member.role || "member"} onChange={(e) => changeRole(e.target.value)} className="bg-transparent outline-none cursor-pointer dark:text-slate-100">
-                  <option value="member">Member</option>
-                  <option value="chair">Chair</option>
-                  <option value="treasurer">Treasurer</option>
-                  <option value="secretary">Secretary</option>
-                </select>
-              </label>
-              <button onClick={toggleExempt} disabled={exemptBusy} title="Sick/hardship: skip contribution dues & penalties while exempt" className={`px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 border-2 ${member.contribution_exempt ? "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
-                <AlertTriangle size={16} /> {exemptBusy ? "Saving…" : member.contribution_exempt ? "Remove exemption" : "Mark exempt"}
-              </button>
-              <button onClick={exitMember} disabled={exiting} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 ml-auto"><LogOut size={16} /> {exiting ? "Processing…" : "Exit member"}</button>
+
+              <div className="relative ml-auto">
+                <button onClick={() => setActionsOpen((o) => !o)} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2">
+                  <MoreHorizontal size={16} /> More <ChevronDown size={14} className={`transition ${actionsOpen ? "rotate-180" : ""}`} />
+                </button>
+                {actionsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setActionsOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-20 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-1.5">
+                      <button onClick={() => { inviteToPortal(); setActionsOpen(false); }} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 inline-flex items-center gap-2 disabled:opacity-50">
+                        <Smartphone size={15} className="text-emerald-600" /> {inviting ? "Sending…" : portalLinked ? "Portal access ✓ — resend" : "Invite to portal"}
+                      </button>
+                      <div className="px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        <span>Role</span>
+                        <select value={member.role || "member"} onChange={(e) => { changeRole(e.target.value); }} className="bg-transparent outline-none cursor-pointer dark:text-slate-100 border border-slate-200 dark:border-slate-600 rounded-md px-2 py-1">
+                          <option value="member">Member</option>
+                          <option value="chair">Chair</option>
+                          <option value="treasurer">Treasurer</option>
+                          <option value="secretary">Secretary</option>
+                        </select>
+                      </div>
+                      <button onClick={() => { toggleExempt(); setActionsOpen(false); }} disabled={exemptBusy} title="Sick/hardship: skip contribution dues & penalties while exempt" className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 inline-flex items-center gap-2 disabled:opacity-50">
+                        <AlertTriangle size={15} className="text-amber-600" /> {exemptBusy ? "Saving…" : member.contribution_exempt ? "Remove exemption" : "Mark exempt"}
+                      </button>
+                      <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
+                      <button onClick={() => { exitMember(); setActionsOpen(false); }} disabled={exiting} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 inline-flex items-center gap-2 disabled:opacity-50">
+                        <LogOut size={15} /> {exiting ? "Processing…" : "Exit member"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </PermissionGate>
           </div>
         </PermissionGate>
@@ -347,11 +368,11 @@ function MemberActivity({ activity, year, setYear, money, fmt, children }) {
         <button onClick={() => setYear((y) => y - 1)} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"><ChevronLeft size={16} /></button>
         <span className="font-bold text-slate-800 dark:text-slate-100 w-16 text-center">{year}</span>
         <button onClick={() => setYear((y) => y + 1)} disabled={year >= new Date().getFullYear()} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30"><ChevronRight size={16} /></button>
-        <span className="text-xs text-slate-400 dark:text-slate-400 ml-1">contributions, attendance &amp; fines for {year}</span>
+        <span className="text-xs text-slate-400 dark:text-slate-400 ml-1">contributions &amp; fines for {year}</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className={STAT}><p className="text-xs text-slate-500 dark:text-slate-400">Attendance</p><p className="text-xl font-bold text-sky-700">{attendance.rate == null ? "—" : `${attendance.rate}%`}</p><p className="text-xs text-slate-500 dark:text-slate-400">{attendance.attended}/{attendance.recorded} meetings &amp; events</p></div>
+        <div className={STAT}><p className="text-xs text-slate-500 dark:text-slate-400">Attendance</p><p className="text-xl font-bold text-sky-700">{attendance.rate == null ? "—" : `${attendance.rate}%`}</p><p className="text-xs text-slate-500 dark:text-slate-400">{attendance.attended}/{attendance.recorded} meetings &amp; events · all-time</p></div>
         <div className={STAT}><p className="text-xs text-slate-500 dark:text-slate-400">Fines outstanding</p><p className={`text-xl font-bold ${fines_outstanding > 0 ? "text-rose-600" : "text-slate-700 dark:text-slate-200"}`}>{money(fines_outstanding)}</p><p className="text-xs text-slate-500 dark:text-slate-400">{fines.length} fine{fines.length === 1 ? "" : "s"} total</p></div>
       </div>
 
@@ -385,12 +406,12 @@ function MemberActivity({ activity, year, setYear, money, fmt, children }) {
         )}
       </div>
 
-      <Section title="Attendance — meetings &amp; events">
+      <Section title="Attendance — meetings &amp; events (all-time)">
         {attendance.meetings.length === 0 ? <Empty>No meetings yet.</Empty> : (
           <ActTable head={["Meeting / Event", "Date", "Status"]}>
             {attendance.meetings.map((m) => (
               <tr key={m.id} className="border-t border-slate-100 dark:border-slate-700">
-                <td className="px-5 py-2 text-slate-800 dark:text-slate-100">{m.title || "—"}</td>
+                <td className="px-5 py-2 text-slate-800 dark:text-slate-100">{m.title || "—"} {m.is_event ? <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-700 align-middle">Event</span> : <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 align-middle">Meeting</span>}</td>
                 <td className="px-5 py-2 text-slate-600 dark:text-slate-400">{fmt(m.meeting_date)}</td>
                 <td className="px-5 py-2">{m.status ? pill(ASTATUS[m.status] || "bg-slate-100 text-slate-600", m.status) : <span className="text-xs text-slate-400 dark:text-slate-400">not recorded</span>}</td>
               </tr>

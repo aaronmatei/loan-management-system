@@ -184,7 +184,6 @@ function IdentityUploader({ onComplete, onCancel }) {
                 ref={(el) => (inputs.current[slot.key] = el)}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={pick(slot.key)}
                 className="hidden"
               />

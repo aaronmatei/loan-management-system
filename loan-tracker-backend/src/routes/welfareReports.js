@@ -255,14 +255,29 @@ export async function buildCharts(welfare, year) {
     collected: qActual[q]?.collected ?? 0,
   }));
 
-  // Attendance rate per meeting.
+  // Attendance rate per HELD meeting, split into normal meetings vs event
+  // meetings (an event meeting handed out a benefit-pool payout). The chart
+  // plots two series so turnout for regular meetings and events can be compared.
   const attendance = (await query(
-    `SELECT gm.meeting_date::date AS date,
+    `SELECT gm.meeting_date::date AS date, gm.title,
+            EXISTS(SELECT 1 FROM benefit_pool_ledger l WHERE l.meeting_id=gm.id AND l.type='payout') AS is_event,
             (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id=gm.id AND a.status IN ('present','late'))::int AS attended,
             (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id=gm.id)::int AS recorded
-       FROM group_meetings gm WHERE gm.group_id=$1 ORDER BY gm.meeting_date ASC, gm.id ASC`,
+       FROM group_meetings gm WHERE gm.group_id=$1 AND gm.status='held' ORDER BY gm.meeting_date ASC, gm.id ASC`,
     [wid],
-  )).rows.map((r) => ({ label: new Date(r.date).toISOString().slice(0, 10), rate: r.recorded > 0 ? Math.round((r.attended / r.recorded) * 100) : 0, attended: r.attended, recorded: r.recorded }));
+  )).rows.map((r) => {
+    const rate = r.recorded > 0 ? Math.round((r.attended / r.recorded) * 100) : 0;
+    return {
+      label: new Date(r.date).toISOString().slice(0, 10),
+      title: r.title,
+      kind: r.is_event ? "event" : "meeting",
+      attended: r.attended,
+      recorded: r.recorded,
+      // Separate series so each renders as its own line (null = no point).
+      meetingRate: r.is_event ? null : rate,
+      eventRate: r.is_event ? rate : null,
+    };
+  });
 
   // Fines by activity type — accrued vs collected per penalty trigger.
   const FINE_LABELS = { contribution_late: "Contribution late", loan_late: "Loan late", attendance_late: "Attendance late", attendance_absent: "Attendance absent", meeting_missed: "Meeting missed", manual: "Manual" };

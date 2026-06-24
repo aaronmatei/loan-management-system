@@ -253,12 +253,15 @@ router.get("/:id/activity", async (req, res) => {
         ORDER BY pa.assessed_at DESC`, [mid, year])).rows;
     const finesOutstanding = fines.reduce((a, f) => a + (f.status === "outstanding" ? Number(f.amount) - Number(f.paid_amount) : 0), 0);
 
-    // Attendance across meetings AND events in the year (events are meetings).
+    // Attendance is a lifetime membership stat — ALL held meetings & events
+    // (not year-scoped), so a member's full participation record shows. An
+    // "event" meeting is one that handed out a benefit-pool payout.
     const meetings = (await query(
-      `SELECT gm.id, gm.title, gm.meeting_date, gm.status AS meeting_status, a.status
+      `SELECT gm.id, gm.title, gm.meeting_date, gm.status AS meeting_status, a.status,
+              EXISTS(SELECT 1 FROM benefit_pool_ledger l WHERE l.meeting_id=gm.id AND l.type='payout') AS is_event
          FROM group_meetings gm
          LEFT JOIN member_attendance a ON a.meeting_id=gm.id AND a.member_id=$1
-        WHERE gm.group_id=$2 AND EXTRACT(YEAR FROM gm.meeting_date)=$3 ORDER BY gm.meeting_date DESC`, [mid, req.welfare.id, year])).rows;
+        WHERE gm.group_id=$2 AND gm.status='held' ORDER BY gm.meeting_date DESC`, [mid, req.welfare.id])).rows;
     const recorded = meetings.filter((m) => m.status).length;
     const attended = meetings.filter((m) => m.status === "present" || m.status === "late").length;
 
