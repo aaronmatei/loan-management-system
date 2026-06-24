@@ -118,19 +118,44 @@ async function assessAttendance(welfare, meetingId, memberId, status, fines, use
   }
 }
 
+// Quorum is 50% + 1 of the ACTIVE, contribution-exempt-EXCLUDED roster.
+// Exempt members may still RSVP, but neither they nor their confirmations
+// count toward the quorum base/threshold.
+async function quorumBase(welfareId) {
+  const base = (
+    await query(
+      `SELECT COUNT(*)::int AS n FROM members
+        WHERE welfare_id = $1 AND status = 'active' AND COALESCE(contribution_exempt,false) = false`,
+      [welfareId],
+    )
+  ).rows[0].n;
+  return { base, needed: Math.floor(base / 2) + 1 };
+}
+
 // GET /meetings
 router.get("/meetings", async (req, res) => {
   try {
     const r = await query(
       `SELECT m.*,
           (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = m.id AND a.status IN ('present','late'))::int AS present_count,
-          (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = m.id)::int AS recorded_count
+          (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = m.id)::int AS recorded_count,
+          (SELECT COUNT(*) FROM meeting_confirmations c
+             JOIN members mm ON mm.id = c.member_id
+            WHERE c.meeting_id = m.id AND c.attending = true
+              AND mm.status = 'active' AND COALESCE(mm.contribution_exempt,false) = false)::int AS confirmed_count
         FROM group_meetings m
         WHERE m.group_id = $1
         ORDER BY m.meeting_date DESC, m.id DESC`,
       [req.welfare.id],
     );
-    res.json({ success: true, data: r.rows });
+    const q = await quorumBase(req.welfare.id);
+    const rows = r.rows.map((m) => ({
+      ...m,
+      quorum_base: q.base,
+      quorum_needed: q.needed,
+      quorum_met: m.confirmed_count >= q.needed,
+    }));
+    res.json({ success: true, data: rows });
   } catch (e) {
     logger.error("welfare meetings list error:", e);
     res.status(500).json({ error: "Failed to load meetings" });
@@ -192,6 +217,33 @@ router.put("/meetings/:meetingId", authorize("admin", "manager", "loan_officer")
   }
 });
 
+// POST /meetings/:meetingId/suspend — quorum (50% + 1 of active non-exempt
+// members) wasn't confirmed, so call the meeting off. Only a SCHEDULED meeting
+// can be suspended; the admin then schedules a fresh one. Confirmations are
+// kept on the record for audit.
+router.post("/meetings/:meetingId/suspend", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const m = await loadMeeting(req.welfare.id, req.params.meetingId);
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    if (m.status !== "scheduled")
+      return res.status(400).json({ error: `Only a scheduled meeting can be suspended (this one is ${m.status}).` });
+    const reason = (req.body?.reason || "Quorum not met").toString().slice(0, 500);
+    const r = await query(
+      `UPDATE group_meetings SET status='suspended', updated_at=NOW() WHERE id=$1 RETURNING *`,
+      [m.id],
+    );
+    await logAudit({
+      user: req.user, action: "welfare_meeting_suspended", entityType: "group",
+      entityId: req.welfare.id, entityCode: req.welfare.group_code,
+      description: `Suspended meeting${m.title ? ` "${m.title}"` : ""} — ${reason}`, req,
+    });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    logger.error("welfare meeting suspend error:", e);
+    res.status(500).json({ error: "Failed to suspend meeting" });
+  }
+});
+
 // GET /meetings/:meetingId — meeting + roster (active members + their status).
 router.get("/meetings/:meetingId", async (req, res) => {
   try {
@@ -199,9 +251,12 @@ router.get("/meetings/:meetingId", async (req, res) => {
     if (!m) return res.status(404).json({ error: "Meeting not found" });
     const roster = await query(
       `SELECT mem.id AS member_id, mem.first_name, mem.last_name, mem.member_no,
-              a.status AS attendance_status, a.arrival_time, a.apology
+              COALESCE(mem.contribution_exempt,false) AS contribution_exempt,
+              a.status AS attendance_status, a.arrival_time, a.apology,
+              c.attending AS confirmed
          FROM members mem
          LEFT JOIN member_attendance a ON a.meeting_id = $2 AND a.member_id = mem.id
+         LEFT JOIN meeting_confirmations c ON c.meeting_id = $2 AND c.member_id = mem.id
         WHERE mem.welfare_id = $1 AND mem.status = 'active'
         ORDER BY mem.first_name`,
       [req.welfare.id, m.id],
@@ -222,7 +277,10 @@ router.get("/meetings/:meetingId", async (req, res) => {
     )).rows[0] || null;
     const agenda = await loadAgenda(m.id);
     const minutes = await loadMinutes(req.welfare.id, m.id);
-    res.json({ success: true, data: { meeting: m, roster: roster.rows, fines, payout, agenda, minutes } });
+    const q = await quorumBase(req.welfare.id);
+    const confirmed_count = roster.rows.filter((x) => x.confirmed === true && !x.contribution_exempt).length;
+    const quorum = { ...q, confirmed_count, met: confirmed_count >= q.needed };
+    res.json({ success: true, data: { meeting: m, roster: roster.rows, fines, payout, agenda, minutes, quorum } });
   } catch (e) {
     logger.error("welfare meeting get error:", e);
     res.status(500).json({ error: "Failed to load meeting" });

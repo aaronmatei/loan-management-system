@@ -3937,3 +3937,18 @@ CREATE TABLE public.member_attendance (
 );
 CREATE INDEX idx_member_attendance_meeting ON public.member_attendance(meeting_id);
 CREATE INDEX idx_member_attendance_member ON public.member_attendance(member_id);
+
+-- migration 111: member RSVP / attendance confirmations (pre-meeting quorum)
+CREATE TABLE public.meeting_confirmations (
+  id          serial PRIMARY KEY,
+  tenant_id   integer NOT NULL,
+  welfare_id  integer NOT NULL,
+  meeting_id  integer NOT NULL REFERENCES public.group_meetings(id) ON DELETE CASCADE,
+  member_id   integer NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  attending   boolean NOT NULL,
+  created_at  timestamp NOT NULL DEFAULT NOW(),
+  updated_at  timestamp NOT NULL DEFAULT NOW(),
+  UNIQUE (meeting_id, member_id)
+);
+CREATE INDEX idx_meeting_confirmations_meeting ON public.meeting_confirmations(meeting_id);
+CREATE INDEX idx_meeting_confirmations_member ON public.meeting_confirmations(member_id);

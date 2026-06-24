@@ -27,13 +27,14 @@ const deriveStatus = (arrival, apology, meeting) => {
 // chama's attendance penalties.
 // `client`/`basePath`/`readOnly` let the member portal reuse this whole view
 // read-only (members are equal owners). Admin keeps the defaults.
-export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly = false, basePath = `/welfares/${welfareId}` }) {
+export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly = false, basePath = `/welfares/${welfareId}`, memberConfirm = false }) {
   const [meetings, setMeetings] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState(null);
   const [attend, setAttend] = useState(null);
+  const [acting, setActing] = useState(null);
 
   const load = async () => {
     try {
@@ -54,7 +55,23 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
   }, [basePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fmt = (d) => new Date(d).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" });
-  const STATUS = { scheduled: "bg-slate-100 text-slate-700", held: "bg-emerald-100 text-emerald-800", cancelled: "bg-red-100 text-red-700" };
+  const STATUS = { scheduled: "bg-slate-100 text-slate-700", held: "bg-emerald-100 text-emerald-800", cancelled: "bg-red-100 text-red-700", suspended: "bg-rose-100 text-rose-700" };
+
+  // Member RSVPs for a scheduled meeting; admin suspends one whose quorum
+  // (50% + 1 of active non-exempt members) wasn't confirmed.
+  const rsvp = async (meetingId, attending) => {
+    setActing(meetingId);
+    try { await client.post(`${basePath}/meetings/${meetingId}/confirm`, { attending }); await load(); }
+    catch (e) { alert(e.response?.data?.error || "Failed to save your confirmation."); }
+    finally { setActing(null); }
+  };
+  const suspend = async (meetingId) => {
+    if (!window.confirm("Suspend this meeting because quorum wasn't confirmed? Members will see it as suspended — then schedule a new one.")) return;
+    setActing(meetingId);
+    try { await client.post(`${basePath}/meetings/${meetingId}/suspend`, { reason: "Quorum not met" }); await load(); }
+    catch (e) { alert(e.response?.data?.error || "Failed to suspend meeting."); }
+    finally { setActing(null); }
+  };
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-indigo-100 mb-6 overflow-hidden">
@@ -89,6 +106,7 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                   <th className="text-left px-4 py-2">Venue</th>
                   <th className="text-left px-4 py-2">Location</th>
                   <th className="text-left px-4 py-2">Status</th>
+                  <th className="text-left px-4 py-2">Confirmations</th>
                   <th className="text-right px-4 py-2">Present</th>
                   <th className="px-4 py-2"></th>
                 </tr>
@@ -101,6 +119,49 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                     <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{m.venue || "—"}</td>
                     <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{m.location || "—"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
+                    <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                      {m.status === "scheduled" ? (
+                        <div className="flex flex-col items-start gap-1.5">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${m.quorum_met ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+                            title={`Quorum needs ${m.quorum_needed} of ${m.quorum_base} members`}
+                          >
+                            {Number(m.confirmed_count)}/{m.quorum_needed} confirmed{m.quorum_met ? " · quorum met" : ""}
+                          </span>
+                          {memberConfirm && (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => rsvp(m.id, true)}
+                                disabled={acting === m.id}
+                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:opacity-50 ${m.my_confirmation === true ? "bg-emerald-600 text-white border-emerald-600" : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"}`}
+                              >
+                                Attending
+                              </button>
+                              <button
+                                onClick={() => rsvp(m.id, false)}
+                                disabled={acting === m.id}
+                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:opacity-50 ${m.my_confirmation === false ? "bg-rose-600 text-white border-rose-600" : "bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30"}`}
+                              >
+                                Can't make it
+                              </button>
+                            </div>
+                          )}
+                          {!readOnly && !m.quorum_met && (
+                            <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                              <button
+                                onClick={() => suspend(m.id)}
+                                disabled={acting === m.id}
+                                className="px-2 py-0.5 rounded-md text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50"
+                              >
+                                Suspend — no quorum
+                              </button>
+                            </PermissionGate>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-600">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-right text-slate-700 dark:text-slate-200">{Number(m.present_count)}</td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
                       {!readOnly && (
@@ -463,6 +524,12 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
       {data?.payout && (
         <div className="mb-4 flex items-center gap-2 text-sm bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
           <Gift size={15} className="text-violet-600" /> Handed out <span className="font-semibold">{money(data.payout.amount)}</span> to {data.payout.first_name} {data.payout.last_name}
+        </div>
+      )}
+      {m.status === "scheduled" && data?.quorum && (
+        <div className={`mb-4 text-sm rounded-lg px-3 py-2 border ${data.quorum.met ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-amber-50 border-amber-100 text-amber-800"}`}>
+          <span className="font-semibold">{data.quorum.confirmed_count}/{data.quorum.needed}</span> members confirmed attendance
+          {data.quorum.met ? " — quorum met ✓" : ` — quorum (50% + 1 of ${data.quorum.base}) not yet confirmed`}
         </div>
       )}
 

@@ -657,24 +657,68 @@ router.get("/penalties", async (req, res) => {
   }
 });
 
-// GET /meetings — the welfare's meetings + this member's attendance.
+// GET /meetings — the welfare's meetings + this member's attendance + RSVP.
 router.get("/meetings", async (req, res) => {
   try {
     const r = await query(
       `SELECT gm.id, gm.title, gm.meeting_date, gm.location, gm.venue, gm.agenda, gm.status, gm.start_time, gm.grace_minutes,
               ma.status AS my_attendance,
+              mc.attending AS my_confirmation,
               (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id AND a.status IN ('present','late'))::int AS present_count,
-              (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id)::int AS recorded_count
+              (SELECT COUNT(*) FROM member_attendance a WHERE a.meeting_id = gm.id)::int AS recorded_count,
+              (SELECT COUNT(*) FROM meeting_confirmations c
+                 JOIN members mm ON mm.id = c.member_id
+                WHERE c.meeting_id = gm.id AND c.attending = true
+                  AND mm.status = 'active' AND COALESCE(mm.contribution_exempt,false) = false)::int AS confirmed_count
          FROM group_meetings gm
          LEFT JOIN member_attendance ma ON ma.meeting_id = gm.id AND ma.member_id = $1
+         LEFT JOIN meeting_confirmations mc ON mc.meeting_id = gm.id AND mc.member_id = $1
         WHERE gm.group_id = $2
         ORDER BY gm.meeting_date DESC`,
       [req.member.id, req.welfareId],
     );
-    res.json({ success: true, data: r.rows });
+    const base = (await query(
+      `SELECT COUNT(*)::int AS n FROM members
+        WHERE welfare_id = $1 AND status = 'active' AND COALESCE(contribution_exempt,false) = false`,
+      [req.welfareId],
+    )).rows[0].n;
+    const needed = Math.floor(base / 2) + 1;
+    const rows = r.rows.map((m) => ({
+      ...m,
+      quorum_base: base,
+      quorum_needed: needed,
+      quorum_met: m.confirmed_count >= needed,
+    }));
+    res.json({ success: true, data: rows });
   } catch (e) {
     logger.error("member meetings error:", e);
     res.status(500).json({ error: "Failed to load meetings" });
+  }
+});
+
+// POST /meetings/:meetingId/confirm — member RSVPs for a SCHEDULED meeting.
+// { attending: true|false }. Upserts; only allowed while the meeting is open.
+router.post("/meetings/:meetingId/confirm", async (req, res) => {
+  try {
+    const m = (await query(
+      `SELECT id, status FROM group_meetings WHERE id=$1 AND group_id=$2`,
+      [req.params.meetingId, req.welfareId],
+    )).rows[0];
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    if (m.status !== "scheduled")
+      return res.status(400).json({ error: "This meeting is no longer open for confirmation." });
+    const attending = req.body?.attending === true || req.body?.attending === "true";
+    await query(
+      `INSERT INTO meeting_confirmations (tenant_id, welfare_id, meeting_id, member_id, attending)
+         VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (meeting_id, member_id)
+         DO UPDATE SET attending = EXCLUDED.attending, updated_at = NOW()`,
+      [req.member.tenant_id, req.welfareId, m.id, req.member.id, attending],
+    );
+    res.json({ success: true, attending });
+  } catch (e) {
+    logger.error("member meeting confirm error:", e);
+    res.status(500).json({ error: "Failed to confirm attendance" });
   }
 });
 

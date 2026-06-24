@@ -784,7 +784,7 @@ export function MemberMeetings() {
   // see the whole roster (everyone's present/late/absent + arrival).
   return (
     <Shell title="Meetings & Attendance" icon={CalendarCheck}>
-      <WelfareMeetingsPanel client={portalApi} basePath="/welfare/member" readOnly />
+      <WelfareMeetingsPanel client={portalApi} basePath="/welfare/member" readOnly memberConfirm />
     </Shell>
   );
 }
