@@ -862,7 +862,7 @@ export function MemberEvents() {
       {benefits.length > 0 && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-5">
           <p className="font-semibold text-emerald-900 dark:text-emerald-200 mb-2 inline-flex items-center gap-2">
-            <Gift size={16} /> You're the beneficiary
+            <Gift size={16} /> You're a beneficiary
           </p>
           <ul className="divide-y divide-emerald-100 dark:divide-emerald-800/60">
             {benefits.map((b, i) => (
