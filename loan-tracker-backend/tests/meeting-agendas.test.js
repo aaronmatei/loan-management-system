@@ -33,18 +33,35 @@ async function setup() {
 }
 
 describe("meeting agendas + minutes", () => {
-  it("members suggest agenda (appended), admin adds too; detail shows all in order on both sides", async () => {
-    const { admin, w, tokA, tokB, mtg } = await setup();
-    const i1 = (await request(app).post(`/api/welfare/member/meetings/${mtg.id}/agenda`).set("Authorization", tokA).send({ content: "Budget review" })).body.data;
-    expect(i1.author_name).toMatch(/Asha/);
-    await request(app).post(`/api/welfare/member/meetings/${mtg.id}/agenda`).set("Authorization", tokB).send({ content: "New members" });
-    await request(app).post(`/api/welfares/${w.id}/meetings/${mtg.id}/agenda`).set("Authorization", auth(admin)).send({ content: "Chair remarks" });
+  it("admin items are the approved agenda; member items are pending suggestions", async () => {
+    const { admin, w, tokA, mtg } = await setup();
+    const sug = (await request(app).post(`/api/welfare/member/meetings/${mtg.id}/agenda`).set("Authorization", tokA).send({ content: "Budget review" })).body.data;
+    expect(sug.status).toBe("suggested");
+    expect(sug.author_name).toMatch(/Asha/);
+    const adm = (await request(app).post(`/api/welfares/${w.id}/meetings/${mtg.id}/agenda`).set("Authorization", auth(admin)).send({ content: "Chair remarks" })).body.data;
+    expect(adm.status).toBe("approved");
 
     const detail = (await request(app).get(`/api/welfares/${w.id}/meetings/${mtg.id}`).set("Authorization", auth(admin))).body.data;
-    expect(detail.agenda.map((x) => x.content)).toEqual(["Budget review", "New members", "Chair remarks"]);
+    expect(detail.agenda.filter((x) => x.status === "approved").map((x) => x.content)).toEqual(["Chair remarks"]);
+    expect(detail.agenda.filter((x) => x.status === "suggested").map((x) => x.content)).toEqual(["Budget review"]);
     const mdet = (await request(app).get(`/api/welfare/member/meetings/${mtg.id}`).set("Authorization", tokA)).body.data;
-    expect(mdet.agenda).toHaveLength(3);
+    expect(mdet.agenda).toHaveLength(2);
     expect(mdet.minutes).toEqual([]);
+  });
+
+  it("admin approves a suggestion (→ agenda) or rejects it (removed); approved is locked to the member", async () => {
+    const { admin, w, tokA, tokB, mtg } = await setup();
+    const keep = (await request(app).post(`/api/welfare/member/meetings/${mtg.id}/agenda`).set("Authorization", tokA).send({ content: "Keep me" })).body.data;
+    const drop = (await request(app).post(`/api/welfare/member/meetings/${mtg.id}/agenda`).set("Authorization", tokB).send({ content: "Reject me" })).body.data;
+
+    expect((await request(app).put(`/api/welfares/${w.id}/meetings/${mtg.id}/agenda/${keep.id}`).set("Authorization", auth(admin)).send({ status: "approved" })).status).toBe(200);
+    expect((await request(app).delete(`/api/welfares/${w.id}/meetings/${mtg.id}/agenda/${drop.id}`).set("Authorization", auth(admin))).status).toBe(200);
+
+    const agenda = (await request(app).get(`/api/welfares/${w.id}/meetings/${mtg.id}`).set("Authorization", auth(admin))).body.data.agenda;
+    expect(agenda.find((x) => x.id === keep.id).status).toBe("approved");
+    expect(agenda.find((x) => x.id === drop.id)).toBeUndefined();
+    // Once approved it's the official agenda — the member can no longer edit it.
+    expect((await request(app).put(`/api/welfare/member/meetings/${mtg.id}/agenda/${keep.id}`).set("Authorization", tokA).send({ content: "sneaky" })).status).toBe(403);
   });
 
   it("a member edits ONLY their own item; the admin harmonizes any", async () => {

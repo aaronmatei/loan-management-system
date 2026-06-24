@@ -252,18 +252,20 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
   );
 }
 
-// Agenda items for a meeting. Anyone (admin or member) can suggest one (it's
-// appended). A member may edit/delete only their own; the admin (the non-readOnly
-// caller) may edit/delete any — that's how they harmonize the list.
+// A meeting's agenda. The admin adds items directly (they're the official,
+// "approved" agenda). Members SUGGEST items, which sit in a pending list until
+// the admin approves (→ agenda) or rejects (removed). A member may edit/withdraw
+// only their own pending suggestion.
 function AgendaSection({ client, basePath, meetingId, items, freeText, readOnly, myMemberId, onChange }) {
   const [adding, setAdding] = useState("");
   const [editId, setEditId] = useState(null);
   const [editText, setEditText] = useState("");
   const [busy, setBusy] = useState(false);
   const isAdmin = !readOnly;
-  const canEdit = (it) => isAdmin || (myMemberId != null && it.suggested_by_member === myMemberId);
-  // The free-text agenda may hold several items (one per line, or separated by
-  // " - " / ";"). Split into bullets and strip any leading bullet character.
+  const approved = items.filter((it) => it.status === "approved");
+  const pending = items.filter((it) => it.status === "suggested");
+  const canEdit = (it) => isAdmin || (it.status === "suggested" && myMemberId != null && it.suggested_by_member === myMemberId);
+  // Free-text agenda (legacy) is only a fallback when there are no approved items.
   const freeBullets = (freeText || "").split(/\r?\n|\s+-\s+|;/).map((s) => s.replace(/^[-*•]\s*/, "").trim()).filter(Boolean);
   const lbl = "text-sm font-semibold text-slate-700 dark:text-slate-200";
   const fld = "flex-1 px-2 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm";
@@ -271,44 +273,74 @@ function AgendaSection({ client, basePath, meetingId, items, freeText, readOnly,
   const add = () => adding.trim() && wrap(async () => { await client.post(`${basePath}/meetings/${meetingId}/agenda`, { content: adding.trim() }); setAdding(""); });
   const saveEdit = (id) => editText.trim() && wrap(async () => { await client.put(`${basePath}/meetings/${meetingId}/agenda/${id}`, { content: editText.trim() }); setEditId(null); });
   const del = (id) => window.confirm("Remove this agenda item?") && wrap(() => client.delete(`${basePath}/meetings/${meetingId}/agenda/${id}`));
+  const approve = (id) => wrap(() => client.put(`${basePath}/meetings/${meetingId}/agenda/${id}`, { status: "approved" }));
+  const reject = (id) => window.confirm("Reject this suggestion?") && wrap(() => client.delete(`${basePath}/meetings/${meetingId}/agenda/${id}`));
+
+  const Editable = ({ it }) => editId === it.id ? (
+    <span className="flex-1 flex gap-2">
+      <input value={editText} onChange={(e) => setEditText(e.target.value)} className={fld} autoFocus />
+      <button onClick={() => saveEdit(it.id)} disabled={busy} className="text-xs font-semibold text-emerald-700">Save</button>
+      <button onClick={() => setEditId(null)} className="text-xs text-slate-400">Cancel</button>
+    </span>
+  ) : (
+    <span className="flex-1 text-slate-800 dark:text-slate-100">{it.content} {it.author_name && <span className="text-xs text-slate-400 dark:text-slate-500">— {it.author_name}</span>}</span>
+  );
+
   return (
     <div className="mb-4 border-t border-slate-100 dark:border-slate-700 pt-3">
       <p className={`${lbl} mb-2`}>Agenda</p>
-      {/* The meeting's agenda (admin-set), one bullet per line/separator. */}
-      {freeBullets.length > 0 && (
-        <ul className="list-disc pl-5 space-y-0.5 mb-2 text-sm text-slate-700 dark:text-slate-200">
+      {/* Official agenda: approved items, else the legacy free-text bullets. */}
+      {approved.length > 0 ? (
+        <ol className="space-y-1.5">
+          {approved.map((it, i) => (
+            <li key={it.id} className="flex items-start gap-2 text-sm">
+              <span className="text-slate-400 dark:text-slate-500 w-5 shrink-0">{i + 1}.</span>
+              <Editable it={it} />
+              {isAdmin && editId !== it.id && (
+                <span className="flex gap-2 shrink-0">
+                  <button onClick={() => { setEditId(it.id); setEditText(it.content); }} className="text-xs text-indigo-600 hover:text-indigo-800">edit</button>
+                  <button onClick={() => del(it.id)} className="text-xs text-rose-600 hover:text-rose-800">remove</button>
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : freeBullets.length > 0 ? (
+        <ul className="list-disc pl-5 space-y-0.5 text-sm text-slate-700 dark:text-slate-200">
           {freeBullets.map((b, i) => <li key={i}>{b}</li>)}
         </ul>
+      ) : (
+        <p className="text-xs text-slate-400 dark:text-slate-400">No agenda items yet.</p>
       )}
-      {items.length > 0 && <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1">Member suggestions</p>}
-      <ol className="space-y-1.5">
-        {items.map((it, i) => (
-          <li key={it.id} className="flex items-start gap-2 text-sm">
-            <span className="text-slate-400 dark:text-slate-500 w-4 shrink-0">{i + 1}.</span>
-            {editId === it.id ? (
-              <span className="flex-1 flex gap-2">
-                <input value={editText} onChange={(e) => setEditText(e.target.value)} className={fld} autoFocus />
-                <button onClick={() => saveEdit(it.id)} disabled={busy} className="text-xs font-semibold text-emerald-700">Save</button>
-                <button onClick={() => setEditId(null)} className="text-xs text-slate-400">Cancel</button>
-              </span>
-            ) : (
-              <>
-                <span className="flex-1 text-slate-800 dark:text-slate-100">{it.content} {it.author_name && <span className="text-xs text-slate-400 dark:text-slate-500">— {it.author_name}</span>}</span>
-                {canEdit(it) && (
-                  <span className="flex gap-2 shrink-0">
-                    <button onClick={() => { setEditId(it.id); setEditText(it.content); }} className="text-xs text-indigo-600 hover:text-indigo-800">edit</button>
-                    <button onClick={() => del(it.id)} className="text-xs text-rose-600 hover:text-rose-800">remove</button>
-                  </span>
-                )}
-              </>
-            )}
-          </li>
-        ))}
-      </ol>
+
+      {/* Admin adds straight to the agenda; members suggest. */}
       <div className="flex gap-2 mt-2">
         <input value={adding} onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={isAdmin ? "Add an agenda item" : "Suggest an agenda item"} className={fld} />
         <button onClick={add} disabled={busy || !adding.trim()} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold disabled:opacity-50">{isAdmin ? "Add" : "Suggest"}</button>
       </div>
+
+      {/* Pending member suggestions — admin approves/rejects; a member can edit/withdraw their own. */}
+      {pending.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1">Suggestions awaiting approval ({pending.length})</p>
+          <ul className="space-y-1.5">
+            {pending.map((it) => (
+              <li key={it.id} className="flex items-start gap-2 text-sm">
+                <span className="text-amber-400 shrink-0">•</span>
+                <Editable it={it} />
+                {editId !== it.id && (
+                  <span className="flex gap-2 shrink-0">
+                    {isAdmin && <button onClick={() => approve(it.id)} disabled={busy} className="text-xs font-semibold text-emerald-700 hover:text-emerald-900">approve</button>}
+                    {isAdmin && <button onClick={() => reject(it.id)} className="text-xs font-semibold text-rose-600 hover:text-rose-800">reject</button>}
+                    {!isAdmin && canEdit(it) && <button onClick={() => { setEditId(it.id); setEditText(it.content); }} className="text-xs text-indigo-600 hover:text-indigo-800">edit</button>}
+                    {!isAdmin && canEdit(it) && <button onClick={() => del(it.id)} className="text-xs text-rose-600 hover:text-rose-800">withdraw</button>}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

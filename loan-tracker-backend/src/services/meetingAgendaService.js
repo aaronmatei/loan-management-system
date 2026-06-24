@@ -7,7 +7,7 @@ import { query } from "../config/database.js";
 // Agenda items in display order. author_name is who suggested it.
 export async function loadAgenda(meetingId) {
   return (await query(
-    `SELECT id, content, position, suggested_by_member, suggested_by_user, author_name, created_at, updated_at
+    `SELECT id, content, position, status, suggested_by_member, suggested_by_user, author_name, created_at, updated_at
        FROM meeting_agenda_items WHERE meeting_id = $1 ORDER BY position, id`,
     [meetingId],
   )).rows;

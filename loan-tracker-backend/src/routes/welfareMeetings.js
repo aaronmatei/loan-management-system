@@ -200,8 +200,8 @@ router.post("/meetings/:meetingId/agenda", authorize("admin", "manager", "loan_o
     const content = String(req.body?.content || "").trim();
     if (!content) return res.status(400).json({ error: "Agenda item can't be empty" });
     const r = await query(
-      `INSERT INTO meeting_agenda_items (tenant_id, welfare_id, meeting_id, content, position, suggested_by_user, author_name)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO meeting_agenda_items (tenant_id, welfare_id, meeting_id, content, position, status, suggested_by_user, author_name)
+       VALUES ($1,$2,$3,$4,$5,'approved',$6,$7) RETURNING *`,
       [req.welfare.tenant_id, req.welfare.id, m.id, content, await nextPosition(m.id), req.user.id, req.user.name || "Admin"],
     );
     res.status(201).json({ success: true, data: r.rows[0] });
@@ -223,6 +223,8 @@ router.put("/meetings/:meetingId/agenda/:itemId", authorize("admin", "manager"),
       params.push(c); fields.push(`content = $${params.length}`);
     }
     if (req.body?.position !== undefined) { params.push(parseInt(req.body.position, 10) || 0); fields.push(`position = $${params.length}`); }
+    // Approving / rejecting a member suggestion is a status change.
+    if (req.body?.status !== undefined && ["approved", "suggested", "rejected"].includes(req.body.status)) { params.push(req.body.status); fields.push(`status = $${params.length}`); }
     if (!fields.length) return res.status(400).json({ error: "Nothing to update" });
     const r = await query(`UPDATE meeting_agenda_items SET ${fields.join(", ")}, updated_at=NOW() WHERE id=$1 AND meeting_id=$2 RETURNING *`, params);
     if (!r.rows.length) return res.status(404).json({ error: "Agenda item not found" });

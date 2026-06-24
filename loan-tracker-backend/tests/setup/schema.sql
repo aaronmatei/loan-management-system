@@ -3399,6 +3399,7 @@ CREATE TABLE public.meeting_agenda_items ( -- migration 107
   meeting_id          integer NOT NULL REFERENCES public.group_meetings(id) ON DELETE CASCADE,
   content             text NOT NULL,
   position            integer NOT NULL DEFAULT 0,
+  status              varchar(20) NOT NULL DEFAULT 'approved', -- migration 109 (approved|suggested)
   suggested_by_member integer REFERENCES public.members(id) ON DELETE SET NULL,
   suggested_by_user   integer,
   author_name         varchar(120),

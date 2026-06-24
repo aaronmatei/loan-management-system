@@ -209,8 +209,8 @@ router.post("/meetings/:meetingId/agenda", async (req, res) => {
     const content = String(req.body?.content || "").trim();
     if (!content) return res.status(400).json({ error: "Agenda item can't be empty" });
     const r = await query(
-      `INSERT INTO meeting_agenda_items (tenant_id, welfare_id, meeting_id, content, position, suggested_by_member, author_name)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO meeting_agenda_items (tenant_id, welfare_id, meeting_id, content, position, status, suggested_by_member, author_name)
+       VALUES ($1,$2,$3,$4,$5,'suggested',$6,$7) RETURNING *`,
       [req.member.tenant_id, req.welfareId, m.id, content, await nextPosition(m.id), req.member.id, `${req.member.first_name} ${req.member.last_name}`.trim()],
     );
     res.status(201).json({ success: true, data: r.rows[0] });
@@ -224,20 +224,20 @@ router.put("/meetings/:meetingId/agenda/:itemId", async (req, res) => {
     if (!content) return res.status(400).json({ error: "Agenda item can't be empty" });
     const r = await query(
       `UPDATE meeting_agenda_items SET content=$1, updated_at=NOW()
-        WHERE id=$2 AND meeting_id=$3 AND suggested_by_member=$4 RETURNING *`,
+        WHERE id=$2 AND meeting_id=$3 AND suggested_by_member=$4 AND status='suggested' RETURNING *`,
       [content, req.params.itemId, req.params.meetingId, req.member.id],
     );
-    if (!r.rows.length) return res.status(403).json({ error: "You can only edit your own agenda items" });
+    if (!r.rows.length) return res.status(403).json({ error: "You can only edit your own pending suggestions" });
     res.json({ success: true, data: r.rows[0] });
   } catch (e) { logger.error("member agenda edit error:", e); res.status(500).json({ error: "Failed to update agenda item" }); }
 });
 router.delete("/meetings/:meetingId/agenda/:itemId", async (req, res) => {
   try {
     const r = await query(
-      `DELETE FROM meeting_agenda_items WHERE id=$1 AND meeting_id=$2 AND suggested_by_member=$3 RETURNING id`,
+      `DELETE FROM meeting_agenda_items WHERE id=$1 AND meeting_id=$2 AND suggested_by_member=$3 AND status='suggested' RETURNING id`,
       [req.params.itemId, req.params.meetingId, req.member.id],
     );
-    if (!r.rows.length) return res.status(403).json({ error: "You can only remove your own agenda items" });
+    if (!r.rows.length) return res.status(403).json({ error: "You can only remove your own pending suggestions" });
     res.json({ success: true });
   } catch (e) { logger.error("member agenda delete error:", e); res.status(500).json({ error: "Failed to delete agenda item" }); }
 });
