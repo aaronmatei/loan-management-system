@@ -834,6 +834,11 @@ router.post(
           WHERE id = $2`,
         [hash, customer.id],
       );
+      await query(
+        `INSERT INTO customer_activities (platform_customer_id, tenant_id, activity_type, ip_address)
+         VALUES ($1, $2, 'password_changed', $3)`,
+        [customer.id, req.tenant?.id || null, ipOf(req)],
+      );
       return res.json({ success: true });
     } catch (error) {
       logger.error("Member set-password error:", error);
@@ -1178,6 +1183,11 @@ router.post("/reset-password", async (req, res) => {
     if (upd.rows.length === 0) {
       return res.status(404).json({ error: "Customer not found" });
     }
+    await query(
+      `INSERT INTO customer_activities (platform_customer_id, activity_type, ip_address)
+       VALUES ($1, 'password_reset', $2)`,
+      [customer_id, ipOf(req)],
+    );
     res.json({ success: true, message: "Password reset successful" });
   } catch (error) {
     logger.error("Reset password error:", error);

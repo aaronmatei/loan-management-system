@@ -201,7 +201,6 @@ const WELFARE_GROUPS = [
       { path: "/welfare/expenses", label: "Expenses", icon: Receipt, permission: "loans:view" },
       { path: "/welfare/reports", label: "Reports", icon: BarChart3, permission: "loans:view" },
       { path: "/welfare/books", label: "Books of Accounts", icon: BookOpen, permission: "loans:view" },
-      { path: "/welfare/audit", label: "Audit log", icon: ScrollText, roles: ["admin", "manager"] },
     ],
   },
   {
@@ -219,6 +218,7 @@ const WELFARE_GROUPS = [
     items: [
       { path: "/welfare/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
+      { path: "/welfare/audit", label: "Audit log", icon: ScrollText, roles: ["admin", "manager"] },
       { path: "/billing", label: "Platform Invoices", icon: FileText, roles: ["admin", "manager"] },
     ],
   },
