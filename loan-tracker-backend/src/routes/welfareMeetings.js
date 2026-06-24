@@ -8,6 +8,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { loadAgenda, loadMinutes, nextPosition } from "../services/meetingAgendaService.js";
+import { postPool, round2 } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -57,26 +58,64 @@ async function loadMeeting(welfareId, id) {
   return r.rows[0] || null;
 }
 
-// Re-assess absent/late penalties for one member at one meeting. Clears prior
-// unpaid attendance penalties for that (meeting, member) first so changing the
-// status (e.g. absent → present) removes the penalty.
+// Re-assess absent/late penalties for one member at one meeting based on their
+// (new) attendance status. A fine that no longer applies is REVERSED:
+//   • unpaid  → deleted (as before), and
+//   • already-paid → the cash is refunded out of the pool (a reversing
+//     'penalty' pool entry) and the assessment is marked 'reversed'.
+// So correcting a fined member to present (or to a different status) gives any
+// money they already paid back. A fine that still applies unchanged is left
+// untouched, so a no-op re-save never double-charges or refunds-then-recharges.
 async function assessAttendance(welfare, meetingId, memberId, status, fines, userId) {
-  // Re-marking attendance replaces the member's unpaid meeting fine.
-  await query(
-    `DELETE FROM penalty_assessments
-      WHERE tenant_id = $1 AND source_type = 'meeting' AND source_id = $2 AND member_id = $3
-        AND trigger IN ('attendance_absent','attendance_late') AND status = 'outstanding' AND paid_amount = 0`,
-    [welfare.tenant_id, meetingId, memberId],
-  );
-  const trigger = TRIGGER_FOR[status];
-  const amt = status === "late" ? fines.late : status === "absent" ? fines.absent : 0;
-  if (!trigger || !(amt > 0)) return;
-  await query(
-    `INSERT INTO penalty_assessments
-       (tenant_id, member_id, rule_id, trigger, source_type, source_id, amount, description, created_by)
-     VALUES ($1,$2,NULL,$3,'meeting',$4,$5,$6,$7)`,
-    [welfare.tenant_id, memberId, trigger, meetingId, amt, status === "absent" ? "Absent from meeting" : "Late to meeting", userId],
-  );
+  const newTrigger = TRIGGER_FOR[status] || null;
+  const newAmt = status === "late" ? fines.late : status === "absent" ? fines.absent : 0;
+
+  const existing = (
+    await query(
+      `SELECT id, paid_amount, trigger FROM penalty_assessments
+        WHERE tenant_id = $1 AND source_type = 'meeting' AND source_id = $2 AND member_id = $3
+          AND trigger IN ('attendance_absent','attendance_late')
+          AND status IN ('outstanding','paid')`,
+      [welfare.tenant_id, meetingId, memberId],
+    )
+  ).rows;
+
+  let kept = false;
+  for (const a of existing) {
+    // Same fine still applies → leave it (and any payment against it) as is.
+    if (newTrigger && newAmt > 0 && a.trigger === newTrigger && !kept) {
+      kept = true;
+      continue;
+    }
+    const paid = round2(parseFloat(a.paid_amount) || 0);
+    if (paid > 0) {
+      // Refund what the member paid back out of the pool, then void the fine.
+      await postPool({
+        welfare,
+        memberId,
+        type: "penalty",
+        amount: paid,
+        direction: -1,
+        description: `Reversal of attendance fine (assessment #${a.id})`,
+        userId,
+      });
+      await query(
+        `UPDATE penalty_assessments SET status = 'reversed', paid_amount = 0 WHERE id = $1`,
+        [a.id],
+      );
+    } else {
+      await query(`DELETE FROM penalty_assessments WHERE id = $1`, [a.id]);
+    }
+  }
+
+  if (newTrigger && newAmt > 0 && !kept) {
+    await query(
+      `INSERT INTO penalty_assessments
+         (tenant_id, member_id, rule_id, trigger, source_type, source_id, amount, description, created_by)
+       VALUES ($1,$2,NULL,$3,'meeting',$4,$5,$6,$7)`,
+      [welfare.tenant_id, memberId, newTrigger, meetingId, newAmt, status === "absent" ? "Absent from meeting" : "Late to meeting", userId],
+    );
+  }
 }
 
 // GET /meetings

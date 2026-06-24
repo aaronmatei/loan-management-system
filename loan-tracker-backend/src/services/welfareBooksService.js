@@ -29,7 +29,7 @@ const TYPE_SUMS = `
   COALESCE(SUM(amount) FILTER (WHERE type='loan_disbursed'),0)  AS loan_disbursed,
   COALESCE(SUM(amount) FILTER (WHERE type='loan_repayment'),0)  AS loan_principal_repaid,
   COALESCE(SUM(amount) FILTER (WHERE type='loan_interest'),0)   AS loan_interest,
-  COALESCE(SUM(amount) FILTER (WHERE type IN ('penalty','loan_penalty')),0) AS fines,
+  COALESCE(SUM(direction*amount) FILTER (WHERE type IN ('penalty','loan_penalty')),0) AS fines,
   COALESCE(SUM(amount) FILTER (WHERE type='expense'),0)  AS expenses,
   COALESCE(SUM(amount) FILTER (WHERE type='dividend'),0) AS dividends`;
 

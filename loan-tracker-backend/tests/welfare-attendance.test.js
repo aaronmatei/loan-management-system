@@ -74,16 +74,26 @@ describe("welfare meetings + attendance penalties", () => {
     expect(pen).toHaveLength(0);
   });
 
-  it("keeps a paid attendance penalty even if status is later changed", async () => {
+  it("reverses (and refunds) a PAID attendance penalty when status is changed to present", async () => {
     const { welfareId, tenantId, adminAuth, A } = await bootstrap();
     const meeting = (await request(app).post(`/api/welfares/${welfareId}/meetings`).set("Authorization", adminAuth).send({ meeting_date: "2026-06-15", fine_absent: 500 })).body.data;
     await request(app).post(`/api/welfares/${welfareId}/meetings/${meeting.id}/attendance`).set("Authorization", adminAuth).send({ records: [{ member_id: A.id, status: "absent" }] });
     const a = (await query("SELECT id FROM penalty_assessments WHERE tenant_id=$1", [tenantId])).rows[0];
-    // Pay it.
+    // Pay it → status 'paid' and the cash grows the pool by 500.
     await request(app).post(`/api/welfares/${welfareId}/penalties/${a.id}/pay`).set("Authorization", adminAuth).send({});
-    // Change status to present — the PAID penalty must remain (only unpaid ones clear).
+    expect((await query("SELECT status, paid_amount FROM penalty_assessments WHERE id=$1", [a.id])).rows[0].status).toBe("paid");
+    const poolAfterPay = (await query("SELECT COALESCE(SUM(direction*amount),0) AS v FROM member_pool_transactions WHERE tenant_id=$1 AND type='penalty'", [tenantId])).rows[0].v;
+    expect(Number(poolAfterPay)).toBe(500);
+
+    // Change status to present — the paid fine is reversed and refunded.
     await request(app).post(`/api/welfares/${welfareId}/meetings/${meeting.id}/attendance`).set("Authorization", adminAuth).send({ records: [{ member_id: A.id, status: "present" }] });
-    const paid = (await query("SELECT COUNT(*)::int AS n FROM penalty_assessments WHERE tenant_id=$1 AND status='paid'", [tenantId])).rows[0].n;
-    expect(paid).toBe(1);
+    const after = (await query("SELECT status, paid_amount FROM penalty_assessments WHERE id=$1", [a.id])).rows[0];
+    expect(after.status).toBe("reversed");
+    expect(Number(after.paid_amount)).toBe(0);
+    // No outstanding/paid attendance fine remains.
+    expect((await query("SELECT COUNT(*)::int AS n FROM penalty_assessments WHERE tenant_id=$1 AND status IN ('outstanding','paid')", [tenantId])).rows[0].n).toBe(0);
+    // The pool penalty income nets back to zero (refund posted).
+    const poolAfterReverse = (await query("SELECT COALESCE(SUM(direction*amount),0) AS v FROM member_pool_transactions WHERE tenant_id=$1 AND type='penalty'", [tenantId])).rows[0].v;
+    expect(Number(poolAfterReverse)).toBe(0);
   });
 });
