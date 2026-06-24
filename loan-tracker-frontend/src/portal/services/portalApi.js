@@ -36,7 +36,15 @@ portalApi.interceptors.request.use((config) => {
 portalApi.interceptors.response.use(
   (r) => r,
   (error) => {
-    if (error.response?.status === 401) {
+    // A 401 from an AUTH endpoint (login, member-login, forgot/reset,
+    // set-password, select-tenant) is "bad credentials" for the calling
+    // form to surface — NOT an expired session. Auto-redirecting those to
+    // /portal/login wrongly bounced a welfare member off their own login
+    // page after a single wrong password. Only treat 401s on authenticated
+    // data endpoints as an expired session.
+    const url = error.config?.url || "";
+    const isAuthCall = url.includes("/portal/auth/");
+    if (error.response?.status === 401 && !isAuthCall) {
       localStorage.removeItem("portal_token");
       localStorage.removeItem("portal_customer");
       localStorage.removeItem("portal_current_tenant");
