@@ -71,7 +71,7 @@ router.get("/overview", async (req, res) => {
         [m.id],
       ),
       query(
-        `SELECT cs.amount_due, cs.amount_paid, cs.due_date, cs.status, cc.name AS cycle_name
+        `SELECT cs.amount_due, cs.amount_paid, cs.due_date, cs.status, cc.name AS cycle_name, cc.pool_key
            FROM contribution_schedules cs
            JOIN contribution_cycles cc ON cc.id = cs.cycle_id
           WHERE cs.member_id = $1 AND cs.status IN ('pending','partial','overdue')

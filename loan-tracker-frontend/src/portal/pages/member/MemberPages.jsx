@@ -304,15 +304,23 @@ export function MemberDashboard() {
             }}
           />
 
-          {data.next_contribution && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-amber-900">Next contribution</p>
-                <p className="text-sm text-amber-700">{data.next_contribution.cycle_name} — {KES(data.next_contribution.amount_due)} due {fmt(data.next_contribution.due_date)}</p>
+          {data.next_contribution && (() => {
+            // Savings dues are paid on Contributions; benefit-pool dues
+            // (quarterly/emergencies, pool_key !== "savings") on Events &
+            // Emergencies — so Pay lands where this due actually shows.
+            const pk = data.next_contribution.pool_key;
+            const isSavings = !pk || pk === "savings";
+            const payTo = isSavings ? "/welfare/member/contributions" : "/welfare/member/events";
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-amber-900">Next {isSavings ? "contribution" : "due"}</p>
+                  <p className="text-sm text-amber-700">{data.next_contribution.cycle_name} — {KES(data.next_contribution.amount_due)} due {fmt(data.next_contribution.due_date)}</p>
+                </div>
+                <Link to={payTo} className="text-amber-800 font-semibold inline-flex items-center gap-1">Pay <ArrowRight size={16} /></Link>
               </div>
-              <Link to="/welfare/member/contributions" className="text-amber-800 font-semibold inline-flex items-center gap-1">Pay <ArrowRight size={16} /></Link>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
