@@ -3290,6 +3290,7 @@ CREATE TABLE public.group_meetings (
   group_id     integer NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
   meeting_date date NOT NULL,
   location     varchar(120),
+  venue        text, -- migration 110 (place; location = town/area)
   agenda       text,
   title        varchar(120), -- migration 086
   penalty_rule_id integer, -- migration 087

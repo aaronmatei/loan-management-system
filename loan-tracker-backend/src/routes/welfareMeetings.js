@@ -140,15 +140,15 @@ router.get("/meetings", async (req, res) => {
 // POST /meetings
 router.post("/meetings", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
-    const { meeting_date, location, agenda, title, fine_late, fine_absent, start_time, grace_minutes } = req.body || {};
+    const { meeting_date, location, venue, agenda, title, fine_late, fine_absent, start_time, grace_minutes } = req.body || {};
     if (!meeting_date) return res.status(400).json({ error: "Meeting date is required" });
     const num = (v) => (v === "" || v == null ? null : parseFloat(v));
     const startTime = start_time && String(start_time).trim() ? start_time : null;
     const grace = Math.max(0, parseInt(grace_minutes, 10) || 0);
     const r = await query(
-      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, agenda, fine_late, fine_absent, start_time, grace_minutes, created_by)
-       VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, agenda || null, num(fine_late), num(fine_absent), startTime, grace, req.user.id],
+      `INSERT INTO group_meetings (tenant_id, group_id, title, meeting_date, location, venue, agenda, fine_late, fine_absent, start_time, grace_minutes, created_by)
+       VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [req.welfare.tenant_id, req.welfare.id, title || null, meeting_date, location || null, venue || null, agenda || null, num(fine_late), num(fine_absent), startTime, grace, req.user.id],
     );
     await logAudit({
       user: req.user, action: "welfare_meeting_created", entityType: "group",
@@ -168,17 +168,17 @@ router.put("/meetings/:meetingId", authorize("admin", "manager", "loan_officer")
   try {
     const existing = await loadMeeting(req.welfare.id, req.params.meetingId);
     if (!existing) return res.status(404).json({ error: "Meeting not found" });
-    const { meeting_date, location, agenda, title, fine_late, fine_absent, start_time, grace_minutes } = req.body || {};
+    const { meeting_date, location, venue, agenda, title, fine_late, fine_absent, start_time, grace_minutes } = req.body || {};
     if (!meeting_date) return res.status(400).json({ error: "Meeting date is required" });
     const num = (v) => (v === "" || v == null ? null : parseFloat(v));
     const startTime = start_time && String(start_time).trim() ? start_time : null;
     const grace = Math.max(0, parseInt(grace_minutes, 10) || 0);
     const r = await query(
       `UPDATE group_meetings
-          SET title=$2, meeting_date=$3::date, location=$4, agenda=$5,
-              fine_late=$6, fine_absent=$7, start_time=$8, grace_minutes=$9, updated_at=NOW()
+          SET title=$2, meeting_date=$3::date, location=$4, venue=$5, agenda=$6,
+              fine_late=$7, fine_absent=$8, start_time=$9, grace_minutes=$10, updated_at=NOW()
         WHERE id=$1 RETURNING *`,
-      [existing.id, title || null, meeting_date, location || null, agenda || null, num(fine_late), num(fine_absent), startTime, grace],
+      [existing.id, title || null, meeting_date, location || null, venue || null, agenda || null, num(fine_late), num(fine_absent), startTime, grace],
     );
     await logAudit({
       user: req.user, action: "welfare_meeting_updated", entityType: "group",

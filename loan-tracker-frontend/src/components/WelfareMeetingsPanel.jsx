@@ -87,6 +87,7 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Date</th>
                   <th className="text-left px-4 py-2">Venue</th>
+                  <th className="text-left px-4 py-2">Location</th>
                   <th className="text-left px-4 py-2">Status</th>
                   <th className="text-right px-4 py-2">Present</th>
                   <th className="px-4 py-2"></th>
@@ -97,7 +98,8 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                   <tr key={m.id} onClick={() => setAttend(m)} className="border-t border-slate-100 dark:border-slate-700 hover:bg-indigo-50/50 cursor-pointer">
                     <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">{m.title || <span className="text-slate-400 dark:text-slate-400 font-normal">—</span>}</td>
                     <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{fmt(m.meeting_date)}{m.start_time ? ` · ${hhmm(m.start_time)}` : ""}</td>
-                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{m.location || "Home"}</td>
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{m.venue || "—"}</td>
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{m.location || "—"}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS[m.status] || STATUS.scheduled}`}>{m.status}</span></td>
                     <td className="px-4 py-2 text-right text-slate-700 dark:text-slate-200">{Number(m.present_count)}</td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
@@ -211,8 +213,8 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
   const editing = !!meeting;
   const [form, setForm] = useState(
     editing
-      ? { title: meeting.title || "", meeting_date: toDateInput(meeting.meeting_date), start_time: hhmm(meeting.start_time), grace_minutes: meeting.grace_minutes ?? "", location: meeting.location || "", agenda: meeting.agenda || "", fine_late: meeting.fine_late ?? "", fine_absent: meeting.fine_absent ?? "" }
-      : { title: "", meeting_date: new Date().toISOString().split("T")[0], start_time: "", grace_minutes: "", location: "", agenda: "", fine_late: "", fine_absent: "" },
+      ? { title: meeting.title || "", meeting_date: toDateInput(meeting.meeting_date), start_time: hhmm(meeting.start_time), grace_minutes: meeting.grace_minutes ?? "", location: meeting.location || "", venue: meeting.venue || "", agenda: meeting.agenda || "", fine_late: meeting.fine_late ?? "", fine_absent: meeting.fine_absent ?? "" }
+      : { title: "", meeting_date: new Date().toISOString().split("T")[0], start_time: "", grace_minutes: "", location: "", venue: "", agenda: "", fine_late: "", fine_absent: "" },
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -235,22 +237,22 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
       <form onSubmit={submit} className="space-y-4">
         {error && <Err msg={error} />}
         <div><label className={lbl}>Name</label><input value={form.title} onChange={set("title")} placeholder="e.g. Dowry hand-out — Jane" className={fld} /></div>
-        <div>
-          <label className={lbl}>Venue</label>
-          <input value={form.location} onChange={set("location")} placeholder="Where the meeting is held" className={fld} />
-          {/* Quick-pick the usual venue per town. */}
-          <div className="flex flex-wrap gap-2 mt-2">
-            {VENUE_PRESETS.map((p) => (
-              <button
-                key={p.town}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, location: p.venue }))}
-                className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 transition"
-              >
-                {p.town} · {p.venue}
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Location</label><input value={form.location} onChange={set("location")} placeholder="Town / area (e.g. Kitengela)" className={fld} /></div>
+          <div><label className={lbl}>Venue</label><input value={form.venue} onChange={set("venue")} placeholder="Place (e.g. Doctors Plaza)" className={fld} /></div>
+        </div>
+        {/* Quick-pick: fills both the town (Location) and its usual Venue. */}
+        <div className="-mt-2 flex flex-wrap gap-2">
+          {VENUE_PRESETS.map((p) => (
+            <button
+              key={p.town}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, location: p.town, venue: p.venue }))}
+              className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-300 transition"
+            >
+              {p.town} · {p.venue}
+            </button>
+          ))}
         </div>
         <div><label className={lbl}>Date</label><input type="date" value={form.meeting_date} onChange={set("meeting_date")} className={fld} /></div>
         <div className="grid grid-cols-2 gap-3">
@@ -454,6 +456,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 dark:text-slate-400 mb-4">
         <span><span className="text-slate-400 dark:text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
         {m.start_time && <span><span className="text-slate-400 dark:text-slate-400">Start</span> {hhmm(m.start_time)}{m.grace_minutes ? ` (+${m.grace_minutes}m grace)` : ""}</span>}
+        {m.venue && <span><span className="text-slate-400 dark:text-slate-400">Venue</span> {m.venue}</span>}
         <span><span className="text-slate-400 dark:text-slate-400">Location</span> {m.location || "Home"}</span>
         <span><span className="text-slate-400 dark:text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
       </div>
