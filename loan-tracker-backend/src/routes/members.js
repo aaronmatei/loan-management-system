@@ -51,39 +51,6 @@ async function loadMember(welfareId, id) {
   return r.rows[0] || null;
 }
 
-// Admin-only onboarding status for a member's portal login. Reports only what
-// can be known for certain — whether an account exists, whether a temp password
-// was issued, and whether they've ever signed in. It deliberately does NOT
-// assert a password FORMAT: the hash can't be inspected, and accounts have been
-// seeded/set with different conventions (phone-based, ID-based, manual), so
-// guessing the format misleads. When in doubt, staff should RESET the password.
-async function memberPasswordStatus(memberId) {
-  const r = await query(
-    `SELECT pc.must_change_password,
-            (pc.password_hash IS NOT NULL) AS has_password,
-            (pc.last_login IS NOT NULL)    AS has_logged_in
-       FROM customer_tenant_links ctl
-       JOIN platform_customers pc ON pc.id = ctl.platform_customer_id
-      WHERE ctl.member_id = $1
-      LIMIT 1`,
-    [memberId],
-  );
-  const a = r.rows[0];
-  if (!a || !a.has_password) {
-    return { status: "none", label: "Not on the portal yet — send an invite to create their login." };
-  }
-  if (a.has_logged_in) {
-    return { status: "active", label: "Active — the member manages their own password." };
-  }
-  if (a.must_change_password) {
-    return { status: "temp", label: "A temporary password was sent to them by SMS; they set their own at first login." };
-  }
-  return {
-    status: "set",
-    label: "Has a login but hasn't signed in yet. If they don't know their password, reset it for them rather than guessing.",
-  };
-}
-
 // GET /pool — this welfare's pool summary.
 router.get("/pool", async (req, res) => {
   try {
@@ -201,11 +168,6 @@ router.get("/:id", async (req, res) => {
         savings_balance: await memberSavings(member.id),
         transactions: ledger.rows,
         portal_linked: linked.rows.length > 0,
-        // Admin-only hint on what credential the member should use — describes
-        // the FORMAT/status, never the literal password. Lets staff tell a
-        // lender-origin member (whose default is ID-based, not phone-based) the
-        // right thing without exposing anyone's password.
-        portal_password: await memberPasswordStatus(member.id),
       },
     });
   } catch (e) {

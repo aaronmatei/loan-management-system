@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown, Smartphone, ChevronLeft, ChevronRight, ChevronDown, MoreHorizontal } from "lucide-react";
+import { PiggyBank, Plus, Minus, X, AlertTriangle, LogOut, FileDown, Smartphone, ChevronLeft, ChevronRight, ChevronDown, MoreHorizontal, UserCog } from "lucide-react";
 import api from "../services/api";
 import { downloadFile } from "../utils/bulkExport";
 import { useWelfare } from "../context/WelfareContext";
@@ -35,7 +35,6 @@ export default function MemberDetail() {
   const [modal, setModal] = useState(null); // 'contribution' | 'withdrawal'
   const [exiting, setExiting] = useState(false);
   const [portalLinked, setPortalLinked] = useState(false);
-  const [portalPassword, setPortalPassword] = useState(null);
   const [inviting, setInviting] = useState(false);
   const [exemptBusy, setExemptBusy] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -68,6 +67,15 @@ export default function MemberDetail() {
 
   // Officers are normally elected via decisions, but an admin can set a role
   // directly here. Assigning an officer role auto-demotes the prior holder.
+  const changeRole = async (role) => {
+    try {
+      await api.put(`${base}/${memberId}/role`, { role });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to set role");
+    }
+  };
+
   const inviteToPortal = async () => {
     setInviting(true);
     try {
@@ -107,7 +115,6 @@ export default function MemberDetail() {
       setSavings(r.data.data.savings_balance);
       setTxns(r.data.data.transactions || []);
       setPortalLinked(!!r.data.data.portal_linked);
-      setPortalPassword(r.data.data.portal_password || null);
       setPoolBalance(p.data?.data?.balance ?? 0);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load member");
@@ -222,6 +229,20 @@ export default function MemberDetail() {
                           <span className="block text-xs text-slate-400 dark:text-slate-500">{portalLinked ? "Has access ✓" : "Send a login by SMS"}</span>
                         </span>
                       </button>
+                      {/* Role — officers are usually elected, but an admin can set directly */}
+                      <div className="px-2.5 py-2.5 rounded-xl inline-flex items-center gap-3 w-full">
+                        <span className="shrink-0 w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 inline-flex items-center justify-center"><UserCog size={17} /></span>
+                        <span className="flex-1">
+                          <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">Role</span>
+                          <span className="block text-xs text-slate-400 dark:text-slate-500">Officers are usually elected</span>
+                        </span>
+                        <select value={member.role || "member"} onClick={(e) => e.stopPropagation()} onChange={(e) => changeRole(e.target.value)} className="text-sm font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1.5 cursor-pointer focus:border-indigo-400 focus:outline-none">
+                          <option value="member">Member</option>
+                          <option value="chair">Chair</option>
+                          <option value="treasurer">Treasurer</option>
+                          <option value="secretary">Secretary</option>
+                        </select>
+                      </div>
                       {/* Exempt toggle */}
                       <button onClick={() => { toggleExempt(); setActionsOpen(false); }} disabled={exemptBusy} title="Sick/hardship: skip contribution dues & penalties while exempt" className="w-full text-left px-2.5 py-2.5 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 inline-flex items-center gap-3 disabled:opacity-50 transition">
                         <span className="shrink-0 w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 inline-flex items-center justify-center"><AlertTriangle size={17} /></span>
@@ -247,18 +268,6 @@ export default function MemberDetail() {
           </div>
         </PermissionGate>
       )}
-
-      {/* Admin-only portal onboarding status (never the actual password, and no
-          format guesses — those proved unreliable). Just flags who still needs
-          help getting in. */}
-      <PermissionGate role={["admin", "manager", "loan_officer"]}>
-        {portalPassword && portalPassword.status !== "active" && (
-          <div className="mb-6 flex items-start gap-2 rounded-lg px-4 py-3 text-sm border bg-sky-50 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 text-sky-800 dark:text-sky-200">
-            <Smartphone size={16} className="mt-0.5 shrink-0" />
-            <span><span className="font-semibold">Portal login:</span> {portalPassword.label}</span>
-          </div>
-        )}
-      </PermissionGate>
 
       {activity && (
         <MemberActivity activity={activity} year={year} setYear={setYear} money={money} fmt={fmt}>
