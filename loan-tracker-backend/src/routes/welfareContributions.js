@@ -232,12 +232,13 @@ router.post("/cycles", authorize("admin", "manager"), async (req, res) => {
       )
     ).rows[0];
 
-    // One schedule per active member.
+    // One schedule per active, non-exempt member (exempt = sick/hardship,
+    // skipped from dues — migration 108).
     await query(
       `INSERT INTO contribution_schedules (tenant_id, cycle_id, member_id, amount_due, due_date)
          SELECT $1, $2, m.id, $3, $4::date
            FROM members m
-          WHERE m.welfare_id = $5 AND m.status = 'active'`,
+          WHERE m.welfare_id = $5 AND m.status = 'active' AND m.contribution_exempt = false`,
       [req.welfare.tenant_id, cycle.id, amt, due_date, req.welfare.id],
     );
     const n = (await query(`SELECT COUNT(*)::int AS n FROM contribution_schedules WHERE cycle_id = $1`, [cycle.id])).rows[0].n;

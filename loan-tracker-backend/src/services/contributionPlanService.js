@@ -169,7 +169,8 @@ export async function ensureCurrentCycle({ welfare, plan, ref = new Date() }) {
   }
   await query(
     `INSERT INTO contribution_schedules (tenant_id, cycle_id, member_id, amount_due, due_date)
-       SELECT $1, $2, m.id, $3, $4::date FROM members m WHERE m.welfare_id = $5 AND m.status = 'active'`,
+       SELECT $1, $2, m.id, $3, $4::date FROM members m
+        WHERE m.welfare_id = $5 AND m.status = 'active' AND m.contribution_exempt = false`,
     [welfare.tenant_id, cycle.id, plan.amount, p.due_date, welfare.id],
   );
   return cycle;

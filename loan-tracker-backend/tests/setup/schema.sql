@@ -3359,6 +3359,9 @@ CREATE TABLE public.members (
   joined_at            date NOT NULL DEFAULT CURRENT_DATE,
   notes                text,
   role                 varchar(20) NOT NULL DEFAULT 'member', -- migration 096 (member|chair|treasurer|secretary)
+  contribution_exempt  boolean NOT NULL DEFAULT false,        -- migration 108 (sick/hardship — skip dues+penalties)
+  exempt_reason        text,                                  -- migration 108
+  exempt_since         date,                                  -- migration 108
   created_by           integer,
   created_at           timestamp NOT NULL DEFAULT NOW(),
   updated_at           timestamp NOT NULL DEFAULT NOW()

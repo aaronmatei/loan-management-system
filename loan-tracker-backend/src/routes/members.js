@@ -116,20 +116,24 @@ router.get("/", async (req, res) => {
 router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res) => {
   try {
     const w = req.welfare;
-    const { first_name, last_name, phone_number, id_number, email, monthly_contribution, notes } = req.body || {};
+    const { first_name, last_name, phone_number, id_number, email, monthly_contribution, notes, contribution_exempt, exempt_reason } = req.body || {};
     if (!first_name || !last_name) {
       return res.status(400).json({ error: "First and last name are required" });
     }
+    // Exempt = sick/hardship: skipped from contribution dues + penalties while
+    // exempt, but remains a full active member (migration 108).
+    const exempt = !!contribution_exempt;
     const memberNo = await nextMemberNo(query, w);
     const r = await query(
       `INSERT INTO members
-         (tenant_id, welfare_id, member_no, first_name, last_name, phone_number, id_number, email, monthly_contribution, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+         (tenant_id, welfare_id, member_no, first_name, last_name, phone_number, id_number, email, monthly_contribution, notes, created_by, contribution_exempt, exempt_reason, exempt_since)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [
         w.tenant_id, w.id, memberNo, String(first_name).trim(), String(last_name).trim(),
         phone_number || null, id_number || null, email || null,
         monthly_contribution != null && monthly_contribution !== "" ? parseFloat(monthly_contribution) : null,
         notes || null, req.user.id,
+        exempt, exempt ? (exempt_reason || null) : null, exempt ? new Date() : null,
       ],
     );
     await logAudit({
@@ -273,15 +277,22 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
   try {
     const member = await loadMember(req.welfare.id, req.params.id);
     if (!member) return res.status(404).json({ error: "Member not found" });
-    const { first_name, last_name, phone_number, id_number, email, monthly_contribution, status, notes } = req.body || {};
+    const { first_name, last_name, phone_number, id_number, email, monthly_contribution, status, notes, contribution_exempt, exempt_reason } = req.body || {};
     if (status && !["active", "inactive"].includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
+    // Resolve the exemption (sick/hardship). When omitted, keep the current
+    // value. Stamp exempt_since the first time it flips on; clear reason+since
+    // when it flips off (migration 108).
+    const exempt = contribution_exempt === undefined ? member.contribution_exempt : !!contribution_exempt;
+    const exemptSince = exempt ? (member.exempt_since || new Date()) : null;
+    const exemptReason = exempt ? (exempt_reason ?? member.exempt_reason ?? null) : null;
     const r = await query(
       `UPDATE members SET
           first_name = COALESCE($2, first_name), last_name = COALESCE($3, last_name),
           phone_number = $4, id_number = $5, email = $6,
-          monthly_contribution = $7, status = COALESCE($8, status), notes = $9, updated_at = NOW()
+          monthly_contribution = $7, status = COALESCE($8, status), notes = $9,
+          contribution_exempt = $10, exempt_reason = $11, exempt_since = $12, updated_at = NOW()
         WHERE id = $1 RETURNING *`,
       [
         member.id,
@@ -290,6 +301,7 @@ router.put("/:id", authorize("admin", "manager"), async (req, res) => {
         phone_number ?? member.phone_number, id_number ?? member.id_number, email ?? member.email,
         monthly_contribution != null && monthly_contribution !== "" ? parseFloat(monthly_contribution) : member.monthly_contribution,
         status || null, notes ?? member.notes,
+        exempt, exemptReason, exemptSince,
       ],
     );
     res.json({ success: true, data: r.rows[0] });

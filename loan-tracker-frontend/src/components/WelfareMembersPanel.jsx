@@ -96,7 +96,19 @@ export default function WelfareMembersPanel({ welfareId }) {
                     onClick={() => navigate(`/welfare/members/${m.id}`)}
                     className="border-t border-slate-100 dark:border-slate-700 hover:bg-emerald-50 cursor-pointer"
                   >
-                    <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">{m.first_name} {m.last_name}</td>
+                    <td className="px-4 py-2 font-semibold text-slate-800 dark:text-slate-100">
+                      <span className="inline-flex items-center gap-2">
+                        {m.first_name} {m.last_name}
+                        {m.contribution_exempt && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                            title={`Exempt from contributions${m.exempt_reason ? ` · ${m.exempt_reason}` : ""}`}
+                          >
+                            <AlertTriangle size={10} /> Exempt{m.exempt_reason ? ` · ${m.exempt_reason}` : ""}
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">{m.member_no}</td>
                     <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{m.phone_number || "—"}</td>
                     <td className="px-4 py-2 text-right font-semibold">{money(m.savings_balance)}</td>
@@ -121,7 +133,7 @@ export default function WelfareMembersPanel({ welfareId }) {
 }
 
 function AddMemberModal({ welfareId, onClose, onCreated }) {
-  const [form, setForm] = useState({ first_name: "", last_name: "", phone_number: "", id_number: "", email: "", monthly_contribution: "" });
+  const [form, setForm] = useState({ first_name: "", last_name: "", phone_number: "", id_number: "", email: "", monthly_contribution: "", contribution_exempt: false, exempt_reason: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -159,6 +171,30 @@ function AddMemberModal({ welfareId, onClose, onCreated }) {
             <div><label className={lbl}>ID number</label><input value={form.id_number} onChange={set("id_number")} className={fld} /></div>
             <div><label className={lbl}>Email</label><input value={form.email} onChange={set("email")} className={fld} /></div>
             <div><label className={lbl}>Monthly contribution</label><input type="number" value={form.monthly_contribution} onChange={set("monthly_contribution")} className={fld} /></div>
+          </div>
+
+          {/* Contribution exemption — for members who can't contribute (e.g.
+              sick/hardship). Exempt members skip contribution dues + penalties
+              but stay full members. */}
+          <div className="rounded-lg border-2 border-gray-200 dark:border-slate-700 p-3 space-y-3">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.contribution_exempt}
+                onChange={(e) => setForm((f) => ({ ...f, contribution_exempt: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 cursor-pointer accent-emerald-600"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-gray-700 dark:text-slate-200">Exempt from contributions</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">Skips contribution dues &amp; penalties while exempt — stays a full member (benefits, dividends, meetings).</span>
+              </span>
+            </label>
+            {form.contribution_exempt && (
+              <div>
+                <label className={lbl}>Reason</label>
+                <input value={form.exempt_reason} onChange={set("exempt_reason")} placeholder="e.g. Sick" className={fld} />
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-3 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700">Cancel</button>
