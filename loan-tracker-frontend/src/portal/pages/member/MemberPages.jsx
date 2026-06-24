@@ -742,7 +742,14 @@ export function MemberGroup() {
           empty="No members yet."
           render={(m) => (
             <tr key={m.member_id} className="text-slate-700 dark:text-slate-200">
-              <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{m.name} <span className="text-slate-400 dark:text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" /></td>
+              <td className="px-4 py-3 text-slate-800 dark:text-slate-200">
+                {m.name} <span className="text-slate-400 dark:text-slate-400 font-mono text-xs">{m.member_no}</span> <OfficerBadge role={m.role} className="ml-1" />
+                {m.contribution_exempt && (
+                  <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" title={`Exempt from contributions${m.exempt_reason ? ` · ${m.exempt_reason}` : ""}`}>
+                    Exempt{m.exempt_reason ? ` · ${m.exempt_reason}` : ""}
+                  </span>
+                )}
+              </td>
               <td className="px-4 py-3">{KES(m.savings)}</td>
               <td className="px-4 py-3">{KES(m.contributions)}</td>
               <td className="px-4 py-3">{KES(m.dividends)}</td>

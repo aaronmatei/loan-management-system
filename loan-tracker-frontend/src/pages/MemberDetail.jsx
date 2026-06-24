@@ -36,8 +36,33 @@ export default function MemberDetail() {
   const [exiting, setExiting] = useState(false);
   const [portalLinked, setPortalLinked] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [exemptBusy, setExemptBusy] = useState(false);
 
   const base = `/welfares/${welfareId}/members`;
+
+  // Mark a member exempt from contributions (sick/hardship) or lift it. Exempt
+  // members are skipped from contribution dues + penalties but stay full
+  // members. Uses the existing member-update endpoint.
+  const toggleExempt = async () => {
+    const turningOn = !member.contribution_exempt;
+    let reason = member.exempt_reason || "";
+    if (turningOn) {
+      reason = window.prompt("Reason for exemption (e.g. Sick)", reason || "Sick");
+      if (reason === null) return; // cancelled
+    }
+    setExemptBusy(true);
+    try {
+      await api.put(`${base}/${memberId}`, {
+        contribution_exempt: turningOn,
+        exempt_reason: turningOn ? reason : null,
+      });
+      await load();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to update exemption");
+    } finally {
+      setExemptBusy(false);
+    }
+  };
 
   // Officers are normally elected via decisions, but an admin can set a role
   // directly here. Assigning an officer role auto-demotes the prior holder.
@@ -159,6 +184,11 @@ export default function MemberDetail() {
             {member.id_number && <> · ID {member.id_number}</>}
             {" · "}<span className="capitalize">{member.status}</span>
           </p>
+          {member.contribution_exempt && (
+            <span className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" title="Skipped from contribution dues & penalties">
+              <AlertTriangle size={11} /> Exempt from contributions{member.exempt_reason ? ` · ${member.exempt_reason}` : ""}
+            </span>
+          )}
         </div>
         <div className="text-right">
           <p className="text-xs text-slate-500 dark:text-slate-400">Savings balance</p>
@@ -189,6 +219,9 @@ export default function MemberDetail() {
                   <option value="secretary">Secretary</option>
                 </select>
               </label>
+              <button onClick={toggleExempt} disabled={exemptBusy} title="Sick/hardship: skip contribution dues & penalties while exempt" className={`px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 border-2 ${member.contribution_exempt ? "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
+                <AlertTriangle size={16} /> {exemptBusy ? "Saving…" : member.contribution_exempt ? "Remove exemption" : "Mark exempt"}
+              </button>
               <button onClick={exitMember} disabled={exiting} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold inline-flex items-center gap-2 disabled:opacity-50 ml-auto"><LogOut size={16} /> {exiting ? "Processing…" : "Exit member"}</button>
             </PermissionGate>
           </div>
