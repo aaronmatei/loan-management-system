@@ -112,13 +112,13 @@ export default function WelfareDashboardPanel({
         <Stat icon={TrendingUp} label="Profit" value={money(d.pool.profit)} sub="pool above member savings" tone={d.pool.profit < 0 ? "rose" : "emerald"} to={link("books")} />
         <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" to={link("members")} />
         <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} mine={p && p.penalties != null ? money(p.penalties) : undefined} tone="rose" to={link("penalties")} />
-        <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" to={link("dividends")} />
         {d.benefit_pools?.active && (
           <>
-            <Stat icon={HeartHandshake} label="Events pool" value={money(d.benefit_pools.events)} sub="contributions − payouts" tone={d.benefit_pools.events < 0 ? "rose" : "indigo"} to={link("events")} />
             <Stat icon={HeartHandshake} label="Emergencies pool" value={money(d.benefit_pools.emergencies)} sub="contributions − payouts" tone={d.benefit_pools.emergencies < 0 ? "rose" : "indigo"} to={link("events")} />
+            <Stat icon={HeartHandshake} label="Events pool" value={money(d.benefit_pools.events)} sub="contributions − payouts" tone={d.benefit_pools.events < 0 ? "rose" : "indigo"} to={link("events")} />
           </>
         )}
+        <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" to={link("dividends")} />
         <Stat icon={Receipt} label="Expenses" value={money(d.pool.expenses)} sub="spent from the savings pool" tone="rose" to={link("expenses", true)} />
         {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.principal_outstanding ?? d.loans.outstanding)} sub={`${d.loans.open} open · ${money(d.loans.interest_outstanding ?? 0)} interest`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" to={link("loans")} />}
         {d.compliance ? (
