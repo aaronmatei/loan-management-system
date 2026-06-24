@@ -566,7 +566,8 @@ router.get("/contributions", async (req, res) => {
   try {
     const r = await query(
       `SELECT cs.id, cs.amount_due, cs.amount_paid, cs.due_date, cs.status,
-              cc.id AS cycle_id, cc.name AS cycle_name, cc.frequency, cc.period_start, cc.pool_key
+              cc.id AS cycle_id, cc.name AS cycle_name, cc.frequency, cc.period_start, cc.pool_key,
+              (cc.beneficiary_member_id = $1) AS i_am_beneficiary
          FROM contribution_schedules cs
          JOIN contribution_cycles cc ON cc.id = cs.cycle_id
         WHERE cs.member_id = $1
@@ -819,7 +820,8 @@ router.get("/events", async (req, res) => {
       await query(
         `SELECT s.id AS share_id, s.amount_due, s.amount_paid, s.status,
                 e.id AS event_id, e.title, e.amount, e.status AS event_status,
-                e.due_date, (e.beneficiary_member_id = $2) AS is_beneficiary
+                e.due_date, e.disbursed_amount, e.disbursed_at,
+                (e.beneficiary_member_id = $2) AS is_beneficiary
            FROM welfare_event_shares s
            JOIN welfare_events e ON e.id = s.event_id
           WHERE s.member_id = $2 AND s.tenant_id = $1

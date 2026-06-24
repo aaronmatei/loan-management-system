@@ -845,17 +845,60 @@ export function MemberEvents() {
   const { data, loading, reload } = useFetch("/welfare/member/events"); // ad-hoc events pool (welfare_event_shares)
   const { data: contribs, reload: reloadContribs } = useFetch("/welfare/member/contributions");
   const events = data?.events || [];
-  const beneficiaryOf = events.filter((e) => e.is_beneficiary).length;
   const payable = (s) => ["pending", "partial", "overdue"].includes(s.status);
+
+  // Everything the member is the BENEFICIARY of: ad-hoc events (welfare_events)
+  // + benefit-pool cycles (quarterly / emergencies). De-dupe cycles by id.
+  const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
+  const cycleBenefits = Object.values(
+    (contribs || [])
+      .filter((c) => c.i_am_beneficiary)
+      .reduce((acc, c) => {
+        acc[c.cycle_id] = { key: `c${c.cycle_id}`, kind: cap(c.frequency) || "Benefit", name: c.cycle_name };
+        return acc;
+      }, {}),
+  );
+  const benefits = [
+    ...events
+      .filter((e) => e.is_beneficiary)
+      .map((e) => ({
+        key: `e${e.event_id}`,
+        kind: "Event",
+        name: e.title,
+        amount: Number(e.disbursed_amount) > 0 ? Number(e.disbursed_amount) : Number(e.amount),
+        received: !!e.disbursed_at,
+      })),
+    ...cycleBenefits,
+  ];
   // Outstanding benefit contribution dues (event/emergency plans) + ad-hoc shares.
   const benefitDue = (contribs || []).filter((c) => c.pool_key && c.pool_key !== "savings" && payable(c));
   const shareDue = events.filter((e) => Number(e.amount_due) - Number(e.amount_paid) > 0.001 && payable(e));
   const hasDue = benefitDue.length + shareDue.length > 0;
   return (
     <Shell title="Events & Emergencies" icon={HeartHandshake}>
-      {beneficiaryOf > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4 text-xs">
-          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">Beneficiary of <strong className="text-emerald-700">{beneficiaryOf}</strong></span>
+      {/* What the member has benefited from — clear list of events/cycles
+          where they are the beneficiary. */}
+      {benefits.length > 0 && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-5">
+          <p className="font-semibold text-emerald-900 dark:text-emerald-200 mb-2 inline-flex items-center gap-2">
+            <Gift size={16} /> You're the beneficiary
+          </p>
+          <ul className="divide-y divide-emerald-100 dark:divide-emerald-800/60">
+            {benefits.map((b) => (
+              <li key={b.key} className="py-2 flex items-center justify-between gap-3 text-sm">
+                <span className="text-slate-800 dark:text-slate-200">
+                  {b.name}
+                  <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{b.kind}</span>
+                </span>
+                <span className="text-right whitespace-nowrap">
+                  {b.amount != null && <span className="font-semibold text-emerald-700 dark:text-emerald-400">{KES(b.amount)}</span>}
+                  {b.received === true && <span className="ml-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Received ✓</span>}
+                  {b.received === false && <span className="ml-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">Upcoming</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-emerald-700/70 dark:text-emerald-300/60 mt-2">Payouts you've received show in your Full ledger.</p>
         </div>
       )}
       {/* Quick pay for the member's own outstanding event & emergency dues. */}
