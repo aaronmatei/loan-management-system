@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check, Pencil } from "lucide-react";
+import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check, Pencil, Trash2 } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 
@@ -381,9 +381,9 @@ function AgendaSection({ client, basePath, meetingId, items, freeText, readOnly,
               <span className="text-slate-400 dark:text-slate-500 w-5 shrink-0">{i + 1}.</span>
               <Editable it={it} />
               {isAdmin && editId !== it.id && (
-                <span className="flex gap-2 shrink-0">
-                  <button onClick={() => { setEditId(it.id); setEditText(it.content); }} className="text-xs text-indigo-600 hover:text-indigo-800">edit</button>
-                  <button onClick={() => del(it.id)} className="text-xs text-rose-600 hover:text-rose-800">remove</button>
+                <span className="flex gap-1 shrink-0">
+                  <button onClick={() => { setEditId(it.id); setEditText(it.content); }} title="Edit" className="p-1 text-slate-400 hover:text-indigo-600"><Pencil size={14} /></button>
+                  <button onClick={() => del(it.id)} title="Remove" className="p-1 text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>
                 </span>
               )}
             </li>
@@ -413,11 +413,11 @@ function AgendaSection({ client, basePath, meetingId, items, freeText, readOnly,
                 <span className="text-amber-400 shrink-0">•</span>
                 <Editable it={it} />
                 {editId !== it.id && (
-                  <span className="flex gap-2 shrink-0">
-                    {isAdmin && <button onClick={() => approve(it.id)} disabled={busy} className="text-xs font-semibold text-emerald-700 hover:text-emerald-900">approve</button>}
-                    {isAdmin && <button onClick={() => reject(it.id)} className="text-xs font-semibold text-rose-600 hover:text-rose-800">reject</button>}
-                    {!isAdmin && canEdit(it) && <button onClick={() => { setEditId(it.id); setEditText(it.content); }} className="text-xs text-indigo-600 hover:text-indigo-800">edit</button>}
-                    {!isAdmin && canEdit(it) && <button onClick={() => del(it.id)} className="text-xs text-rose-600 hover:text-rose-800">withdraw</button>}
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    {isAdmin && <button onClick={() => approve(it.id)} disabled={busy} title="Approve" className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900"><Check size={14} /> approve</button>}
+                    {isAdmin && <button onClick={() => reject(it.id)} title="Reject" className="inline-flex items-center gap-0.5 text-xs font-semibold text-rose-600 hover:text-rose-800"><X size={14} /> reject</button>}
+                    {!isAdmin && canEdit(it) && <button onClick={() => { setEditId(it.id); setEditText(it.content); }} title="Edit" className="p-1 text-slate-400 hover:text-indigo-600"><Pencil size={14} /></button>}
+                    {!isAdmin && canEdit(it) && <button onClick={() => del(it.id)} title="Withdraw" className="p-1 text-slate-400 hover:text-rose-600"><Trash2 size={14} /></button>}
                   </span>
                 )}
               </li>
