@@ -80,6 +80,7 @@ import platformAdminRoutes from "./routes/platform/admin.js";
 import platformCronRoutes from "./routes/platform/cron.js";
 import platformAuditRoutes from "./routes/platform/audit.js";
 import demoRoutes from "./routes/demo.js";
+import publicMeetingRoutes from "./routes/publicMeetings.js";
 import platformBillingRoutes from "./routes/platform/billing.js";
 import onboardingRoutes from "./routes/onboarding.js";
 import whiteLabelRoutes from "./routes/whiteLabel.js";
@@ -178,6 +179,7 @@ app.use("/api/platform/admin", platformAdminRoutes); // verifyToken + is_platfor
 app.use("/api/platform/cron", platformCronRoutes); // verifyToken + is_platform_admin
 app.use("/api/platform/audit", platformAuditRoutes); // verifyToken + is_platform_admin
 app.use("/api/demo", demoRoutes); // PUBLIC — no auth
+app.use("/api/public/meetings", publicMeetingRoutes); // PUBLIC — no auth (member RSVP)
 app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/white-label", whiteLabelRoutes);

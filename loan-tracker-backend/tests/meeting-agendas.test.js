@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import app from "../src/app.js";
 import { query, closePool } from "./helpers/db.js";
 import { createTenant, createUser, tokenFor } from "./helpers/factory.js";
+import { meetingRsvpToken } from "../src/utils/meetingToken.js";
 
 const auth = (u) => `Bearer ${tokenFor(u)}`;
 const customerToken = (pcId, tenantId) =>
@@ -93,13 +94,34 @@ describe("meeting agendas + minutes", () => {
     expect(memberRoster.find((r) => r.member_id === b.id).confirmed).toBe(false);
   });
 
-  it("builds a shareable meeting invite (link + message)", async () => {
+  it("builds a shareable meeting invite (public RSVP link + message)", async () => {
     const { admin, w, mtg } = await setup();
     const r = await request(app).get(`/api/welfares/${w.id}/meetings/${mtg.id}/invite`).set("Authorization", auth(admin));
     expect(r.status).toBe(200);
-    expect(r.body.data.link).toMatch(/\/welfare\/member\/login$/);
-    expect(r.body.data.message).toMatch(/meeting invitation/i);
+    expect(r.body.data.link).toMatch(new RegExp(`/m/${mtg.id}/[a-f0-9]+$`));
     expect(r.body.data.message).toContain(r.body.data.link);
+  });
+
+  it("public RSVP link: a member confirms by name + phone, matched to the database", async () => {
+    const { admin, w, a, mtg } = await setup();
+    const token = meetingRsvpToken(mtg.id);
+
+    // Public meeting summary (valid token) + invalid token guarded.
+    const sum = await request(app).get(`/api/public/meetings/${mtg.id}/${token}`);
+    expect(sum.status).toBe(200);
+    expect(sum.body.data.welfare_name).toBe("Umoja");
+    expect((await request(app).get(`/api/public/meetings/${mtg.id}/wrongtoken`)).status).toBe(404);
+
+    // RSVP by phone → matched to the member, recorded.
+    const rsvp = await request(app).post(`/api/public/meetings/${mtg.id}/${token}/rsvp`).send({ name: "Asha", phone: "0795710101", attending: true });
+    expect(rsvp.status).toBe(200);
+    expect(rsvp.body.data.member_name).toMatch(/Asha/);
+    expect(rsvp.body.data.attending).toBe(true);
+    const roster = (await request(app).get(`/api/welfares/${w.id}/meetings/${mtg.id}`).set("Authorization", auth(admin))).body.data.roster;
+    expect(roster.find((x) => x.member_id === a.id).confirmed).toBe(true);
+
+    // A phone that isn't a member is rejected.
+    expect((await request(app).post(`/api/public/meetings/${mtg.id}/${token}/rsvp`).send({ phone: "0700000000", attending: false })).status).toBe(404);
   });
 
   it("only the secretary may upload minutes", async () => {

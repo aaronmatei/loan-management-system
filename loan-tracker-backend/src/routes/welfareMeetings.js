@@ -8,6 +8,7 @@ import { verifyToken, authorize } from "../middleware/auth.js";
 import { tenantClause } from "../utils/tenantScope.js";
 import { logAudit } from "../services/auditService.js";
 import { loadAgenda, loadMinutes, nextPosition } from "../services/meetingAgendaService.js";
+import { meetingRsvpToken } from "../utils/meetingToken.js";
 import { postPool, round2 } from "../services/welfarePoolService.js";
 import logger from "../config/logger.js";
 
@@ -295,7 +296,8 @@ router.get("/meetings/:meetingId/invite", authorize("admin", "manager", "loan_of
   try {
     const m = await loadMeeting(req.welfare.id, req.params.meetingId);
     if (!m) return res.status(404).json({ error: "Meeting not found" });
-    const link = `${APP_URL}/welfare/member/login`;
+    // Public RSVP link — no login; the member just enters their name + phone.
+    const link = `${APP_URL}/m/${m.id}/${meetingRsvpToken(m.id)}`;
     const dateStr = new Date(m.meeting_date).toLocaleDateString("en-KE", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
     const when = `${dateStr}${m.start_time ? ` at ${String(m.start_time).slice(0, 5)}` : ""}`;
     const where = [m.venue, m.location].filter(Boolean).join(", ");
@@ -304,7 +306,7 @@ router.get("/meetings/:meetingId/invite", authorize("admin", "manager", "loan_of
       m.title ? `\n${m.title}` : "",
       `🗓 ${when}`,
       where ? `📍 ${where}` : "",
-      `\nPlease confirm your attendance on the member portal:`,
+      `\nConfirm whether you'll attend here:`,
       link,
     ].filter(Boolean).join("\n");
     res.json({ success: true, data: { link, message } });

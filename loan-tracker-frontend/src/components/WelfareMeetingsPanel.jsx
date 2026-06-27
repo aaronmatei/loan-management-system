@@ -554,7 +554,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
             </button>
             {invite && (
               <div className="mt-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg p-3 space-y-2">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Share this with members via SMS or WhatsApp so they can log in and confirm attendance.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Share this with members via SMS or WhatsApp. They open it, enter their name + phone, and confirm whether they'll attend — no login needed.</p>
                 <div className="flex gap-2">
                   <input readOnly value={invite.link} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-xs" />
                   <button onClick={() => copy(invite.link, "link")} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold"><Copy size={13} /> {copied === "link" ? "Copied!" : "Copy link"}</button>

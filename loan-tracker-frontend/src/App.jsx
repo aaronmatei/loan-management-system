@@ -26,6 +26,7 @@ import {
   WelfareMemberSelect,
 } from "./portal/pages/member/WelfareMemberAuth";
 import CustomerLogin from "./portal/pages/Login";
+import MeetingRsvp from "./portal/pages/MeetingRsvp";
 import CustomerRegister from "./portal/pages/Register";
 import TenantPicker from "./portal/pages/TenantPicker";
 import CustomerDashboard from "./portal/pages/Dashboard";
@@ -330,6 +331,7 @@ function App() {
               path="/widget/calculator/:subdomain"
               element={<CalculatorWidget />}
             />
+            <Route path="/m/:meetingId/:token" element={<MeetingRsvp />} />
             <Route
               path="/admin/dashboard"
               element={
@@ -511,6 +513,7 @@ function App() {
               path="/widget/calculator/:subdomain"
               element={<CalculatorWidget />}
             />
+            <Route path="/m/:meetingId/:token" element={<MeetingRsvp />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/signup" element={<Signup />} />
