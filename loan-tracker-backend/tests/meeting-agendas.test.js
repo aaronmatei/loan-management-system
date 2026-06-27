@@ -93,6 +93,15 @@ describe("meeting agendas + minutes", () => {
     expect(memberRoster.find((r) => r.member_id === b.id).confirmed).toBe(false);
   });
 
+  it("builds a shareable meeting invite (link + message)", async () => {
+    const { admin, w, mtg } = await setup();
+    const r = await request(app).get(`/api/welfares/${w.id}/meetings/${mtg.id}/invite`).set("Authorization", auth(admin));
+    expect(r.status).toBe(200);
+    expect(r.body.data.link).toMatch(/\/welfare\/member\/login$/);
+    expect(r.body.data.message).toMatch(/meeting invitation/i);
+    expect(r.body.data.message).toContain(r.body.data.link);
+  });
+
   it("only the secretary may upload minutes", async () => {
     const { admin, w, a, tokA, mtg } = await setup();
     // Ordinary member → blocked before any storage work.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check, Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check, Pencil, Trash2, Link2, Copy } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
 
@@ -477,6 +477,14 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [invite, setInvite] = useState(null); // { link, message } for sharing
+  const [copied, setCopied] = useState("");
+  const loadInvite = async () => {
+    if (invite) { setInvite(null); return; } // toggle
+    try { setInvite((await client.get(`${basePath}/meetings/${row.id}/invite`)).data.data); }
+    catch (e) { alert(e.response?.data?.error || "Failed to build invite"); }
+  };
+  const copy = async (text, what) => { try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(""), 2000); } catch { /* */ } };
 
   const load = async () => {
     try {
@@ -535,6 +543,31 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
           </div>
         ))}
       </div>
+
+      {/* Invite members — a copyable link + ready message to send via SMS / WhatsApp. */}
+      {!readOnly && (
+        <PermissionGate role={["admin", "manager", "loan_officer"]}>
+          <div className="mb-4">
+            <button onClick={loadInvite} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+              <Link2 size={15} /> Invite members
+            </button>
+            {invite && (
+              <div className="mt-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg p-3 space-y-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Share this with members via SMS or WhatsApp so they can log in and confirm attendance.</p>
+                <div className="flex gap-2">
+                  <input readOnly value={invite.link} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-xs" />
+                  <button onClick={() => copy(invite.link, "link")} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold"><Copy size={13} /> {copied === "link" ? "Copied!" : "Copy link"}</button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a href={`https://wa.me/?text=${encodeURIComponent(invite.message)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Share on WhatsApp</a>
+                  <button onClick={() => copy(invite.message, "msg")} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold"><Copy size={13} /> {copied === "msg" ? "Copied!" : "Copy message"}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </PermissionGate>
+      )}
+
       {data?.payout && (
         <div className="mb-4 flex items-center gap-2 text-sm bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
           <Gift size={15} className="text-violet-600" /> Handed out <span className="font-semibold">{money(data.payout.amount)}</span> to {data.payout.first_name} {data.payout.last_name}

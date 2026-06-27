@@ -287,6 +287,33 @@ router.get("/meetings/:meetingId", async (req, res) => {
   }
 });
 
+// GET /meetings/:meetingId/invite — a shareable invite (link + ready-to-send
+// message) the admin copies into SMS / WhatsApp. The link is the member-portal
+// login (same entry as a member invite); the message carries the meeting details.
+const APP_URL = process.env.APP_URL || "https://app.lenderfest.loans";
+router.get("/meetings/:meetingId/invite", authorize("admin", "manager", "loan_officer"), async (req, res) => {
+  try {
+    const m = await loadMeeting(req.welfare.id, req.params.meetingId);
+    if (!m) return res.status(404).json({ error: "Meeting not found" });
+    const link = `${APP_URL}/welfare/member/login`;
+    const dateStr = new Date(m.meeting_date).toLocaleDateString("en-KE", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+    const when = `${dateStr}${m.start_time ? ` at ${String(m.start_time).slice(0, 5)}` : ""}`;
+    const where = [m.venue, m.location].filter(Boolean).join(", ");
+    const message = [
+      `${req.welfare.name} — meeting invitation`,
+      m.title ? `\n${m.title}` : "",
+      `🗓 ${when}`,
+      where ? `📍 ${where}` : "",
+      `\nPlease confirm your attendance on the member portal:`,
+      link,
+    ].filter(Boolean).join("\n");
+    res.json({ success: true, data: { link, message } });
+  } catch (e) {
+    logger.error("welfare meeting invite error:", e);
+    res.status(500).json({ error: "Failed to build invite" });
+  }
+});
+
 // ---------------- AGENDA (admin harmonizes — full CRUD on any item) ----------------
 
 // POST /meetings/:meetingId/agenda — add an agenda item (appended to the end).
