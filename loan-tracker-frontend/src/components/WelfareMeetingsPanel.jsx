@@ -479,6 +479,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
   const [error, setError] = useState("");
   const [invite, setInvite] = useState(null); // { link, message } for sharing
   const [copied, setCopied] = useState("");
+  const [attOpen, setAttOpen] = useState(true); // attendance section collapse
   const loadInvite = async () => {
     if (invite) { setInvite(null); return; } // toggle
     try { setInvite((await client.get(`${basePath}/meetings/${row.id}/invite`)).data.data); }
@@ -583,58 +584,74 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
       {!loading && data && <AgendaSection client={client} basePath={basePath} meetingId={row.id} items={data.agenda || []} freeText={m.agenda} readOnly={readOnly} myMemberId={data.my_member_id} onChange={load} />}
       {!loading && data && <MinutesSection client={client} basePath={basePath} meetingId={row.id} minutes={data.minutes || []} readOnly={readOnly} canUploadMinutes={data.can_upload_minutes} onChange={load} />}
 
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Attendance</p>
-        {recorded && <span className="text-xs font-semibold text-emerald-700 inline-flex items-center gap-1"><Check size={14} /> Recorded</span>}
-      </div>
-      {!loading && roster.length > 0 && (
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-          RSVP: <span className="text-emerald-700 dark:text-emerald-300 font-semibold">{rsvp.yes} attending</span> · <span className="text-rose-700 dark:text-rose-300 font-semibold">{rsvp.no} can't make it</span> · <span className="font-semibold">{rsvp.none}</span> no reply
-        </p>
-      )}
-      {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading roster…</p> : roster.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">No active members.</p>
-      ) : (
-        <>
-          {editable && <p className="text-xs text-slate-400 dark:text-slate-400 mb-2">Enter each member's arrival time. Anyone past {m.start_time ? `${hhmm(m.start_time)} + ${m.grace_minutes || 0} min grace` : "the start time"} is marked late; leave blank for a no-show, and tick <em>apology</em> to excuse them from the fine.</p>}
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {roster.map((mem) => {
-              const st = editable ? deriveStatus(mem.arrival_time, mem.apology, m) : mem.attendance_status;
-              const badge = ATT.find((x) => x.v === st) || { v: "none", label: "—", cls: "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400" };
-              return (
-                <div key={mem.member_id} className="flex items-center gap-3">
-                  <span className="flex-1 min-w-0 flex items-center gap-2">
-                    <span className="text-sm text-slate-800 dark:text-slate-100 truncate">{mem.first_name} {mem.last_name}</span>
-                    {rsvpChip(mem.confirmed)}
-                  </span>
-                  {!editable ? (
-                    <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums w-12 text-right">{hhmm(mem.arrival_time) || "—"}</span>
-                  ) : (
-                    <>
-                      <input type="time" value={mem.arrival_time || ""} onChange={(e) => setArrival(mem.member_id, e.target.value)} className="px-2 py-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm" />
-                      <label className="text-xs text-slate-500 dark:text-slate-400 inline-flex items-center gap-1 select-none">
-                        <input type="checkbox" checked={!!mem.apology} disabled={!!mem.arrival_time} onChange={(e) => setApology(mem.member_id, e.target.checked)} /> apology
-                      </label>
-                    </>
-                  )}
-                  <span className={`px-2 py-1 rounded text-xs font-semibold w-16 text-center shrink-0 ${badge.cls}`}>{badge.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-      {!readOnly && (
-        <PermissionGate role={["admin", "manager", "loan_officer"]}>
-          <div className="flex justify-end items-center gap-3 pt-3">
-            {recorded ? (
-              <span className="text-sm font-semibold text-emerald-700 inline-flex items-center gap-1.5"><Check size={16} /> Attendance recorded</span>
+      <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden mb-4">
+        <button type="button" onClick={() => setAttOpen((o) => !o)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100/70 dark:hover:bg-indigo-900/30 transition">
+          <span className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+            <ChevronRight size={17} className={`transition-transform text-indigo-500 ${attOpen ? "rotate-90" : ""}`} />
+            Attendance {roster.length > 0 && <span className="text-slate-400 dark:text-slate-500 font-normal">({roster.length})</span>}
+          </span>
+          <span className="flex items-center gap-2 text-xs">
+            {!loading && roster.length > 0 && (
+              <span className="hidden sm:inline text-slate-500 dark:text-slate-400">
+                <span className="text-emerald-700 dark:text-emerald-300 font-semibold">{rsvp.yes}</span> in · <span className="text-rose-700 dark:text-rose-300 font-semibold">{rsvp.no}</span> out · {rsvp.none} no&nbsp;reply
+              </span>
+            )}
+            {recorded && <span className="font-semibold text-emerald-700 inline-flex items-center gap-1"><Check size={13} /> Recorded</span>}
+          </span>
+        </button>
+        {attOpen && (
+          <div className="p-3.5">
+            {!loading && roster.length > 0 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                RSVP: <span className="text-emerald-700 dark:text-emerald-300 font-semibold">{rsvp.yes} attending</span> · <span className="text-rose-700 dark:text-rose-300 font-semibold">{rsvp.no} can't make it</span> · <span className="font-semibold">{rsvp.none}</span> no reply
+              </p>
+            )}
+            {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading roster…</p> : roster.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">No active members.</p>
             ) : (
-              <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
+              <>
+                {editable && <p className="text-xs text-slate-400 dark:text-slate-400 mb-2">Enter each member's arrival time. Anyone past {m.start_time ? `${hhmm(m.start_time)} + ${m.grace_minutes || 0} min grace` : "the start time"} is marked late; leave blank for a no-show, and tick <em>apology</em> to excuse them from the fine.</p>}
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {roster.map((mem) => {
+                    const st = editable ? deriveStatus(mem.arrival_time, mem.apology, m) : mem.attendance_status;
+                    const badge = ATT.find((x) => x.v === st) || { v: "none", label: "—", cls: "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400" };
+                    return (
+                      <div key={mem.member_id} className="flex items-center gap-3">
+                        <span className="flex-1 min-w-0 flex items-center gap-2">
+                          <span className="text-sm text-slate-800 dark:text-slate-100 truncate">{mem.first_name} {mem.last_name}</span>
+                          {rsvpChip(mem.confirmed)}
+                        </span>
+                        {!editable ? (
+                          <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums w-12 text-right">{hhmm(mem.arrival_time) || "—"}</span>
+                        ) : (
+                          <>
+                            <input type="time" value={mem.arrival_time || ""} onChange={(e) => setArrival(mem.member_id, e.target.value)} className="px-2 py-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm" />
+                            <label className="text-xs text-slate-500 dark:text-slate-400 inline-flex items-center gap-1 select-none">
+                              <input type="checkbox" checked={!!mem.apology} disabled={!!mem.arrival_time} onChange={(e) => setApology(mem.member_id, e.target.checked)} /> apology
+                            </label>
+                          </>
+                        )}
+                        <span className={`px-2 py-1 rounded text-xs font-semibold w-16 text-center shrink-0 ${badge.cls}`}>{badge.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {!readOnly && (
+              <PermissionGate role={["admin", "manager", "loan_officer"]}>
+                <div className="flex justify-end items-center gap-3 pt-3">
+                  {recorded ? (
+                    <span className="text-sm font-semibold text-emerald-700 inline-flex items-center gap-1.5"><Check size={16} /> Attendance recorded</span>
+                  ) : (
+                    <button onClick={save} disabled={busy || loading || roster.length === 0} className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">{busy ? "Saving…" : "Save attendance"}</button>
+                  )}
+                </div>
+              </PermissionGate>
             )}
           </div>
-        </PermissionGate>
-      )}
+        )}
+      </div>
 
       {data?.fines?.length > 0 && (
         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
