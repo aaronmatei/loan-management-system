@@ -77,6 +77,22 @@ describe("meeting agendas + minutes", () => {
     expect((await request(app).delete(`/api/welfares/${w.id}/meetings/${mtg.id}/agenda/${mine.id}`).set("Authorization", auth(admin))).status).toBe(200);
   });
 
+  it("each member's RSVP (attending / can't make it) shows on the admin + member roster", async () => {
+    const { admin, w, a, b, tokA, tokB, mtg } = await setup();
+    await request(app).post(`/api/welfare/member/meetings/${mtg.id}/confirm`).set("Authorization", tokA).send({ attending: true });
+    await request(app).post(`/api/welfare/member/meetings/${mtg.id}/confirm`).set("Authorization", tokB).send({ attending: false });
+
+    // Admin sees who confirmed and who can't make it.
+    const adminRoster = (await request(app).get(`/api/welfares/${w.id}/meetings/${mtg.id}`).set("Authorization", auth(admin))).body.data.roster;
+    expect(adminRoster.find((r) => r.member_id === a.id).confirmed).toBe(true);
+    expect(adminRoster.find((r) => r.member_id === b.id).confirmed).toBe(false);
+
+    // A member sees their own choice (and everyone's) on the meeting roster.
+    const memberRoster = (await request(app).get(`/api/welfare/member/meetings/${mtg.id}`).set("Authorization", tokA)).body.data.roster;
+    expect(memberRoster.find((r) => r.member_id === a.id).confirmed).toBe(true);
+    expect(memberRoster.find((r) => r.member_id === b.id).confirmed).toBe(false);
+  });
+
   it("only the secretary may upload minutes", async () => {
     const { admin, w, a, tokA, mtg } = await setup();
     // Ordinary member → blocked before any storage work.

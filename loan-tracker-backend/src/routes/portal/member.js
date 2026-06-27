@@ -274,9 +274,11 @@ router.get("/meetings/:meetingId", async (req, res) => {
     if (!m) return res.status(404).json({ error: "Meeting not found" });
     const roster = (await query(
       `SELECT mem.id AS member_id, mem.first_name, mem.last_name, mem.member_no,
-              a.status AS attendance_status, a.arrival_time, a.apology
+              a.status AS attendance_status, a.arrival_time, a.apology,
+              c.attending AS confirmed
          FROM members mem
          LEFT JOIN member_attendance a ON a.meeting_id=$2 AND a.member_id=mem.id
+         LEFT JOIN meeting_confirmations c ON c.meeting_id=$2 AND c.member_id=mem.id
         WHERE mem.welfare_id=$1 AND mem.status='active'
         ORDER BY mem.first_name`,
       [req.welfareId, m.id],

@@ -510,6 +510,14 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
   // (readOnly) is always view-only.
   const recorded = roster.some((mem) => mem.attendance_status);
   const editable = !readOnly && !recorded;
+  // Members' RSVPs (confirmed attending / can't make it / no reply), so the admin
+  // and members can see who said what before the meeting is held.
+  const rsvp = roster.reduce((a, mem) => { if (mem.confirmed === true) a.yes++; else if (mem.confirmed === false) a.no++; else a.none++; return a; }, { yes: 0, no: 0, none: 0 });
+  const rsvpChip = (c) => c === true
+    ? <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0">Attending</span>
+    : c === false
+      ? <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 shrink-0">Can't make it</span>
+      : <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400 shrink-0">No reply</span>;
 
   return (
     <Shell title={m.title || "Meeting"} onClose={onClose} wide>
@@ -540,6 +548,11 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Attendance</p>
         {recorded && <span className="text-xs font-semibold text-emerald-700 inline-flex items-center gap-1"><Check size={14} /> Recorded</span>}
       </div>
+      {!loading && roster.length > 0 && (
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+          RSVP: <span className="text-emerald-700 dark:text-emerald-300 font-semibold">{rsvp.yes} attending</span> · <span className="text-rose-700 dark:text-rose-300 font-semibold">{rsvp.no} can't make it</span> · <span className="font-semibold">{rsvp.none}</span> no reply
+        </p>
+      )}
       {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading roster…</p> : roster.length === 0 ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">No active members.</p>
       ) : (
@@ -551,7 +564,10 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
               const badge = ATT.find((x) => x.v === st) || { v: "none", label: "—", cls: "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400" };
               return (
                 <div key={mem.member_id} className="flex items-center gap-3">
-                  <span className="flex-1 text-sm text-slate-800 dark:text-slate-100 truncate">{mem.first_name} {mem.last_name}</span>
+                  <span className="flex-1 min-w-0 flex items-center gap-2">
+                    <span className="text-sm text-slate-800 dark:text-slate-100 truncate">{mem.first_name} {mem.last_name}</span>
+                    {rsvpChip(mem.confirmed)}
+                  </span>
                   {!editable ? (
                     <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums w-12 text-right">{hhmm(mem.arrival_time) || "—"}</span>
                   ) : (
