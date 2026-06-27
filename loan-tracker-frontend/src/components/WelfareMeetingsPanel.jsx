@@ -274,8 +274,8 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
   const editing = !!meeting;
   const [form, setForm] = useState(
     editing
-      ? { title: meeting.title || "", meeting_date: toDateInput(meeting.meeting_date), start_time: hhmm(meeting.start_time), grace_minutes: meeting.grace_minutes ?? "", location: meeting.location || "", venue: meeting.venue || "", agenda: meeting.agenda || "", fine_late: meeting.fine_late ?? "", fine_absent: meeting.fine_absent ?? "" }
-      : { title: "", meeting_date: new Date().toISOString().split("T")[0], start_time: "", grace_minutes: "", location: "", venue: "", agenda: "", fine_late: "", fine_absent: "" },
+      ? { title: meeting.title || "", meeting_date: toDateInput(meeting.meeting_date), start_time: hhmm(meeting.start_time), grace_minutes: meeting.grace_minutes ?? "", location: meeting.location || "", venue: meeting.venue || "", fine_late: meeting.fine_late ?? "", fine_absent: meeting.fine_absent ?? "" }
+      : { title: "", meeting_date: new Date().toISOString().split("T")[0], start_time: "", grace_minutes: "", location: "", venue: "", fine_late: "", fine_absent: "" },
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -321,7 +321,6 @@ function MeetingModal({ welfareId, meeting, onClose, onSaved }) {
           <div><label className={lbl}>Grace (min)</label><input type="number" min="0" value={form.grace_minutes} onChange={set("grace_minutes")} placeholder="e.g. 15" className={fld} /></div>
         </div>
         <p className="-mt-2 text-xs text-slate-400 dark:text-slate-400">Members arriving after the start time + grace are marked late automatically.</p>
-        <div><label className={lbl}>Agenda <span className="font-normal text-slate-400 dark:text-slate-500">(one item per line)</span></label><textarea value={form.agenda} onChange={set("agenda")} rows="4" placeholder={"Opening prayer\nMinutes of last meeting\nTreasurer's report\nAOB"} className={fld} /></div>
         <div>
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Attendance fines</p>
           <div className="grid grid-cols-2 gap-3">
