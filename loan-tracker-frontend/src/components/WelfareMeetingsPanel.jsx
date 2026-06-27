@@ -132,15 +132,15 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                             <div className="flex gap-1">
                               <button
                                 onClick={() => rsvp(m.id, true)}
-                                disabled={acting === m.id}
-                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:opacity-50 ${m.my_confirmation === true ? "bg-emerald-600 text-white border-emerald-600" : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"}`}
+                                disabled={acting === m.id || m.my_confirmation === true}
+                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:cursor-not-allowed ${m.my_confirmation === true ? "bg-emerald-600 text-white border-emerald-600" : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"}`}
                               >
                                 Attending
                               </button>
                               <button
                                 onClick={() => rsvp(m.id, false)}
-                                disabled={acting === m.id}
-                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:opacity-50 ${m.my_confirmation === false ? "bg-rose-600 text-white border-rose-600" : "bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30"}`}
+                                disabled={acting === m.id || m.my_confirmation === false}
+                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:cursor-not-allowed ${m.my_confirmation === false ? "bg-rose-600 text-white border-rose-600" : "bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 disabled:opacity-50"}`}
                               >
                                 Can't make it
                               </button>

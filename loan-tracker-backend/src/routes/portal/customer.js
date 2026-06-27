@@ -939,6 +939,12 @@ router.get("/payments", async (req, res) => {
 router.get("/notifications", async (req, res) => {
   try {
     await syncForCustomer(req.platformCustomerId);
+    // Scope to the tenant the customer is currently in. A customer can be linked
+    // to several tenants (e.g. a welfare AND a lender); without this they'd see
+    // another tenant's notifications in the wrong portal.
+    const params = [req.platformCustomerId];
+    let tenantFilter = "";
+    if (req.currentTenantId) { params.push(req.currentTenantId); tenantFilter = ` AND cn.tenant_id = $${params.length}`; }
     const r = await query(
       `SELECT cn.id, cn.type, cn.amount, cn.is_read, cn.created_at AS at,
               cn.loan_id, l.loan_code,
@@ -946,10 +952,10 @@ router.get("/notifications", async (req, res) => {
        FROM customer_notifications cn
        LEFT JOIN loans l ON cn.loan_id = l.id
        LEFT JOIN tenants tn ON cn.tenant_id = tn.id
-       WHERE cn.platform_customer_id = $1 AND cn.is_dismissed = false
+       WHERE cn.platform_customer_id = $1 AND cn.is_dismissed = false${tenantFilter}
        ORDER BY cn.created_at DESC
        LIMIT 50`,
-      [req.platformCustomerId],
+      params,
     );
     const unread = r.rows.filter((n) => !n.is_read).length;
     res.json({ success: true, data: r.rows, unread });
@@ -962,10 +968,13 @@ router.get("/notifications", async (req, res) => {
 // Mark all the customer's notifications read (called when the bell opens).
 router.post("/notifications/read-all", async (req, res) => {
   try {
+    const params = [req.platformCustomerId];
+    let tf = "";
+    if (req.currentTenantId) { params.push(req.currentTenantId); tf = ` AND tenant_id = $${params.length}`; }
     await query(
       `UPDATE customer_notifications SET is_read = true
-       WHERE platform_customer_id = $1 AND is_read = false`,
-      [req.platformCustomerId],
+       WHERE platform_customer_id = $1 AND is_read = false${tf}`,
+      params,
     );
     res.json({ success: true });
   } catch (error) {
@@ -977,10 +986,13 @@ router.post("/notifications/read-all", async (req, res) => {
 // Dismiss all the customer's notifications.
 router.post("/notifications/dismiss-all", async (req, res) => {
   try {
+    const params = [req.platformCustomerId];
+    let tf = "";
+    if (req.currentTenantId) { params.push(req.currentTenantId); tf = ` AND tenant_id = $${params.length}`; }
     await query(
       `UPDATE customer_notifications SET is_dismissed = true
-       WHERE platform_customer_id = $1 AND is_dismissed = false`,
-      [req.platformCustomerId],
+       WHERE platform_customer_id = $1 AND is_dismissed = false${tf}`,
+      params,
     );
     res.json({ success: true });
   } catch (error) {
