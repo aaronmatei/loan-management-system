@@ -522,12 +522,19 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
   return (
     <Shell title={m.title || "Meeting"} onClose={onClose} wide>
       {error && <div className="mb-3"><Err msg={error} /></div>}
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600 dark:text-slate-400 mb-4">
-        <span><span className="text-slate-400 dark:text-slate-400">Date</span> {fmtD(m.meeting_date)}</span>
-        {m.start_time && <span><span className="text-slate-400 dark:text-slate-400">Start</span> {hhmm(m.start_time)}{m.grace_minutes ? ` (+${m.grace_minutes}m grace)` : ""}</span>}
-        {m.venue && <span><span className="text-slate-400 dark:text-slate-400">Venue</span> {m.venue}</span>}
-        <span><span className="text-slate-400 dark:text-slate-400">Location</span> {m.location || "Home"}</span>
-        <span><span className="text-slate-400 dark:text-slate-400">Fines</span> {[m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none"}</span>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
+        {[
+          { label: "Date", value: fmtD(m.meeting_date) },
+          m.start_time && { label: "Start", value: `${hhmm(m.start_time)}${m.grace_minutes ? ` · +${m.grace_minutes}m grace` : ""}` },
+          m.venue && { label: "Venue", value: m.venue },
+          { label: "Location", value: m.location || "Home" },
+          { label: "Fines", value: [m.fine_late > 0 ? `late ${money(m.fine_late)}` : null, m.fine_absent > 0 ? `absent ${money(m.fine_absent)}` : null].filter(Boolean).join(" · ") || "none" },
+        ].filter(Boolean).map((t) => (
+          <div key={t.label} className="bg-slate-50 dark:bg-slate-900/60 rounded-lg px-3 py-2 border border-slate-100 dark:border-slate-700">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{t.label}</p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">{t.value}</p>
+          </div>
+        ))}
       </div>
       {data?.payout && (
         <div className="mb-4 flex items-center gap-2 text-sm bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
