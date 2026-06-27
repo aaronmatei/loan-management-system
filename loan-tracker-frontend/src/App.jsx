@@ -332,6 +332,7 @@ function App() {
               element={<CalculatorWidget />}
             />
             <Route path="/m/:meetingId/:token" element={<MeetingRsvp />} />
+            <Route path="/m/:welfareSlug/:meetingId/:token" element={<MeetingRsvp />} />
             <Route
               path="/admin/dashboard"
               element={
@@ -514,6 +515,7 @@ function App() {
               element={<CalculatorWidget />}
             />
             <Route path="/m/:meetingId/:token" element={<MeetingRsvp />} />
+            <Route path="/m/:welfareSlug/:meetingId/:token" element={<MeetingRsvp />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/signup" element={<Signup />} />

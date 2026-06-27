@@ -297,7 +297,10 @@ router.get("/meetings/:meetingId/invite", authorize("admin", "manager", "loan_of
     const m = await loadMeeting(req.welfare.id, req.params.meetingId);
     if (!m) return res.status(404).json({ error: "Meeting not found" });
     // Public RSVP link — no login; the member just enters their name + phone.
-    const link = `${APP_URL}/m/${m.id}/${meetingRsvpToken(m.id)}`;
+    // The welfare name is a readable slug so recipients see which chama it's for
+    // (it's cosmetic; the meeting id + token are what the page actually uses).
+    const slug = (req.welfare.name || "meeting").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "meeting";
+    const link = `${APP_URL}/m/${slug}/${m.id}/${meetingRsvpToken(m.id)}`;
     const dateStr = new Date(m.meeting_date).toLocaleDateString("en-KE", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
     const when = `${dateStr}${m.start_time ? ` at ${String(m.start_time).slice(0, 5)}` : ""}`;
     const where = [m.venue, m.location].filter(Boolean).join(", ");

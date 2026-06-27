@@ -98,7 +98,7 @@ describe("meeting agendas + minutes", () => {
     const { admin, w, mtg } = await setup();
     const r = await request(app).get(`/api/welfares/${w.id}/meetings/${mtg.id}/invite`).set("Authorization", auth(admin));
     expect(r.status).toBe(200);
-    expect(r.body.data.link).toMatch(new RegExp(`/m/${mtg.id}/[a-f0-9]+$`));
+    expect(r.body.data.link).toMatch(new RegExp(`/m/umoja/${mtg.id}/[a-f0-9]+$`));
     expect(r.body.data.message).toContain(r.body.data.link);
   });
 
