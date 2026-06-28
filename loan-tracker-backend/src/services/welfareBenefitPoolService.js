@@ -15,6 +15,23 @@ export function poolKeyForPlan(plan) {
   return plan?.pool_kind === "benefit" ? `plan-${plan.id}` : "savings";
 }
 
+// Which pool a fine's cash should fund. A fine raised on a benefit-pool
+// contribution (event/emergency) funds THAT pool; everything else (savings
+// contributions, meetings, loans, manual) funds the savings pool → returns null.
+export async function penaltyPoolKey(assessment) {
+  if (assessment?.source_type === "contribution_schedule" && assessment.source_id) {
+    const r = await query(
+      `SELECT c.pool_key, c.id AS cycle_id
+         FROM contribution_schedules s JOIN contribution_cycles c ON c.id = s.cycle_id
+        WHERE s.id = $1`,
+      [assessment.source_id],
+    );
+    const row = r.rows[0];
+    if (row && row.pool_key && row.pool_key !== "savings") return { poolKey: row.pool_key, cycleId: row.cycle_id };
+  }
+  return null;
+}
+
 export async function benefitPoolBalance(welfareId, poolKey) {
   const r = await query(
     `SELECT balance_after FROM benefit_pool_ledger WHERE welfare_id=$1 AND pool_key=$2 ORDER BY id DESC LIMIT 1`,

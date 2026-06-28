@@ -13,6 +13,7 @@ import {
 } from "../utils/penaltyEngine.js";
 import { notifyPenalty } from "../services/welfareSmsService.js";
 import { postPool } from "../services/welfarePoolService.js";
+import { postBenefitPool, penaltyPoolKey } from "../services/welfareBenefitPoolService.js";
 import logger from "../config/logger.js";
 
 const router = express.Router({ mergeParams: true });
@@ -349,12 +350,21 @@ router.post("/penalties/:id/pay", authorize("admin", "manager", "loan_officer"),
     const status = newPaid >= parseFloat(a.amount) ? "paid" : "outstanding";
     await query(`UPDATE penalty_assessments SET paid_amount=$2, status=$3 WHERE id=$1`, [a.id, newPaid, status]);
 
-    // Penalty income grows the pool (not the member's savings) — through the
-    // atomic, race-safe pool writer.
-    const poolTx = await postPool({
-      welfare: req.welfare, memberId: a.member_id, type: "penalty", amount: amt, direction: 1,
-      description: `Penalty payment (assessment #${a.id})`, userId: req.user.id,
-    });
+    // Fine income grows the pool the fine belongs to: an event/emergency fine
+    // funds that benefit pool; otherwise it funds the savings pool.
+    const bp = await penaltyPoolKey(a);
+    let poolTx;
+    if (bp) {
+      poolTx = await postBenefitPool({
+        welfare: req.welfare, poolKey: bp.poolKey, memberId: a.member_id, type: "penalty",
+        cycleId: bp.cycleId, amount: amt, direction: 1, description: `Penalty payment (assessment #${a.id})`, userId: req.user.id,
+      });
+    } else {
+      poolTx = await postPool({
+        welfare: req.welfare, memberId: a.member_id, type: "penalty", amount: amt, direction: 1,
+        description: `Penalty payment (assessment #${a.id})`, userId: req.user.id,
+      });
+    }
     await logAudit({
       user: req.user, action: "penalty_paid", entityType: "penalty_assessment",
       entityId: a.id, description: `Penalty payment KES ${amt}`, req,

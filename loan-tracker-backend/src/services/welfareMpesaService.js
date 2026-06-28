@@ -5,7 +5,7 @@
 import { query } from "../config/database.js";
 import * as mpesa from "./mpesaService.js";
 import { postEventsPool } from "./welfareEventsService.js";
-import { postBenefitPool } from "./welfareBenefitPoolService.js";
+import { postBenefitPool, penaltyPoolKey } from "./welfareBenefitPoolService.js";
 import { postPool as postSavingsPool } from "./welfarePoolService.js";
 import { recordMemberLoanPayment } from "./memberLoanService.js";
 import logger from "../config/logger.js";
@@ -129,7 +129,14 @@ export async function allocateWelfarePayment(tx, cb = {}) {
         const newPaid = round2(parseFloat(a.paid_amount) + amt);
         const status = newPaid >= parseFloat(a.amount) ? "paid" : "outstanding";
         await query(`UPDATE penalty_assessments SET paid_amount=$2, status=$3 WHERE id=$1`, [a.id, newPaid, status]);
-        await postPool(tx, "penalty", amt, `Penalty via M-Pesa (${tx.mpesa_receipt_number || "STK"})`);
+        // Route the fine to the pool it belongs to (benefit-cycle fine → that
+        // pool; else savings).
+        const bp = await penaltyPoolKey(a);
+        if (bp) {
+          await postBenefitPool({ welfare: { id: tx.welfare_id, tenant_id: tx.tenant_id }, poolKey: bp.poolKey, memberId: tx.member_id, type: "penalty", cycleId: bp.cycleId, amount: amt, direction: 1, description: `Penalty via M-Pesa (${tx.mpesa_receipt_number || "STK"})` });
+        } else {
+          await postPool(tx, "penalty", amt, `Penalty via M-Pesa (${tx.mpesa_receipt_number || "STK"})`);
+        }
         applied = true;
       }
     }
