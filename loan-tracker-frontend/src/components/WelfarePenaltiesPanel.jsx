@@ -24,16 +24,16 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
   const [penalties, setPenalties] = useState([]);
   const [outstanding, setOutstanding] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState("outstanding"); // 'outstanding' | 'paid' | 'all'
 
   const load = async () => {
     try {
-      const r = await api.get(`/welfares/${welfareId}/penalties${showAll ? "" : "?status=outstanding"}`);
+      const r = await api.get(`/welfares/${welfareId}/penalties${filter === "all" ? "" : `?status=${filter}`}`);
       setPenalties(r.data.data || []);
       setOutstanding(r.data.outstanding_total || 0);
     } catch { /* non-fatal */ } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [welfareId, showAll]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [welfareId, filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pay = async (a) => {
     if (!confirm(`Record full payment of ${money(a.amount - a.paid_amount)} for this fine?`)) return;
@@ -61,18 +61,22 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
     }
     return "Other";
   };
+  // Tile amount follows the active filter: Paid → collected, otherwise the
+  // outstanding balance.
+  const tileAmt = (p) => (filter === "paid" ? Number(p.paid_amount) : (p.status === "outstanding" ? Number(p.amount) - Number(p.paid_amount) : 0));
   const groups = penalties.reduce((acc, p) => {
     const g = groupOf(p);
-    acc[g] = acc[g] || { count: 0, outstanding: 0 };
+    acc[g] = acc[g] || { count: 0, amount: 0 };
     acc[g].count += 1;
-    acc[g].outstanding += p.status === "outstanding" ? Number(p.amount) - Number(p.paid_amount) : 0;
+    acc[g].amount += tileAmt(p);
     return acc;
   }, {});
+  const tileTone = filter === "paid" ? "emerald" : "rose";
   const penTiles = ["Contributions", "Events", "Emergencies", "Meetings", "Loans"].map((g) => {
-    const v = groups[g] || { count: 0, outstanding: 0 };
-    return { label: g, value: money(v.outstanding), sub: `${v.count} fine${v.count === 1 ? "" : "s"}`, tone: v.outstanding > 0 ? "rose" : "slate" };
+    const v = groups[g] || { count: 0, amount: 0 };
+    return { label: g, value: money(v.amount), sub: `${v.count} fine${v.count === 1 ? "" : "s"}`, tone: v.amount > 0 ? tileTone : "slate" };
   });
-  if (groups.Other) penTiles.push({ label: "Other", value: money(groups.Other.outstanding), sub: `${groups.Other.count} fine${groups.Other.count === 1 ? "" : "s"}`, tone: groups.Other.outstanding > 0 ? "rose" : "slate" });
+  if (groups.Other) penTiles.push({ label: "Other", value: money(groups.Other.amount), sub: `${groups.Other.count} fine${groups.Other.count === 1 ? "" : "s"}`, tone: groups.Other.amount > 0 ? tileTone : "slate" });
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-rose-100 mb-6 overflow-hidden">
@@ -91,15 +95,16 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-slate-500 dark:text-slate-400">Fines are set when you create a contribution, event or meeting — and charged automatically. This is the record.</p>
           <div className="flex gap-2 shrink-0">
-            <button onClick={() => setShowAll(false)} className={tab(!showAll)}>Outstanding</button>
-            <button onClick={() => setShowAll(true)} className={tab(showAll)}>All</button>
+            <button onClick={() => setFilter("outstanding")} className={tab(filter === "outstanding")}>Outstanding</button>
+            <button onClick={() => setFilter("paid")} className={tab(filter === "paid")}>Paid</button>
+            <button onClick={() => setFilter("all")} className={tab(filter === "all")}>All</button>
           </div>
         </div>
 
         {loading ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
         ) : penalties.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{showAll ? "No fines recorded." : "No outstanding fines. 🎉"}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{filter === "paid" ? "No fines paid yet." : filter === "all" ? "No fines recorded." : "No outstanding fines. 🎉"}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -122,7 +127,7 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
                       <span className="text-slate-600 dark:text-slate-400">{a.source_label || "—"}</span>
                     </td>
                     <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{TRIGGER_LABEL[a.trigger] || a.trigger}</td>
-                    <td className="px-4 py-2 text-right font-semibold">{money(a.amount - a.paid_amount)}{Number(a.paid_amount) > 0 && Number(a.paid_amount) < Number(a.amount) ? <span className="text-xs text-slate-400 dark:text-slate-400"> of {money(a.amount)}</span> : null}</td>
+                    <td className="px-4 py-2 text-right font-semibold">{money(a.status === "paid" ? a.amount : a.amount - a.paid_amount)}{Number(a.paid_amount) > 0 && Number(a.paid_amount) < Number(a.amount) ? <span className="text-xs text-slate-400 dark:text-slate-400"> of {money(a.amount)}</span> : null}</td>
                     <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${a.status === "paid" ? "bg-emerald-100 text-emerald-800" : a.status === "waived" ? "bg-slate-200 text-slate-600" : "bg-rose-100 text-rose-700"}`}>{a.status}</span></td>
                     <td className="px-4 py-2 text-right whitespace-nowrap">
                       {a.status === "outstanding" && (
