@@ -303,14 +303,31 @@ export async function buildCharts(welfare, year) {
     };
   });
 
-  // Fines by activity type — accrued vs collected per penalty trigger.
-  const FINE_LABELS = { contribution_late: "Contribution late", loan_late: "Loan late", attendance_late: "Attendance late", attendance_absent: "Attendance absent", meeting_missed: "Meeting missed", manual: "Manual" };
-  const fines = (await query(
-    `SELECT trigger, COALESCE(SUM(amount),0) AS accrued, COALESCE(SUM(paid_amount),0) AS collected
-       FROM penalty_assessments WHERE ${memberFilter}
-      GROUP BY trigger ORDER BY accrued DESC`,
+  // Fines by activity — accrued vs collected. Contribution fines are split by
+  // pool (savings → Contributions late, plan-* → Event late, oneoff → Emergency
+  // late). Shown in a fixed order; categories with no fines are omitted.
+  const FINE_ORDER = ["Attendance absent", "Attendance late", "Contributions late", "Event late", "Emergency late", "Loan late", "Other"];
+  const fineRows = (await query(
+    `SELECT CASE
+              WHEN pa.trigger='attendance_absent' THEN 'Attendance absent'
+              WHEN pa.trigger='attendance_late'   THEN 'Attendance late'
+              WHEN pa.trigger='contribution_late' AND cc.pool_key='oneoff'      THEN 'Emergency late'
+              WHEN pa.trigger='contribution_late' AND cc.pool_key LIKE 'plan-%' THEN 'Event late'
+              WHEN pa.trigger='contribution_late' THEN 'Contributions late'
+              WHEN pa.trigger='loan_late' THEN 'Loan late'
+              ELSE 'Other'
+            END AS label,
+            COALESCE(SUM(pa.amount),0) AS accrued, COALESCE(SUM(pa.paid_amount),0) AS collected
+       FROM penalty_assessments pa
+       LEFT JOIN contribution_schedules cs ON pa.source_type='contribution_schedule' AND cs.id=pa.source_id
+       LEFT JOIN contribution_cycles cc ON cc.id=cs.cycle_id
+      WHERE pa.${memberFilter}
+      GROUP BY label`,
     [wid],
-  )).rows.map((r) => ({ type: r.trigger, label: FINE_LABELS[r.trigger] || r.trigger, accrued: num(r.accrued), collected: num(r.collected) }));
+  )).rows;
+  const fines = FINE_ORDER
+    .map((label) => { const r = fineRows.find((x) => x.label === label); return r ? { label, accrued: num(r.accrued), collected: num(r.collected) } : null; })
+    .filter(Boolean);
 
   // Balance of every pool — savings + each benefit pool (quarterly, emergencies).
   const savingsBal = (await query(`SELECT balance_after FROM member_pool_transactions WHERE welfare_id=$1 ORDER BY id DESC LIMIT 1`, [wid])).rows[0];
