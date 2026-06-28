@@ -448,7 +448,7 @@ export function MemberContributions() {
   const savingsCycles = (data || []).filter(isSavings);
   const due = savingsCycles.filter((c) => ["pending", "partial", "overdue"].includes(c.status));
   const outstanding = savingsCycles.reduce((a, c) => a + Math.max(0, Number(c.amount_due) - Number(c.amount_paid)), 0);
-  const myPenalties = (pens || []).filter((p) => p.status === "outstanding" && (!p.pool_key || p.pool_key === "savings")).reduce((a, p) => a + Number(p.balance || 0), 0);
+  const myPenalties = (pens || []).filter((p) => p.status === "outstanding" && p.pool_key === "savings").reduce((a, p) => a + Number(p.balance || 0), 0);
   const tiles = [
     { label: "My savings", value: KES(ov?.savings_balance || 0), sub: "my balance", tone: "emerald" },
     { label: "Compliance", value: ov?.compliance_pct == null ? "—" : `${ov.compliance_pct}%`, sub: ov?.compliance ? `${ov.compliance.paid}/${ov.compliance.total} paid` : null, tone: "sky" },
@@ -780,10 +780,23 @@ export function MemberGroup() {
 }
 
 export function MemberMeetings() {
+  const { data: ov } = useFetch("/welfare/member/overview");
+  const { data: pens } = useFetch("/welfare/member/penalties");
+  // Meeting (attendance) fines — these belong here, not on Contributions.
+  const meetingPens = (pens || []).filter((p) => (p.trigger || "").startsWith("attendance"));
+  const due = meetingPens.filter((p) => p.status === "outstanding").reduce((a, p) => a + Number(p.balance || 0), 0);
+  const paid = meetingPens.reduce((a, p) => a + Number(p.paid_amount || 0), 0);
+  const att = ov?.attendance || {};
+  const tiles = [
+    { label: "My attendance", value: ov?.attendance_pct == null ? "—" : `${ov.attendance_pct}%`, sub: `${att.attended ?? 0}/${att.recorded ?? 0} present`, tone: "sky" },
+    { label: "Penalties due", value: KES(due), sub: "meeting fines", tone: due > 0 ? "rose" : "slate" },
+    { label: "Fines paid", value: KES(paid), sub: "meeting fines paid", tone: paid > 0 ? "emerald" : "slate" },
+  ];
   // The full admin Meetings & Attendance view, read-only — click a meeting to
   // see the whole roster (everyone's present/late/absent + arrival).
   return (
     <Shell title="Meetings & Attendance" icon={CalendarCheck}>
+      <StatTiles tiles={tiles} />
       <WelfareMeetingsPanel client={portalApi} basePath="/welfare/member" readOnly memberConfirm />
     </Shell>
   );
