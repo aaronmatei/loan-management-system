@@ -49,15 +49,26 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
   const tab = (on) => `px-3 py-1 text-sm font-semibold rounded-lg ${on ? "bg-rose-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"}`;
 
   // Outstanding fines broken out by penalty type (shown even when zero).
-  const groupOf = (t) => (t === "contribution_late" ? "Contributions" : (t || "").startsWith("attendance") ? "Meetings" : t === "loan_late" ? "Loans" : "Other");
+  // Contribution fines split by pool: savings → Contributions, plan-* → Events,
+  // oneoff → Emergencies.
+  const groupOf = (p) => {
+    if ((p.trigger || "").startsWith("attendance")) return "Meetings";
+    if (p.trigger === "loan_late") return "Loans";
+    if (p.trigger === "contribution_late") {
+      if (p.pool_key === "oneoff") return "Emergencies";
+      if ((p.pool_key || "").startsWith("plan-")) return "Events";
+      return "Contributions";
+    }
+    return "Other";
+  };
   const groups = penalties.reduce((acc, p) => {
-    const g = groupOf(p.trigger);
+    const g = groupOf(p);
     acc[g] = acc[g] || { count: 0, outstanding: 0 };
     acc[g].count += 1;
     acc[g].outstanding += p.status === "outstanding" ? Number(p.amount) - Number(p.paid_amount) : 0;
     return acc;
   }, {});
-  const penTiles = ["Contributions", "Meetings", "Loans"].map((g) => {
+  const penTiles = ["Contributions", "Events", "Emergencies", "Meetings", "Loans"].map((g) => {
     const v = groups[g] || { count: 0, outstanding: 0 };
     return { label: g, value: money(v.outstanding), sub: `${v.count} fine${v.count === 1 ? "" : "s"}`, tone: v.outstanding > 0 ? "rose" : "slate" };
   });

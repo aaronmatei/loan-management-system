@@ -239,7 +239,7 @@ router.get("/penalties", async (req, res) => {
     // Surface what each fine was FOR — the contribution cycle or the meeting.
     const r = await query(
       `SELECT a.*, m.first_name, m.last_name, m.member_no,
-              COALESCE(cyc.name, mtg.title) AS source_label,
+              COALESCE(cyc.name, mtg.title) AS source_label, cyc.pool_key,
               CASE WHEN a.source_type='meeting' THEN 'meeting'
                    WHEN a.source_type='contribution_schedule' THEN 'contribution'
                    ELSE a.source_type END AS source_kind

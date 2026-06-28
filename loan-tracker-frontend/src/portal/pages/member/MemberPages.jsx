@@ -940,19 +940,31 @@ function MemberBenefitView({ view }) {
 export function MemberEvents() { return <MemberBenefitView view="events" />; }
 export function MemberEmergencies() { return <MemberBenefitView view="emergencies" />; }
 
-const FINE_GROUP = (t) => (t === "contribution_late" ? "Contributions" : t === "event_late" ? "Events" : (t || "").startsWith("attendance") ? "Meetings" : t === "loan_late" ? "Loans" : "Other");
+// Penalty group — contribution fines split by pool (savings → Contributions,
+// plan-* → Events, oneoff → Emergencies).
+const FINE_GROUP = (p) => {
+  const t = p.trigger;
+  if ((t || "").startsWith("attendance")) return "Meetings";
+  if (t === "loan_late") return "Loans";
+  if (t === "contribution_late" || t === "event_late") {
+    if (p.pool_key === "oneoff") return "Emergencies";
+    if ((p.pool_key || "").startsWith("plan-") || t === "event_late") return "Events";
+    return "Contributions";
+  }
+  return "Other";
+};
 
 export function MemberPenalties() {
   const { data, loading, error, reload } = useFetch("/welfare/member/penalties");
   const groups = (data || []).reduce((acc, p) => {
-    const g = FINE_GROUP(p.trigger);
+    const g = FINE_GROUP(p);
     acc[g] = acc[g] || { count: 0, outstanding: 0 };
     acc[g].count += 1; acc[g].outstanding += Number(p.balance || 0);
     return acc;
   }, {});
   // One tile per possible penalty type (shown even when zero so members know
   // every way a fine can arise).
-  const PEN_TYPES = ["Contributions", "Events", "Meetings", "Loans"];
+  const PEN_TYPES = ["Contributions", "Events", "Emergencies", "Meetings", "Loans"];
   const penTiles = PEN_TYPES.map((g) => {
     const v = groups[g] || { count: 0, outstanding: 0 };
     return { label: g, value: KES(v.outstanding), sub: `${v.count} fine${v.count === 1 ? "" : "s"}`, tone: v.outstanding > 0 ? "rose" : "slate" };
