@@ -774,20 +774,7 @@ export function MemberGroup() {
           )}
         />
       )}
-      <GroupSection
-        title="Expenses (chama spending)"
-        path="/welfare/member/group-expenses"
-        pick={(d) => d.expenses}
-        head={["Date", "Description", "Amount"]}
-        empty="No expenses recorded."
-        render={(e, i) => (
-          <tr key={i}>
-            <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{fmt(e.txn_date)}</td>
-            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{e.description}</td>
-            <td className="px-4 py-3 font-semibold text-rose-600">{KES(e.amount)}</td>
-          </tr>
-        )}
-      />
+      {/* Chama expenses removed here — already shown on the dashboard Expenses tile. */}
     </Shell>
   );
 }
