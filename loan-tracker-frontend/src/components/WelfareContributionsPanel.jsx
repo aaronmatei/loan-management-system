@@ -497,6 +497,8 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const recurring = freq !== "oneoff";
+  // "pool" = top up the pool balance, no member beneficiary and no payout.
+  const isPool = form.beneficiary_member_id === "pool";
   const usesAmount = ["fixed", "daily_fixed"].includes(form.fine_calc_type);
   const usesRate = ["percentage", "daily_percentage"].includes(form.fine_calc_type);
 
@@ -510,8 +512,8 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
     if (recurring && !form.name.trim()) return setError("Give the contribution a name.");
     if (!(parseFloat(form.amount) > 0)) return setError("Enter the per-member amount.");
     if (!recurring && !form.due_date) return setError("Pick a due date.");
-    if (benefit && !recurring && !form.beneficiary_member_id) return setError("Pick the beneficiary for this emergency.");
-    if (benefit && !recurring && !(parseFloat(form.payout_amount) > 0)) return setError("Enter the benefit to pay the beneficiary.");
+    if (benefit && !recurring && !form.beneficiary_member_id) return setError("Pick the beneficiary, or choose Pool to top up the pool.");
+    if (benefit && !recurring && !isPool && !(parseFloat(form.payout_amount) > 0)) return setError("Enter the benefit to pay the beneficiary.");
     if (recurring && !isWeek(freq)) { const d = parseInt(form.due_day, 10); if (!(d >= 1 && d <= 28)) return setError("Due day must be between 1 and 28."); }
     if (usesAmount && !(parseFloat(form.fine_amount) > 0)) return setError("Enter the fine amount.");
     if (usesRate && !(parseFloat(form.fine_rate) > 0)) return setError("Enter the fine rate %.");
@@ -524,7 +526,9 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
           : await api.post(`/welfares/${welfareId}/contribution-plans`, payload);
         onSaved({ plan: r.data.data });
       } else {
-        const r = await api.post(`/welfares/${welfareId}/cycles`, { ...form, name: form.name || undefined });
+        // Pool top-up: no beneficiary, no payout — just funds the pool.
+        const payload = isPool ? { ...form, beneficiary_member_id: "", payout_amount: "" } : form;
+        const r = await api.post(`/welfares/${welfareId}/cycles`, { ...payload, name: payload.name || undefined });
         onSaved({ cycle: r.data.data });
       }
     } catch (err) { setError(err.response?.data?.error || "Failed."); setBusy(false); }
@@ -578,14 +582,22 @@ function ContributionModal({ welfareId, plan, mode, members = [], kind = "saving
               <label className={lbl}>Beneficiary *</label>
               <select value={form.beneficiary_member_id} onChange={set("beneficiary_member_id")} className={fld}>
                 <option value="">Select the member who receives the payout…</option>
+                <option value="pool">Pool — top up the pool balance (no payout)</option>
                 {members.map((m) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
               </select>
             </div>
-            <div className="col-span-2">
-              <label className={lbl}>Benefit paid to beneficiary *</label>
-              <input type="number" value={form.payout_amount} onChange={set("payout_amount")} placeholder="e.g. 150000" className={fld} />
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Paid out from the emergency pool the moment you create this — only if the pool can cover it. Members' contributions above keep the pool funded.</p>
-            </div>
+            {!isPool && (
+              <div className="col-span-2">
+                <label className={lbl}>Benefit paid to beneficiary *</label>
+                <input type="number" value={form.payout_amount} onChange={set("payout_amount")} placeholder="e.g. 150000" className={fld} />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Paid out from the emergency pool the moment you create this — only if the pool can cover it. Members' contributions above keep the pool funded.</p>
+              </div>
+            )}
+            {isPool && (
+              <div className="col-span-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400">No payout — members' contributions simply build up the emergency pool.</p>
+              </div>
+            )}
           </div>
         )}
         {benefit && recurring && (
