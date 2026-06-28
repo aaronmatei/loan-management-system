@@ -83,7 +83,9 @@ export async function buildSummary(welfare) {
          COALESCE(SUM(pa.amount-pa.paid_amount) FILTER (WHERE pa.status='outstanding' AND cc.pool_key LIKE 'plan-%'),0)  AS events,
          COALESCE(SUM(pa.amount-pa.paid_amount) FILTER (WHERE pa.status='outstanding' AND pa.trigger LIKE 'attendance%'),0) AS meetings,
          COALESCE(SUM(pa.paid_amount) FILTER (WHERE cc.pool_key='oneoff'),0)      AS emergencies_collected,
-         COALESCE(SUM(pa.paid_amount) FILTER (WHERE cc.pool_key LIKE 'plan-%'),0) AS events_collected
+         COALESCE(SUM(pa.paid_amount) FILTER (WHERE cc.pool_key LIKE 'plan-%'),0) AS events_collected,
+         COALESCE(SUM(pa.paid_amount) FILTER (WHERE cc.pool_key='savings'),0)     AS savings_collected,
+         COALESCE(SUM(pa.paid_amount) FILTER (WHERE pa.trigger LIKE 'attendance%'),0) AS meetings_collected
        FROM penalty_assessments pa
        LEFT JOIN contribution_schedules cs ON pa.source_type='contribution_schedule' AND cs.id=pa.source_id
        LEFT JOIN contribution_cycles cc ON cc.id=cs.cycle_id
@@ -170,7 +172,8 @@ export async function buildSummary(welfare) {
       members: { active: members.active, inactive: members.inactive },
       penalties: { assessed: num(penalties.assessed), outstanding: num(penalties.outstanding), collected: num(penalties.collected),
         collected_benefit: num(penByPool.events_collected) + num(penByPool.emergencies_collected),
-        by_pool: { savings: num(penByPool.savings), events: num(penByPool.events), emergencies: num(penByPool.emergencies), meetings: num(penByPool.meetings) } },
+        by_pool: { savings: num(penByPool.savings), events: num(penByPool.events), emergencies: num(penByPool.emergencies), meetings: num(penByPool.meetings) },
+        paid_by_pool: { savings: num(penByPool.savings_collected), events: num(penByPool.events_collected), emergencies: num(penByPool.emergencies_collected), meetings: num(penByPool.meetings_collected) } },
       loans: { open: loans.open_count, disbursed: num(loans.disbursed), repaid: num(loans.repaid), outstanding: num(loans.outstanding), principal_outstanding: num(loans.principal_outstanding), interest_outstanding: num(loans.interest_outstanding), interest_collected: num(loans.interest_collected) },
       dividends: { total: num(dividends.total), runs: dividends.runs },
       benefit_pools: { events: num(benefitPools.events), emergencies: num(benefitPools.emergencies), active: benefitPools.rows > 0 },
