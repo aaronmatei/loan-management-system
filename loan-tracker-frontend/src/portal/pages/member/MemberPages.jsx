@@ -16,6 +16,7 @@ import WelfareDocumentsPanel from "../../../components/WelfareDocumentsPanel";
 import WelfareDecisionsPanel from "../../../components/WelfareDecisionsPanel";
 import WelfareBooksPanel from "../../../components/WelfareBooksPanel";
 import WelfareContributionsPanel from "../../../components/WelfareContributionsPanel";
+import StatTiles from "../../../components/StatTiles";
 import WelfareMeetingsPanel from "../../../components/WelfareMeetingsPanel";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -439,12 +440,22 @@ export function MemberLedger() {
 
 export function MemberContributions() {
   const { data, loading, error, reload } = useFetch("/welfare/member/contributions");
+  const { data: ov } = useFetch("/welfare/member/overview");
   // Only monthly SAVINGS contributions belong here — event/emergency (benefit
   // pool) dues live on the Events & Emergencies page.
   const isSavings = (c) => !c.pool_key || c.pool_key === "savings";
-  const due = (data || []).filter((c) => isSavings(c) && ["pending", "partial", "overdue"].includes(c.status));
+  const savingsCycles = (data || []).filter(isSavings);
+  const due = savingsCycles.filter((c) => ["pending", "partial", "overdue"].includes(c.status));
+  const outstanding = savingsCycles.reduce((a, c) => a + Math.max(0, Number(c.amount_due) - Number(c.amount_paid)), 0);
+  const tiles = [
+    { label: "My savings", value: KES(ov?.savings_balance || 0), sub: "my balance", tone: "emerald" },
+    { label: "Compliance", value: ov?.compliance_pct == null ? "—" : `${ov.compliance_pct}%`, sub: ov?.compliance ? `${ov.compliance.paid}/${ov.compliance.total} paid` : null, tone: "sky" },
+    { label: "Outstanding", value: KES(outstanding), sub: due.length ? `${due.length} due` : "all paid", tone: outstanding > 0 ? "rose" : "emerald" },
+    { label: "Group savings pool", value: KES(ov?.welfare?.pool_balance || 0), sub: "whole chama", tone: "slate" },
+  ];
   return (
     <Shell title="Contributions" icon={Coins}>
+      <StatTiles tiles={tiles} />
       {/* Quick pay for the member's own outstanding savings dues. */}
       {!loading && due.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
@@ -849,6 +860,7 @@ export function MemberBooks() {
 function MemberBenefitView({ view }) {
   const { data, loading, reload } = useFetch("/welfare/member/events"); // ad-hoc events pool (welfare_event_shares)
   const { data: contribs, reload: reloadContribs } = useFetch("/welfare/member/contributions");
+  const { data: dash } = useFetch("/welfare/member/dashboard"); // group summary → benefit_pools
   const isEvents = view === "events";
   const events = data?.events || [];
   const payable = (s) => ["pending", "partial", "overdue"].includes(s.status);
@@ -861,8 +873,19 @@ function MemberBenefitView({ view }) {
   const hasDue = benefitDue.length + shareDue.length > 0;
   const title = isEvents ? "Events" : "Emergencies";
   const Icon = isEvents ? HeartHandshake : AlertTriangle;
+  // My status tiles for this pool.
+  const myOutstanding = benefitDue.reduce((a, c) => a + Math.max(0, Number(c.amount_due) - Number(c.amount_paid)), 0)
+    + shareDue.reduce((a, e) => a + Math.max(0, Number(e.amount_due) - Number(e.amount_paid)), 0);
+  const received = benefits.reduce((a, b) => a + Number(b.amount || 0), 0);
+  const poolBal = isEvents ? dash?.benefit_pools?.events : dash?.benefit_pools?.emergencies;
+  const tiles = [
+    { label: isEvents ? "Events pool" : "Emergencies pool", value: KES(poolBal || 0), sub: "whole chama", tone: (poolBal || 0) < 0 ? "rose" : "indigo" },
+    { label: "My outstanding", value: KES(myOutstanding), sub: hasDue ? `${benefitDue.length + shareDue.length} due` : "nothing due", tone: myOutstanding > 0 ? "rose" : "emerald" },
+    { label: "Received", value: KES(received), sub: benefits.length ? `${benefits.length} payout${benefits.length === 1 ? "" : "s"}` : "none yet", tone: "emerald" },
+  ];
   return (
     <Shell title={title} icon={Icon}>
+      <StatTiles tiles={tiles} />
       {/* Payouts the member has received under this pool. */}
       {benefits.length > 0 && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-5">

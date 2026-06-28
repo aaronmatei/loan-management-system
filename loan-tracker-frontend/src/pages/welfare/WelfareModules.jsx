@@ -16,6 +16,7 @@ import WelfareMeetingsPanel from "../../components/WelfareMeetingsPanel";
 import WelfareDividendsPanel from "../../components/WelfareDividendsPanel";
 import WelfareExpensesPanel from "../../components/WelfareExpensesPanel";
 import WelfareAuditPanel from "../../components/WelfareAuditPanel";
+import StatTiles from "../../components/StatTiles";
 import WelfareMpesaPanel from "../../components/WelfareMpesaPanel";
 import WelfareSmsPanel from "../../components/WelfareSmsPanel";
 import MemberLoanProductsPanel from "../../components/MemberLoanProductsPanel";
@@ -47,13 +48,42 @@ export function WelfareDashboardPage() {
   const { welfareId, welfare } = useWelfare();
   return <Page title="Dashboard"><WelfareDashboardPanel welfareId={welfareId} showLoans={!!welfare?.loans_enabled} manage linkBase="/welfare" /></Page>;
 }
+
+// Group-level summary tiles for a pool page (admin). Pulls the same buildSummary
+// the dashboard uses, then shows only the figures relevant to this pool.
+function AdminPoolStats({ welfareId, pool }) {
+  const [d, setD] = useState(null);
+  useEffect(() => { api.get(`/welfares/${welfareId}/reports/summary`).then((r) => setD(r.data.data)).catch(() => {}); }, [welfareId]);
+  if (!d) return null;
+  const bp = d.benefit_pools || {};
+  let tiles;
+  if (pool === "events") {
+    tiles = [
+      { label: "Events pool", value: money(bp.events || 0), sub: "contributions − payouts", tone: (bp.events || 0) < 0 ? "rose" : "indigo" },
+      { label: "Members", value: d.members?.active ?? "—", sub: "active", tone: "slate" },
+    ];
+  } else if (pool === "emergencies") {
+    tiles = [
+      { label: "Emergencies pool", value: money(bp.emergencies || 0), sub: "contributions − payouts", tone: (bp.emergencies || 0) < 0 ? "rose" : "indigo" },
+      { label: "Members", value: d.members?.active ?? "—", sub: "active", tone: "slate" },
+    ];
+  } else {
+    tiles = [
+      { label: "Savings pool", value: money(d.pool?.members_savings || 0), sub: "members' savings", tone: "emerald" },
+      { label: "Total contributed", value: money(d.pool?.total_contributions || 0), tone: "slate" },
+      { label: "Compliance", value: d.compliance ? `${d.compliance.paid_pct}%` : "—", sub: d.compliance ? `${d.compliance.paid}/${d.compliance.total} paid` : null, tone: "sky" },
+      { label: "Members", value: d.members?.active ?? "—", sub: "active", tone: "indigo" },
+    ];
+  }
+  return <StatTiles tiles={tiles} />;
+}
 export function WelfareMembersPage() {
   const { welfareId } = useWelfare();
   return <Page title="Members & Pool"><WelfareMembersPanel welfareId={welfareId} /></Page>;
 }
 export function WelfareContributionsPage() {
   const { welfareId } = useWelfare();
-  return <Page title="Contributions"><WelfareContributionsPanel welfareId={welfareId} kind="savings" /></Page>;
+  return <Page title="Contributions"><AdminPoolStats welfareId={welfareId} pool="savings" /><WelfareContributionsPanel welfareId={welfareId} kind="savings" /></Page>;
 }
 export function WelfareDocumentsPage() {
   const { welfareId } = useWelfare();
@@ -71,12 +101,12 @@ export function WelfareEventsPage() {
   const { welfareId } = useWelfare();
   // Recurring benefit pools (e.g. Quarterly dowry) — members contribute, the
   // pool pays a lump sum to each beneficiary.
-  return <Page title="Events"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" benefitView="events" /></Page>;
+  return <Page title="Events"><AdminPoolStats welfareId={welfareId} pool="events" /><WelfareContributionsPanel welfareId={welfareId} kind="benefit" benefitView="events" /></Page>;
 }
 export function WelfareEmergenciesPage() {
   const { welfareId } = useWelfare();
   // One-off emergency collections that pay out to a member in need.
-  return <Page title="Emergencies"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" benefitView="emergencies" /></Page>;
+  return <Page title="Emergencies"><AdminPoolStats welfareId={welfareId} pool="emergencies" /><WelfareContributionsPanel welfareId={welfareId} kind="benefit" benefitView="emergencies" /></Page>;
 }
 export function WelfareLoansPage() {
   const { welfareId, welfare } = useWelfare();
