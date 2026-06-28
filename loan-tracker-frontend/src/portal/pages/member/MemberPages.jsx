@@ -956,29 +956,52 @@ const FINE_GROUP = (p) => {
 
 export function MemberPenalties() {
   const { data, loading, error, reload } = useFetch("/welfare/member/penalties");
-  const groups = (data || []).reduce((acc, p) => {
+  const [filter, setFilter] = useState("outstanding"); // 'outstanding' | 'paid' | 'all'
+  const all = data || [];
+  // Per type: Due (outstanding balance) + Paid (collected) + count.
+  const groups = all.reduce((acc, p) => {
     const g = FINE_GROUP(p);
-    acc[g] = acc[g] || { count: 0, outstanding: 0 };
-    acc[g].count += 1; acc[g].outstanding += Number(p.balance || 0);
+    acc[g] = acc[g] || { count: 0, due: 0, paid: 0 };
+    acc[g].count += 1;
+    acc[g].due += p.status === "outstanding" ? Number(p.balance || 0) : 0;
+    acc[g].paid += Number(p.paid_amount || 0);
     return acc;
   }, {});
-  // One tile per possible penalty type (shown even when zero so members know
-  // every way a fine can arise).
-  const PEN_TYPES = ["Contributions", "Events", "Emergencies", "Meetings", "Loans"];
-  const penTiles = PEN_TYPES.map((g) => {
-    const v = groups[g] || { count: 0, outstanding: 0 };
-    return { label: g, value: KES(v.outstanding), sub: `${v.count} fine${v.count === 1 ? "" : "s"}`, tone: v.outstanding > 0 ? "rose" : "slate" };
-  });
-  if (groups.Other) penTiles.push({ label: "Other", value: KES(groups.Other.outstanding), sub: `${groups.Other.count} fine${groups.Other.count === 1 ? "" : "s"}`, tone: groups.Other.outstanding > 0 ? "rose" : "slate" });
+  const tileTypes = ["Contributions", "Events", "Emergencies", "Meetings", "Loans", ...(groups.Other ? ["Other"] : [])];
+  const shown = all.filter((p) => (filter === "all" ? true : p.status === filter));
+  const tab = (on) => `px-3 py-1 text-sm font-semibold rounded-lg ${on ? "bg-rose-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"}`;
   return (
     <Shell title="Penalties" icon={AlertTriangle}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
-        <StatTiles tiles={penTiles} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+          {tileTypes.map((g) => {
+            const v = groups[g] || { count: 0, due: 0, paid: 0 };
+            return (
+              <div key={g} className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
+                <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 mb-1.5">{g}</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500 dark:text-slate-400">Due</span>
+                  <span className={`font-bold ${v.due > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-700 dark:text-slate-200"}`}>{KES(v.due)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500 dark:text-slate-400">Paid</span>
+                  <span className={`font-bold ${v.paid > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"}`}>{KES(v.paid)}</span>
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-1.5">{v.count} fine{v.count === 1 ? "" : "s"}</p>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-2 mb-3">
+          <button onClick={() => setFilter("outstanding")} className={tab(filter === "outstanding")}>Outstanding</button>
+          <button onClick={() => setFilter("paid")} className={tab(filter === "paid")}>Paid</button>
+          <button onClick={() => setFilter("all")} className={tab(filter === "all")}>All</button>
+        </div>
         <Table
           head={["Date", "Reason", "Amount", "Paid", "Balance", "Status", ""]}
-          rows={data}
-          empty="No penalties — nicely done."
+          rows={shown}
+          empty={filter === "paid" ? "No fines paid yet." : filter === "all" ? "No penalties — nicely done." : "No outstanding fines. 🎉"}
           render={(p) => (
             <tr key={p.id} className="text-slate-700 dark:text-slate-200">
               <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{fmt(p.assessed_at)}</td>
