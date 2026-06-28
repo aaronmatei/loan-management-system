@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FileText, Upload, Trash2, Download, Lock } from "lucide-react";
 import Skeleton from "./Skeleton";
 import EmptyState from "./EmptyState";
+import { downloadDoc } from "../utils/downloadDoc";
 
 // Shared documents UI for the welfare admin app and the member portal. The
 // admin passes `admin` (sees everything, may set visibility, deletes any); the
@@ -128,7 +129,7 @@ export default function WelfareDocumentsPanel({ client, path, admin = false }) {
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{CAT_LABEL[d.category] || d.category} · {d.uploaded_by_name || "—"} · {fmtDate(d.created_at)}{d.size_bytes ? ` · ${fmtSize(d.size_bytes)}` : ""}</p>
                   </div>
-                  <a href={d.file_url} target="_blank" rel="noreferrer" className="text-emerald-700 hover:text-emerald-900 font-semibold text-sm inline-flex items-center gap-1 shrink-0"><Download size={15} /> Open</a>
+                  <button type="button" onClick={() => downloadDoc(d)} className="text-emerald-700 hover:text-emerald-900 font-semibold text-sm inline-flex items-center gap-1 shrink-0"><Download size={15} /> Download</button>
                   {canDelete(d) && <button onClick={() => del(d)} className="text-slate-400 dark:text-slate-400 hover:text-rose-600 shrink-0" title="Delete"><Trash2 size={16} /></button>}
                 </li>
               ))}

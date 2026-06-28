@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CalendarDays, Plus, X, AlertTriangle, ChevronRight, Gift, Check, Pencil, Trash2, Link2, Copy } from "lucide-react";
 import api from "../services/api";
+import { downloadDoc } from "../utils/downloadDoc";
 import PermissionGate from "./PermissionGate";
 
 const ATT = [
@@ -454,7 +455,7 @@ function MinutesSection({ client, basePath, meetingId, minutes, readOnly, canUpl
         {minutes.map((d) => (
           <div key={d.id} className="flex items-center justify-between text-sm">
             <span className="text-slate-700 dark:text-slate-200 truncate">{d.title} <span className="text-xs text-slate-400 dark:text-slate-500">· {d.uploaded_by_name || "—"} · {fmtDate(d.created_at)}</span></span>
-            <a href={d.file_url} target="_blank" rel="noreferrer" className="text-emerald-700 hover:text-emerald-900 font-semibold text-sm shrink-0 ml-2">Open</a>
+            <button type="button" onClick={() => downloadDoc(d)} className="text-emerald-700 hover:text-emerald-900 font-semibold text-sm shrink-0 ml-2">Download</button>
           </div>
         ))}
       </div>
