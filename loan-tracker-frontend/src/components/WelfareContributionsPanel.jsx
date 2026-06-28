@@ -24,8 +24,13 @@ const FINE_TYPES = [
 // `client`/`basePath`/`readOnly` let the read-only member portal reuse this whole
 // view against its own token + endpoints (members are equal owners). Admin keeps
 // the defaults (api + /welfares/:id, writes enabled).
-export default function WelfareContributionsPanel({ welfareId, kind = "savings", client = api, readOnly = false, basePath = `/welfares/${welfareId}` }) {
+export default function WelfareContributionsPanel({ welfareId, kind = "savings", benefitView = "both", client = api, readOnly = false, basePath = `/welfares/${welfareId}` }) {
   const benefit = kind === "benefit";
+  // Within the benefit view, optionally show only Events or only Emergencies
+  // (so they can live on separate nav pages). Downstream still sees kind="benefit".
+  const showEvents = benefit && benefitView !== "emergencies";
+  const showEmerg = benefit && benefitView !== "events";
+  const benefitTitle = benefitView === "events" ? "Events" : benefitView === "emergencies" ? "Emergencies" : "Events & Emergencies";
   const [list, setList] = useState(null); // { plans, oneoffs }
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +61,7 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings",
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <CalendarClock size={18} className="text-sky-600" /> {benefit ? "Events & Emergencies" : "Contributions"}
+          <CalendarClock size={18} className="text-sky-600" /> {benefit ? benefitTitle : "Contributions"}
         </h2>
         {!benefit && !readOnly && (
           <PermissionGate role={["admin", "manager"]}>
@@ -70,15 +75,19 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings",
       <div className="p-5">
         {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p> : benefit ? (
           <div className="space-y-6">
-            <BenefitSection title="Events" subtitle="Recurring benefit pools — members contribute, the pool pays a lump sum to each (e.g. Quarterly dowry)."
-              pool={plans.length ? eventsPool : null} poolLabel={plans.length > 1 ? "Pools total" : "Pool"} readOnly={readOnly}
-              addLabel="New event" onAdd={() => setCreator({ mode: "new", create: "event" })} empty="No events yet.">
-              {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
-            </BenefitSection>
-            <BenefitSection title="Emergencies" subtitle="One-off collections that pay out to a member in need." pool={emergPool} poolLabel="Pool" readOnly={readOnly}
-              addLabel="New emergency" onAdd={() => setCreator({ mode: "new", create: "emergency" })} empty="No emergencies yet.">
-              {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date, pool_key: c.pool_key, beneficiary_member_id: c.beneficiary_member_id, ben_first: c.ben_first, ben_last: c.ben_last, amount: c.amount, pool_balance: c.pool_balance })} />)}
-            </BenefitSection>
+            {showEvents && (
+              <BenefitSection title="Events" subtitle="Recurring benefit pools — members contribute, the pool pays a lump sum to each (e.g. Quarterly dowry)."
+                pool={plans.length ? eventsPool : null} poolLabel={plans.length > 1 ? "Pools total" : "Pool"} readOnly={readOnly}
+                addLabel="New event" onAdd={() => setCreator({ mode: "new", create: "event" })} empty="No events yet.">
+                {plans.map((p) => <PlanRow key={p.id} plan={p} onClick={() => setSelected(p)} />)}
+              </BenefitSection>
+            )}
+            {showEmerg && (
+              <BenefitSection title="Emergencies" subtitle="One-off collections that pay out to a member in need." pool={emergPool} poolLabel="Pool" readOnly={readOnly}
+                addLabel="New emergency" onAdd={() => setCreator({ mode: "new", create: "emergency" })} empty="No emergencies yet.">
+                {oneoffs.map((c) => <OneoffRow key={"c" + c.id} cycle={c} onClick={() => setOpenCycle({ id: c.id, name: c.name, due_date: c.due_date, pool_key: c.pool_key, beneficiary_member_id: c.beneficiary_member_id, ben_first: c.ben_first, ben_last: c.ben_last, amount: c.amount, pool_balance: c.pool_balance })} />)}
+              </BenefitSection>
+            )}
           </div>
         ) : empty ? (
           <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">No contributions yet. Create one — e.g. <span className="font-semibold">“Monthly”</span>.</div>

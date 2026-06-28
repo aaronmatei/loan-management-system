@@ -114,8 +114,8 @@ export default function WelfareDashboardPanel({
         <Stat icon={AlertTriangle} label="Penalties due" value={money(d.penalties.outstanding)} sub={`${money(d.penalties.collected)} collected`} mine={p && p.penalties != null ? money(p.penalties) : undefined} tone="rose" to={link("penalties")} />
         {d.benefit_pools?.active && (
           <>
-            <Stat icon={HeartHandshake} label="Emergencies pool" value={money(d.benefit_pools.emergencies)} sub="contributions − payouts" tone={d.benefit_pools.emergencies < 0 ? "rose" : "indigo"} to={link("events")} />
             <Stat icon={HeartHandshake} label="Events pool" value={money(d.benefit_pools.events)} sub="contributions − payouts" tone={d.benefit_pools.events < 0 ? "rose" : "indigo"} to={link("events")} />
+            <Stat icon={HeartHandshake} label="Emergencies pool" value={money(d.benefit_pools.emergencies)} sub="contributions − payouts" tone={d.benefit_pools.emergencies < 0 ? "rose" : "indigo"} to={link("emergencies")} />
           </>
         )}
         <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" to={link("dividends")} />

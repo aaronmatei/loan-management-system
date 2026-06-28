@@ -69,9 +69,14 @@ export function WelfareBooksPage() {
 }
 export function WelfareEventsPage() {
   const { welfareId } = useWelfare();
-  // Benefit contributions (Quarterly, emergencies) — collect into a pool that
-  // pays out to a member beneficiary.
-  return <Page title="Events & Emergencies"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" /></Page>;
+  // Recurring benefit pools (e.g. Quarterly dowry) — members contribute, the
+  // pool pays a lump sum to each beneficiary.
+  return <Page title="Events"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" benefitView="events" /></Page>;
+}
+export function WelfareEmergenciesPage() {
+  const { welfareId } = useWelfare();
+  // One-off emergency collections that pay out to a member in need.
+  return <Page title="Emergencies"><WelfareContributionsPanel welfareId={welfareId} kind="benefit" benefitView="emergencies" /></Page>;
 }
 export function WelfareLoansPage() {
   const { welfareId, welfare } = useWelfare();

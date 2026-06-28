@@ -33,6 +33,7 @@ import {
   X,
   HandCoins,
   HeartHandshake,
+  LifeBuoy,
   Handshake,
   AlertOctagon,
   Scale,
@@ -166,7 +167,8 @@ const WELFARE_GROUPS = [
     variant: "ocean",
     items: [
       { path: "/welfare/contributions", label: "Contributions", icon: Coins, permission: "loans:view" },
-      { path: "/welfare/events", label: "Events & Emergencies", icon: HeartHandshake, permission: "loans:view" },
+      { path: "/welfare/events", label: "Events", icon: HeartHandshake, permission: "loans:view" },
+      { path: "/welfare/emergencies", label: "Emergencies", icon: LifeBuoy, permission: "loans:view" },
       { path: "/welfare/dividends", label: "Dividends", icon: Gift, permission: "loans:view" },
     ],
   },

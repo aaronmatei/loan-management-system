@@ -843,22 +843,27 @@ export function MemberBooks() {
   );
 }
 
-export function MemberEvents() {
+// Shared body for the member's Events and Emergencies pages. `view` selects
+// which benefit pool to show: "events" (recurring plan pools + ad-hoc event
+// shares) or "emergencies" (the shared one-off pool).
+function MemberBenefitView({ view }) {
   const { data, loading, reload } = useFetch("/welfare/member/events"); // ad-hoc events pool (welfare_event_shares)
   const { data: contribs, reload: reloadContribs } = useFetch("/welfare/member/contributions");
+  const isEvents = view === "events";
   const events = data?.events || [];
   const payable = (s) => ["pending", "partial", "overdue"].includes(s.status);
-  // Payouts the member has received — each carries kind (Event/Emergency),
-  // amount and date (from the benefit/event pool ledgers).
-  const benefits = data?.benefits || [];
-  // Outstanding benefit contribution dues (event/emergency plans) + ad-hoc shares.
-  const benefitDue = (contribs || []).filter((c) => c.pool_key && c.pool_key !== "savings" && payable(c));
-  const shareDue = events.filter((e) => Number(e.amount_due) - Number(e.amount_paid) > 0.001 && payable(e));
+  // Payouts received, filtered to this view's kind (Event vs Emergency).
+  const benefits = (data?.benefits || []).filter((b) => (isEvents ? b.kind !== "Emergency" : b.kind === "Emergency"));
+  // Outstanding benefit dues split by pool_key: plan-* = events, oneoff = emergencies.
+  const benefitDue = (contribs || []).filter((c) => c.pool_key && c.pool_key !== "savings" && payable(c) && (isEvents ? c.pool_key !== "oneoff" : c.pool_key === "oneoff"));
+  // Ad-hoc welfare event shares belong to Events only.
+  const shareDue = isEvents ? events.filter((e) => Number(e.amount_due) - Number(e.amount_paid) > 0.001 && payable(e)) : [];
   const hasDue = benefitDue.length + shareDue.length > 0;
+  const title = isEvents ? "Events" : "Emergencies";
+  const Icon = isEvents ? HeartHandshake : AlertTriangle;
   return (
-    <Shell title="Events & Emergencies" icon={HeartHandshake}>
-      {/* What the member has benefited from — clear list of events/cycles
-          where they are the beneficiary. */}
+    <Shell title={title} icon={Icon}>
+      {/* Payouts the member has received under this pool. */}
       {benefits.length > 0 && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-5">
           <p className="font-semibold text-emerald-900 dark:text-emerald-200 mb-2 inline-flex items-center gap-2">
@@ -867,10 +872,7 @@ export function MemberEvents() {
           <ul className="divide-y divide-emerald-100 dark:divide-emerald-800/60">
             {benefits.map((b, i) => (
               <li key={i} className="py-2 flex items-center justify-between gap-3 text-sm">
-                <span className="text-slate-800 dark:text-slate-200">
-                  {b.name}
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${b.kind === "Emergency" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"}`}>{b.kind}</span>
-                </span>
+                <span className="text-slate-800 dark:text-slate-200">{b.name}</span>
                 <span className="text-right whitespace-nowrap">
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">{KES(b.amount)}</span>
                   <span className="ml-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt(b.date)}</span>
@@ -881,10 +883,10 @@ export function MemberEvents() {
           <p className="text-[11px] text-emerald-700/70 dark:text-emerald-300/60 mt-2">Payouts you've received show in your Full ledger.</p>
         </div>
       )}
-      {/* Quick pay for the member's own outstanding event & emergency dues. */}
+      {/* Quick pay for the member's own outstanding dues in this pool. */}
       {!loading && hasDue && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
-          <p className="font-semibold text-amber-900 mb-2">Pay your event &amp; emergency shares</p>
+          <p className="font-semibold text-amber-900 mb-2">Pay your {isEvents ? "event" : "emergency"} shares</p>
           <div className="space-y-2">
             {benefitDue.map((c) => (
               <div key={`c${c.id}`} className="flex items-center justify-between gap-3 text-sm">
@@ -901,12 +903,14 @@ export function MemberEvents() {
           </div>
         </div>
       )}
-      {/* The full events & emergencies view, same as the admin sees (read-only) —
-          click one to see yours and every member's contribution + payouts. */}
-      <WelfareContributionsPanel client={portalApi} basePath="/welfare/member/contrib" readOnly kind="benefit" />
+      {/* The full view, same as the admin sees (read-only) — click one to see
+          yours and every member's contribution + payouts. */}
+      <WelfareContributionsPanel client={portalApi} basePath="/welfare/member/contrib" readOnly kind="benefit" benefitView={view} />
     </Shell>
   );
 }
+export function MemberEvents() { return <MemberBenefitView view="events" />; }
+export function MemberEmergencies() { return <MemberBenefitView view="emergencies" />; }
 
 const FINE_GROUP = (t) => (t === "contribution_late" ? "Contributions" : t === "event_late" ? "Events" : (t || "").startsWith("attendance") ? "Meetings" : t === "loan_late" ? "Loans" : "Other");
 

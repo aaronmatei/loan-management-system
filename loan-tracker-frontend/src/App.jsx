@@ -43,6 +43,7 @@ import {
   MemberMeetings,
   MemberDividends,
   MemberEvents,
+  MemberEmergencies,
   MemberDocuments,
   MemberDecisions,
   MemberBooks,
@@ -92,6 +93,7 @@ import {
   WelfareDecisionsPage,
   WelfareBooksPage,
   WelfareEventsPage,
+  WelfareEmergenciesPage,
   WelfareLoansPage,
   WelfarePenaltiesPage,
   WelfareMeetingsPage,
@@ -463,6 +465,7 @@ function App() {
                 <Route path="members/:memberId" element={<MemberDetail />} />
                 <Route path="contributions" element={<WelfareContributionsPage />} />
                 <Route path="events" element={<WelfareEventsPage />} />
+                <Route path="emergencies" element={<WelfareEmergenciesPage />} />
                 <Route path="loans" element={<WelfareLoansPage />} />
                 <Route path="penalties" element={<WelfarePenaltiesPage />} />
                 <Route path="meetings" element={<WelfareMeetingsPage />} />
@@ -625,6 +628,7 @@ function App() {
             <Route path="/welfare/member/books" element={<PortalProtectedRoute><MemberBooks /></PortalProtectedRoute>} />
             <Route path="/welfare/member/dividends" element={<PortalProtectedRoute><MemberDividends /></PortalProtectedRoute>} />
             <Route path="/welfare/member/events" element={<PortalProtectedRoute><MemberEvents /></PortalProtectedRoute>} />
+            <Route path="/welfare/member/emergencies" element={<PortalProtectedRoute><MemberEmergencies /></PortalProtectedRoute>} />
             <Route path="/welfare/member/penalties" element={<PortalProtectedRoute><MemberPenalties /></PortalProtectedRoute>} />
             {/* Back-compat: the desk used to live under /portal/member/* */}
             <Route path="/portal/member" element={<Navigate to="/welfare/member" replace />} />
