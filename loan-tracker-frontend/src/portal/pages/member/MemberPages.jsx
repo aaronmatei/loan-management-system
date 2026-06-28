@@ -441,17 +441,19 @@ export function MemberLedger() {
 export function MemberContributions() {
   const { data, loading, error, reload } = useFetch("/welfare/member/contributions");
   const { data: ov } = useFetch("/welfare/member/overview");
+  const { data: pens } = useFetch("/welfare/member/penalties");
   // Only monthly SAVINGS contributions belong here — event/emergency (benefit
   // pool) dues live on the Events & Emergencies page.
   const isSavings = (c) => !c.pool_key || c.pool_key === "savings";
   const savingsCycles = (data || []).filter(isSavings);
   const due = savingsCycles.filter((c) => ["pending", "partial", "overdue"].includes(c.status));
   const outstanding = savingsCycles.reduce((a, c) => a + Math.max(0, Number(c.amount_due) - Number(c.amount_paid)), 0);
+  const myPenalties = (pens || []).filter((p) => p.status === "outstanding" && (!p.pool_key || p.pool_key === "savings")).reduce((a, p) => a + Number(p.balance || 0), 0);
   const tiles = [
     { label: "My savings", value: KES(ov?.savings_balance || 0), sub: "my balance", tone: "emerald" },
     { label: "Compliance", value: ov?.compliance_pct == null ? "—" : `${ov.compliance_pct}%`, sub: ov?.compliance ? `${ov.compliance.paid}/${ov.compliance.total} paid` : null, tone: "sky" },
     { label: "Outstanding", value: KES(outstanding), sub: due.length ? `${due.length} due` : "all paid", tone: outstanding > 0 ? "rose" : "emerald" },
-    { label: "Group savings pool", value: KES(ov?.welfare?.pool_balance || 0), sub: "whole chama", tone: "slate" },
+    { label: "Penalties due", value: KES(myPenalties), sub: "late-contribution fines", tone: myPenalties > 0 ? "rose" : "slate" },
   ];
   return (
     <Shell title="Contributions" icon={Coins}>
@@ -861,6 +863,7 @@ function MemberBenefitView({ view }) {
   const { data, loading, reload } = useFetch("/welfare/member/events"); // ad-hoc events pool (welfare_event_shares)
   const { data: contribs, reload: reloadContribs } = useFetch("/welfare/member/contributions");
   const { data: dash } = useFetch("/welfare/member/dashboard"); // group summary → benefit_pools
+  const { data: pens } = useFetch("/welfare/member/penalties");
   const isEvents = view === "events";
   const events = data?.events || [];
   const payable = (s) => ["pending", "partial", "overdue"].includes(s.status);
@@ -878,10 +881,12 @@ function MemberBenefitView({ view }) {
     + shareDue.reduce((a, e) => a + Math.max(0, Number(e.amount_due) - Number(e.amount_paid)), 0);
   const received = benefits.reduce((a, b) => a + Number(b.amount || 0), 0);
   const poolBal = isEvents ? dash?.benefit_pools?.events : dash?.benefit_pools?.emergencies;
+  const myPenalties = (pens || []).filter((p) => p.status === "outstanding" && (isEvents ? (p.pool_key || "").startsWith("plan-") : p.pool_key === "oneoff")).reduce((a, p) => a + Number(p.balance || 0), 0);
   const tiles = [
     { label: isEvents ? "Events pool" : "Emergencies pool", value: KES(poolBal || 0), sub: "whole chama", tone: (poolBal || 0) < 0 ? "rose" : "indigo" },
     { label: "My outstanding", value: KES(myOutstanding), sub: hasDue ? `${benefitDue.length + shareDue.length} due` : "nothing due", tone: myOutstanding > 0 ? "rose" : "emerald" },
     { label: "Received", value: KES(received), sub: benefits.length ? `${benefits.length} payout${benefits.length === 1 ? "" : "s"}` : "none yet", tone: "emerald" },
+    { label: "Penalties due", value: KES(myPenalties), sub: "late-contribution fines", tone: myPenalties > 0 ? "rose" : "slate" },
   ];
   return (
     <Shell title={title} icon={Icon}>
@@ -945,17 +950,19 @@ export function MemberPenalties() {
     acc[g].count += 1; acc[g].outstanding += Number(p.balance || 0);
     return acc;
   }, {});
+  // One tile per possible penalty type (shown even when zero so members know
+  // every way a fine can arise).
+  const PEN_TYPES = ["Contributions", "Events", "Meetings", "Loans"];
+  const penTiles = PEN_TYPES.map((g) => {
+    const v = groups[g] || { count: 0, outstanding: 0 };
+    return { label: g, value: KES(v.outstanding), sub: `${v.count} fine${v.count === 1 ? "" : "s"}`, tone: v.outstanding > 0 ? "rose" : "slate" };
+  });
+  if (groups.Other) penTiles.push({ label: "Other", value: KES(groups.Other.outstanding), sub: `${groups.Other.count} fine${groups.Other.count === 1 ? "" : "s"}`, tone: groups.Other.outstanding > 0 ? "rose" : "slate" });
   return (
     <Shell title="Penalties" icon={AlertTriangle}>
       {loading || error || !data ? <Loading error={error} /> : (
         <>
-        {Object.keys(groups).length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {Object.entries(groups).map(([g, v]) => (
-              <span key={g} className="text-xs rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-700 dark:text-slate-200">{g}: <strong className="text-slate-800 dark:text-slate-100">{v.count}</strong>{v.outstanding > 0 && <span className="text-rose-600"> · {KES(v.outstanding)} due</span>}</span>
-            ))}
-          </div>
-        )}
+        <StatTiles tiles={penTiles} />
         <Table
           head={["Date", "Reason", "Amount", "Paid", "Balance", "Status", ""]}
           rows={data}

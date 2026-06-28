@@ -205,15 +205,15 @@ router.get("/ledger", async (req, res) => {
         t.type === "penalty"
           ? Number(t.direction) < 0 ? "Fine reversal (refund)" : "Penalty payment"
           : CASH_LABELS[t.type] || titleize(t.type);
-      rows.push({ kind: "cash", source: "savings", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+      rows.push({ kind: "cash", source: "savings", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${new Date(t.txn_date).toISOString().slice(0, 10)} ${String(t.id).padStart(9, "0")}` });
     }
     for (const t of benefit.rows) {
       const label = `${CASH_LABELS[t.type] || titleize(t.type)} (benefit)`;
-      rows.push({ kind: "cash", source: "benefit", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+      rows.push({ kind: "cash", source: "benefit", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${new Date(t.txn_date).toISOString().slice(0, 10)} ${String(t.id).padStart(9, "0")}` });
     }
     for (const t of events.rows) {
       const label = `${CASH_LABELS[t.type] || titleize(t.type)} (event)`;
-      rows.push({ kind: "cash", source: "event", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${t.txn_date} ${String(t.id).padStart(9, "0")}` });
+      rows.push({ kind: "cash", source: "event", category: label, description: t.description, amount: Number(t.amount), direction: Number(t.direction), flow: memberFlow(t.type, Number(t.direction)), date: t.txn_date, sort: `${new Date(t.txn_date).toISOString().slice(0, 10)} ${String(t.id).padStart(9, "0")}` });
     }
     for (const f of fines.rows) {
       if (f.status === "reversed") continue; // the refund already shows on the savings side
@@ -647,9 +647,12 @@ router.get("/loans/:loanId", async (req, res) => {
 router.get("/penalties", async (req, res) => {
   try {
     const r = await query(
-      `SELECT id, trigger, amount, paid_amount, (amount - paid_amount) AS balance,
-              status, description, assessed_at
-         FROM penalty_assessments WHERE member_id = $1 ORDER BY id DESC`,
+      `SELECT pa.id, pa.trigger, pa.amount, pa.paid_amount, (pa.amount - pa.paid_amount) AS balance,
+              pa.status, pa.description, pa.assessed_at, cc.pool_key
+         FROM penalty_assessments pa
+         LEFT JOIN contribution_schedules cs ON pa.source_type = 'contribution_schedule' AND cs.id = pa.source_id
+         LEFT JOIN contribution_cycles cc ON cc.id = cs.cycle_id
+        WHERE pa.member_id = $1 ORDER BY pa.id DESC`,
       [req.member.id],
     );
     res.json({ success: true, data: r.rows });

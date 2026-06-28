@@ -56,22 +56,26 @@ function AdminPoolStats({ welfareId, pool }) {
   useEffect(() => { api.get(`/welfares/${welfareId}/reports/summary`).then((r) => setD(r.data.data)).catch(() => {}); }, [welfareId]);
   if (!d) return null;
   const bp = d.benefit_pools || {};
+  const pen = d.penalties?.by_pool || {};
+  const penTile = (v) => ({ label: "Penalties due", value: money(v || 0), sub: "outstanding", tone: (v || 0) > 0 ? "rose" : "slate" });
   let tiles;
   if (pool === "events") {
     tiles = [
       { label: "Events pool", value: money(bp.events || 0), sub: "contributions − payouts", tone: (bp.events || 0) < 0 ? "rose" : "indigo" },
+      penTile(pen.events),
       { label: "Members", value: d.members?.active ?? "—", sub: "active", tone: "slate" },
     ];
   } else if (pool === "emergencies") {
     tiles = [
       { label: "Emergencies pool", value: money(bp.emergencies || 0), sub: "contributions − payouts", tone: (bp.emergencies || 0) < 0 ? "rose" : "indigo" },
+      penTile(pen.emergencies),
       { label: "Members", value: d.members?.active ?? "—", sub: "active", tone: "slate" },
     ];
   } else {
     tiles = [
       { label: "Savings pool", value: money(d.pool?.members_savings || 0), sub: "members' savings", tone: "emerald" },
-      { label: "Total contributed", value: money(d.pool?.total_contributions || 0), tone: "slate" },
       { label: "Compliance", value: d.compliance ? `${d.compliance.paid_pct}%` : "—", sub: d.compliance ? `${d.compliance.paid}/${d.compliance.total} paid` : null, tone: "sky" },
+      penTile(pen.savings),
       { label: "Members", value: d.members?.active ?? "—", sub: "active", tone: "indigo" },
     ];
   }

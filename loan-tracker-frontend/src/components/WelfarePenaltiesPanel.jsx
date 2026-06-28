@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Gavel, Coins, Ban } from "lucide-react";
 import api from "../services/api";
 import PermissionGate from "./PermissionGate";
+import StatTiles from "./StatTiles";
 
 // Fines are now defined ON each contribution / event / meeting. This page is a
 // read-only ledger: every fine raised against members, and what it was for.
@@ -47,6 +48,21 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
 
   const tab = (on) => `px-3 py-1 text-sm font-semibold rounded-lg ${on ? "bg-rose-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"}`;
 
+  // Outstanding fines broken out by penalty type (shown even when zero).
+  const groupOf = (t) => (t === "contribution_late" ? "Contributions" : (t || "").startsWith("attendance") ? "Meetings" : t === "loan_late" ? "Loans" : "Other");
+  const groups = penalties.reduce((acc, p) => {
+    const g = groupOf(p.trigger);
+    acc[g] = acc[g] || { count: 0, outstanding: 0 };
+    acc[g].count += 1;
+    acc[g].outstanding += p.status === "outstanding" ? Number(p.amount) - Number(p.paid_amount) : 0;
+    return acc;
+  }, {});
+  const penTiles = ["Contributions", "Meetings", "Loans"].map((g) => {
+    const v = groups[g] || { count: 0, outstanding: 0 };
+    return { label: g, value: money(v.outstanding), sub: `${v.count} fine${v.count === 1 ? "" : "s"}`, tone: v.outstanding > 0 ? "rose" : "slate" };
+  });
+  if (groups.Other) penTiles.push({ label: "Other", value: money(groups.Other.outstanding), sub: `${groups.Other.count} fine${groups.Other.count === 1 ? "" : "s"}`, tone: groups.Other.outstanding > 0 ? "rose" : "slate" });
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-rose-100 mb-6 overflow-hidden">
       <div className="bg-rose-50 px-5 py-3 border-b border-rose-100 flex items-center justify-between">
@@ -60,6 +76,7 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
       </div>
 
       <div className="p-5">
+        {!loading && <StatTiles tiles={penTiles} />}
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-slate-500 dark:text-slate-400">Fines are set when you create a contribution, event or meeting — and charged automatically. This is the record.</p>
           <div className="flex gap-2 shrink-0">
