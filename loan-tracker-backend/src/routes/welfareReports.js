@@ -100,7 +100,9 @@ export async function buildSummary(welfare) {
               COALESCE(SUM(amount_paid),0) AS repaid,
               COALESCE(SUM(total_amount_due-amount_paid) FILTER (WHERE status IN ('active','defaulted')),0) AS outstanding,
               COALESCE(SUM(GREATEST(total_interest-amount_paid,0)) FILTER (WHERE status IN ('active','defaulted')),0) AS interest_outstanding,
-              COALESCE(SUM((total_amount_due-amount_paid) - GREATEST(total_interest-amount_paid,0)) FILTER (WHERE status IN ('active','defaulted')),0) AS principal_outstanding
+              COALESCE(SUM((total_amount_due-amount_paid) - GREATEST(total_interest-amount_paid,0)) FILTER (WHERE status IN ('active','defaulted')),0) AS principal_outstanding,
+              -- interest collected so far (repayments clear interest first) = the welfare's realised loan profit
+              COALESCE(SUM(LEAST(amount_paid, total_interest)),0) AS interest_collected
          FROM member_loans WHERE ${memberFilter}`,
       [wid],
     )).rows[0];
@@ -169,7 +171,7 @@ export async function buildSummary(welfare) {
       penalties: { assessed: num(penalties.assessed), outstanding: num(penalties.outstanding), collected: num(penalties.collected),
         collected_benefit: num(penByPool.events_collected) + num(penByPool.emergencies_collected),
         by_pool: { savings: num(penByPool.savings), events: num(penByPool.events), emergencies: num(penByPool.emergencies), meetings: num(penByPool.meetings) } },
-      loans: { open: loans.open_count, disbursed: num(loans.disbursed), repaid: num(loans.repaid), outstanding: num(loans.outstanding), principal_outstanding: num(loans.principal_outstanding), interest_outstanding: num(loans.interest_outstanding) },
+      loans: { open: loans.open_count, disbursed: num(loans.disbursed), repaid: num(loans.repaid), outstanding: num(loans.outstanding), principal_outstanding: num(loans.principal_outstanding), interest_outstanding: num(loans.interest_outstanding), interest_collected: num(loans.interest_collected) },
       dividends: { total: num(dividends.total), runs: dividends.runs },
       benefit_pools: { events: num(benefitPools.events), emergencies: num(benefitPools.emergencies), active: benefitPools.rows > 0 },
       investments: { invested: num(investments.invested), current: num(investments.current), income: num(investments.income), withdrawn: num(investments.withdrawn), count: investments.count },

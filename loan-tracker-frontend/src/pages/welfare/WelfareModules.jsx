@@ -59,6 +59,16 @@ function AdminPoolStats({ welfareId, pool }) {
   const pen = d.penalties?.by_pool || {};
   const penTile = (v) => ({ label: "Penalties due", value: money(v || 0), sub: "outstanding", tone: (v || 0) > 0 ? "rose" : "slate" });
   let tiles;
+  if (pool === "loans") {
+    const l = d.loans || {};
+    tiles = [
+      { label: "Out on loan", value: money(l.principal_outstanding || 0), sub: `${l.open || 0} open · ${money(l.interest_outstanding || 0)} interest`, tone: "indigo" },
+      { label: "Profit (interest)", value: money(l.interest_collected || 0), sub: "interest earned", tone: (l.interest_collected || 0) > 0 ? "emerald" : "slate" },
+      { label: "Disbursed", value: money(l.disbursed || 0), sub: "total lent out", tone: "slate" },
+      { label: "Repaid", value: money(l.repaid || 0), sub: "total repaid", tone: "slate" },
+    ];
+    return <StatTiles tiles={tiles} />;
+  }
   if (pool === "events") {
     tiles = [
       { label: "Events pool", value: money(bp.events || 0), sub: "contributions − payouts", tone: (bp.events || 0) < 0 ? "rose" : "indigo" },
@@ -115,7 +125,7 @@ export function WelfareEmergenciesPage() {
 export function WelfareLoansPage() {
   const { welfareId, welfare } = useWelfare();
   if (!welfare?.loans_enabled) return <Navigate to="/welfare" replace />; // loans off → no loans page
-  return <Page title="Loans"><WelfareLoansPanel welfareId={welfareId} /></Page>;
+  return <Page title="Loans"><AdminPoolStats welfareId={welfareId} pool="loans" /><WelfareLoansPanel welfareId={welfareId} /></Page>;
 }
 export function WelfarePenaltiesPage() {
   const { welfareId } = useWelfare();

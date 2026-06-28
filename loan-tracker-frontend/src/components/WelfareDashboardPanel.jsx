@@ -109,7 +109,7 @@ export default function WelfareDashboardPanel({
             ? <button type="button" onClick={() => setShowInvest(true)} className="bg-emerald-50 rounded-lg p-3 text-left w-full hover:ring-2 hover:ring-emerald-300 transition">{card}</button>
             : <div className="bg-emerald-50 rounded-lg p-3">{card}</div>;
         })()}
-        <Stat icon={TrendingUp} label="Profit" value={money(d.pool.profit)} sub="pool above member savings" tone={d.pool.profit < 0 ? "rose" : "emerald"} to={link("books")} />
+        {/* Loan figures (Out on loan, loan profit) live on the Loans page. */}
         <Stat icon={Users} label="Members" value={d.members.active} sub={d.members.inactive ? `${d.members.inactive} exited` : "all active"} tone="sky" to={link("members")} />
         {/* Event & emergency fines live on their own pool pages, so the dashboard
             tile shows the rest (contribution + meeting + loan fines). */}
@@ -117,7 +117,6 @@ export default function WelfareDashboardPanel({
         {/* Events & Emergencies pool figures now live on their own pages. */}
         <Stat icon={Gift} label="Dividends" value={money(d.dividends.total)} sub={`${d.dividends.runs} share-out${d.dividends.runs === 1 ? "" : "s"}`} tone="amber" to={link("dividends")} />
         <Stat icon={Receipt} label="Expenses" value={money(d.pool.expenses)} sub="spent from the savings pool" tone="rose" to={link("expenses", true)} />
-        {showLoans && <Stat icon={Banknote} label="Out on loan" value={money(d.loans.principal_outstanding ?? d.loans.outstanding)} sub={`${d.loans.open} open · ${money(d.loans.interest_outstanding ?? 0)} interest`} mine={p && p.loan != null ? money(p.loan) : undefined} tone="indigo" to={link("loans")} />}
         {d.compliance ? (
           <Stat icon={CalendarCheck} label={`Compliance · ${d.compliance.cycle || "cycle"}`} value={`${d.compliance.paid_pct}%`} sub={`${d.compliance.paid}/${d.compliance.total} paid`} mine={p ? pct(p.compliance_pct, p.compliance) : undefined} tone="emerald" to={link("contributions")} />
         ) : (
