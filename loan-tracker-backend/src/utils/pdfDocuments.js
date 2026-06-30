@@ -660,16 +660,40 @@ export const buildReceiptPdf = async (transactionId, tid) => {
   const typeColor =
     TYPE_COLORS[String(txn.business_type || "").trim().toLowerCase()] ||
     (/^#[0-9a-fA-F]{6}$/.test(txn.brand_color || "") ? txn.brand_color : "#0E8A6E");
-  const darkenHex = (hex, f) => {
-    const n = parseInt(hex.replace("#", ""), 16);
-    const c = (v) => Math.max(0, Math.min(255, Math.round(v)));
-    return (
-      "#" +
-      [c(((n >> 16) & 255) * f), c(((n >> 8) & 255) * f), c((n & 255) * f)]
-        .map((x) => x.toString(16).padStart(2, "0"))
-        .join("")
-    );
-  };
+
+  // Lender identity for the de-branded header + seal — mirrors the on-screen
+  // receipt. Monogram = the lender's 3-letter code prefix (e.g. "PAY" from
+  // LN-PAY-…), falling back to 3-letter business-name initials.
+  const businessName = (txn.business_name || "").trim();
+  const codePrefix = [txn.loan_code, txn.client_code, txn.transaction_code]
+    .map((c) => (String(c || "").match(/^[A-Za-z]+-([A-Za-z0-9]{2,5})-/) || [])[1])
+    .find(Boolean);
+  const NAME_SUFFIXES = new Set([
+    "ltd", "limited", "company", "co", "plc", "inc", "llc", "group",
+    "enterprises", "enterprise", "services", "sacco", "microfinance", "bank",
+  ]);
+  const nameWords = businessName.split(/\s+/).filter(Boolean);
+  const sigWords = nameWords.filter(
+    (w) => !NAME_SUFFIXES.has(w.toLowerCase().replace(/[^a-z]/gi, "")),
+  );
+  const baseWords = sigWords.length ? sigWords : nameWords;
+  const nameInitials =
+    baseWords.length >= 3
+      ? baseWords.slice(0, 3).map((w) => w[0]).join("")
+      : baseWords.length === 2
+        ? baseWords[0][0] + baseWords[1].slice(0, 2)
+        : (baseWords[0] || "LEN").slice(0, 3);
+  const initials = (codePrefix || nameInitials || "LEN").toUpperCase().slice(0, 3);
+  const prettyType = txn.business_type
+    ? txn.business_type.charAt(0).toUpperCase() + txn.business_type.slice(1)
+    : "";
+  const headerSub = [
+    prettyType,
+    [txn.tenant_city, txn.tenant_country].filter(Boolean).join(", "),
+  ]
+    .filter(Boolean)
+    .join("   ·   ");
+
   const money = (v) =>
     "KES " +
     Number(v || 0).toLocaleString("en-KE", {
@@ -689,38 +713,79 @@ export const buildReceiptPdf = async (transactionId, tid) => {
 
   doc.rect(0, 0, PW, PH).fill("#F3ECDB");
 
-  const headH = 92;
-  const hg = doc.linearGradient(0, 0, PW, 0);
-  hg.stop(0, darkenHex(typeColor, 0.72)).stop(1, typeColor);
-  doc.rect(0, 0, PW, headH).fill(hg);
-
-  drawBrandMark(doc, { x: 36, y: 26, size: 40, variant: "light" });
-  doc.fillColor("#ffffff").font(FONT.display).fontSize(24).text("LenderFest", 86, 34);
-
+  const headH = 96;
+  // Header on the parchment (no coloured band). Lender identity leads; the
+  // brand/type colour stays only as accents (monogram, doc title, PAID pill).
+  // ── Monogram tile.
+  const monoSize = 46;
+  const monoX = 36;
+  const monoY = 26;
+  doc.roundedRect(monoX, monoY, monoSize, monoSize, 12).fill(typeColor);
+  const monoFont = initials.length >= 3 ? 17 : 21;
+  doc
+    .font(FONT.display)
+    .fontSize(monoFont)
+    .fillColor("#ffffff")
+    .text(initials, monoX, monoY + (monoSize - monoFont) / 2 - 1, {
+      width: monoSize,
+      align: "center",
+    });
+  // ── Business name + address.
+  const nameX = monoX + monoSize + 14;
+  doc
+    .font(FONT.display)
+    .fontSize(20)
+    .fillColor("#2B2A26")
+    .text(businessName || "Your Business", nameX, monoY + 1, {
+      width: 360,
+      lineBreak: false,
+    });
+  if (headerSub) {
+    doc
+      .font(FONT.reg)
+      .fontSize(9.5)
+      .fillColor("#9C9384")
+      .text(headerSub, nameX, monoY + 28, { width: 400, lineBreak: false });
+  }
+  // ── PAID pill (white, accent border + text) at far right.
+  doc.font(FONT.bold).fontSize(9);
+  const pillW = doc.widthOfString("PAID") + 22;
+  const pillX = PW - 36 - pillW;
+  const pillY = 30;
+  doc
+    .roundedRect(pillX, pillY, pillW, 22, 11)
+    .lineWidth(1)
+    .strokeColor(typeColor)
+    .stroke();
+  doc
+    .fillColor(typeColor)
+    .text("PAID", pillX, pillY + 6.5, { width: pillW, align: "center" });
+  // ── Doc meta right-aligned, ending just left of the pill.
+  const metaRight = pillX - 16;
   doc
     .font(FONT.bold)
     .fontSize(10)
-    .fillColor("#ffffff")
-    .fillOpacity(0.92)
-    .text("PAYMENT RECEIVED", PW - 360, 28, {
-      width: 280,
+    .fillColor(typeColor)
+    .text("PAYMENT RECEIVED", metaRight - 300, 30, {
+      width: 300,
       align: "right",
       characterSpacing: 1.2,
     });
   doc
     .font("Courier")
     .fontSize(10)
-    .fillOpacity(0.8)
-    .text(txn.transaction_code, PW - 360, 46, { width: 280, align: "right" });
-  doc.fillOpacity(1);
-  doc.font(FONT.bold).fontSize(9);
-  const pillW = doc.widthOfString("PAID") + 24;
-  const pillX = PW - 36 - pillW;
-  doc.fillOpacity(0.16).roundedRect(pillX, 34, pillW, 22, 11).fill("#ffffff");
+    .fillColor("#9C9384")
+    .text(txn.transaction_code, metaRight - 300, 48, {
+      width: 300,
+      align: "right",
+    });
+  // ── Hairline separating header from body.
   doc
-    .fillOpacity(1)
-    .fillColor("#ffffff")
-    .text("PAID", pillX, 40.5, { width: pillW, align: "center" });
+    .moveTo(0, headH)
+    .lineTo(PW, headH)
+    .lineWidth(1)
+    .strokeColor("#E2D9C3")
+    .stroke();
 
   const bodyTop = headH + 34;
   const colL = 40;
@@ -867,6 +932,7 @@ export const buildReceiptPdf = async (transactionId, tid) => {
       country: txn.tenant_country,
     },
     date: txn.payment_date || new Date(),
+    initials,
   });
   if (!txn.hide_platform_branding) {
     const pwY = footY + 32;

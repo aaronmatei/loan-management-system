@@ -85,12 +85,27 @@ export function buildStampSvg({
   lenderName = "",
   location = "",
   date = new Date(),
+  initials = "",
 } = {}) {
   const top = fitTopArc(lenderName);
   const bot = (location || "").toUpperCase();
   const topType = topArcType(top);
   const botType = botArcType(bot);
   const stamp = formatStampDate(date);
+  // Centre mark: when the caller passes the lender's initials (the receipt
+  // does — its own seal, not LenderFest's), render them as text. Otherwise
+  // keep the original "LF" monogram drawn from rectangles.
+  const mono = (initials || "").toUpperCase().slice(0, 3);
+  const monoSize = mono.length <= 1 ? 54 : mono.length === 2 ? 46 : 36;
+  const centerMark = mono
+    ? `<text x="150" y="${(150 + monoSize * 0.34).toFixed(1)}" fill="#122A2E" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="${monoSize}" letter-spacing="1.5" text-anchor="middle">${escapeXml(mono)}</text>`
+    : `<g fill="#122A2E">
+    <rect x="121" y="92" width="15" height="86" rx="3.5"/>
+    <rect x="121" y="162" width="44" height="16" rx="3.5"/>
+    <rect x="149" y="92" width="14" height="70" rx="3.5"/>
+    <rect x="149" y="92" width="30" height="16" rx="3.5"/>
+    <rect x="149" y="111" width="24" height="14" rx="3.5"/>
+  </g>`;
   return `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${top} stamp">
   <defs>
     <path id="topArc" d="M41,99 A120,120 0 0 1 259,99"/>
@@ -107,13 +122,7 @@ export function buildStampSvg({
   </g>
   <polygon points="30,144 36,150 30,156 24,150" fill="#122A2E"/>
   <polygon points="270,144 276,150 270,156 264,150" fill="#122A2E"/>
-  <g fill="#122A2E">
-    <rect x="121" y="92" width="15" height="86" rx="3.5"/>
-    <rect x="121" y="162" width="44" height="16" rx="3.5"/>
-    <rect x="149" y="92" width="14" height="70" rx="3.5"/>
-    <rect x="149" y="92" width="30" height="16" rx="3.5"/>
-    <rect x="149" y="111" width="24" height="14" rx="3.5"/>
-  </g>
+  ${centerMark}
   <rect x="96" y="196" width="108" height="26" rx="5" fill="none" stroke="#122A2E" stroke-width="2"/>
   <text x="150" y="214" fill="#122A2E" font-family="Arial, sans-serif" font-weight="700" font-size="14" letter-spacing="2" text-anchor="middle">${escapeXml(stamp)}</text>
 </svg>`;
@@ -137,12 +146,16 @@ function escapeXml(s) {
 // take down the entire PDF generation, since the document is
 // usable without the stamp. Logs the failure so we notice but
 // keeps the receipt printable.
-export function drawPdfStamp(doc, { x, y, size = 110, tenant = {}, date } = {}) {
+export function drawPdfStamp(
+  doc,
+  { x, y, size = 110, tenant = {}, date, initials = "" } = {},
+) {
   try {
     const svg = buildStampSvg({
       lenderName: tenant.business_name,
       location: locationFor(tenant),
       date: date || new Date(),
+      initials,
     });
     SVGtoPDF(doc, svg, x, y, { width: size, height: size, assumePt: true });
   } catch (err) {
