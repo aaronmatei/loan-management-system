@@ -856,46 +856,162 @@ function LoanDetails() {
         );
       })()}
 
-      {/* Header Card */}
-      <div className="bg-ocean-gradient rounded-xl shadow-lg p-8 text-white mb-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-ocean-200 text-sm mb-1">Loan Code</p>
-            <h1 className="text-3xl font-bold mb-4">{loan.loan_code}</h1>
-            <p className="text-ocean-100">
-              <strong className="text-white">
-                {loan.first_name} {loan.last_name}
-              </strong>
-              <br />
-              <span className="inline-flex items-center gap-1"><Smartphone size={14}/> {loan.phone_number}</span>
-              {loan.email && (
-                <>
-                  <br />
-                  <span className="inline-flex items-center gap-1"><Mail size={14}/> {loan.email}</span>
-                </>
-              )}
-            </p>
-          </div>
-          <div className="text-right">
-            <span
-              className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
-                loan.status === "active"
-                  ? "bg-green-500 text-white"
-                  : loan.status === "completed"
-                    ? "bg-ocean-500 text-white"
-                    : loan.status === "defaulted"
-                      ? "bg-red-500 text-white"
-                      : "bg-gray-500 text-white"
-              }`}
+      {/* Loan overview — identity, figures and repayment progress, all in one
+          card (replaces the old gradient header + 4-tile grid + progress card). */}
+      {(() => {
+        const initials =
+          `${(loan.first_name || "").charAt(0)}${(loan.last_name || "").charAt(0)}`.toUpperCase() ||
+          "—";
+        const principal = parseFloat(loan.principal_amount) || 0;
+        const interestPct =
+          principal > 0
+            ? Math.round((parseFloat(loan.total_interest || 0) / principal) * 1000) / 10
+            : 0;
+        const installmentsTotal = schedule.length || loan.loan_duration_months || 0;
+        const settled = parseFloat(summary.balance) <= 0;
+        const nextSched = schedule.find(
+          (s) => s.status !== "paid" && s.status !== "waived",
+        );
+        // "Cleared" date for a settled loan = the latest non-voided payment.
+        const clearedDate =
+          settled && transactions?.length
+            ? transactions
+                .filter((t) => !t.voided && t.payment_date)
+                .map((t) => t.payment_date)
+                .sort()
+                .slice(-1)[0]
+            : null;
+        const fmtDay = (d) =>
+          new Date(d).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          });
+        const progressNote = clearedDate
+          ? `cleared ${fmtDay(clearedDate)}`
+          : nextSched
+            ? `next due ${fmtDay(nextSched.due_date)}`
+            : "";
+        const STATUS_META = {
+          active: { label: "Active", dot: "#16a37a", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/25 dark:text-emerald-300" },
+          completed: { label: "Completed", dot: "#16a37a", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/25 dark:text-emerald-300" },
+          defaulted: { label: "Defaulted", dot: "#ef4444", cls: "bg-rose-50 text-rose-700 dark:bg-rose-900/25 dark:text-rose-300" },
+          pending: { label: "Pending", dot: "#d9892a", cls: "bg-amber-50 text-amber-700 dark:bg-amber-900/25 dark:text-amber-300" },
+          approved: { label: "Approved", dot: "#16a37a", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/25 dark:text-emerald-300" },
+        };
+        const sm = STATUS_META[loan.status] || {
+          label: (loan.status || "").toUpperCase(),
+          dot: "#64748b",
+          cls: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+        };
+        const Col = ({ label, value, valueCls = "text-navy-900 dark:text-slate-100", children }) => (
+          <div className="p-5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+            <p
+              className={`text-2xl font-extrabold tracking-tight mt-1 ${valueCls}`}
+              style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {loan.status.toUpperCase()}
-            </span>
-            <p className="text-ocean-200 text-xs mt-2">
-              Client: {loan.client_code}
+              {value}
             </p>
+            {children}
           </div>
-        </div>
-      </div>
+        );
+        return (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
+            {/* identity */}
+            <div className="flex flex-wrap items-start gap-4 p-6 pb-5">
+              <div className="w-16 h-16 rounded-full bg-navy-gradient text-white flex items-center justify-center text-lg font-bold shrink-0">
+                {initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Loan Code</p>
+                <h1 className="text-2xl font-extrabold tracking-tight text-navy-900 dark:text-slate-100 font-mono">
+                  {loan.loan_code}
+                </h1>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="font-bold text-navy-900 dark:text-slate-100">
+                    {loan.first_name} {loan.last_name}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                    <Smartphone size={14} /> {loan.phone_number}
+                  </span>
+                  {loan.email && (
+                    <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                      <Mail size={14} /> {loan.email}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold ${sm.cls}`}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: sm.dot }} />
+                  {sm.label}
+                </span>
+                <p className="text-xs text-slate-400 mt-2">
+                  Client{" "}
+                  <span className="font-mono text-slate-500 dark:text-slate-400">{loan.client_code}</span>
+                </p>
+              </div>
+            </div>
+            {/* figures */}
+            <div className="grid grid-cols-2 md:grid-cols-4 border-t border-slate-100 dark:border-slate-700 divide-x divide-slate-100 dark:divide-slate-700">
+              <Col label="Principal" value={formatKES(loan.principal_amount)}>
+                {parseFloat(loan.processing_fee || 0) > 0 && (
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Less {parseFloat(loan.processing_fee_rate)}% processing fee · disbursed{" "}
+                    {formatKES(loan.net_disbursed_amount ?? loan.principal_amount)}
+                  </p>
+                )}
+              </Col>
+              <Col label="Total due" value={formatKES(summary.total_due)}>
+                <p className="text-xs text-slate-400 mt-1.5">
+                  Principal{interestPct > 0 ? ` + ${interestPct}% interest` : ""}
+                </p>
+              </Col>
+              <Col label="Paid" value={formatKES(summary.total_paid)} valueCls="text-money-pos">
+                {installmentsTotal > 0 && (
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Across {installmentsTotal} instalment{installmentsTotal === 1 ? "" : "s"}
+                  </p>
+                )}
+              </Col>
+              <Col label="Balance" value={formatKES(summary.balance)}>
+                {settled ? (
+                  <span className="inline-flex items-center gap-1.5 mt-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle size={13} /> Settled in full
+                  </span>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-1.5">{summary.progress_percentage}% repaid</p>
+                )}
+              </Col>
+            </div>
+            {/* progress */}
+            <div className="border-t border-slate-100 dark:border-slate-700 p-6">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-navy-900 dark:text-slate-100">
+                  Repayment progress
+                  {progressNote && (
+                    <span className="font-normal text-slate-400"> · {progressNote}</span>
+                  )}
+                </p>
+                <span className="text-sm font-extrabold text-navy-900 dark:text-slate-100">
+                  {summary.progress_percentage}%
+                </span>
+              </div>
+              <div className="h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-ocean-gradient rounded-full transition-all duration-500"
+                  style={{ width: `${summary.progress_percentage}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-1.5 text-xs text-slate-400">
+                <span>{formatKES(0)}</span>
+                <span>{formatKES(summary.total_due)}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Notes */}
       {loan.notes && (
@@ -906,71 +1022,6 @@ function LoanDetails() {
           <p className="text-gray-700 whitespace-pre-wrap dark:text-slate-200">{loan.notes}</p>
         </div>
       )}
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500 dark:bg-slate-800">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
-            Principal
-          </p>
-          <p className="text-2xl font-bold text-gray-800 dark:text-slate-100">
-            {formatKES(loan.principal_amount)}
-          </p>
-          {parseFloat(loan.processing_fee || 0) > 0 && (
-            <p className="text-xs text-amber-700 mt-2">
-              Less {parseFloat(loan.processing_fee_rate)}% processing fee (
-              {formatKES(loan.processing_fee)}) · disbursed{" "}
-              {formatKES(loan.net_disbursed_amount ?? loan.principal_amount)}
-            </p>
-          )}
-        </div>
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-ocean-500 dark:bg-slate-800">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
-            Total Due
-          </p>
-          <p className="text-2xl font-bold text-gray-800 dark:text-slate-100">
-            {formatKES(summary.total_due)}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 dark:bg-slate-800">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
-            Paid
-          </p>
-          <p className="text-2xl font-bold text-green-600">
-            {formatKES(summary.total_paid)}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500 dark:bg-slate-800">
-          <p className="text-sm text-gray-500 uppercase font-semibold mb-2 dark:text-slate-400">
-            Balance
-          </p>
-          <p className="text-2xl font-bold text-orange-600">
-            {formatKES(summary.balance)}
-          </p>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6 dark:bg-slate-800">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">
-            Repayment Progress
-          </h3>
-          <span className="text-2xl font-bold text-ocean-600">
-            {summary.progress_percentage}%
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden dark:bg-slate-700">
-          <div
-            className="bg-gradient-to-r from-green-500 to-emerald-600 h-4 rounded-full transition-all duration-500"
-            style={{ width: `${summary.progress_percentage}%` }}
-          ></div>
-        </div>
-        <div className="flex justify-between mt-2 text-xs text-gray-500 dark:text-slate-400">
-          <span>{formatKES(0)}</span>
-          <span>{formatKES(summary.total_due)}</span>
-        </div>
-      </div>
 
       {/* Overpayment Alert (if any) */}
       {summary.overpayment > 0 && (
