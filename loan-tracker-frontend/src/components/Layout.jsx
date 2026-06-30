@@ -372,6 +372,10 @@ function Layout({ children }) {
   // Expand/collapse state. Persists across reloads. The active group
   // is ALWAYS forced open on load — even if the user collapsed it
   // last session — so the user never lands on a hidden current page.
+  // Accordion: at most ONE group is open at a time. State is still an object
+  // keyed by id (so the renderer doesn't change), but only one key is ever
+  // true. Prefer the active group on load, else the one the user last left
+  // open.
   const [expandedGroups, setExpandedGroups] = useState(() => {
     let saved = {};
     try {
@@ -379,16 +383,16 @@ function Layout({ children }) {
     } catch {
       saved = {};
     }
-    if (activeGroupId) saved[activeGroupId] = true;
-    return saved;
+    const openId = activeGroupId || Object.keys(saved).find((k) => saved[k]);
+    return openId ? { [openId]: true } : {};
   });
 
-  // On every navigation, re-open the active group if it isn't already.
-  // Doesn't touch other groups — user-collapsed siblings stay closed.
+  // On every navigation, open the active group and collapse the rest, so the
+  // current page's group is the single one expanded.
   useEffect(() => {
     if (!activeGroupId) return;
     setExpandedGroups((prev) =>
-      prev[activeGroupId] ? prev : { ...prev, [activeGroupId]: true },
+      prev[activeGroupId] ? prev : { [activeGroupId]: true },
     );
   }, [activeGroupId]);
 
@@ -401,8 +405,10 @@ function Layout({ children }) {
     }
   }, [expandedGroups]);
 
+  // Open this group and close any other (accordion); clicking the open one
+  // collapses it.
   const toggleGroup = (id) =>
-    setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+    setExpandedGroups((prev) => (prev[id] ? {} : { [id]: true }));
 
   // Second-level (sub-group) expand state — e.g. Loan Book / Repayments inside
   // Loans. Same persistence + auto-open-active behaviour as the top groups.
@@ -414,6 +420,8 @@ function Layout({ children }) {
     }
     return null;
   })();
+  // Accordion at the sub-group level too — one of Loan Book / Repayments open
+  // at a time. Loan Book is the default resting state.
   const [expandedSubs, setExpandedSubs] = useState(() => {
     let saved = {};
     try {
@@ -421,15 +429,14 @@ function Layout({ children }) {
     } catch {
       saved = {};
     }
-    // Loan Book opens by default (matches the design's resting state).
-    if (saved.loanbook === undefined) saved.loanbook = true;
-    if (activeSubId) saved[activeSubId] = true;
-    return saved;
+    const openId =
+      activeSubId || Object.keys(saved).find((k) => saved[k]) || "loanbook";
+    return { [openId]: true };
   });
   useEffect(() => {
     if (!activeSubId) return;
     setExpandedSubs((prev) =>
-      prev[activeSubId] ? prev : { ...prev, [activeSubId]: true },
+      prev[activeSubId] ? prev : { [activeSubId]: true },
     );
   }, [activeSubId]);
   useEffect(() => {
@@ -440,7 +447,7 @@ function Layout({ children }) {
     }
   }, [expandedSubs]);
   const toggleSub = (id) =>
-    setExpandedSubs((prev) => ({ ...prev, [id]: !prev[id] }));
+    setExpandedSubs((prev) => (prev[id] ? {} : { [id]: true }));
 
   const roleBadge = getRoleBadge(user?.role);
 
