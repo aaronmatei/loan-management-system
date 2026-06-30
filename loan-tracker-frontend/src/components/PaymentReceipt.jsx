@@ -42,17 +42,21 @@ const CSS = `
 .lf-rcpt .mono{font-family:"JetBrains Mono", ui-monospace, monospace}
 .lf-rcpt .receipt{background:var(--paper);border-radius:18px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.55);position:relative}
 .lf-rcpt .receipt::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;background:repeating-linear-gradient(135deg,rgba(0,0,0,.012) 0 2px,transparent 2px 9px)}
-.lf-rcpt .r-header{background:linear-gradient(100deg,var(--red1),var(--red2));color:#fff;padding:22px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px;position:relative;z-index:1}
-.lf-rcpt .brand{display:flex;align-items:center;gap:14px}
-.lf-rcpt .brand .logo-mark{width:44px;height:44px;flex:0 0 auto}
-.lf-rcpt .brand .word{display:flex;flex-direction:column;line-height:1}
-.lf-rcpt .brand .word .name{font-weight:800;font-size:27px;letter-spacing:-.02em}
-.lf-rcpt .brand .word .sub{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-top:4px}
-.lf-rcpt .header-right{display:flex;align-items:center;gap:26px}
+/* Header sits on the parchment now (no coloured band). The lender's own
+   identity leads — monogram + name + address — with the brand colour kept
+   only as accents (monogram, doc title, Paid pill). */
+.lf-rcpt .r-header{background:var(--paper-2);color:var(--ink);padding:28px 36px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;position:relative;z-index:1;border-bottom:1px solid var(--line)}
+.lf-rcpt .brand{display:flex;align-items:center;gap:15px}
+.lf-rcpt .brand .monogram{width:52px;height:52px;flex:0 0 auto;border-radius:14px;background:linear-gradient(140deg,var(--red2),var(--red1));color:#fff;display:grid;place-items:center;font-family:"Lora",Georgia,serif;font-weight:600;letter-spacing:.5px;box-shadow:0 8px 18px -9px var(--red1)}
+.lf-rcpt .brand .word{display:flex;flex-direction:column;line-height:1.18}
+.lf-rcpt .brand .word .name{font-weight:800;font-size:23px;letter-spacing:-.01em;color:var(--ink)}
+.lf-rcpt .brand .word .sub{font-size:12px;color:var(--muted);margin-top:6px;font-weight:600}
+.lf-rcpt .brand .word .contact{font-size:11.5px;color:var(--muted);margin-top:3px}
+.lf-rcpt .header-right{display:flex;align-items:center;gap:24px}
 .lf-rcpt .doc-meta{text-align:right}
-.lf-rcpt .doc-meta .title{font-weight:800;font-size:15px;letter-spacing:.16em}
-.lf-rcpt .doc-meta .txn{font-size:12px;letter-spacing:.06em;color:rgba(255,255,255,.78);margin-top:5px}
-.lf-rcpt .paid{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);padding:8px 15px;border-radius:999px;font-weight:700;font-size:14px}
+.lf-rcpt .doc-meta .title{font-weight:800;font-size:14px;letter-spacing:.16em;color:var(--red2)}
+.lf-rcpt .doc-meta .txn{font-size:12px;letter-spacing:.06em;color:var(--muted);margin-top:5px}
+.lf-rcpt .paid{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--red2);padding:8px 15px;border-radius:999px;font-weight:700;font-size:14px;color:var(--red2)}
 .lf-rcpt .paid svg{width:17px;height:17px}
 .lf-rcpt .r-body{display:grid;grid-template-columns:1.18fr 1fr 1.12fr;position:relative;z-index:1}
 .lf-rcpt .r-body > div{padding:30px 32px}
@@ -180,6 +184,47 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
     .join(" · ")
     .toUpperCase();
 
+  // Lender monogram (header tile + seal centre) — initials from the business
+  // name, skipping legal/common suffixes ("Ltd", "SACCO", "Microfinance"…).
+  const SUFFIXES = new Set([
+    "ltd", "limited", "company", "co", "plc", "inc", "llc", "group",
+    "enterprises", "enterprise", "services", "sacco", "microfinance", "bank",
+  ]);
+  const nameWords = businessName.split(/\s+/).filter(Boolean);
+  const sigWords = nameWords.filter(
+    (w) => !SUFFIXES.has(w.toLowerCase().replace(/[^a-z]/gi, "")),
+  );
+  const baseWords = sigWords.length ? sigWords : nameWords;
+  const initials = (
+    baseWords.length >= 2
+      ? baseWords[0][0] + baseWords[1][0]
+      : (baseWords[0] || "LF").slice(0, 2)
+  ).toUpperCase();
+  const monogramFont = initials.length >= 2 ? 22 : 26;
+  const sealMonoFont = initials.length >= 2 ? 30 : 40;
+
+  // Header identity — the lender's own name leads; address = location + contact.
+  const headerSub = [
+    tenant?.business_type,
+    [tenant?.city, tenant?.country].filter(Boolean).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const headerContact = [tenant?.support_phone, tenant?.support_email]
+    .filter(Boolean)
+    .join(" · ");
+
+  // Seal: scale the wrapped business name so long names still fit the top arc.
+  const sealName = businessName.toUpperCase();
+  const sealNameFont =
+    sealName.length <= 12 ? 13
+      : sealName.length <= 18 ? 11
+        : sealName.length <= 24 ? 9
+          : sealName.length <= 30 ? 7.6
+            : 6.6;
+  const sealNameLS =
+    sealName.length <= 18 ? 1.5 : sealName.length <= 24 ? 1 : 0.5;
+
   const handlePrint = () => (onPrint ? onPrint() : window.print());
   const onWhatsApp = () => {
     const lines = [
@@ -212,15 +257,13 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
         {/* ===== HEADER ===== */}
         <div className="r-header">
           <div className="brand">
-            <svg className="logo-mark" viewBox="0 0 100 100" aria-label="LenderFest">
-              <rect x="14" y="58" width="17" height="26" rx="7" fill="#fff" />
-              <rect x="39" y="44" width="17" height="40" rx="7" fill="#fff" />
-              <rect x="64" y="30" width="17" height="54" rx="7" fill="#fff" />
-              <path d="M70 3 Q75 12 84 17 Q75 22 70 31 Q65 22 56 17 Q65 12 70 3 Z" fill="#F6A92B" />
-              <path d="M26 38 Q28.5 43 33 45 Q28.5 47 26 52 Q23.5 47 19 45 Q23.5 43 26 38 Z" fill="#fff" opacity=".7" />
-            </svg>
+            <span className="monogram" style={{ fontSize: monogramFont }}>
+              {initials}
+            </span>
             <span className="word">
-              <span className="name">LenderFest</span>
+              <span className="name">{businessName || "Your Business"}</span>
+              {headerSub && <span className="sub">{headerSub}</span>}
+              {headerContact && <span className="contact">{headerContact}</span>}
             </span>
           </div>
           <div className="header-right">
@@ -298,9 +341,13 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
             <circle cx="100" cy="100" r="88" fill="none" stroke="var(--seal)" strokeWidth="2.5" />
             <circle cx="100" cy="100" r="80" fill="none" stroke="var(--seal)" strokeWidth="1" />
             <circle cx="100" cy="100" r="54" fill="none" stroke="var(--seal)" strokeWidth="1.5" />
-            <text className="seal-txt" fill="var(--seal)">
+            <text
+              className="seal-txt"
+              fill="var(--seal)"
+              style={{ fontSize: sealNameFont, letterSpacing: sealNameLS }}
+            >
               <textPath href="#lfTopArc" startOffset="50%" textAnchor="middle">
-                {businessName.toUpperCase()}
+                {sealName}
               </textPath>
             </text>
             <text className="seal-txt" fill="var(--seal)">
@@ -308,7 +355,16 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
                 {sealLocation}
               </textPath>
             </text>
-            <text x="100" y="98" textAnchor="middle" className="seal-lf" fill="var(--seal)">LF</text>
+            <text
+              x="100"
+              y="98"
+              textAnchor="middle"
+              className="seal-lf"
+              fill="var(--seal)"
+              style={{ fontSize: sealMonoFont }}
+            >
+              {initials}
+            </text>
             <rect x="72" y="112" width="56" height="15" rx="3" fill="none" stroke="var(--seal)" strokeWidth="1" />
             <text x="100" y="122.5" textAnchor="middle" className="seal-date" fill="var(--seal)">{sealDate}</text>
             <path d="M16 100 l5 -5 5 5 -5 5 z" fill="var(--seal)" />
