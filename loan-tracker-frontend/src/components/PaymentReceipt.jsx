@@ -130,7 +130,14 @@ const CSS = `
 }
 `;
 
-function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
+function PaymentReceipt({
+  payment,
+  receipt,
+  tenant,
+  onClose,
+  onPrint,
+  fetchReceiptPdf,
+}) {
   // Load the receipt's display fonts once, lazily.
   useEffect(() => {
     const id = "lf-receipt-fonts";
@@ -235,18 +242,80 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
     sealName.length <= 18 ? 1.5 : sealName.length <= 24 ? 1 : 0.5;
 
   const handlePrint = () => (onPrint ? onPrint() : window.print());
-  const onWhatsApp = () => {
-    const lines = [
-      `Payment Receipt — ${businessName || "Loan Payment"}`,
-      `Loan: ${receipt.loan_code}`,
-      `Amount paid: ${money(payment.amount_paid)} via ${payment.payment_method || "—"}`,
-      `Remaining: ${money(receipt.remaining_balance)}`,
-    ];
+
+  // WhatsApp the receipt to the client. Caption = the payment details. When
+  // the receipt PDF can be fetched (admin) AND the browser supports sharing
+  // files (mobile), we attach the actual PDF via the native share sheet — the
+  // client picks the WhatsApp chat. Otherwise we open a WhatsApp chat aimed at
+  // the client's number with the details, downloading the PDF so it can be
+  // attached manually. (wa.me links can't carry an attachment, and there's no
+  // WhatsApp Business API to push a document to a number server-side.)
+  const onWhatsApp = async () => {
+    const dateStr = dateObj.toLocaleDateString("en-GB", {
+      day: "numeric", month: "short", year: "numeric",
+    });
+    const caption = [
+      `Payment received${businessName ? ` — ${businessName}` : ""}`,
+      `Receipt: ${txnCode}`,
+      receipt.client_name && `Client: ${receipt.client_name}`,
+      `Amount paid: ${money(payment.amount_paid)}${payment.payment_method ? ` via ${payment.payment_method}` : ""}`,
+      `Date: ${dateStr}`,
+      receipt.loan_code && `Loan: ${receipt.loan_code}`,
+      `Remaining balance: ${money(receipt.remaining_balance)}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
     const phone = (receipt.client_phone || "").replace(/[^0-9]/g, "");
-    window.open(
-      `https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`,
-      "_blank",
-    );
+    const waChat = () =>
+      window.open(
+        `https://wa.me/${phone}?text=${encodeURIComponent(caption)}`,
+        "_blank",
+      );
+
+    // No PDF source (e.g. customer portal) → just open the chat with details.
+    if (!fetchReceiptPdf) return waChat();
+
+    let pdf = null;
+    try {
+      pdf = await fetchReceiptPdf();
+    } catch (err) {
+      console.error("Receipt PDF fetch failed:", err);
+    }
+    if (!pdf?.blob) return waChat();
+
+    const file = new File([pdf.blob], pdf.filename || `Receipt-${txnCode}.pdf`, {
+      type: "application/pdf",
+    });
+
+    // Native share with the PDF attached + caption (mobile / supported browsers).
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({
+          files: [file],
+          text: caption,
+          title: `Payment Receipt ${txnCode}`,
+        });
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") return; // user dismissed the sheet
+        // any other failure → fall through to the chat + download path
+      }
+    }
+
+    // Desktop fallback: hand over the PDF for manual attach, open the chat.
+    const url = URL.createObjectURL(pdf.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    waChat();
   };
 
   return (

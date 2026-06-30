@@ -2093,6 +2093,16 @@ function LoanDetails() {
           payment={receiptTxn}
           receipt={buildReceipt(receiptTxn)}
           tenant={adminTenant}
+          fetchReceiptPdf={async () => {
+            const r = await api.get(
+              `/reports/pdf/receipt/${receiptTxn.id}`,
+              { responseType: "blob" },
+            );
+            return {
+              blob: r.data,
+              filename: `Receipt-${receiptTxn.transaction_code || receiptTxn.id}.pdf`,
+            };
+          }}
           onClose={() => setReceiptTxn(null)}
         />
       )}

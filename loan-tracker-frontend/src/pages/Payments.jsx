@@ -1464,6 +1464,16 @@ function Payments() {
               JSON.parse(localStorage.getItem("user") || "{}")?.tenant
                 ?.business_type,
           }}
+          fetchReceiptPdf={async () => {
+            const r = await api.get(
+              `/reports/pdf/receipt/${receiptModal.payment.id}`,
+              { responseType: "blob" },
+            );
+            return {
+              blob: r.data,
+              filename: `Receipt-${receiptModal.payment.transaction_code || receiptModal.payment.id}.pdf`,
+            };
+          }}
           onClose={() => setReceiptModal(null)}
         />
       )}
