@@ -184,8 +184,13 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
     .join(" · ")
     .toUpperCase();
 
-  // Lender monogram (header tile + seal centre) — initials from the business
-  // name, skipping legal/common suffixes ("Ltd", "SACCO", "Microfinance"…).
+  // Lender monogram (header tile + seal centre) — the lender's own 3-letter
+  // code prefix that the backend bakes into every code (e.g. "PAY" in
+  // LN-PAY-112023-00275). Pulled from the loan this receipt is serving, then
+  // the client/txn code; falls back to 3-letter business-name initials.
+  const codePrefix = [receipt.loan_code, receipt.client_code, txnCode]
+    .map((c) => (String(c || "").match(/^[A-Za-z]+-([A-Za-z0-9]{2,5})-/) || [])[1])
+    .find(Boolean);
   const SUFFIXES = new Set([
     "ltd", "limited", "company", "co", "plc", "inc", "llc", "group",
     "enterprises", "enterprise", "services", "sacco", "microfinance", "bank",
@@ -195,13 +200,17 @@ function PaymentReceipt({ payment, receipt, tenant, onClose, onPrint }) {
     (w) => !SUFFIXES.has(w.toLowerCase().replace(/[^a-z]/gi, "")),
   );
   const baseWords = sigWords.length ? sigWords : nameWords;
-  const initials = (
-    baseWords.length >= 2
-      ? baseWords[0][0] + baseWords[1][0]
-      : (baseWords[0] || "LF").slice(0, 2)
-  ).toUpperCase();
-  const monogramFont = initials.length >= 2 ? 22 : 26;
-  const sealMonoFont = initials.length >= 2 ? 30 : 40;
+  const nameInitials =
+    baseWords.length >= 3
+      ? baseWords.slice(0, 3).map((w) => w[0]).join("")
+      : baseWords.length === 2
+        ? baseWords[0][0] + baseWords[1].slice(0, 2)
+        : (baseWords[0] || "LEN").slice(0, 3);
+  const initials = (codePrefix || nameInitials || "LEN")
+    .toUpperCase()
+    .slice(0, 3);
+  const monogramFont = initials.length >= 3 ? 18 : initials.length === 2 ? 22 : 26;
+  const sealMonoFont = initials.length >= 3 ? 24 : initials.length === 2 ? 30 : 40;
 
   // Header identity — the lender's own name leads; address = location + contact.
   const headerSub = [
