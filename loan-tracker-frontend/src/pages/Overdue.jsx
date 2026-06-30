@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, RotateCcw, PartyPopper, Search, X, Download, BarChart3, ChevronRight, ChevronDown, Handshake, Clock } from "lucide-react";
+import { AlertTriangle, RotateCcw, PartyPopper, Search, X, Download, BarChart3, ChevronRight, ChevronDown, Handshake, Clock, Info } from "lucide-react";
 import api from "../services/api";
 import { useBulkSelection } from "../hooks/useBulkSelection";
 import BulkActionBar from "../components/BulkActionBar";
 import BulkMessaging from "../components/BulkMessaging";
 import { bulkExport } from "../utils/bulkExport";
 import { useSortableTable } from "../hooks/useSortableTable";
-import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
 import Skeleton from "../components/Skeleton";
 import DataTable from "../components/DataTable";
@@ -731,21 +730,31 @@ function Overdue() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
-      {/* Header */}
-      <PageHeader
-        icon={AlertTriangle}
-        title="Overdue Payments"
-        subtitle={`${totalOverdueCount} overdue payments • ${KES(totalOverdueAmount)} outstanding`}
-        actions={
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing || loading}
-            className="px-6 py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {refreshing ? "Refreshing..." : <span className="inline-flex items-center gap-1.5"><RotateCcw size={16} /> Refresh</span>}
-          </button>
-        }
-      />
+      {/* Header — soft accent tile + accented subtitle + subtle refresh */}
+      <div className="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <span className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center shrink-0">
+            <AlertTriangle size={22} className="text-rose-600 dark:text-rose-400" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl lg:text-[28px] font-extrabold tracking-tight text-navy-900 dark:text-slate-100 leading-tight">
+              Overdue Payments
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <span className="font-bold text-rose-600">{totalOverdueCount}</span>{" "}
+              overdue · {KES(totalOverdueAmount)} outstanding
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing || loading}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50 shrink-0"
+        >
+          <RotateCcw size={16} className={refreshing ? "animate-spin" : ""} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -799,102 +808,169 @@ function Overdue() {
         />
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-red-500 to-rose-600 text-white rounded-xl shadow-lg p-6">
-              <p className="text-red-100 text-sm uppercase font-semibold">
-                Total Overdue
-              </p>
-              <p className="text-3xl font-bold mt-2">{totalOverdueCount}</p>
-              <p className="text-red-100 text-sm mt-2">
-                {KES(totalOverdueAmount)}
-              </p>
-            </div>
+          {/* Aging breakdown — one card: proportion bar + 4 bucket columns */}
+          {(() => {
+            const pct = (a) =>
+              totalOverdueAmount > 0
+                ? Math.round((parseFloat(a || 0) / totalOverdueAmount) * 100)
+                : 0;
+            const b17 = {
+              count: sb?.days_1_to_7?.count ?? 0,
+              amount: sb?.days_1_to_7?.amount ?? 0,
+            };
+            const b830 = {
+              count: sb?.days_8_to_30?.count ?? 0,
+              amount: sb?.days_8_to_30?.amount ?? 0,
+            };
+            const b30 = { count: card30PlusCount, amount: card30PlusAmount };
+            const segs = [
+              { amount: parseFloat(b17.amount || 0), color: "#9aa8a3" },
+              { amount: parseFloat(b830.amount || 0), color: "#e6a23a" },
+              { amount: parseFloat(b30.amount || 0), color: "#e5484d" },
+            ].filter((s) => s.amount > 0);
+            const segTotal = segs.reduce((s, x) => s + x.amount, 0);
+            const cols = [
+              {
+                label: "Total Overdue",
+                dot: "#e5484d",
+                count: totalOverdueCount,
+                sub: KES(totalOverdueAmount),
+                subCls: "text-navy-900 dark:text-slate-100",
+                numCls: "text-rose-600",
+              },
+              {
+                label: "1–7 Days",
+                dot: "#9aa8a3",
+                count: b17.count,
+                sub: b17.count ? `${KES(b17.amount)} · ${pct(b17.amount)}%` : "None overdue",
+                subCls: b17.count ? "text-slate-500 dark:text-slate-400" : "text-slate-400",
+                numCls: b17.count
+                  ? "text-navy-900 dark:text-slate-100"
+                  : "text-slate-300 dark:text-slate-600",
+              },
+              {
+                label: "8–30 Days",
+                dot: "#e6a23a",
+                count: b830.count,
+                sub: b830.count ? `${KES(b830.amount)} · ${pct(b830.amount)}%` : "None overdue",
+                subCls: b830.count ? "text-amber-700 dark:text-amber-400" : "text-slate-400",
+                numCls: b830.count
+                  ? "text-navy-900 dark:text-slate-100"
+                  : "text-slate-300 dark:text-slate-600",
+              },
+              {
+                label: "30+ Days",
+                dot: "#e5484d",
+                count: b30.count,
+                sub: b30.count ? `${KES(b30.amount)} · ${pct(b30.amount)}%` : "None overdue",
+                subCls: b30.count ? "text-rose-600 dark:text-rose-400" : "text-slate-400",
+                numCls: b30.count
+                  ? "text-navy-900 dark:text-slate-100"
+                  : "text-slate-300 dark:text-slate-600",
+              },
+            ];
+            return (
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-5 overflow-hidden">
+                <div className="p-6 pb-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Aging Breakdown
+                    </p>
+                    <p className="text-[11px] font-semibold text-slate-400">
+                      By overdue balance
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 h-2.5">
+                    {segTotal > 0 ? (
+                      segs.map((s, i) => (
+                        <div
+                          key={i}
+                          className="h-full rounded-full"
+                          style={{ width: `${(s.amount / segTotal) * 100}%`, background: s.color }}
+                        />
+                      ))
+                    ) : (
+                      <div className="h-full w-full rounded-full bg-slate-100 dark:bg-slate-700" />
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 border-t border-slate-100 dark:border-slate-700 divide-x divide-slate-100 dark:divide-slate-700">
+                  {cols.map((c, i) => (
+                    <div key={i} className="p-5">
+                      <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        <span className="w-2 h-2 rounded-full" style={{ background: c.dot }} />
+                        {c.label}
+                      </p>
+                      <p
+                        className={`text-3xl font-extrabold tracking-tight mt-2 ${c.numCls}`}
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {c.count}
+                      </p>
+                      <p className={`text-xs font-semibold mt-1.5 ${c.subCls}`}>{c.sub}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl shadow-md p-6">
-              <p className="text-yellow-700 text-sm uppercase font-semibold">
-                1-7 Days Late
-              </p>
-              <p className="text-3xl font-bold mt-2 text-yellow-800">
-                {sb?.days_1_to_7?.count ?? 0}
-              </p>
-              <p className="text-yellow-700 text-sm mt-2">
-                {KES(sb?.days_1_to_7?.amount)}
-              </p>
-            </div>
-
-            <div className="bg-orange-50 border border-orange-200 rounded-xl shadow-md p-6">
-              <p className="text-orange-700 text-sm uppercase font-semibold">
-                8-30 Days Late
-              </p>
-              <p className="text-3xl font-bold mt-2 text-orange-800">
-                {sb?.days_8_to_30?.count ?? 0}
-              </p>
-              <p className="text-orange-700 text-sm mt-2">
-                {KES(sb?.days_8_to_30?.amount)}
-              </p>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 rounded-xl shadow-md p-6">
-              <p className="text-red-700 text-sm uppercase font-semibold">
-                30+ Days Late
-              </p>
-              <p className="text-3xl font-bold mt-2 text-red-800">
-                {card30PlusCount}
-              </p>
-              <p className="text-red-700 text-sm mt-2">
-                {KES(card30PlusAmount)}
-              </p>
-            </div>
-          </div>
-
-          {/* Penalty policy explainer */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 flex items-start gap-2 text-sm text-amber-800">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          {/* Penalty policy — subtle one-liner */}
+          <div className="flex items-start gap-2 px-1 mb-6 text-[13px] text-slate-500 dark:text-slate-400">
+            <Info size={15} className="mt-0.5 shrink-0 text-slate-400" />
             <p>
-              <span className="font-semibold">Late penalty:</span> a flat
-              late-payment fee per missed installment plus a penalty interest
-              charged per month on the overdue balance (default KES 500 + 5% per
-              month). The <span className="font-semibold">Penalty</span> column
-              shows the running charge per loan — expand a loan to see the
-              breakdown per installment.
+              Penalty = flat <span className="font-semibold text-slate-700 dark:text-slate-200">KES 500</span> per
+              missed instalment + <span className="font-semibold text-slate-700 dark:text-slate-200">5% / month</span>{" "}
+              on the overdue balance.{" "}
+              <button
+                onClick={() => navigate("/loan-settings")}
+                className="font-semibold text-ocean-600 hover:text-ocean-700 transition"
+              >
+                See how penalties work →
+              </button>
             </p>
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-[220px]">
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none flex items-center">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center">
                     <Search size={16} />
                   </span>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by client name, phone, or loan code..."
-                    className="w-full pl-9 pr-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none dark:bg-slate-900 dark:text-slate-100"
+                    placeholder="Search by client, phone, or loan code…"
+                    className="w-full pl-11 pr-3 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:border-ocean-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition dark:text-slate-100 placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
-              <select
-                value={severityFilter}
-                onChange={(e) => setSeverityFilter(e.target.value)}
-                className="px-4 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none bg-white dark:bg-slate-900 font-semibold text-gray-700 dark:text-slate-100"
-              >
-                {RANGE_FILTERS.map((f) => (
-                  <option key={f.key} value={f.key}>
-                    {f.label} ({rangeCounts[f.key]})
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={severityFilter}
+                  onChange={(e) => setSeverityFilter(e.target.value)}
+                  className="appearance-none pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-100 focus:border-ocean-500 focus:outline-none transition cursor-pointer"
+                >
+                  {RANGE_FILTERS.map((f) => (
+                    <option key={f.key} value={f.key}>
+                      {f.label} ({rangeCounts[f.key]})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                />
+              </div>
 
               {filtersActive && (
                 <button
                   onClick={clearFilters}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition"
+                  className="inline-flex items-center gap-1.5 px-4 py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm"
                 >
                   <X size={15} /> Clear
                 </button>
@@ -909,20 +985,20 @@ function Overdue() {
                 cover the 90% case (this week / last week / this
                 month / last month); custom From/To stays for one-
                 off windows. */}
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex flex-wrap items-end gap-3">
+            <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-end gap-3">
               <div>
-                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-1.5">
                   Due From
                 </label>
                 <input
                   type="date"
                   value={periodFrom}
                   onChange={(e) => setPeriodFrom(e.target.value)}
-                  className="px-3 py-1.5 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none text-sm dark:bg-slate-900 dark:text-slate-100"
+                  className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-ocean-500 focus:outline-none text-sm dark:text-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-1.5">
                   Due To
                 </label>
                 <input
@@ -930,10 +1006,10 @@ function Overdue() {
                   value={periodTo}
                   onChange={(e) => setPeriodTo(e.target.value)}
                   min={periodFrom || undefined}
-                  className="px-3 py-1.5 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-red-500 focus:outline-none text-sm dark:bg-slate-900 dark:text-slate-100"
+                  className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-ocean-500 focus:outline-none text-sm dark:text-slate-100"
                 />
               </div>
-              <div className="flex flex-wrap gap-1.5 ml-auto">
+              <div className="flex flex-wrap items-center gap-1 ml-auto bg-slate-100 dark:bg-slate-700/60 rounded-xl p-1">
                 {periodPresets.map((p) => (
                   <button
                     key={p.key}
@@ -941,28 +1017,28 @@ function Overdue() {
                       setPeriodFrom(p.from);
                       setPeriodTo(p.to);
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                    className={`px-3.5 py-2 text-xs font-bold rounded-lg transition ${
                       matchedPreset?.key === p.key
-                        ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
+                        ? "bg-navy-900 text-white shadow-sm"
+                        : "text-slate-500 dark:text-slate-300 hover:text-navy-900 dark:hover:text-white"
                     }`}
                   >
                     {p.label}
                   </button>
                 ))}
-                {(periodFrom || periodTo) && (
-                  <button
-                    onClick={() => {
-                      setPeriodFrom("");
-                      setPeriodTo("");
-                    }}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 inline-flex items-center gap-1 transition"
-                    title="Show all overdue, ignore the date window"
-                  >
-                    <X size={12} /> Clear period
-                  </button>
-                )}
               </div>
+              {(periodFrom || periodTo) && (
+                <button
+                  onClick={() => {
+                    setPeriodFrom("");
+                    setPeriodTo("");
+                  }}
+                  className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 inline-flex items-center gap-1 transition"
+                  title="Show all overdue, ignore the date window"
+                >
+                  <X size={12} /> Clear period
+                </button>
+              )}
             </div>
 
             {/* Active filter tags */}
