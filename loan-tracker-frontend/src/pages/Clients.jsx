@@ -182,7 +182,11 @@ function Clients() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  // Seed from a `?q=` param so the global topbar search (Layout) can deep-link
+  // straight into a filtered client list.
+  const [searchTerm, setSearchTerm] = useState(
+    () => new URLSearchParams(window.location.search).get("q") || "",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 

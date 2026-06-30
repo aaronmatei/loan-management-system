@@ -25,7 +25,7 @@ import {
   Vote,
   BookOpen,
 } from "lucide-react";
-import IconTile from "../../components/IconTile";
+import NavIcon from "../../components/NavIcon";
 import PortalNotificationBell from "./PortalNotificationBell";
 
 // Shared shell for the authenticated portal pages. The portal is a single
@@ -146,13 +146,6 @@ function PortalLayout({ children }) {
       ? location.pathname === item.path
       : location.pathname.startsWith(item.path);
 
-  const linkClass = (active) =>
-    `flex items-center gap-3 px-3 py-2 rounded-xl transition ${
-      active
-        ? "bg-ocean-gradient text-white font-semibold shadow-tile"
-        : "text-ocean-100/80 hover:bg-white/5 hover:text-white"
-    }`;
-
   return (
     <div className="flex h-screen bg-app-bg">
       {sidebarOpen && (
@@ -191,21 +184,23 @@ function PortalLayout({ children }) {
           <ul className="space-y-1">
             {buildMenu().map((item) => {
               const active = isActive(item);
-              const Icon = item.icon;
               return (
                 <li key={item.path}>
-                  <Link to={item.path} className={linkClass(active)}>
-                    {active ? (
-                      <span
-                        className="flex items-center justify-center rounded-lg bg-white/20 shrink-0"
-                        style={{ width: 26, height: 26 }}
-                      >
-                        <Icon size={14} color="#fff" strokeWidth={2.2} />
-                      </span>
-                    ) : (
-                      <IconTile icon={Icon} variant={item.variant} size={26} />
-                    )}
-                    <span className="flex-1 text-sm">{item.label}</span>
+                  <Link
+                    to={item.path}
+                    className="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm transition hover:bg-white/[0.04]"
+                    style={{
+                      color: active ? "#fff" : "#aebfb8",
+                      fontWeight: active ? 700 : 600,
+                      background: active ? "rgba(22,163,122,.16)" : "transparent",
+                    }}
+                  >
+                    <NavIcon
+                      icon={item.icon}
+                      variant={item.variant}
+                      active={active}
+                    />
+                    <span className="flex-1">{item.label}</span>
                   </Link>
                 </li>
               );

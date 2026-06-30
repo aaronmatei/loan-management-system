@@ -12,7 +12,7 @@ import {
   Globe,
   MessageSquare,
 } from "lucide-react";
-import IconTile from "../../components/IconTile";
+import NavIcon from "../../components/NavIcon";
 
 const MENU = [
   { path: "/admin/dashboard", label: "Overview", icon: LayoutDashboard, variant: "ocean" },
@@ -98,29 +98,24 @@ function PlatformLayout({ children }) {
             <ul className="space-y-1">
               {MENU.map((item) => {
                 const active = location.pathname === item.path;
-                const Icon = item.icon;
                 return (
                   <li key={item.path}>
                     <Link
                       to={item.path}
                       onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl transition ${
-                        active
-                          ? "bg-ocean-gradient font-semibold shadow-tile text-white"
-                          : "text-ocean-100/80 hover:bg-white/5 hover:text-white"
-                      }`}
+                      className="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm transition hover:bg-white/[0.04]"
+                      style={{
+                        color: active ? "#fff" : "#aebfb8",
+                        fontWeight: active ? 700 : 600,
+                        background: active ? "rgba(22,163,122,.16)" : "transparent",
+                      }}
                     >
-                      {active ? (
-                        <span
-                          className="flex items-center justify-center rounded-xl bg-white/20 shrink-0"
-                          style={{ width: 32, height: 32 }}
-                        >
-                          <Icon size={16} color="#fff" strokeWidth={2.2} />
-                        </span>
-                      ) : (
-                        <IconTile icon={Icon} variant={item.variant} size={32} />
-                      )}
-                      <span className="text-sm">{item.label}</span>
+                      <NavIcon
+                        icon={item.icon}
+                        variant={item.variant}
+                        active={active}
+                      />
+                      <span className="flex-1">{item.label}</span>
                     </Link>
                   </li>
                 );

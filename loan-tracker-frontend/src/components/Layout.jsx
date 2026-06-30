@@ -5,47 +5,39 @@ import {
   LayoutDashboard,
   TrendingUp,
   Users,
-  UsersRound,
   Coins,
   CalendarCheck,
   Smartphone,
   Gem,
   Gavel,
   ClipboardList,
-  Wallet,
-  CreditCard,
   AlertTriangle,
   BarChart3,
   ScrollText,
   MessageSquare,
-  Mail,
   Gift,
-  Palette,
-  Code2,
   UserCog,
-  Database,
   Settings,
   Receipt,
   FileText,
-  Zap,
   ChevronRight,
   LogOut,
   X,
   HandCoins,
   HeartHandshake,
   LifeBuoy,
-  Handshake,
-  AlertOctagon,
-  Scale,
   BookOpen,
-  SlidersHorizontal,
+  Rocket,
+  Plus,
+  Minus,
+  Search,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import { hasPermission, getRoleBadge } from "../utils/permissions";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
-import IconTile from "./IconTile";
+import NavIcon, { accentOf } from "./NavIcon";
 
 // ── Sidebar nav data ────────────────────────────────────────────────
 // Standalone items render at the top of the nav, ungrouped. Everything
@@ -64,29 +56,46 @@ const standaloneItems = [
   { path: "/clients", label: "Clients", icon: Users, variant: "ocean", permission: "clients:view" },
 ];
 
+// Each GROUP now carries its own `icon` + accent `variant` (the design's
+// round, hue-per-group icon circles). A group's `items` are a mix of:
+//   • leaves — { path, label, ... } render as a dot + label
+//   • sub-groups — { id, label, items: [...] } render as a collapsible
+//     +/- row whose leaves nest under a left rail.
+// This is the "regrouping" from the Loan Console design: the Loans workflow
+// splits into Applications / Loan Book / Repayments instead of one flat list.
 const navGroups = [
   {
-    // LOANS = origination → collection workflow, top to bottom:
-    //   Applications (intake) → Loans (book) → Payments (cash in) →
-    //   Overdue (chase) → Waivers (forgive) → Promises (commit to pay).
-    // Reads like a loan's lifecycle, which matches how a loan officer
-    // moves through their day.
+    // LOANS = origination → collection workflow, grouped by stage:
+    //   Applications (intake) → Loan Book (the book) → Repayments (cash in).
     id: "loans",
     label: "Loans",
     variant: "ocean",
+    icon: HandCoins,
     items: [
-      { path: "/applications", label: "Applications", icon: ClipboardList, permission: "loans:view" },
-      { path: "/loans", label: "Loans", icon: Wallet, permission: "loans:view" },
-      { path: "/payments", label: "Payments", icon: CreditCard, permission: "payments:view" },
-      // badgeKey lets renderItem read the live count (overdueCount) without
-      // baking a number into the static config.
-      { path: "/overdue", label: "Overdue", icon: AlertTriangle, permission: "overdue:view", badgeKey: "overdue" },
-      { path: "/defaulted", label: "Defaulted", icon: AlertOctagon, permission: "loans:view" },
-      { path: "/waivers", label: "Waivers", icon: HandCoins, roles: ["admin"], badgeKey: "pendingWaivers" },
-      { path: "/promises", label: "Promises to Pay", icon: Handshake, permission: "loans:view" },
+      { path: "/applications", label: "Applications", permission: "loans:view" },
+      {
+        id: "loanbook",
+        label: "Loan Book",
+        items: [
+          { path: "/loans", label: "All Loans", permission: "loans:view" },
+          // badgeKey lets the renderer read the live count (overdueCount)
+          // without baking a number into the static config.
+          { path: "/overdue", label: "Overdue", permission: "overdue:view", badgeKey: "overdue" },
+          { path: "/defaulted", label: "Defaulted", permission: "loans:view" },
+        ],
+      },
+      {
+        id: "repay",
+        label: "Repayments",
+        items: [
+          { path: "/payments", label: "Payments", permission: "payments:view" },
+          { path: "/waivers", label: "Waivers", roles: ["admin"], badgeKey: "pendingWaivers" },
+          { path: "/promises", label: "Promises to Pay", permission: "loans:view" },
+        ],
+      },
       // Loan policy + packages — config for the LOANS workflow,
       // separated from /settings (company / payment details).
-      { path: "/loan-settings", label: "Loan Settings", icon: SlidersHorizontal, roles: ["admin"] },
+      { path: "/loan-settings", label: "Loan Settings", roles: ["admin"] },
     ],
   },
   {
@@ -95,59 +104,64 @@ const navGroups = [
     // Available to every lender (collateral is a loan type, not a vertical).
     id: "collateral",
     label: "Collateral",
-    variant: "ocean",
+    variant: "emerald",
+    icon: Gem,
     items: [
-      { path: "/pawn/pledges", label: "Pledges", icon: Gem, permission: "loans:view" },
-      { path: "/pawn/requests", label: "Requests", icon: ClipboardList, permission: "loans:view" },
-      { path: "/pawn/auctions", label: "Auctions", icon: Gavel, permission: "loans:view" },
-      { path: "/pawn/accounting", label: "Accounting", icon: Receipt, roles: ["admin", "manager"] },
-      { path: "/pawn/settings", label: "Collateral Settings", icon: SlidersHorizontal, roles: ["admin"] },
+      { path: "/pawn/pledges", label: "Pledges", permission: "loans:view" },
+      { path: "/pawn/requests", label: "Requests", permission: "loans:view" },
+      { path: "/pawn/auctions", label: "Auctions", permission: "loans:view" },
+      { path: "/pawn/accounting", label: "Accounting", roles: ["admin", "manager"] },
+      { path: "/pawn/settings", label: "Collateral Settings", roles: ["admin"] },
     ],
   },
   {
     id: "insights",
     label: "Insights",
     variant: "indigo",
+    icon: TrendingUp,
     items: [
-      { path: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view" },
-      { path: "/books", label: "Books of Accounts", icon: BookOpen, permission: "reports:view" },
-      { path: "/analytics", label: "Analytics", icon: TrendingUp, permission: "dashboard:view" },
-      { path: "/reconciliation", label: "Reconciliation", icon: Scale, permission: "reports:view" },
+      { path: "/reports", label: "Reports", permission: "reports:view" },
+      { path: "/books", label: "Books of Accounts", permission: "reports:view" },
+      { path: "/analytics", label: "Analytics", permission: "dashboard:view" },
+      { path: "/reconciliation", label: "Reconciliation", permission: "reports:view" },
     ],
   },
   {
     id: "communications",
     label: "Communications",
     variant: "teal",
+    icon: MessageSquare,
     items: [
-      { path: "/sms", label: "SMS", icon: MessageSquare, permission: "sms:send" },
-      { path: "/email", label: "Email", icon: Mail, permission: "email:send" },
-      { path: "/automation", label: "Automation", icon: Zap, roles: ["admin", "manager"] },
+      { path: "/sms", label: "SMS", permission: "sms:send" },
+      { path: "/email", label: "Email", permission: "email:send" },
+      { path: "/automation", label: "Automation", roles: ["admin", "manager"] },
     ],
   },
   {
     id: "growth",
     label: "Growth",
     variant: "rose",
+    icon: Rocket,
     items: [
-      { path: "/referrals", label: "Refer & Earn", icon: Gift, roles: ["admin"] },
-      { path: "/white-label", label: "White Label", icon: Palette, roles: ["admin"] },
-      { path: "/embed", label: "Embed Widget", icon: Code2, roles: ["admin"] },
+      { path: "/referrals", label: "Refer & Earn", roles: ["admin"] },
+      { path: "/white-label", label: "White Label", roles: ["admin"] },
+      { path: "/embed", label: "Embed Widget", roles: ["admin"] },
     ],
   },
   {
     id: "account",
     label: "Account",
     variant: "amber",
+    icon: Settings,
     items: [
-      { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
-      { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["admin", "manager"] },
-      { path: "/billing", label: "Platform Invoices", icon: FileText, roles: ["admin", "manager"] },
+      { path: "/users", label: "Users", roles: ["admin"] },
+      { path: "/expenses", label: "Expenses", roles: ["admin", "manager"] },
+      { path: "/billing", label: "Platform Invoices", roles: ["admin", "manager"] },
       // Audit Log is a compliance/security surface, not an analytical
       // one — sits closer to Users / Settings than to Reports / Analytics.
-      { path: "/audit", label: "Audit Log", icon: ScrollText, permission: "audit:view" },
-      { path: "/backup", label: "Backup", icon: Database, roles: ["admin"] },
-      { path: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
+      { path: "/audit", label: "Audit Log", permission: "audit:view" },
+      { path: "/backup", label: "Backup", roles: ["admin"] },
+      { path: "/settings", label: "Settings", roles: ["admin"] },
     ],
   },
 ];
@@ -165,6 +179,7 @@ const WELFARE_GROUPS = [
     id: "w-contributions",
     label: "Contributions & Payouts",
     variant: "ocean",
+    icon: Coins,
     items: [
       { path: "/welfare/contributions", label: "Contributions", icon: Coins, permission: "loans:view" },
       { path: "/welfare/events", label: "Events", icon: HeartHandshake, permission: "loans:view" },
@@ -176,6 +191,7 @@ const WELFARE_GROUPS = [
     id: "w-money-requests",
     label: "Money Requests",
     variant: "amber",
+    icon: HandCoins,
     // "Loans" only shows when the welfare's loans switch is on; the group label
     // stays accurate ("Money Requests" = loan/withdrawal requests) either way.
     items: [
@@ -187,6 +203,7 @@ const WELFARE_GROUPS = [
     id: "w-governance",
     label: "Governance",
     variant: "indigo",
+    icon: Gavel,
     items: [
       { path: "/welfare/meetings", label: "Meetings", icon: CalendarCheck, permission: "loans:view" },
       { path: "/welfare/decisions", label: "Decisions", icon: Gavel, permission: "loans:view" },
@@ -198,6 +215,7 @@ const WELFARE_GROUPS = [
     id: "w-finance",
     label: "Finance & Reports",
     variant: "teal",
+    icon: BarChart3,
     items: [
       { path: "/welfare/mpesa", label: "M-Pesa", icon: Smartphone, permission: "loans:view" },
       { path: "/welfare/expenses", label: "Expenses", icon: Receipt, permission: "loans:view" },
@@ -209,6 +227,7 @@ const WELFARE_GROUPS = [
     id: "w-comms",
     label: "Communications",
     variant: "rose",
+    icon: MessageSquare,
     items: [
       { path: "/welfare/sms", label: "SMS", icon: MessageSquare, permission: "loans:view" },
     ],
@@ -216,7 +235,8 @@ const WELFARE_GROUPS = [
   {
     id: "account",
     label: "Account",
-    variant: "ocean",
+    variant: "amber",
+    icon: Settings,
     items: [
       { path: "/welfare/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
       { path: "/users", label: "Users", icon: UserCog, roles: ["admin"] },
@@ -227,6 +247,7 @@ const WELFARE_GROUPS = [
 ];
 
 const STORAGE_KEY = "sidebar_expanded_groups";
+const STORAGE_KEY_SUB = "sidebar_expanded_subs";
 
 const itemVisible = (item, role) => {
   if (item.permission) return hasPermission(role, item.permission);
@@ -234,11 +255,20 @@ const itemVisible = (item, role) => {
   return true;
 };
 
+// A group item is a sub-group if it carries its own `items` array; otherwise
+// it's a leaf with a `path`. Flatten a group's items (leaves + sub-group
+// leaves) into a single list of leaf paths — used for active-group detection
+// and page-title lookup so a route nested in a sub-group still resolves.
+const isSubGroup = (it) => Array.isArray(it.items);
+const flattenLeaves = (items) =>
+  items.flatMap((it) => (isSubGroup(it) ? it.items : [it]));
+
 function Layout({ children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [topSearch, setTopSearch] = useState("");
   const [overdueCount, setOverdueCount] = useState(0);
   const [pendingWaivers, setPendingWaivers] = useState(0);
   // Welfare master Loans switch — drives whether the welfare nav shows the Loans
@@ -309,10 +339,10 @@ function Layout({ children }) {
 
   // Which group contains the current page (or null if we're on a
   // standalone route or off-menu). Drives auto-expand on first paint
-  // and on every navigation.
+  // and on every navigation. Looks through sub-groups too.
   const activeGroupId = (() => {
     for (const g of navGroups) {
-      if (g.items.some((it) => isActive(it.path))) return g.id;
+      if (flattenLeaves(g.items).some((it) => isActive(it.path))) return g.id;
     }
     return null;
   })();
@@ -324,16 +354,18 @@ function Layout({ children }) {
   const baseGroups = kind === "welfare" ? WELFARE_GROUPS : navGroups;
 
   // Role-filtered: drop items the user can't see, and drop empty
-  // groups so their headers don't render at all.
-  const visibleStandalone = baseStandalone
-    .filter((it) => itemVisible(it, user?.role))
-    .filter((it) => !it.requiresLoans || welfareLoansOn); // hide Loans when the switch is off
+  // groups (and empty sub-groups) so their headers don't render at all.
+  const leafVisible = (it) =>
+    itemVisible(it, user?.role) && (!it.requiresLoans || welfareLoansOn); // hide Loans when the switch is off
+  const visibleStandalone = baseStandalone.filter(leafVisible);
   const visibleGroups = baseGroups
     .map((g) => ({
       ...g,
       items: g.items
-        .filter((it) => itemVisible(it, user?.role))
-        .filter((it) => !it.requiresLoans || welfareLoansOn), // hide Loans when the switch is off
+        .map((it) =>
+          isSubGroup(it) ? { ...it, items: it.items.filter(leafVisible) } : it,
+        )
+        .filter((it) => (isSubGroup(it) ? it.items.length > 0 : leafVisible(it))),
     }))
     .filter((g) => g.items.length > 0);
 
@@ -372,6 +404,44 @@ function Layout({ children }) {
   const toggleGroup = (id) =>
     setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  // Second-level (sub-group) expand state — e.g. Loan Book / Repayments inside
+  // Loans. Same persistence + auto-open-active behaviour as the top groups.
+  const activeSubId = (() => {
+    for (const g of navGroups) {
+      for (const it of g.items) {
+        if (isSubGroup(it) && it.items.some((l) => isActive(l.path))) return it.id;
+      }
+    }
+    return null;
+  })();
+  const [expandedSubs, setExpandedSubs] = useState(() => {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY_SUB) || "{}");
+    } catch {
+      saved = {};
+    }
+    // Loan Book opens by default (matches the design's resting state).
+    if (saved.loanbook === undefined) saved.loanbook = true;
+    if (activeSubId) saved[activeSubId] = true;
+    return saved;
+  });
+  useEffect(() => {
+    if (!activeSubId) return;
+    setExpandedSubs((prev) =>
+      prev[activeSubId] ? prev : { ...prev, [activeSubId]: true },
+    );
+  }, [activeSubId]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SUB, JSON.stringify(expandedSubs));
+    } catch {
+      /* quota / private-mode — non-fatal */
+    }
+  }, [expandedSubs]);
+  const toggleSub = (id) =>
+    setExpandedSubs((prev) => ({ ...prev, [id]: !prev[id] }));
+
   const roleBadge = getRoleBadge(user?.role);
 
   // Close the mobile drawer whenever the route changes
@@ -382,7 +452,7 @@ function Layout({ children }) {
   const getCurrentPageTitle = () => {
     const all = [
       ...visibleStandalone,
-      ...visibleGroups.flatMap((g) => g.items),
+      ...visibleGroups.flatMap((g) => flattenLeaves(g.items)),
     ];
     const current = all.find((it) => isActive(it.path, it.exact));
     if (current) return current.label;
@@ -396,54 +466,122 @@ function Layout({ children }) {
     logout();
   };
 
-  // ── Render helpers ─────────────────────────────────────────────────
-  // Ocean active pill (gradient + glow) vs transparent inactive on navy.
-  // `indent` slips grouped items over one notch for hierarchy.
-  const linkClass = (active) =>
-    `flex items-center gap-3 px-3 py-2 rounded-xl transition ${
-      active
-        ? "bg-ocean-gradient text-white font-semibold shadow-tile"
-        : "text-ocean-100/80 hover:bg-white/5 hover:text-white"
-    }`;
+  // Topbar global search → deep-links into the Clients directory (which seeds
+  // its filter from `?q=`). Lender console only.
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const q = topSearch.trim();
+    navigate(q ? `/clients?q=${encodeURIComponent(q)}` : "/clients");
+  };
+  // The design's topbar search + "Record Payment" action belong to the lender
+  // console; a welfare tenant has neither /clients nor /payments.
+  const showConsoleActions = kind !== "welfare";
+  const canRecordPayment = hasPermission(user?.role, "payments:view");
 
-  const renderItem = (item, indent = false, variant = "ocean") => {
+  // ── Render helpers ─────────────────────────────────────────────────
+  // The Loan Console design's dark-sidebar palette doesn't map cleanly to
+  // Tailwind tokens, so the exact hues are inlined here. Top rows (standalone
+  // leaves + group headers) get an accent icon circle; leaves get a dot.
+  const badgeFor = (item) =>
+    item.badgeKey === "overdue"
+      ? overdueCount
+      : item.badgeKey === "pendingWaivers"
+        ? pendingWaivers
+        : item.badgeKey === "welfareRequests"
+          ? welfareRequests
+          : item.badge ?? 0;
+
+  const Badge = ({ n }) =>
+    n > 0 ? (
+      <span
+        className="text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full min-w-[1.4rem] text-center leading-tight shrink-0"
+        style={{ background: "#ef4d77" }}
+      >
+        {n}
+      </span>
+    ) : null;
+
+  // Standalone top-level leaf (Dashboard, Clients).
+  const renderTopLeaf = (item) => {
     const active = isActive(item.path, item.exact);
-    const badge =
-      item.badgeKey === "overdue"
-        ? overdueCount
-        : item.badgeKey === "pendingWaivers"
-          ? pendingWaivers
-          : item.badgeKey === "welfareRequests"
-            ? welfareRequests
-            : item.badge ?? 0;
-    const Icon = item.icon;
     return (
       <li key={item.path}>
         <Link
           to={item.path}
-          className={`${linkClass(active)} ${indent ? "ml-1" : ""}`}
+          className="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm transition hover:bg-white/[0.04]"
+          style={{
+            color: active ? "#fff" : "#aebfb8",
+            fontWeight: active ? 700 : 600,
+            background: active ? "rgba(22,163,122,.16)" : "transparent",
+          }}
         >
-          {active ? (
-            // On the gradient pill, a translucent-white tile reads cleaner
-            // than a second gradient. Tile size + icon size kept in lock-
-            // step with IconTile's 0.5-of-size scaling so the active and
-            // inactive states look identical apart from the gradient.
-            <span
-              className="flex items-center justify-center rounded-xl bg-white/20 shrink-0"
-              style={{ width: 26, height: 26 }}
-            >
-              {Icon && <Icon size={13} color="#fff" strokeWidth={2.2} />}
-            </span>
-          ) : (
-            <IconTile icon={Icon} variant={item.variant || variant} size={26} />
-          )}
-          <span className="flex-1 text-sm">{item.label}</span>
-          {badge > 0 && (
-            <span className="bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">
-              {badge}
-            </span>
-          )}
+          <NavIcon icon={item.icon} variant={item.variant} active={active} />
+          <span className="flex-1">{item.label}</span>
+          <Badge n={badgeFor(item)} />
         </Link>
+      </li>
+    );
+  };
+
+  // Leaf inside a group / sub-group — accent dot + label. `nested` drops the
+  // deep indent because the sub-group's left rail already supplies it.
+  const renderLeaf = (item, accent, nested = false) => {
+    const active = isActive(item.path, item.exact);
+    return (
+      <li key={item.path}>
+        <Link
+          to={item.path}
+          className={`flex items-center gap-3 rounded-[10px] py-[7px] pr-3 text-[13px] transition hover:bg-white/[0.04] ${
+            nested ? "pl-3" : "pl-[46px]"
+          }`}
+          style={{
+            color: active ? accent : "#90a59d",
+            fontWeight: active ? 700 : 500,
+            background: active ? accent + "1f" : "transparent",
+          }}
+        >
+          <span
+            className="shrink-0 rounded-full"
+            style={{ width: 5, height: 5, background: active ? accent : "#5f7a71" }}
+          />
+          <span className="flex-1">{item.label}</span>
+          <Badge n={badgeFor(item)} />
+        </Link>
+      </li>
+    );
+  };
+
+  // Sub-group inside a group (Loan Book / Repayments) — collapsible +/- row
+  // whose leaves nest under a left rail.
+  const renderSubGroup = (sub, accent) => {
+    const open = !!expandedSubs[sub.id];
+    const hasActive = sub.items.some((l) => isActive(l.path));
+    return (
+      <li key={sub.id}>
+        <button
+          type="button"
+          onClick={() => toggleSub(sub.id)}
+          aria-expanded={open}
+          className="w-full flex items-center gap-2 rounded-[10px] pl-[46px] pr-3 py-[7px] text-[13px] font-semibold transition hover:bg-white/[0.04]"
+          style={{ color: open || hasActive ? "#cfe0d9" : "#90a59d" }}
+        >
+          <span className="flex-1 text-left">{sub.label}</span>
+          <span
+            className="flex items-center justify-center rounded-[5px] shrink-0"
+            style={{ width: 18, height: 18, background: "rgba(255,255,255,.08)", color: "#9fc7b8" }}
+          >
+            {open ? <Minus size={11} /> : <Plus size={11} />}
+          </span>
+        </button>
+        <div
+          className={`overflow-hidden transition-all duration-200 ${
+            open ? "max-h-[320px] opacity-100 mt-0.5" : "max-h-0 opacity-0"
+          }`}
+        >
+          <ul className="space-y-0.5 ml-[46px] pl-1 border-l border-white/10">
+            {sub.items.map((l) => renderLeaf(l, accent, true))}
+          </ul>
+        </div>
       </li>
     );
   };
@@ -483,51 +621,72 @@ function Layout({ children }) {
             </button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto p-4">
-            {/* Standalone (Dashboard) */}
-            <ul className="space-y-1">
-              {visibleStandalone.map((it) => renderItem(it))}
+          <nav className="flex-1 overflow-y-auto p-3">
+            {/* Standalone (Dashboard, Clients) */}
+            <ul className="space-y-0.5">
+              {visibleStandalone.map((it) => renderTopLeaf(it))}
             </ul>
 
-            {/* Collapsible groups */}
-            {visibleGroups.map((g) => {
-              const isExpanded = !!expandedGroups[g.id];
-              const hasActive = g.items.some((it) => isActive(it.path));
-              return (
-                <div key={g.id} className="pt-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(g.id)}
-                    aria-expanded={isExpanded}
-                    aria-controls={`navgroup-${g.id}`}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition ${
-                      hasActive ? "text-ocean-300" : "text-ocean-300/50"
-                    } hover:text-ocean-200`}
-                  >
-                    <span>{g.label}</span>
-                    <ChevronRight
-                      size={14}
-                      className={`transition-transform duration-200 ${
-                        isExpanded ? "rotate-90" : ""
+            {/* Collapsible groups — accent icon circle + caret */}
+            <div className="mt-1.5 space-y-0.5">
+              {visibleGroups.map((g) => {
+                const isExpanded = !!expandedGroups[g.id];
+                const hasActive = flattenLeaves(g.items).some((it) =>
+                  isActive(it.path),
+                );
+                const accent = accentOf(g.variant);
+                return (
+                  <div key={g.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(g.id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`navgroup-${g.id}`}
+                      className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm transition hover:bg-white/[0.04]"
+                      style={{
+                        color: hasActive ? "#eaf3ef" : "#aebfb8",
+                        fontWeight: hasActive ? 700 : 600,
+                        background:
+                          hasActive && !isExpanded
+                            ? "rgba(255,255,255,.05)"
+                            : "transparent",
+                      }}
+                    >
+                      <NavIcon
+                        icon={g.icon}
+                        variant={g.variant}
+                        active={isExpanded || hasActive}
+                      />
+                      <span className="flex-1 text-left">{g.label}</span>
+                      <ChevronRight
+                        size={14}
+                        className={`transition-transform duration-200 ${
+                          isExpanded ? "rotate-90" : ""
+                        }`}
+                        style={{ color: "#6f8a81" }}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <div
+                      id={`navgroup-${g.id}`}
+                      className={`overflow-hidden transition-all duration-200 ${
+                        isExpanded
+                          ? "max-h-[600px] opacity-100 mt-0.5"
+                          : "max-h-0 opacity-0"
                       }`}
-                      aria-hidden="true"
-                    />
-                  </button>
-                  <div
-                    id={`navgroup-${g.id}`}
-                    className={`overflow-hidden transition-all duration-200 ${
-                      isExpanded
-                        ? "max-h-[500px] opacity-100 mt-1"
-                        : "max-h-0 opacity-0"
-                    }`}
-                  >
-                    <ul className="space-y-1">
-                      {g.items.map((it) => renderItem(it, true, g.variant))}
-                    </ul>
+                    >
+                      <ul className="space-y-0.5">
+                        {g.items.map((it) =>
+                          isSubGroup(it)
+                            ? renderSubGroup(it, accent)
+                            : renderLeaf(it, accent),
+                        )}
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </nav>
 
           <div className="p-4 border-t border-white/10 bg-navy-950/40">
@@ -585,12 +744,41 @@ function Layout({ children }) {
             </div>
           </header>
 
-          {/* Desktop top bar (notification bell) */}
-          <header className="hidden lg:flex bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
-            <div className="flex-1 flex items-center justify-end gap-1 px-8 py-3">
-              <ThemeToggle />
-              <NotificationBell />
-            </div>
+          {/* Desktop top bar — page title · search · primary action · bell */}
+          <header className="hidden lg:flex items-center gap-4 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm px-6 py-3">
+            <h1 className="text-[17px] font-extrabold tracking-tight text-navy-900 dark:text-slate-100 truncate min-w-0">
+              {getCurrentPageTitle()}
+            </h1>
+            <div className="flex-1" />
+            {showConsoleActions && (
+              <form
+                onSubmit={submitSearch}
+                className="hidden xl:flex items-center gap-2 bg-gray-100 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl px-3 py-2 w-72"
+              >
+                <Search
+                  size={16}
+                  className="text-gray-400 dark:text-slate-400 shrink-0"
+                />
+                <input
+                  value={topSearch}
+                  onChange={(e) => setTopSearch(e.target.value)}
+                  placeholder="Search clients, loans, IDs…"
+                  className="bg-transparent outline-none text-sm w-full text-navy-900 dark:text-slate-100 placeholder:text-gray-400"
+                  aria-label="Search clients"
+                />
+              </form>
+            )}
+            {showConsoleActions && canRecordPayment && (
+              <button
+                onClick={() => navigate("/payments")}
+                className="flex items-center gap-1.5 bg-ocean-gradient text-white rounded-xl px-4 py-2 text-sm font-bold shadow-tile hover:brightness-105 transition"
+              >
+                <Plus size={16} strokeWidth={2.5} /> Record Payment
+              </button>
+            )}
+            <div className="w-px h-7 bg-gray-200 dark:bg-slate-600" />
+            <ThemeToggle />
+            <NotificationBell />
           </header>
 
           <main className="flex-1 overflow-auto">{children}</main>

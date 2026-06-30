@@ -40,7 +40,7 @@ import {
 } from "recharts";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import IconTile from "../components/IconTile";
+import NavIcon from "../components/NavIcon";
 import PeriodNavigator, {
   periodToRange,
   usePersistentPeriod,
@@ -789,7 +789,7 @@ function Dashboard() {
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Total Portfolio
             </p>
-            <IconTile icon={Wallet} variant="ocean" size={40} />
+            <NavIcon icon={Wallet} variant="ocean" size={40} />
           </div>
           <p
             className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2"
@@ -808,7 +808,7 @@ function Dashboard() {
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Receivable
             </p>
-            <IconTile icon={Coins} variant="amber" size={40} />
+            <NavIcon icon={Coins} variant="amber" size={40} />
           </div>
           <p
             className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2"
@@ -828,7 +828,7 @@ function Dashboard() {
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Overdue
             </p>
-            <IconTile icon={AlertTriangle} variant="rose" size={40} />
+            <NavIcon icon={AlertTriangle} variant="rose" size={40} />
           </div>
           <p className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2">
             {Number(metrics.overdue_count || 0).toLocaleString()}
@@ -845,7 +845,7 @@ function Dashboard() {
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Collection Rate
             </p>
-            <IconTile icon={TrendingUp} variant="ocean" size={40} />
+            <NavIcon icon={TrendingUp} variant="ocean" size={40} />
           </div>
           <p className="text-2xl font-bold text-navy-900 dark:text-slate-100 mt-2">
             {(metrics.collection_rate || 0).toFixed(1)}%
@@ -867,7 +867,7 @@ function Dashboard() {
         {/* Chart 1 — Collections vs Disbursements (last 6 months) */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
-            <IconTile icon={TrendingUp} variant="ocean" size={36} />
+            <NavIcon icon={TrendingUp} variant="ocean" size={36} />
             <div>
               <h3 className="font-bold text-navy-900 dark:text-slate-100">Collections Trend</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -949,7 +949,7 @@ function Dashboard() {
         {/* Chart 2 — Portfolio Health donut */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
-            <IconTile icon={PieChartIcon} variant="indigo" size={36} />
+            <NavIcon icon={PieChartIcon} variant="indigo" size={36} />
             <div>
               <h3 className="font-bold text-navy-900 dark:text-slate-100">Portfolio Health</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Loan status breakdown</p>
@@ -1003,7 +1003,7 @@ function Dashboard() {
         {/* Chart A — Loans by Age: borrower age × loan status */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
-            <IconTile icon={Users} variant="ocean" size={36} />
+            <NavIcon icon={Users} variant="ocean" size={36} />
             <div>
               <h3 className="font-bold text-navy-900 dark:text-slate-100">Loans by Age</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Borrower age × status</p>
@@ -1074,7 +1074,7 @@ function Dashboard() {
         {/* Chart B — Loan-size histogram */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
-            <IconTile icon={BarChart3} variant="indigo" size={36} />
+            <NavIcon icon={BarChart3} variant="indigo" size={36} />
             <div>
               <h3 className="font-bold text-navy-900 dark:text-slate-100">Loan Sizes</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Loans by principal</p>
@@ -1134,7 +1134,7 @@ function Dashboard() {
         {/* Chart C — Payment-method split */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
-            <IconTile icon={CreditCard} variant="teal" size={36} />
+            <NavIcon icon={CreditCard} variant="teal" size={36} />
             <div>
               <h3 className="font-bold text-navy-900 dark:text-slate-100">Payment Methods</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
