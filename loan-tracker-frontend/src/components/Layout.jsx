@@ -523,16 +523,38 @@ function Layout({ children }) {
     );
   };
 
-  // Leaf inside a group / sub-group — accent dot + label. `nested` drops the
-  // deep indent because the sub-group's left rail already supplies it.
+  // Connector that replaces the old bullet dot: a short horizontal branch tick
+  // off the group's vertical guide rail, plus — when the row is active — a lit
+  // segment sitting on the rail in the group accent (with a soft glow). `x` is
+  // the rail's offset from the row's left edge; it lines up with the absolute
+  // rail drawn on the surrounding <ul>.
+  const RowConnector = ({ x, lit, accent }) => (
+    <>
+      <span
+        aria-hidden
+        className="absolute top-1/2 h-px w-2.5 -translate-y-1/2 rounded-full transition-colors"
+        style={{ left: x, background: lit ? accent : "rgba(255,255,255,.20)" }}
+      />
+      {lit && (
+        <span
+          aria-hidden
+          className="absolute top-1/2 -translate-y-1/2 w-px h-5 rounded-full"
+          style={{ left: x, background: accent, boxShadow: `0 0 6px ${accent}` }}
+        />
+      )}
+    </>
+  );
+
+  // Leaf inside a group / sub-group. No dot — it hangs off the guide rail via
+  // RowConnector. `nested` sits it on the deeper sub-group rail.
   const renderLeaf = (item, accent, nested = false) => {
     const active = isActive(item.path, item.exact);
     return (
       <li key={item.path}>
         <Link
           to={item.path}
-          className={`flex items-center gap-3 rounded-[10px] py-[7px] pr-3 text-[13px] transition hover:bg-white/[0.04] ${
-            nested ? "pl-3" : "pl-[46px]"
+          className={`relative flex items-center gap-2 rounded-[10px] py-2 pr-3 text-[13px] transition hover:bg-white/[0.04] ${
+            nested ? "pl-8" : "pl-[46px]"
           }`}
           style={{
             color: active ? accent : "#90a59d",
@@ -540,10 +562,7 @@ function Layout({ children }) {
             background: active ? accent + "1f" : "transparent",
           }}
         >
-          <span
-            className="shrink-0 rounded-full"
-            style={{ width: 5, height: 5, background: active ? accent : "#5f7a71" }}
-          />
+          <RowConnector x={nested ? 18 : 25} lit={active} accent={accent} />
           <span className="flex-1">{item.label}</span>
           <Badge n={badgeFor(item)} />
         </Link>
@@ -551,8 +570,8 @@ function Layout({ children }) {
     );
   };
 
-  // Sub-group inside a group (Loan Book / Repayments) — collapsible +/- row
-  // whose leaves nest under a left rail.
+  // Sub-group inside a group (Loan Book / Repayments) — collapsible +/- row that
+  // sits on the group's main rail; its leaves thread a deeper, branched rail.
   const renderSubGroup = (sub, accent) => {
     const open = !!expandedSubs[sub.id];
     const hasActive = sub.items.some((l) => isActive(l.path));
@@ -562,9 +581,10 @@ function Layout({ children }) {
           type="button"
           onClick={() => toggleSub(sub.id)}
           aria-expanded={open}
-          className="w-full flex items-center gap-2 rounded-[10px] pl-[46px] pr-3 py-[7px] text-[13px] font-semibold transition hover:bg-white/[0.04]"
+          className="relative w-full flex items-center gap-2 rounded-[10px] pl-[46px] pr-3 py-2 text-[13px] font-semibold transition hover:bg-white/[0.04]"
           style={{ color: open || hasActive ? "#cfe0d9" : "#90a59d" }}
         >
+          <RowConnector x={25} lit={open || hasActive} accent={accent} />
           <span className="flex-1 text-left">{sub.label}</span>
           <span
             className="flex items-center justify-center rounded-[5px] shrink-0"
@@ -575,10 +595,16 @@ function Layout({ children }) {
         </button>
         <div
           className={`overflow-hidden transition-all duration-200 ${
-            open ? "max-h-[320px] opacity-100 mt-0.5" : "max-h-0 opacity-0"
+            open ? "max-h-[320px] opacity-100" : "max-h-0 opacity-0"
           }`}
         >
-          <ul className="space-y-0.5 ml-[46px] pl-1 border-l border-white/10">
+          {/* deeper, branched rail for this sub-group's leaves */}
+          <ul className="relative space-y-0 ml-[26px]">
+            <span
+              aria-hidden
+              className="absolute top-1 bottom-1 w-px"
+              style={{ left: 18, background: "rgba(255,255,255,.13)" }}
+            />
             {sub.items.map((l) => renderLeaf(l, accent, true))}
           </ul>
         </div>
@@ -675,7 +701,14 @@ function Layout({ children }) {
                           : "max-h-0 opacity-0"
                       }`}
                     >
-                      <ul className="space-y-0.5">
+                      <ul className="relative space-y-0">
+                        {/* continuous guide rail dropping from the group icon,
+                            threading every item (replaces the per-item dots) */}
+                        <span
+                          aria-hidden
+                          className="absolute top-1 bottom-1 w-px"
+                          style={{ left: 25, background: "rgba(255,255,255,.13)" }}
+                        />
                         {g.items.map((it) =>
                           isSubGroup(it)
                             ? renderSubGroup(it, accent)
