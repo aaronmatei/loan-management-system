@@ -17,17 +17,12 @@ const TYPES = {
   other: { label: "Other", color: "#64748b" }, // slate
 };
 
-// Resolve a lender's type → { label, color }. Unknown/empty values fall back
-// to a capitalised label on a neutral colour.
+// Resolve a lender's type → { label, color }. Unknown/empty values collapse
+// into the explicit "Other" category — there is no generic "Lender" bucket.
 export function lenderType(businessType) {
   const key = String(businessType || "").trim().toLowerCase();
   if (TYPES[key]) return TYPES[key];
-  return {
-    label: businessType
-      ? businessType.charAt(0).toUpperCase() + businessType.slice(1)
-      : "Lender",
-    color: "#64748b",
-  };
+  return TYPES.other;
 }
 
 export const LENDER_TYPES = TYPES;
