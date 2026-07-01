@@ -1962,7 +1962,6 @@ router.post("/applications", async (req, res) => {
     const {
       principal_amount,
       loan_duration_months,
-      annual_interest_rate,
       purpose,
       guarantor_name,
       guarantor_phone,
@@ -2118,9 +2117,26 @@ router.post("/applications", async (req, res) => {
     // itself goes through the shared loanMath helper so flat vs
     // reducing-balance produces the same totals here as in staff
     // loans.js and the live form preview.
-    const annualRate = pkg
-      ? parseFloat(pkg.annual_interest_rate)
-      : parseFloat(annual_interest_rate) || LOAN_POLICY.default_interest_rate;
+    // The rate is set by the LENDER, never the borrower. A package pins it;
+    // otherwise use the tenant's configured default_interest_rate (their Loan
+    // Settings), so a flat/standard application always matches what the lender
+    // charges. The borrower's body value is ignored, and the global 50% is only
+    // a last resort if the lender never set a default. (Bug fix: previously a
+    // no-package application fell back to the hardcoded 50% and ignored the
+    // lender's rate — e.g. a 300% lender produced a 50% loan.)
+    let annualRate;
+    if (pkg) {
+      annualRate = parseFloat(pkg.annual_interest_rate);
+    } else {
+      const rr = await query(
+        `SELECT default_interest_rate AS r FROM tenants WHERE id = $1`,
+        [req.currentTenantId],
+      );
+      const tenantDefault = parseFloat(rr.rows[0]?.r);
+      annualRate = Number.isFinite(tenantDefault)
+        ? tenantDefault
+        : LOAN_POLICY.default_interest_rate;
+    }
     const monthlyPct = parseFloat((annualRate / 12).toFixed(4));
     const { totalInterest, totalAmountDue } = computeLoanTotals({
       principal,

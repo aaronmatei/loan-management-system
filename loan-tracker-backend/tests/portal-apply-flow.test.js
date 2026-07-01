@@ -125,6 +125,14 @@ describe("customer portal — full apply flow", () => {
     const loanCode = apply.body.data.loan_code;
     expect(loanCode).toBeTruthy();
 
+    // A no-package application must use the LENDER's configured rate, not a
+    // hardcoded fallback: tenant default_interest_rate = 36% p.a. -> 3.00%
+    // stored monthly. (Regression guard for the 50%-fallback bug.)
+    const rateRow = (
+      await query("SELECT interest_rate FROM loans WHERE loan_code = $1", [loanCode])
+    ).rows[0];
+    expect(parseFloat(rateRow.interest_rate)).toBeCloseTo(3.0, 2);
+
     // 11. It appears in My Applications (cross-lender), pending
     const apps = await api()
       .get("/api/portal/customer/all-applications")
