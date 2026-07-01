@@ -2,12 +2,26 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import platformApi from "../services/platformApi";
 import PlatformLayout from "../components/PlatformLayout";
-import { AlertTriangle, BarChart3, Phone, Users, Gem, Percent } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Percent, Gem } from "lucide-react";
 import Skeleton from "../../components/Skeleton";
 import { formatKES } from "../../utils/money";
 
-// Full KES figures (no K abbreviation) — delegate to the shared money helper.
 const K = (v) => formatKES(v);
+
+const STATUS = {
+  active: { c: "#16a34a", b: "#e4f5ec" },
+  trial: { c: "#0e8a6e", b: "#e0f4ee" },
+  suspended: { c: "#e5484d", b: "#fbe6e4" },
+  cancelled: { c: "#8b8aa0", b: "#f0f0f7" },
+};
+function StatusPill({ status }) {
+  const s = STATUS[status] || STATUS.cancelled;
+  return (
+    <span className="inline-flex items-center text-[12px] font-bold px-2.5 py-1 rounded-lg capitalize" style={{ background: s.b, color: s.c }}>
+      {status}
+    </span>
+  );
+}
 
 function TenantDetail() {
   const { id } = useParams();
@@ -16,6 +30,12 @@ function TenantDetail() {
   const [loading, setLoading] = useState(true);
   const [feeInput, setFeeInput] = useState("");
   const [savingFee, setSavingFee] = useState(false);
+
+  const refresh = async () => {
+    const r = await platformApi.get(`/platform/admin/tenants/${id}`);
+    setData(r.data.data);
+    setFeeInput(r.data.data?.tenant?.billing_fee_percentage ?? "");
+  };
 
   useEffect(() => {
     platformApi
@@ -36,12 +56,8 @@ function TenantDetail() {
     }
     setSavingFee(true);
     try {
-      await platformApi.put(`/platform/admin/tenants/${id}/billing-fee`, {
-        billing_fee_percentage: pct,
-      });
-      const r = await platformApi.get(`/platform/admin/tenants/${id}`);
-      setData(r.data.data);
-      setFeeInput(r.data.data?.tenant?.billing_fee_percentage ?? "");
+      await platformApi.put(`/platform/admin/tenants/${id}/billing-fee`, { billing_fee_percentage: pct });
+      await refresh();
       alert("Platform fee updated");
     } catch (err) {
       alert(err.response?.data?.error || "Failed to update fee");
@@ -50,22 +66,44 @@ function TenantDetail() {
     }
   };
 
+  const updateStatus = async (newStatus) => {
+    let reason = null;
+    if (newStatus === "suspended") {
+      reason = window.prompt("Reason for suspension?");
+      if (!reason) return;
+    }
+    if (!window.confirm(`Change status to ${newStatus}?`)) return;
+    try {
+      await platformApi.put(`/platform/admin/tenants/${id}/status`, { status: newStatus, reason });
+      await refresh();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to update status");
+    }
+  };
+
+  const setTier = async (tier) => {
+    if (!window.confirm(`Change white-label tier to ${tier}?`)) return;
+    try {
+      await platformApi.put(`/white-label/admin/${id}/tier`, { tier });
+      await refresh();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to update tier");
+    }
+  };
+
   if (loading) {
     return (
       <PlatformLayout>
-        <div className="p-4 lg:p-8">
-          <Skeleton className="h-4 w-32 mb-4" />
-          <Skeleton className="h-36 w-full rounded-2xl mb-6" />
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-xl" />
-            ))}
+        <div className="p-4 lg:p-8 max-w-[1240px] mx-auto space-y-3.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-36 w-full rounded-2xl" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-48 w-full rounded-xl" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+            <Skeleton className="h-56 w-full rounded-2xl" />
+            <Skeleton className="h-56 w-full rounded-2xl" />
           </div>
-          <Skeleton className="h-40 w-full rounded-xl" />
         </div>
       </PlatformLayout>
     );
@@ -74,285 +112,153 @@ function TenantDetail() {
 
   const { tenant, financials, users } = data;
   const brand = tenant.brand_color || "#0e8a6e";
+  const stats = [
+    { label: "Portfolio", value: K(financials.total_disbursed) },
+    { label: "Outstanding", value: K(financials.outstanding_principal) },
+    { label: "Collected", value: K(financials.total_collected) },
+    { label: "Interest collected", value: K(financials.total_interest_collected) },
+  ];
 
   return (
     <PlatformLayout>
-      <div className="p-4 lg:p-8">
-        <button
-          onClick={() => navigate("/admin/tenants")}
-          className="text-ocean-600 mb-4 font-semibold text-sm"
-        >
-          ← Back to Tenants
+      <div className="p-4 lg:p-8 max-w-[1240px] mx-auto space-y-3.5">
+        <button onClick={() => navigate("/admin/tenants")} className="inline-flex items-center gap-1.5 text-[13px] font-bold text-ocean-600">
+          <ArrowLeft size={15} /> All tenants
         </button>
 
-        <div
-          className="rounded-2xl shadow-xl p-6 lg:p-8 mb-6 text-white"
-          style={{ background: brand }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-4xl font-bold">
+        {/* Header */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="w-[54px] h-[54px] rounded-[14px] flex items-center justify-center text-white text-[20px] font-extrabold shrink-0" style={{ background: brand }}>
               {tenant.business_name?.charAt(0)}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="text-[20px] font-extrabold text-navy-900 dark:text-slate-100">{tenant.business_name}</span>
+                <StatusPill status={tenant.status} />
+                {tenant.kind === "welfare" && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wide">Welfare</span>
+                )}
+              </div>
+              <div className="text-[12.5px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                {[tenant.city, tenant.county].filter(Boolean).join(", ") || tenant.subdomain} · joined{" "}
+                {new Date(tenant.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · <span className="font-mono">{tenant.tenant_code}</span>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">{tenant.business_name}</h1>
-              <p className="text-white/80 mt-1">
-                {tenant.tenant_code} • {tenant.subdomain}
-              </p>
-              <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">
-                {String(tenant.status || "").toUpperCase()}
-              </span>
-            </div>
+            {tenant.id !== 1 && tenant.status === "active" && (
+              <button onClick={() => updateStatus("suspended")} className="px-4 py-2 rounded-xl text-[13px] font-bold bg-red-50 text-red-600 hover:bg-red-100">Suspend</button>
+            )}
+            {tenant.id !== 1 && tenant.status === "suspended" && (
+              <button onClick={() => updateStatus("active")} className="px-4 py-2 rounded-xl text-[13px] font-bold bg-green-50 text-green-700 hover:bg-green-100">Activate</button>
+            )}
           </div>
           {tenant.suspension_reason && (
-            <p className="mt-4 text-sm bg-white/15 rounded-lg px-3 py-2 flex items-center gap-2">
-              <AlertTriangle size={16} /> Reason: {tenant.suspension_reason}
+            <p className="mt-4 text-sm bg-red-50 text-red-700 rounded-lg px-3 py-2 flex items-center gap-2">
+              <AlertTriangle size={16} /> {tenant.suspension_reason}
             </p>
           )}
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 dark:text-slate-400">Total Disbursed</p>
-            <p className="text-2xl font-bold">
-              {K(financials.total_disbursed)}
-            </p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 dark:text-slate-400">Outstanding</p>
-            <p className="text-2xl font-bold text-orange-600">
-              {K(financials.outstanding_principal)}
-            </p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 dark:text-slate-400">Collected</p>
-            <p className="text-2xl font-bold text-green-600">
-              {K(financials.total_collected)}
-            </p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 dark:text-slate-400">Contract Interest</p>
-            <p className="text-2xl font-bold text-ocean-600">
-              {K(financials.total_interest_earned)}
-            </p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
-            <p className="text-xs text-gray-500 dark:text-slate-400">Collected Interest</p>
-            <p className="text-2xl font-bold text-green-600">
-              {K(financials.total_interest_collected)}
-            </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+            {stats.map((s, i) => (
+              <div key={s.label} className={i < stats.length - 1 ? "lg:border-r border-slate-100 dark:border-slate-700" : ""}>
+                <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{s.label}</div>
+                <div className="text-[19px] font-extrabold text-navy-900 dark:text-slate-100 mt-1 tabular-nums">{s.value}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
-            <h3 className="font-bold mb-3 flex items-center gap-2"><BarChart3 size={18} /> Tenant Stats</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Clients</span>
-                <span className="font-bold">{tenant.client_count}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+          {/* Billing & subscription */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+            <div className="text-[14px] font-extrabold text-navy-900 dark:text-slate-100 mb-4 flex items-center gap-2"><Percent size={17} /> Billing</div>
+            {[
+              ["Plan", tenant.plan || "—"],
+              ["Platform fee", `${tenant.billing_fee_percentage ?? 5}% of interest earned`],
+              ["Base fee", parseFloat(tenant.billing_base_fee) > 0 ? K(tenant.billing_base_fee) : "None"],
+            ].map(([l, v]) => (
+              <div key={l} className="flex justify-between py-2.5 border-b border-slate-50 dark:border-slate-700">
+                <span className="text-[13px] text-slate-500 dark:text-slate-400 font-semibold">{l}</span>
+                <span className="text-[13px] font-bold text-navy-900 dark:text-slate-100 capitalize">{v}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Total Loans</span>
-                <span className="font-bold">{tenant.loan_count}</span>
+            ))}
+            <div className="flex flex-wrap items-end gap-2.5 mt-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1">Interest-earned fee (%)</label>
+                <div className="relative w-36">
+                  <input type="number" min="0" max="100" step="0.01" value={feeInput} onChange={(e) => setFeeInput(e.target.value)}
+                    className="w-full px-3 py-2 pr-8 border border-slate-200 dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-ocean-500/30" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span>Active Loans</span>
-                <span className="font-bold">{tenant.active_loans}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Transactions</span>
-                <span className="font-bold">
-                  {tenant.transaction_count}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Users</span>
-                <span className="font-bold">{tenant.user_count}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Joined</span>
-                <span className="font-bold">
-                  {new Date(tenant.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                </span>
-              </div>
+              <button onClick={saveFee} disabled={savingFee || String(feeInput) === String(tenant.billing_fee_percentage ?? "")}
+                className="px-5 py-2 bg-ocean-600 hover:bg-ocean-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
+                {savingFee ? "Saving…" : "Save fee"}
+              </button>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
-            <h3 className="font-bold mb-3 flex items-center gap-2"><Phone size={18} /> Contact</h3>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="text-gray-500 dark:text-slate-400">Contact:</span>{" "}
-                {tenant.contact_name || "—"}
+
+          {/* Usage / stats + white-label */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+            <div className="text-[14px] font-extrabold text-navy-900 dark:text-slate-100 mb-3">Usage &amp; contact</div>
+            {[
+              ["Clients", tenant.client_count],
+              ["Loans", `${tenant.active_loans} active · ${tenant.loan_count} total`],
+              ["Staff users", tenant.user_count],
+              ["Contact", tenant.contact_name || "—"],
+              ["Email", tenant.contact_email || "—"],
+            ].map(([l, v]) => (
+              <div key={l} className="flex justify-between py-2 border-b border-slate-50 dark:border-slate-700">
+                <span className="text-[13px] text-slate-500 dark:text-slate-400 font-semibold">{l}</span>
+                <span className="text-[13px] font-bold text-navy-900 dark:text-slate-100 truncate max-w-[60%]">{v}</span>
               </div>
-              <div>
-                <span className="text-gray-500 dark:text-slate-400">Email:</span>{" "}
-                {tenant.contact_email || "—"}
-              </div>
-              <div>
-                <span className="text-gray-500 dark:text-slate-400">Phone:</span>{" "}
-                {tenant.contact_phone || "—"}
-              </div>
-              <div>
-                <span className="text-gray-500 dark:text-slate-400">Location:</span>{" "}
-                {[tenant.city, tenant.county].filter(Boolean).join(", ") ||
-                  "—"}
-              </div>
-              <div>
-                <span className="text-gray-500 dark:text-slate-400">Plan:</span>{" "}
-                {tenant.plan || "—"}
+            ))}
+            <div className="mt-4">
+              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-2 flex items-center gap-1.5"><Gem size={13} /> White-label tier</div>
+              <div className="flex gap-2">
+                {["basic", "pro", "enterprise"].map((t) => {
+                  const cur = (tenant.white_label_tier || "basic") === t;
+                  return (
+                    <button key={t} onClick={() => !cur && setTier(t)} disabled={cur}
+                      className={`flex-1 py-2 rounded-lg font-bold text-[13px] capitalize ${cur ? "bg-ocean-600 text-white" : "bg-slate-100 dark:bg-slate-700 hover:bg-slate-200"}`}>
+                      {t}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mb-6">
-          <h3 className="font-bold mb-1 flex items-center gap-2">
-            <Percent size={18} /> Platform Fee
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
-            Charged on this lender's interest earned each billing cycle.
-            Default is 5%.
-          </p>
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">
-                Interest-earned fee (%)
-              </label>
-              <div className="relative w-40">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={feeInput}
-                  onChange={(e) => setFeeInput(e.target.value)}
-                  className="w-full px-3 py-2 pr-8 border-2 border-gray-200 rounded-lg focus:border-ocean-500 focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
-                  %
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={saveFee}
-              disabled={
-                savingFee ||
-                String(feeInput) ===
-                  String(tenant.billing_fee_percentage ?? "")
-              }
-              className="px-5 py-2 bg-ocean-600 hover:bg-ocean-700 text-white font-semibold rounded-lg text-sm disabled:opacity-50"
-            >
-              {savingFee ? "Saving…" : "Save Fee"}
-            </button>
-            <p className="text-xs text-gray-500 dark:text-slate-400">
-              Current:{" "}
-              <strong>{tenant.billing_fee_percentage ?? 5}%</strong> of interest
-              earned
-              {parseFloat(tenant.billing_base_fee) > 0
-                ? ` + ${K(tenant.billing_base_fee)} base`
-                : ""}
-            </p>
+        {/* Staff users */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 text-[14px] font-extrabold text-navy-900 dark:text-slate-100">
+            Staff users ({users.length})
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mb-6">
-          <h3 className="font-bold mb-1 flex items-center gap-2"><Gem size={18} /> White-Label Tier</h3>
-          <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
-            Current:{" "}
-            <strong className="capitalize">
-              {tenant.white_label_tier || "basic"}
-            </strong>
-          </p>
-          <div className="flex gap-2">
-            {["basic", "pro", "enterprise"].map((t) => {
-              const current = (tenant.white_label_tier || "basic") === t;
-              return (
-                <button
-                  key={t}
-                  onClick={async () => {
-                    if (current) return;
-                    if (!window.confirm(`Change tier to ${t}?`)) return;
-                    try {
-                      await platformApi.put(
-                        `/white-label/admin/${tenant.id}/tier`,
-                        { tier: t },
-                      );
-                      alert("Tier updated");
-                      // refresh
-                      const r = await platformApi.get(
-                        `/platform/admin/tenants/${tenant.id}`,
-                      );
-                      setData(r.data.data);
-                    } catch (err) {
-                      alert(
-                        err.response?.data?.error ||
-                          "Failed to update tier",
-                      );
-                    }
-                  }}
-                  disabled={current}
-                  className={`flex-1 py-2 rounded-lg font-semibold text-sm capitalize ${
-                    current
-                      ? "bg-ocean-600 text-white"
-                      : "bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  {t}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6">
-          <h2 className="font-bold mb-3 flex items-center gap-2"><Users size={18} /> Staff Users ({users.length})</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b text-gray-500 dark:text-slate-400">
+              <thead className="bg-slate-50/60 dark:bg-slate-900/40 text-[11px] uppercase tracking-wide text-slate-400">
                 <tr>
-                  <th className="text-left p-2">Name</th>
-                  <th className="text-left p-2">Email</th>
-                  <th className="text-left p-2">Role</th>
-                  <th className="text-left p-2">Status</th>
-                  <th className="text-left p-2">Last Login</th>
+                  <th className="text-left p-3">Name</th><th className="text-left p-3">Email</th>
+                  <th className="text-left p-3">Role</th><th className="text-left p-3">Status</th><th className="text-left p-3">Last login</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr key={u.id} className="border-b">
-                    <td className="p-2 font-semibold">
-                      {u.first_name} {u.last_name}
-                    </td>
-                    <td className="p-2">{u.email}</td>
-                    <td className="p-2 capitalize">{u.role}</td>
-                    <td className="p-2">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          u.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
+                  <tr key={u.id} className="border-b border-slate-50 dark:border-slate-700 last:border-0">
+                    <td className="p-3 font-bold text-navy-900 dark:text-slate-100">{u.first_name} {u.last_name}</td>
+                    <td className="p-3 text-slate-600 dark:text-slate-300">{u.email}</td>
+                    <td className="p-3 capitalize text-slate-600 dark:text-slate-300">{u.role}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${u.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
                         {u.is_active ? "active" : "inactive"}
                       </span>
                     </td>
-                    <td className="p-2 text-gray-500 dark:text-slate-400">
-                      {u.last_login
-                        ? new Date(u.last_login).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
-                        : "Never"}
+                    <td className="p-3 text-slate-500 dark:text-slate-400">
+                      {u.last_login ? new Date(u.last_login).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Never"}
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      className="p-4 text-center text-gray-500 dark:text-slate-400"
-                    >
-                      No staff users.
-                    </td>
-                  </tr>
-                )}
+                {users.length === 0 && <tr><td colSpan="5" className="p-4 text-center text-slate-500 dark:text-slate-400">No staff users.</td></tr>}
               </tbody>
             </table>
           </div>
