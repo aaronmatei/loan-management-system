@@ -452,11 +452,10 @@ function PaymentReceipt({
           <div className="foot-right">
             <div className="powered">
               <span className="pl">Powered by</span>
-              <svg className="pmark" viewBox="0 0 100 100">
-                <rect x="14" y="58" width="17" height="26" rx="7" fill="#0A5C4C" />
-                <rect x="39" y="44" width="17" height="40" rx="7" fill="#0E8A6E" />
-                <rect x="64" y="30" width="17" height="54" rx="7" fill="#22B488" />
-                <path d="M70 3 Q75 12 84 17 Q75 22 70 31 Q65 22 56 17 Q65 12 70 3 Z" fill="#F6A92B" />
+              <svg className="pmark" viewBox="4 -3 54 54" fill="none">
+                <circle cx="22" cy="24" r="13" stroke="#1E8A5F" strokeWidth="6" />
+                <circle cx="40" cy="24" r="13" stroke="#F0A32B" strokeWidth="6" />
+                <path d="M33.26 30.5 A13 13 0 0 1 27.7 35.68" stroke="#1E8A5F" strokeWidth="6" />
               </svg>
               <span className="pword"><span className="l">Lender</span><span className="f">Fest</span></span>
             </div>

@@ -1,6 +1,7 @@
 // LenderFest logo — mark + wordmark.
 //
-// The mark is three ascending rounded bars (growth) with an amber spark.
+// The mark is two interlocking rings — a green and an amber loop (growth +
+// partnership); the green ring crosses over amber at the overlap.
 // The wordmark is Bricolage Grotesque extrabold, "Lend" + "Fest". Both
 // lockups use the full-color mark; only the wordmark colors flip:
 //   • default  (light bg): Lend = ink,   Fest = teal
@@ -22,33 +23,27 @@ const C = {
   cream: "#FBF7EF",
 };
 
+// Brand mark ring colours (from the redesigned two-ring mark).
+const RING_GREEN = "#1E8A5F";
+const RING_AMBER = "#F0A32B";
+
 export function LogoMark({ variant = "color", className = "", title = "LenderFest" }) {
-  let b1, b2, b3, sp;
-  if (variant === "ink") b1 = b2 = b3 = sp = C.ink;
-  else if (variant === "light") b1 = b2 = b3 = sp = C.cream;
-  else {
-    b1 = C.tealDeep;
-    b2 = C.teal;
-    b3 = C.green;
-    sp = C.amber;
-  }
+  // color = green + amber interlocking rings; ink/light collapse to one colour.
+  const a = variant === "ink" ? C.ink : variant === "light" ? C.cream : RING_GREEN;
+  const b = variant === "ink" ? C.ink : variant === "light" ? C.cream : RING_AMBER;
   return (
     <svg
-      viewBox="0 0 100 100"
+      viewBox="4 -3 54 54"
       className={className}
       role="img"
       aria-label={title}
+      fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect x="14" y="58" width="17" height="26" rx="7" fill={b1} />
-      <rect x="39" y="44" width="17" height="40" rx="7" fill={b2} />
-      <rect x="64" y="30" width="17" height="54" rx="7" fill={b3} />
-      <path d="M70 3 Q75 12 84 17 Q75 22 70 31 Q65 22 56 17 Q65 12 70 3 Z" fill={sp} />
-      <path
-        d="M26 38 Q28.5 43 33 45 Q28.5 47 26 52 Q23.5 47 19 45 Q23.5 43 26 38 Z"
-        fill={sp}
-        opacity={variant === "color" ? 0.55 : 0.5}
-      />
+      <circle cx="22" cy="24" r="13" stroke={a} strokeWidth="6" />
+      <circle cx="40" cy="24" r="13" stroke={b} strokeWidth="6" />
+      {/* the green ring re-crosses over amber at the overlap so they interlock */}
+      <path d="M33.26 30.5 A13 13 0 0 1 27.7 35.68" stroke={a} strokeWidth="6" />
     </svg>
   );
 }
