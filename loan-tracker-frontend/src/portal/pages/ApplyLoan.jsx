@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Users,
   CheckCircle,
-  AlertTriangle,
   Send,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
@@ -58,6 +57,8 @@ function ApplyLoan() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
+  // Borrower must tick the terms-of-agreement box before submitting.
+  const [agreed, setAgreed] = useState(false);
   const [form, setForm] = useState({
     principal_amount: preAmount,
     loan_duration_months: preDuration,
@@ -714,15 +715,78 @@ function ApplyLoan() {
                 <p className="text-sm">{form.collateral_description}</p>
               </div>
             )}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800 flex items-start gap-2">
-              <AlertTriangle size={16} className="text-yellow-700 shrink-0 mt-0.5" />
-              <span><strong>Important:</strong> By submitting you agree to{" "}
-              {lender.business_name}'s terms. The lender typically reviews
-              within 24–48 hours.</span>
+            {/* Loan terms of agreement — must be accepted before submitting */}
+            <div className="bg-[#faf6ec] dark:bg-slate-900 rounded-xl p-4">
+              <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+                <FileText size={16} /> Loan Terms of Agreement
+              </h3>
+              <div className="max-h-56 overflow-y-auto pr-1 text-sm text-slate-600 dark:text-slate-300 space-y-2 leading-relaxed">
+                <p>
+                  This agreement is between you (the borrower) and{" "}
+                  <strong>{lender.business_name}</strong> (the lender).
+                </p>
+                <ol className="list-decimal list-inside space-y-1.5">
+                  <li>
+                    You are borrowing <strong>{KES(calc.principal)}</strong> for a term of{" "}
+                    <strong>
+                      {form.loan_duration_months} month
+                      {form.loan_duration_months !== 1 ? "s" : ""}
+                    </strong>
+                    .
+                  </li>
+                  <li>
+                    Interest is charged at{" "}
+                    <strong>{+(calc.annualRate / 12).toFixed(2)}% per month</strong>. The total
+                    amount repayable is <strong>{KES(calc.totalDue)}</strong>.
+                  </li>
+                  <li>
+                    You will repay in <strong>{form.loan_duration_months}</strong> monthly
+                    installment{form.loan_duration_months !== 1 ? "s" : ""} of approximately{" "}
+                    <strong>{KES(Math.round(calc.monthlyPayment))}</strong>.
+                  </li>
+                  {calc.processingFee > 0 && (
+                    <li>
+                      A processing fee of <strong>{calc.feeRate}%</strong> (
+                      <strong>{KES(calc.processingFee)}</strong>) is deducted at disbursement; you
+                      will receive <strong>{KES(calc.netDisbursed)}</strong>.
+                    </li>
+                  )}
+                  <li>
+                    Payments are due on schedule. Late or missed payments may attract penalties and
+                    late fees in line with {lender.business_name}'s lending policy.
+                  </li>
+                  <li>
+                    This application is subject to review and approval at {lender.business_name}'s
+                    sole discretion, typically within <strong>24–48 hours</strong>. Funds are
+                    disbursed only after approval.
+                  </li>
+                  <li>
+                    You confirm that the information provided is accurate and that you can afford the
+                    repayments.
+                  </li>
+                </ol>
+              </div>
             </div>
+
+            <label className="flex items-start gap-3 rounded-xl p-4 border border-[#ece6da] dark:border-slate-700 cursor-pointer hover:bg-[#faf6ec] dark:hover:bg-slate-900 transition">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 w-5 h-5 accent-[var(--brand)] cursor-pointer shrink-0"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-200">
+                I have read and <strong>agree</strong> to the loan terms of agreement above and to{" "}
+                {lender.business_name}'s lending terms.
+              </span>
+            </label>
+
             <div className="flex gap-2 pt-2">
               <button
-                onClick={() => setStep(2)}
+                onClick={() => {
+                  setAgreed(false);
+                  setStep(2);
+                }}
                 disabled={submitting}
                 className="flex-1 py-3 bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg font-semibold"
               >
@@ -730,8 +794,9 @@ function ApplyLoan() {
               </button>
               <button
                 onClick={submit}
-                disabled={submitting}
-                className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-bold rounded-lg disabled:opacity-50"
+                disabled={submitting || !agreed}
+                title={!agreed ? "Agree to the loan terms to continue" : undefined}
+                className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? "Submitting…" : <span className="inline-flex items-center gap-1.5"><Send size={15} /> Submit Application</span>}
               </button>
