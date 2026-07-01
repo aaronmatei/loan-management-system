@@ -131,8 +131,8 @@ function LenderDetail() {
           </div>
           {/* Terms grid */}
           <Skeleton className="h-4 w-32 mb-2" />
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
-            {Array.from({ length: 4 }).map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} rounded="rounded-2xl" className="h-24 w-full" />
             ))}
           </div>
@@ -198,6 +198,12 @@ function LenderDetail() {
       label: "Late fee",
       value: KES(lender.late_payment_fee || 0),
       icon: AlertTriangle,
+    },
+    // Penalty interest charged on the overdue balance (platform default).
+    {
+      label: "Penalty rate",
+      value: `${lender.penalty_rate ?? 0}% p.m.`,
+      icon: Percent,
     },
   ];
   const contact = [
