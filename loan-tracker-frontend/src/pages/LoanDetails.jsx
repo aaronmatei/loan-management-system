@@ -1155,11 +1155,9 @@ function LoanDetails() {
         const initials =
           `${(loan.first_name || "").charAt(0)}${(loan.last_name || "").charAt(0)}`.toUpperCase() ||
           "—";
-        const principal = parseFloat(loan.principal_amount) || 0;
-        const interestPct =
-          principal > 0
-            ? Math.round((parseFloat(loan.total_interest || 0) / principal) * 1000) / 10
-            : 0;
+        // Show the loan's own MONTHLY rate (p.m.) rather than the lifetime
+        // interest-as-%-of-principal, which read misleadingly large (e.g. 300%).
+        const monthlyRate = parseFloat(loan.interest_rate) || 0;
         const installmentsTotal = schedule.length || loan.loan_duration_months || 0;
         const settled = parseFloat(summary.balance) <= 0;
         const nextSched = schedule.find(
@@ -1289,7 +1287,7 @@ function LoanDetails() {
               </Col>
               <Col label="Total due" value={formatKES(summary.total_due)}>
                 <p className="text-xs text-slate-400 mt-1.5">
-                  Principal{interestPct > 0 ? ` + ${interestPct}% interest` : ""}
+                  Principal{monthlyRate > 0 ? ` + ${monthlyRate}% p.m. interest` : ""}
                 </p>
               </Col>
               <Col label="Paid" value={formatKES(summary.total_paid)} valueCls="text-money-pos">
@@ -1336,7 +1334,7 @@ function LoanDetails() {
             {/* loan information + where it stands (merged from the old
                 separate "Loan Information" and "What's Remaining" cards) */}
             <div className="border-t border-slate-100 dark:border-slate-700 p-6">
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-4">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-navy-900 dark:text-slate-100 mb-4">
                 Loan Information
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-y-5 gap-x-4 text-sm">
