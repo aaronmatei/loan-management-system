@@ -6,10 +6,10 @@ import {
   Building2,
   Wallet,
   TrendingUp,
-  Clock,
+  Server,
   ScrollText,
   LogOut,
-  Globe,
+  Search,
   MessageSquare,
 } from "lucide-react";
 import NavIcon from "../../components/NavIcon";
@@ -17,18 +17,42 @@ import NavIcon from "../../components/NavIcon";
 const MENU = [
   { path: "/admin/dashboard", label: "Overview", icon: LayoutDashboard, variant: "ocean" },
   { path: "/admin/tenants", label: "Tenants", icon: Building2, variant: "indigo" },
-  { path: "/admin/billing", label: "Billing", icon: Wallet, variant: "emerald" },
-  { path: "/admin/communication-costs", label: "Comms Costs", icon: MessageSquare, variant: "indigo" },
+  { path: "/admin/billing", label: "Billing & Plans", icon: Wallet, variant: "emerald" },
   { path: "/admin/reports", label: "Analytics", icon: TrendingUp, variant: "teal" },
-  { path: "/admin/cron", label: "Cron Jobs", icon: Clock, variant: "amber" },
+  { path: "/admin/communication-costs", label: "Comms Costs", icon: MessageSquare, variant: "indigo" },
+  { path: "/admin/cron", label: "System", icon: Server, variant: "amber" },
   { path: "/admin/audit", label: "Audit Log", icon: ScrollText, variant: "rose" },
 ];
+
+// Header title/subtitle per admin section.
+const TITLES = {
+  "/admin/dashboard": ["Platform Overview", "All tenants at a glance"],
+  "/admin/tenants": ["Tenants", "Lender organisations on LenderFest"],
+  "/admin/billing": ["Billing & Plans", "Subscription & usage revenue"],
+  "/admin/reports": ["Analytics", "Platform-wide analytics"],
+  "/admin/communication-costs": ["Comms Costs", "SMS & email usage"],
+  "/admin/cron": ["System", "Jobs, services & health"],
+  "/admin/audit": ["Audit Log", "Platform activity trail"],
+  "/admin/settings": ["Platform Settings", "Global configuration"],
+};
 
 function PlatformLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
+  const [q, setQ] = useState("");
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    navigate(q.trim() ? `/admin/tenants?q=${encodeURIComponent(q.trim())}` : "/admin/tenants");
+  };
+  const [pageTitle, pageSub] = (() => {
+    if (location.pathname.startsWith("/admin/tenants/")) return ["Tenant", "Organisation detail"];
+    if (location.pathname.startsWith("/admin/billing/")) return ["Invoice", "Invoice detail"];
+    const key = Object.keys(TITLES).find((k) => location.pathname.startsWith(k));
+    return TITLES[key] || ["Platform Admin", ""];
+  })();
 
   useEffect(() => {
     let u = {};
@@ -97,7 +121,7 @@ function PlatformLayout({ children }) {
           <nav className="flex-1 p-4">
             <ul className="space-y-1">
               {MENU.map((item) => {
-                const active = location.pathname === item.path;
+                const active = location.pathname.startsWith(item.path);
                 return (
                   <li key={item.path}>
                     <Link
@@ -133,35 +157,38 @@ function PlatformLayout({ children }) {
         </aside>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 shadow-sm">
-            <div className="flex items-center justify-between px-4 py-3">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 -ml-2"
-                aria-label="Open menu"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              </button>
-              <h1 className="text-lg font-bold text-gray-800 dark:text-slate-100 lg:hidden">
-                Platform Admin
-              </h1>
-              <div className="flex-1 hidden lg:block" />
-              <div className="text-sm text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
-                <Globe size={15} className="text-gray-500 dark:text-slate-400" /> Platform-wide view
+          <header className="flex-shrink-0 flex items-center gap-4 h-[66px] bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 lg:px-6">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-2 text-gray-500"
+              aria-label="Open menu"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="min-w-0">
+              <div className="text-[17px] font-extrabold tracking-tight text-navy-900 dark:text-slate-100 truncate">
+                {pageTitle}
+              </div>
+              <div className="text-[12px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                {pageSub}
               </div>
             </div>
+            <div className="flex-1" />
+            <form
+              onSubmit={submitSearch}
+              className="hidden md:flex items-center gap-2 bg-gray-100 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl px-3 py-2 w-64"
+            >
+              <Search size={16} className="text-gray-400 shrink-0" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search tenants…"
+                aria-label="Search tenants"
+                className="bg-transparent outline-none text-sm w-full text-navy-900 dark:text-slate-100 placeholder:text-gray-400"
+              />
+            </form>
           </header>
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
