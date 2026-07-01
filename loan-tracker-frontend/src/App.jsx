@@ -50,6 +50,7 @@ import {
   MemberPenalties,
 } from "./portal/pages/member/MemberPages";
 import CustomerProfile from "./portal/pages/Profile";
+import CustomerSupport from "./portal/pages/Support";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
 import CustomerLenders from "./portal/pages/Lenders";
@@ -678,6 +679,14 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerProfile />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/support"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerSupport />
                 </PortalProtectedRoute>
               }
             />

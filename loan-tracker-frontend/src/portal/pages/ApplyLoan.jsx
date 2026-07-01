@@ -270,7 +270,7 @@ function ApplyLoan() {
           <Skeleton className="h-4 w-32 mb-3" />
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-56 mt-2 mb-5" />
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
             <Skeleton className="h-1.5 w-full" rounded="rounded-none" />
             <div className="p-4 flex items-center gap-3">
               <Skeleton className="h-11 w-11" rounded="rounded-xl" />
@@ -316,7 +316,7 @@ function ApplyLoan() {
   }
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[var(--brand)] focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100";
+    "w-full px-3 py-2 border-2 border-[#e5ddcd] rounded-lg focus:border-[var(--brand)] focus:outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100";
 
   return (
     <PortalLayout>
@@ -336,7 +336,7 @@ function ApplyLoan() {
         </p>
 
         {/* Preselected lender — read-only context (no picker) */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
           <div className="h-1.5" style={{ backgroundColor: brand }} />
           <div className="p-4 flex items-center gap-3">
             <div
@@ -453,10 +453,10 @@ function ApplyLoan() {
                       }
                       className={`py-3 rounded-lg font-semibold text-sm ${
                         !inRange
-                          ? "bg-gray-50 text-gray-300 dark:bg-slate-900 dark:text-slate-600 cursor-not-allowed"
+                          ? "bg-[#faf6ec] text-gray-300 dark:bg-slate-900 dark:text-slate-600 cursor-not-allowed"
                           : form.loan_duration_months === String(m)
                             ? "bg-[var(--brand)] text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                            : "bg-[#faf6ec] text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                       }`}
                     >
                       {m}mo
@@ -693,18 +693,18 @@ function ApplyLoan() {
                 </span>
               </div>
             </div>
-            <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+            <div className="bg-[#faf6ec] dark:bg-slate-900 rounded-xl p-4">
               <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Purpose</h3>
               <p className="text-sm">{form.purpose}</p>
             </div>
             {form.review_notes && (
-              <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+              <div className="bg-[#faf6ec] dark:bg-slate-900 rounded-xl p-4">
                 <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Notes</h3>
                 <p className="text-sm">{form.review_notes}</p>
               </div>
             )}
             {form.guarantor_name && (
-              <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+              <div className="bg-[#faf6ec] dark:bg-slate-900 rounded-xl p-4">
                 <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Guarantor</h3>
                 <p className="text-sm">
                   {form.guarantor_name} — {form.guarantor_phone}
@@ -712,7 +712,7 @@ function ApplyLoan() {
               </div>
             )}
             {form.collateral_description && (
-              <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4">
+              <div className="bg-[#faf6ec] dark:bg-slate-900 rounded-xl p-4">
                 <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Collateral</h3>
                 <p className="text-sm">{form.collateral_description}</p>
               </div>

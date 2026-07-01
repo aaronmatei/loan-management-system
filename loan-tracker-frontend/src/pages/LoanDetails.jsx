@@ -67,6 +67,46 @@ const TXN_PRESETS = {
   },
 };
 
+// Payment-schedule column presets (shared DataTable). "#" is the pinned column;
+// demoted columns fold into the expandable detail row.
+const SCHED_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["due_date", "amount_due", "amount_paid", "status"],
+  },
+  financials: {
+    label: "Financials",
+    keys: [
+      "due_date",
+      "amount_due",
+      "amount_paid",
+      "interest_portion",
+      "principal_portion",
+      "balance_after",
+      "penalty_total",
+      "status",
+    ],
+  },
+  full: {
+    label: "Everything",
+    keys: [
+      "due_date",
+      "amount_due",
+      "amount_paid",
+      "interest_portion",
+      "interest_paid",
+      "principal_portion",
+      "balance_after",
+      "late_fee",
+      "penalty_interest",
+      "penalty_total",
+      "penalty_paid",
+      "status",
+      "paid_date",
+    ],
+  },
+};
+
 function LoanDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -260,6 +300,25 @@ function LoanDetails() {
     requestSort: txnRequestSort,
     getSortIndicator: txnSortIndicator,
   } = useSortableTable(loanData?.transactions || [], "payment_date", "desc");
+
+  // Payment-schedule table UX (shared DataTable).
+  const [schedPreset, setSchedPreset] = useColumnPreset(
+    "loanDetail.schedColumns",
+    SCHED_PRESETS,
+    "financials",
+  );
+  const [expandedSched, setExpandedSched] = useState(() => new Set());
+  const toggleSched = (id) =>
+    setExpandedSched((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const {
+    sortedData: sortedSched,
+    requestSort: schedRequestSort,
+    getSortIndicator: schedSortIndicator,
+  } = useSortableTable(loanData?.schedule || [], "payment_number", "asc");
 
   const reversePayment = async (txn) => {
     const reason = window.prompt(
@@ -773,6 +832,237 @@ function LoanDetails() {
           )}
         </div>
       ),
+    },
+  ];
+
+  // Payment-schedule columns for the shared DataTable. Defined in-render so
+  // cells can use getDaysStatus and the last-row balance fallback.
+  const schedDate = (d) =>
+    new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const fmtTotal = (n) => (n > 0 ? exactKES(n) : "—");
+  const penaltyRowSum = (rows, key) =>
+    rows.reduce(
+      (a, s) => a + (parseFloat(s.penalty_total || 0) > 0 ? parseFloat(s[key] || 0) : 0),
+      0,
+    );
+  const lastPayNo = schedule[schedule.length - 1]?.payment_number;
+  const moneyTotal = (key) => (rows) =>
+    rows.reduce((a, s) => a + parseFloat(s[key] || 0), 0);
+  const SCHED_COLUMNS = [
+    {
+      key: "due_date",
+      label: "Due Date",
+      align: "left",
+      cell: (s) => {
+        const ds = getDaysStatus(s.due_date, s.status);
+        return (
+          <div>
+            <p className="text-slate-800 dark:text-slate-100">{schedDate(s.due_date)}</p>
+            {ds && <p className={`text-xs ${ds.color}`}>{ds.text}</p>}
+          </div>
+        );
+      },
+    },
+    {
+      key: "amount_due",
+      label: "Amount Due",
+      align: "right",
+      money: true,
+      total: moneyTotal("amount_due"),
+      totalClass: "text-navy-900 dark:text-slate-100",
+      cell: (s) => (
+        <span className="font-semibold text-slate-800 dark:text-slate-100">
+          {formatKES(s.amount_due)}
+        </span>
+      ),
+    },
+    {
+      key: "amount_paid",
+      label: "Amount Paid",
+      align: "right",
+      money: true,
+      total: moneyTotal("amount_paid"),
+      totalClass: "text-money-pos",
+      cell: (s) => (
+        <span className="font-semibold text-money-pos">{formatKES(s.amount_paid || 0)}</span>
+      ),
+    },
+    {
+      key: "interest_portion",
+      label: "Interest",
+      align: "right",
+      money: true,
+      total: moneyTotal("interest_portion"),
+      totalClass: "text-emerald-700",
+      cell: (s) =>
+        parseFloat(s.interest_portion || 0) > 0 ? (
+          <span className="text-emerald-700 font-semibold">{formatKES(s.interest_portion)}</span>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "interest_paid",
+      label: "Interest Paid",
+      align: "right",
+      money: true,
+      total: moneyTotal("interest_paid"),
+      totalClass: "text-emerald-700",
+      cell: (s) =>
+        parseFloat(s.interest_paid || 0) > 0 ? (
+          <span className="text-emerald-700 font-semibold">{formatKES(s.interest_paid)}</span>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "principal_portion",
+      label: "Principal",
+      align: "right",
+      money: true,
+      total: moneyTotal("principal_portion"),
+      totalClass: "text-ocean-700",
+      cell: (s) =>
+        parseFloat(s.principal_portion || 0) > 0 ? (
+          <span className="text-ocean-700 font-semibold">{formatKES(s.principal_portion)}</span>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "balance_after",
+      label: "Balance After",
+      align: "right",
+      sortable: false,
+      footer: () => (
+        <span className="font-bold text-sm text-slate-500 dark:text-slate-400">
+          {formatKES(0)}
+        </span>
+      ),
+      cell: (s) =>
+        parseFloat(s.balance_after || 0) > 0 ? (
+          <span className="font-semibold text-slate-700 dark:text-slate-200">
+            {formatKES(s.balance_after)}
+          </span>
+        ) : s.payment_number === lastPayNo ? (
+          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatKES(0)}</span>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "late_fee",
+      label: "Late Fee",
+      align: "right",
+      sortable: false,
+      footer: (rows) => (
+        <span className="font-bold text-sm text-slate-700 dark:text-slate-200">
+          {fmtTotal(penaltyRowSum(rows, "late_fee"))}
+        </span>
+      ),
+      cell: (s) =>
+        parseFloat(s.penalty_total || 0) > 0 ? (
+          <span className="text-slate-700 dark:text-slate-200">{formatKES(s.late_fee || 0)}</span>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "penalty_interest",
+      label: "Penalty Interest",
+      align: "right",
+      sortable: false,
+      footer: (rows) => (
+        <span className="font-bold text-sm text-slate-700 dark:text-slate-200">
+          {fmtTotal(penaltyRowSum(rows, "penalty_interest"))}
+        </span>
+      ),
+      cell: (s) =>
+        parseFloat(s.penalty_total || 0) > 0 ? (
+          <span className="text-slate-700 dark:text-slate-200">
+            {formatKES(s.penalty_interest || 0)}
+          </span>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "penalty_total",
+      label: "Penalty Total",
+      align: "right",
+      money: true,
+      total: moneyTotal("penalty_total"),
+      totalClass: "text-amber-700",
+      cell: (s) =>
+        parseFloat(s.penalty_total || 0) > 0 ? (
+          <div className="text-amber-700 font-semibold">
+            <div>{formatKES(s.penalty_total || 0)}</div>
+            {parseFloat(s.penalty_outstanding || 0) > 0 &&
+              parseFloat(s.penalty_paid || 0) > 0 && (
+                <div className="text-xs text-red-600 font-normal">
+                  {formatKES(s.penalty_outstanding)} unpaid
+                </div>
+              )}
+          </div>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "penalty_paid",
+      label: "Penalty Paid",
+      align: "right",
+      money: true,
+      total: moneyTotal("penalty_paid"),
+      totalClass: "text-money-pos",
+      cell: (s) =>
+        parseFloat(s.penalty_paid || 0) > 0 ? (
+          <div className="text-money-pos font-semibold">
+            <div>{formatKES(s.penalty_paid)}</div>
+            {parseFloat(s.penalty_outstanding || 0) === 0 &&
+              parseFloat(s.penalty_total || 0) > 0 && (
+                <div className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+                  cleared
+                </div>
+              )}
+          </div>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      align: "left",
+      cell: (s) => (
+        <span
+          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+            s.status === "paid"
+              ? "bg-green-100 text-green-700"
+              : s.status === "waived"
+                ? "bg-emerald-100 text-emerald-700"
+                : s.status === "overdue"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-yellow-100 text-yellow-700"
+          }`}
+        >
+          {s.status}
+        </span>
+      ),
+    },
+    {
+      key: "paid_date",
+      label: "Paid Date",
+      align: "left",
+      sortable: false,
+      cell: (s) =>
+        s.actual_payment_date ? (
+          <span className="text-sm text-slate-600 dark:text-slate-400">
+            {schedDate(s.actual_payment_date)}
+          </span>
+        ) : (
+          <span className="text-money-muted">—</span>
+        ),
     },
   ];
 
@@ -1343,14 +1633,15 @@ function LoanDetails() {
       )}
 
       {/* Payment Schedule */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 dark:bg-slate-800">
-        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 dark:text-slate-100">
-            <Calendar size={20}/> Payment Schedule
+      <div className="mb-6">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <Calendar size={20} className="text-navy-900 dark:text-slate-100" />
+          <h3 className="text-lg font-semibold text-navy-900 dark:text-slate-100">
+            Payment Schedule
           </h3>
-          <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
-            {schedule.filter((s) => s.status === "paid").length} of{" "}
-            {schedule.length} payments completed
+          <span className="text-sm text-slate-500 dark:text-slate-400">
+            · {schedule.filter((s) => s.status === "paid").length} of{" "}
+            {schedule.length} completed
             {(() => {
               // Penalty breakdown across the schedule. Accrued is what
               // was ever charged across all installments (per-row
@@ -1402,301 +1693,36 @@ function LoanDetails() {
                 </>
               );
             })()}
-          </p>
+          </span>
         </div>
-        <div className="overflow-auto max-h-[calc(100vh-200px)]">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm dark:bg-slate-900 dark:border-slate-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
-                  #
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
-                  Due Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
-                  Amount Due
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
-                  Amount Paid
-                </th>
-                <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
-                  title="Interest portion of this installment per the amortization schedule"
-                >
-                  Interest
-                </th>
-                <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
-                  title="Interest actually settled on this installment (cash + interest waivers)"
-                >
-                  Interest Paid
-                </th>
-                <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
-                  title="Principal portion of this installment per the amortization schedule"
-                >
-                  Principal
-                </th>
-                <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
-                  title="Principal balance projected after this installment"
-                >
-                  Balance After
-                </th>
-                <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
-                  title="Flat late fee per overdue installment"
-                >
-                  Late Fee
-                </th>
-                <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
-                  title="Penalty rate × overdue balance × months late"
-                >
-                  Penalty Interest
-                </th>
-                <th
-                  className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400"
-                  title="Late fee + penalty interest actually charged on this installment"
-                >
-                  Penalty Total
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
-                  Penalty Paid
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
-                  Paid Date
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {schedule.map((item) => {
-                const daysStatus = getDaysStatus(item.due_date, item.status);
-                return (
-                  <tr key={item.id} className="border-b border-gray-100 dark:border-slate-700">
-                    <td className="px-6 py-3 font-semibold text-gray-800 dark:text-slate-100">
-                      {item.payment_number}
-                    </td>
-                    <td className="px-6 py-3">
-                      <p className="text-gray-800 dark:text-slate-100">
-                        {new Date(item.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                      </p>
-                      {daysStatus && (
-                        <p className={`text-xs ${daysStatus.color}`}>
-                          {daysStatus.text}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-6 py-3 font-semibold text-gray-800 dark:text-slate-100">
-                      {formatKES(item.amount_due)}
-                    </td>
-                    <td className="px-6 py-3 font-semibold text-green-600">
-                      {formatKES(item.amount_paid || 0)}
-                    </td>
-                    <td
-                      className="px-6 py-3 text-right text-emerald-700 font-semibold"
-                      title="Interest portion of this installment (declines over time on reducing balance)"
-                    >
-                      {parseFloat(item.interest_portion || 0) > 0
-                        ? formatKES(item.interest_portion)
-                        : "—"}
-                    </td>
-                    <td
-                      className="px-6 py-3 text-right text-emerald-700 font-semibold"
-                      title="Interest actually settled on this row by cash + interest waivers"
-                    >
-                      {parseFloat(item.interest_paid || 0) > 0
-                        ? formatKES(item.interest_paid)
-                        : "—"}
-                    </td>
-                    <td
-                      className="px-6 py-3 text-right text-ocean-700 font-semibold"
-                      title="Principal portion of this installment (rises over time on reducing balance)"
-                    >
-                      {parseFloat(item.principal_portion || 0) > 0
-                        ? formatKES(item.principal_portion)
-                        : "—"}
-                    </td>
-                    <td
-                      className="px-6 py-3 text-right text-gray-700 font-semibold dark:text-slate-200"
-                      title="Projected principal balance after this installment"
-                    >
-                      {parseFloat(item.balance_after || 0) > 0
-                        ? formatKES(item.balance_after)
-                        : item.payment_number ===
-                          schedule[schedule.length - 1]?.payment_number
-                          ? formatKES(0)
-                          : "—"}
-                    </td>
-                    {/* Late Fee + Penalty Interest sub-cells. Backend
-                        prefers the persisted snapshot (taken at the
-                        moment penalty was paid) and falls back to the
-                        live formula for installments that haven't been
-                        charged yet — so these always reconcile with
-                        the Penalty Total headline. */}
-                    <td className="px-6 py-3 text-right text-gray-700 dark:text-slate-200">
-                      {parseFloat(item.penalty_total || 0) > 0
-                        ? formatKES(item.late_fee || 0)
-                        : "-"}
-                    </td>
-                    <td
-                      className="px-6 py-3 text-right text-gray-700 dark:text-slate-200"
-                      title={
-                        parseFloat(item.penalty_paid || 0) === 0 &&
-                        item.penalty_total > 0
-                          ? `${item.penalty_rate}% per month × ${item.months_late} month${item.months_late !== 1 ? "s" : ""} on the overdue balance`
-                          : undefined
-                      }
-                    >
-                      {parseFloat(item.penalty_total || 0) > 0
-                        ? formatKES(item.penalty_interest || 0)
-                        : "-"}
-                    </td>
-                    <td className="px-6 py-3 text-right font-semibold text-amber-700">
-                      {parseFloat(item.penalty_total || 0) > 0 ? (
-                        <>
-                          <div>{formatKES(item.penalty_total || 0)}</div>
-                          {parseFloat(item.penalty_outstanding || 0) > 0 &&
-                            parseFloat(item.penalty_paid || 0) > 0 && (
-                              <div className="text-xs text-red-600 font-normal">
-                                {formatKES(item.penalty_outstanding)} unpaid
-                              </div>
-                            )}
-                        </>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="px-6 py-3 text-right font-semibold text-green-600">
-                      {parseFloat(item.penalty_paid || 0) > 0 ? (
-                        <>
-                          <div>{formatKES(item.penalty_paid)}</div>
-                          {parseFloat(item.penalty_outstanding || 0) === 0 &&
-                            parseFloat(item.penalty_total || 0) > 0 && (
-                              <div className="text-xs text-gray-500 font-normal dark:text-slate-400">
-                                cleared
-                              </div>
-                            )}
-                        </>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="px-6 py-3">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                          item.status === "paid"
-                            ? "bg-green-100 text-green-700"
-                            : item.status === "waived"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : item.status === "overdue"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-gray-600 text-sm dark:text-slate-400">
-                      {item.actual_payment_date
-                        ? new Date(
-                            item.actual_payment_date,
-                          ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
-                        : "-"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            {(() => {
-              // Roll up the numeric columns; date/status columns get a "—".
-              const sum = (key) =>
-                schedule.reduce(
-                  (acc, s) => acc + parseFloat(s[key] || 0),
-                  0,
-                );
-              const totalAmountDue = sum("amount_due");
-              const totalAmountPaid = sum("amount_paid");
-              const totalInterest = sum("interest_portion");
-              const totalInterestPaid = sum("interest_paid");
-              const totalPrincipal = sum("principal_portion");
-              // Roll up late fee + penalty interest only over rows that
-              // actually carry a penalty (skip never-overdue installments
-              // so the totals match the visible "KES X" cells).
-              const totalLateFee = schedule.reduce(
-                (acc, s) =>
-                  acc +
-                  (parseFloat(s.penalty_total || 0) > 0
-                    ? parseFloat(s.late_fee || 0)
-                    : 0),
-                0,
-              );
-              const totalPenaltyInterest = schedule.reduce(
-                (acc, s) =>
-                  acc +
-                  (parseFloat(s.penalty_total || 0) > 0
-                    ? parseFloat(s.penalty_interest || 0)
-                    : 0),
-                0,
-              );
-              const totalPenaltyTotal = sum("penalty_total");
-              const totalPenaltyPaid = sum("penalty_paid");
-              const fmt = (n) => (n > 0 ? exactKES(n) : "—");
-              return (
-                <tfoot className="bg-gray-50 border-t-2 border-gray-200 dark:bg-slate-900 dark:border-slate-700">
-                  <tr>
-                    <td
-                      className="px-6 py-3 font-bold text-gray-800 text-sm dark:text-slate-100"
-                      colSpan={2}
-                    >
-                      TOTALS · {schedule.length}{" "}
-                      payment{schedule.length !== 1 ? "s" : ""}
-                    </td>
-                    <td className="px-6 py-3 font-bold text-gray-800 text-sm dark:text-slate-100">
-                      {fmt(totalAmountDue)}
-                    </td>
-                    <td className="px-6 py-3 font-bold text-green-600 text-sm">
-                      {fmt(totalAmountPaid)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-emerald-700 text-sm">
-                      {fmt(totalInterest)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-emerald-700 text-sm">
-                      {fmt(totalInterestPaid)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-ocean-700 text-sm">
-                      {fmt(totalPrincipal)}
-                    </td>
-                    {/* Balance After totals row reads "—" because a
-                        running balance doesn't sum the way the other
-                        columns do; the value at the bottom is just
-                        the projected final balance (0 by design). */}
-                    <td className="px-6 py-3 text-right font-bold text-gray-500 text-sm dark:text-slate-400">
-                      {formatKES(0)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm dark:text-slate-200">
-                      {fmt(totalLateFee)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-gray-700 text-sm dark:text-slate-200">
-                      {fmt(totalPenaltyInterest)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-amber-700 text-sm">
-                      {fmt(totalPenaltyTotal)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-green-600 text-sm">
-                      {fmt(totalPenaltyPaid)}
-                    </td>
-                    <td className="px-6 py-3" colSpan={2}></td>
-                  </tr>
-                </tfoot>
-              );
-            })()}
-          </table>
-        </div>
+        <DataTable
+          columns={SCHED_COLUMNS}
+          rows={sortedSched}
+          rowKey={(s) => s.id}
+          pinned={{
+            label: "#",
+            sortKey: "payment_number",
+            cell: (s) => (
+              <span className="font-semibold text-slate-800 dark:text-slate-100">
+                {s.payment_number}
+              </span>
+            ),
+          }}
+          presets={SCHED_PRESETS}
+          preset={schedPreset}
+          onPresetChange={setSchedPreset}
+          expandedRows={expandedSched}
+          onToggleRow={toggleSched}
+          sort={{ requestSort: schedRequestSort, getSortIndicator: schedSortIndicator }}
+          totals={schedule}
+          totalsLabel={
+            <span className="inline-flex items-center gap-2">
+              <BarChart3 size={16} /> TOTALS · {schedule.length} payment
+              {schedule.length !== 1 ? "s" : ""}
+            </span>
+          }
+          maxHeight="calc(100vh - 220px)"
+        />
       </div>
 
       {/* Transaction History */}

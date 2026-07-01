@@ -13,7 +13,6 @@ import {
   LogOut,
   X,
   Gem,
-  PiggyBank,
   Coins,
   CalendarCheck,
   Gift,
@@ -24,8 +23,9 @@ import {
   FileText,
   Vote,
   BookOpen,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
-import NavIcon from "../../components/NavIcon";
 import PortalNotificationBell from "./PortalNotificationBell";
 
 // Shared shell for the authenticated portal pages. The portal is a single
@@ -44,6 +44,7 @@ const BASE_MENU = [
   { path: "/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
   { path: "/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
   { path: "/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
+  { path: "/portal/support", label: "Help & support", icon: LifeBuoy, variant: "teal" },
   { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
 ];
 const PAWN_ITEMS = [
@@ -146,8 +147,22 @@ function PortalLayout({ children }) {
       ? location.pathname === item.path
       : location.pathname.startsWith(item.path);
 
+  const menu = buildMenu();
+  const isWelfareMember = tenant?.kind === "welfare";
+  // Header page title, resolved from the active nav item (with a few detail-
+  // route fallbacks the menu doesn't list).
+  const pageTitle = (() => {
+    const hit = menu.find((m) => isActive(m));
+    if (hit) return hit.label;
+    if (location.pathname.startsWith("/portal/loans/")) return "Loan details";
+    if (location.pathname.startsWith("/portal/pledges/")) return "Pledge details";
+    if (location.pathname.startsWith("/lenders/")) return "Lender";
+    return portalLabel;
+  })();
+  const initials = `${(customer.first_name || "?").charAt(0)}${(customer.last_name || "").charAt(0)}`.toUpperCase();
+
   return (
-    <div className="flex h-screen bg-app-bg">
+    <div className="flex h-screen bg-portal">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
@@ -155,51 +170,55 @@ function PortalLayout({ children }) {
         />
       )}
 
+      {/* Warm forest-green shell (neutral portal chrome). */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-navy-gradient text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } flex flex-col`}
+        style={{ background: "linear-gradient(180deg,#123f30 0%,#0d3324 100%)" }}
       >
-        <div className="p-6 pb-4 bg-cream-50 dark:bg-slate-900 border-b border-cream-100 dark:border-slate-700 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <LogoMark variant="color" className="h-9 w-9 shrink-0" />
-            <div>
-              <span className="font-display text-xl font-extrabold tracking-tight leading-none">
-                <span className="text-navy-900 dark:text-slate-100">Lender</span>
-                <span className="text-ocean-600">Fest</span>
-              </span>
-              <p className="text-slate-500 dark:text-slate-400 text-xs">{portalLabel}</p>
+        <div className="px-5 pt-6 pb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0">
+              <LogoMark variant="color" className="h-6 w-6" />
+            </div>
+            <div className="leading-tight">
+              <div className="font-display text-lg font-extrabold text-white leading-none">
+                Lender<span className="text-[#5fe3ab]">Fest</span>
+              </div>
+              <div className="text-[10px] font-bold tracking-[0.06em] text-[#6fae93] mt-1 uppercase truncate max-w-[160px]">
+                {isWelfareMember ? portalLabel : "Borrower Portal"}
+              </div>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            className="lg:hidden text-[#6fae93] hover:text-white"
             aria-label="Close menu"
           >
             <X size={22} />
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4">
-          <ul className="space-y-1">
-            {buildMenu().map((item) => {
+        <nav className="flex-1 overflow-y-auto px-3.5 py-1">
+          <ul className="space-y-0.5">
+            {menu.map((item) => {
               const active = isActive(item);
+              const Icon = item.icon;
               return (
                 <li key={item.path}>
                   <Link
                     to={item.path}
-                    className="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm transition hover:bg-white/[0.04]"
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-[11px] text-[13.5px] transition ${
+                      active ? "" : "hover:bg-white/[0.07]"
+                    }`}
                     style={{
-                      color: active ? "#fff" : "#aebfb8",
+                      color: active ? "#fff" : "#8fb6a6",
                       fontWeight: active ? 700 : 600,
-                      background: active ? "rgba(22,163,122,.16)" : "transparent",
+                      background: active ? "#ffffff1a" : "transparent",
                     }}
                   >
-                    <NavIcon
-                      icon={item.icon}
-                      variant={item.variant}
-                      active={active}
-                    />
+                    <Icon size={18} className="shrink-0" strokeWidth={active ? 2.4 : 2} />
                     <span className="flex-1">{item.label}</span>
                   </Link>
                 </li>
@@ -208,65 +227,94 @@ function PortalLayout({ children }) {
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-white/10 bg-navy-950/40">
-          <div className="mb-3 flex items-center gap-3">
-            {customer.profile_photo_url ? (
-              <img
-                src={customer.profile_photo_url}
-                alt=""
-                className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white/20"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-ocean-gradient flex items-center justify-center text-white font-bold shrink-0">
-                {(customer.first_name || "?").charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate text-white">
-                {customer.first_name} {customer.last_name}
-              </p>
-              <p className="text-xs text-ocean-200/50 truncate">
-                {customer.phone_number}
-              </p>
+        {/* Need-help card — routes to the support desk. */}
+        {!isWelfareMember && (
+          <Link
+            to="/portal/support"
+            className="mx-3.5 mb-3.5 rounded-[14px] p-4 block transition hover:brightness-110"
+            style={{ background: "#ffffff12" }}
+          >
+            <div className="flex items-center gap-2 text-[12px] font-bold text-[#cdeede]">
+              <MessageCircle size={15} /> Need help?
+            </div>
+            <div className="text-[11.5px] text-[#8fb6a6] font-medium mt-1 leading-snug">
+              Questions about a payment or loan? We're here for you.
+            </div>
+            <div className="flex items-center gap-1.5 mt-2.5 text-[12px] font-bold text-[#5fe3ab]">
+              <Phone size={13} /> Get support
+            </div>
+          </Link>
+        )}
+
+        <div
+          className="px-4 py-3.5 flex items-center gap-3"
+          style={{ borderTop: "1px solid #ffffff14" }}
+        >
+          {customer.profile_photo_url ? (
+            <img
+              src={customer.profile_photo_url}
+              alt=""
+              className="w-9 h-9 rounded-full object-cover shrink-0"
+              style={{ boxShadow: "0 0 0 1px #2ee0a04d" }}
+            />
+          ) : (
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-extrabold shrink-0"
+              style={{ background: "#2ee0a01f", border: "1px solid #2ee0a04d", color: "#7fe9bd" }}
+            >
+              {initials}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-bold text-white truncate">
+              {customer.first_name} {customer.last_name}
+            </div>
+            <div className="text-[11px] text-[#6fae93] font-semibold truncate">
+              {customer.phone_number}
             </div>
           </div>
-          <button
-            onClick={logout}
-            className="w-full py-2 px-4 bg-white/10 hover:bg-white/15 text-ocean-100 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2"
-          >
-            <LogOut size={16} /> Logout
+          <button onClick={logout} aria-label="Logout" title="Logout">
+            <LogOut size={17} className="text-[#6fae93] hover:text-white transition" />
           </button>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700"
-                aria-label="Open menu"
+        {/* Warm cream header — page title + notifications + user chip. */}
+        <header
+          className="flex-shrink-0 flex items-center gap-4 px-5 lg:px-7 h-[66px] bg-[#fbf6ec] dark:bg-slate-800 border-b border-[#ece2cf] dark:border-slate-700"
+        >
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 -ml-2 rounded-lg text-[#5e6b62] hover:bg-[#f0ebe0] dark:hover:bg-slate-700"
+            aria-label="Open menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="min-w-0">
+            <div className="text-[17px] font-extrabold tracking-tight text-[#16241d] dark:text-slate-100 truncate">
+              {pageTitle}
+            </div>
+          </div>
+          <div className="flex-1" />
+          <ThemeToggle />
+          <PortalNotificationBell />
+          <div className="hidden sm:flex items-center gap-2.5 bg-white dark:bg-slate-700 border border-[#e5ddcd] dark:border-slate-600 rounded-[11px] pl-3 pr-1.5 py-1.5">
+            <span className="text-[13px] font-bold text-[#16241d] dark:text-slate-100">
+              {customer.first_name || "You"}
+            </span>
+            {customer.profile_photo_url ? (
+              <img src={customer.profile_photo_url} alt="" className="w-[30px] h-[30px] rounded-lg object-cover" />
+            ) : (
+              <div
+                className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-[11px] font-extrabold text-[#cdeede]"
+                style={{ background: "#0f3d2e" }}
               >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="flex items-center gap-1">
-              <ThemeToggle />
-              <PortalNotificationBell />
-            </div>
+                {initials}
+              </div>
+            )}
           </div>
         </header>
 

@@ -339,7 +339,7 @@ function LoanDetails() {
                         ? "bg-green-100 text-green-700"
                         : String(loan.refund_status).toLowerCase() === "pending"
                           ? "bg-amber-100 text-amber-700"
-                          : "bg-gray-100 text-gray-700"
+                          : "bg-[#faf6ec] text-gray-700"
                     }`}
                   >
                     {String(loan.refund_status).replace(/_/g, " ")}
@@ -591,7 +591,7 @@ function LoanDetails() {
                             ? "bg-green-50"
                             : s.status === "overdue"
                               ? "bg-red-50"
-                              : "bg-gray-50 dark:bg-slate-900"
+                              : "bg-[#faf6ec] dark:bg-slate-900"
                         }`}
                       >
                         <div className="flex justify-between items-center">
@@ -620,7 +620,7 @@ function LoanDetails() {
                           </div>
                         </div>
                         {hasBreakdown && (
-                          <div className="mt-2 pt-2 border-t border-gray-200/60 dark:border-slate-700 grid grid-cols-3 gap-2 text-xs">
+                          <div className="mt-2 pt-2 border-t border-[#e5ddcd]/60 dark:border-slate-700 grid grid-cols-3 gap-2 text-xs">
                             <div>
                               <p className="text-gray-500 dark:text-slate-400">Interest</p>
                               <p className="font-semibold text-emerald-700">
@@ -762,7 +762,7 @@ function LoanDetails() {
                   {transactions.map((t) => (
                     <div
                       key={t.id}
-                      className="border-2 border-gray-100 dark:border-slate-700 rounded-xl p-3 hover:border-[var(--brand)]/30 transition"
+                      className="border-2 border-[#f0ebe0] dark:border-slate-700 rounded-xl p-3 hover:border-[var(--brand)]/30 transition"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -789,7 +789,7 @@ function LoanDetails() {
                         </div>
                       </div>
                       {t.receipt && (
-                        <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 mt-2">
+                        <div className="bg-[#faf6ec] dark:bg-slate-900 rounded-lg p-2 mt-2">
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-gray-600 dark:text-slate-400">After this</span>
                             <span className="font-bold dark:text-slate-100">
@@ -1045,7 +1045,7 @@ function LoanDetails() {
                         </div>
                       )}
                       {w.reason && (
-                        <p className="mt-2 text-xs text-gray-600 italic border-t border-gray-200/60 pt-2">
+                        <p className="mt-2 text-xs text-gray-600 italic border-t border-[#e5ddcd]/60 pt-2">
                           “{w.reason}”
                         </p>
                       )}

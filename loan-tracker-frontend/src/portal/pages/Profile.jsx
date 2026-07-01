@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  User,
   Pencil,
   Check,
   IdCard,
@@ -16,9 +15,10 @@ import PortalLayout from "../components/PortalLayout";
 import PasswordInput from "../components/PasswordInput";
 import { getPortalBrand } from "../brand";
 import Skeleton from "../../components/Skeleton";
+import { CARD, INK, MUTED } from "../theme";
 
 const field =
-  "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-[var(--brand)] focus:outline-none dark:bg-slate-900 dark:text-slate-100";
+  "w-full px-3 py-2.5 border border-[#e5ddcd] dark:border-slate-600 rounded-[11px] bg-[#faf6ec] dark:bg-slate-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20";
 
 // Mirrors the backend validatePassword (>=12, upper, digit, symbol).
 const PASSWORD_RULE = "Min 12 chars, 1 uppercase, 1 number, 1 symbol";
@@ -158,51 +158,76 @@ function Profile() {
 
   const { customer, client } = data;
   const { brand } = getPortalBrand();
+  const initials = `${(customer.first_name || "?").charAt(0)}${(customer.last_name || "").charAt(0)}`.toUpperCase();
+  const memberSince = customer.created_at
+    ? new Date(customer.created_at).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
+    : "—";
   const Row = ({ label, children }) => (
     <div>
-      <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">{label}</p>
-      <div className="font-semibold text-gray-800 dark:text-slate-100">{children}</div>
+      <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#a39b8b] dark:text-slate-500">{label}</p>
+      <div className="font-bold text-[#16241d] dark:text-slate-100 mt-0.5">{children}</div>
     </div>
   );
 
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-4" style={{ "--brand": brand }}>
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100 flex items-center gap-2">
-            <User size={28} className="text-navy-900 dark:text-slate-100" /> My Profile
-          </h1>
-          {!editing && (
-            <button
-              onClick={() => setEditing(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--brand)] text-white rounded-lg font-semibold"
+        {/* Identity header */}
+        <div className={`${CARD} p-6 flex items-center gap-[18px]`}>
+          {customer.profile_photo_url ? (
+            <img src={customer.profile_photo_url} alt="" className="w-16 h-16 rounded-full object-cover shrink-0" />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center text-[22px] font-extrabold shrink-0"
+              style={{ background: "#0f3d2e", color: "#cdeede" }}
             >
-              <Pencil size={15} /> Edit
-            </button>
+              {initials}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className={`text-[19px] font-extrabold ${INK}`}>
+              {customer.first_name} {customer.last_name}
+            </div>
+            <div className={`text-[12.5px] ${MUTED} font-medium mt-0.5`}>
+              Client since {memberSince} · <span className="font-mono">{customer.customer_code || "—"}</span>
+            </div>
+          </div>
+          {(customer.kyc_complete || customer.phone_verified) && (
+            <span
+              className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-full shrink-0"
+              style={{ background: "#eaf6ef", color: "#0d8f63" }}
+            >
+              <Check size={14} /> Verified
+            </span>
           )}
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5 grid grid-cols-2 gap-4">
-          <Row label="Name">
-            {customer.first_name} {customer.last_name}
-          </Row>
+        <div className={`${CARD} p-5 grid grid-cols-2 gap-4`}>
           <Row label="Phone">
             {customer.phone_number}
             {customer.phone_verified && (
-              <span className="ml-2 inline-flex items-center gap-0.5 text-green-600 text-xs"><Check size={12} /> Verified</span>
+              <span className="ml-2 inline-flex items-center gap-0.5 text-[#0d8f63] text-xs"><Check size={12} /> Verified</span>
             )}
           </Row>
           <Row label="ID Number">{customer.id_number}</Row>
+          <Row label="Email">{customer.email || "—"}</Row>
           <Row label="LenderFest ID">
             <span className="font-mono">{customer.customer_code || "—"}</span>
           </Row>
-          <Row label="Member Since">
-            {new Date(customer.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-          </Row>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5 space-y-4">
-          <h2 className="font-bold text-navy-900 dark:text-slate-100">Personal details</h2>
+        <div className={`${CARD} p-5 space-y-4`}>
+          <div className="flex items-center justify-between">
+            <h2 className={`font-extrabold ${INK}`}>Personal details</h2>
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[var(--brand)] text-white rounded-[10px] text-sm font-bold"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            )}
+          </div>
           <div>
             <label className="block text-sm font-semibold mb-1">Email</label>
             {editing ? (
@@ -289,9 +314,9 @@ function Profile() {
           )}
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
+        <div className={`${CARD} p-5`}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-navy-900 dark:text-slate-100 flex items-center gap-1.5"><IdCard size={18} /> Identity documents</h2>
+            <h2 className={`font-extrabold ${INK} flex items-center gap-1.5`}><IdCard size={18} /> Identity documents</h2>
             <button
               onClick={() =>
                 navigate(
@@ -310,7 +335,7 @@ function Profile() {
               ["id_back_url", "ID back"],
             ].map(([k, label]) => (
               <div key={k} className="text-center">
-                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
+                <div className="aspect-square rounded-[12px] overflow-hidden bg-[#faf6ec] dark:bg-slate-700 border border-[#f0ebe0] dark:border-slate-600 flex items-center justify-center">
                   {customer[k] ? (
                     <img
                       src={customer[k]}
@@ -318,10 +343,10 @@ function Profile() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs text-gray-400 dark:text-slate-400">Not uploaded</span>
+                    <span className="text-xs text-[#a39b8b] dark:text-slate-400">Not uploaded</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{label}</p>
+                <p className={`text-xs ${MUTED} mt-1`}>{label}</p>
               </div>
             ))}
           </div>
@@ -332,9 +357,9 @@ function Profile() {
             account here, so this PDF would 404; they get their statement from
             the member dashboard instead. */}
         {client && (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
-            <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-2 flex items-center gap-1.5"><FileText size={18} /> Statements</h2>
-            <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+          <div className={`${CARD} p-5`}>
+            <h2 className={`font-extrabold ${INK} mb-2 flex items-center gap-1.5`}><FileText size={18} /> Statements</h2>
+            <p className={`text-sm ${MUTED} mb-4`}>
               Download your full account statement at{" "}
               {client?.tenant_name || "this lender"}.
             </p>
@@ -348,8 +373,8 @@ function Profile() {
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5">
-          <h2 className="font-bold text-navy-900 dark:text-slate-100 mb-4 flex items-center gap-1.5"><Lock size={18} /> Security</h2>
+        <div className={`${CARD} p-5`}>
+          <h2 className={`font-extrabold ${INK} mb-4 flex items-center gap-1.5`}><Lock size={18} /> Security</h2>
           {!showPwd ? (
             <button
               onClick={() => setShowPwd(true)}

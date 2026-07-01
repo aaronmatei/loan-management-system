@@ -112,7 +112,7 @@ function LenderDetail() {
         <div className="p-4 lg:p-8 max-w-3xl mx-auto">
           <Skeleton className="h-5 w-24 mb-4" />
           {/* Header card */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
             <Skeleton rounded="rounded-none" className="h-2 w-full" />
             <div className="p-6 flex items-center gap-4">
               <Skeleton rounded="rounded-2xl" className="h-16 w-16 shrink-0" />
@@ -202,7 +202,7 @@ function LenderDetail() {
         </button>
 
         {/* Header */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
           <div className="h-2" style={{ backgroundColor: bc }} />
           <div className="p-6">
             <div className="flex items-center gap-4">
@@ -246,7 +246,7 @@ function LenderDetail() {
             return (
               <div
                 key={t.label}
-                className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4"
+                className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-4"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
@@ -277,8 +277,8 @@ function LenderDetail() {
                     key={p.id}
                     className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border p-4 flex flex-col transition ${
                       elig.eligible
-                        ? "border-slate-100 dark:border-slate-700"
-                        : "border-slate-100 dark:border-slate-700 opacity-70"
+                        ? "border-[#ece6da] dark:border-slate-700"
+                        : "border-[#ece6da] dark:border-slate-700 opacity-70"
                     }`}
                   >
                     <div className="flex items-start gap-2 mb-1">
@@ -351,7 +351,7 @@ function LenderDetail() {
                       </div>
                     </div>
                     {!elig.eligible && elig.reasons?.length > 0 && (
-                      <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-lg p-2 mb-2">
+                      <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 border border-[#ece6da] dark:border-slate-700 rounded-lg p-2 mb-2">
                         {elig.reasons.map((r, i) => (
                           <div key={i} className="flex items-start gap-1.5">
                             <span className="text-slate-400 mt-0.5">•</span>
@@ -389,7 +389,7 @@ function LenderDetail() {
             <h2 className="text-sm font-bold text-navy-900 dark:text-slate-100 uppercase tracking-wide mb-2">
               About this lender
             </h2>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 mb-5 space-y-2 text-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-5 mb-5 space-y-2 text-sm">
               {lender.physical_address && (
                 <p className="flex items-start gap-2 text-slate-700 dark:text-slate-200">
                   <MapPin size={16} className="mt-0.5 text-slate-400 shrink-0" />
@@ -415,7 +415,7 @@ function LenderDetail() {
         )}
 
         {/* Actions */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-5">
           {lender.is_linked ? (
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">

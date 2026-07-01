@@ -799,8 +799,18 @@ router.get("/analytics", async (req, res) => {
     const loanProgress = (
       await query(
         `SELECT l.id, l.loan_code, l.total_amount_due,
+                l.principal_amount, l.interest_rate, l.loan_duration_months,
+                l.start_date, l.purpose,
                 (COALESCE(sp.cash_paid,0) + COALESCE(wv.waived,0)) AS total_paid,
-                tn.id AS tenant_id, tn.business_name AS lender, tn.brand_color
+                tn.id AS tenant_id, tn.business_name AS lender, tn.brand_color,
+                (SELECT json_build_object(
+                    'amount_due', ps.amount_due,
+                    'due_date', ps.due_date,
+                    'payment_number', ps.payment_number)
+                   FROM payment_schedules ps
+                  WHERE ps.loan_id = l.id
+                    AND ps.status IN ('pending','overdue')
+                  ORDER BY ps.due_date ASC LIMIT 1) AS next_payment
          FROM loans l
          JOIN tenants tn ON l.tenant_id = tn.id
          LEFT JOIN (
@@ -825,6 +835,21 @@ router.get("/analytics", async (req, res) => {
       tenant_id: r.tenant_id,
       total_due: parseFloat(r.total_amount_due),
       paid: parseFloat(r.total_paid),
+      // Loan terms + soonest upcoming instalment — powers the borrower
+      // dashboard's balance hero + "next payment" card (additive; no schema
+      // change). next_payment is null once the loan is fully scheduled/paid.
+      principal: parseFloat(r.principal_amount),
+      interest_rate: r.interest_rate != null ? parseFloat(r.interest_rate) : null,
+      term_months: r.loan_duration_months,
+      disbursed_date: r.start_date,
+      purpose: r.purpose,
+      next_payment: r.next_payment
+        ? {
+            amount: parseFloat(r.next_payment.amount_due),
+            due_date: r.next_payment.due_date,
+            number: r.next_payment.payment_number,
+          }
+        : null,
     }));
 
     const totalPayments = behavior.on_time + behavior.late;

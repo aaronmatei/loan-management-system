@@ -108,7 +108,7 @@ function Lenders() {
     );
 
   const fld =
-    "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 rounded-lg focus:border-ocean-600 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100";
+    "w-full px-3 py-2 border-2 border-[#e5ddcd] dark:border-slate-600 rounded-lg focus:border-ocean-600 focus:outline-none bg-white dark:bg-slate-900 dark:text-slate-100";
 
   // Distinct lender types present, for the colour legend.
   const legendTypes = (() => {
@@ -195,7 +195,7 @@ function Lenders() {
         )}
 
         {/* Filters */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 mb-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-4 mb-5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
@@ -252,7 +252,7 @@ function Lenders() {
                 className={`px-3 py-1 rounded-full text-xs font-semibold ${
                   linkFilter === v
                     ? "bg-ocean-gradient text-white"
-                    : "bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600"
+                    : "bg-[#faf6ec] dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600"
                 }`}
               >
                 {label}
@@ -292,7 +292,7 @@ function Lenders() {
         </p>
 
         {loading ? null : filtered.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-12 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-12 text-center">
             <div className="flex justify-center mb-4">
               <IconTile icon={Building2} variant="ocean" size={56} />
             </div>
@@ -301,10 +301,10 @@ function Lenders() {
           </div>
         ) : (
           <>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-x-auto">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                  <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-[#ece6da] dark:border-slate-700">
                     <SortHeader
                       label="Lender"
                       sortKey="name"

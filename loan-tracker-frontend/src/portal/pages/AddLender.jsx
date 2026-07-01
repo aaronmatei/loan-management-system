@@ -236,7 +236,7 @@ function AddLender() {
               return (
                 <div key={t.id}>
                   {/* Row */}
-                  <div className="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
+                  <div className="flex items-center gap-3 p-3 sm:p-4 hover:bg-[#faf6ec] dark:hover:bg-slate-700 transition">
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
                       style={{ backgroundColor: accent }}
@@ -283,7 +283,7 @@ function AddLender() {
 
                   {/* Expanded detail */}
                   {open && (
-                    <div className="px-4 pb-4 pt-1 bg-gray-50/60 dark:bg-slate-900/60">
+                    <div className="px-4 pb-4 pt-1 bg-[#faf6ec]/60 dark:bg-slate-900/60">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <Detail label="Interest" value={`${t.default_interest_rate}%`} />
                         <Detail

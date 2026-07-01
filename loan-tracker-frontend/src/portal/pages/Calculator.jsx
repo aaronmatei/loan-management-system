@@ -173,7 +173,7 @@ function CustomerCalculator() {
                   setCalc(null);
                 }
               }}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none font-semibold"
+              className="w-full px-3 py-2 border-2 border-[#e5ddcd] rounded-lg bg-white dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none font-semibold"
             >
               {tenants.map((t) => (
                 <option key={t.tenant_id} value={t.tenant_id}>
@@ -346,7 +346,7 @@ function CustomerCalculator() {
                   </h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm dark:text-slate-200">
-                      <thead className="bg-gray-50 dark:bg-slate-900">
+                      <thead className="bg-[#faf6ec] dark:bg-slate-900">
                         <tr>
                           <th className="text-left p-2">#</th>
                           <th className="text-left p-2">Due Date</th>
@@ -368,7 +368,7 @@ function CustomerCalculator() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="font-bold bg-gray-50 dark:bg-slate-900">
+                      <tfoot className="font-bold bg-[#faf6ec] dark:bg-slate-900">
                         <tr>
                           <td colSpan="2" className="p-2">
                             Total
@@ -405,7 +405,7 @@ function CustomerCalculator() {
                             className={`flex items-center justify-between p-2 rounded-lg ${
                               isSel
                                 ? "bg-[var(--brand)]/10 border border-[var(--brand)]/30"
-                                : "bg-gray-50 dark:bg-slate-900"
+                                : "bg-[#faf6ec] dark:bg-slate-900"
                             }`}
                           >
                             <div className="flex items-center gap-2">
