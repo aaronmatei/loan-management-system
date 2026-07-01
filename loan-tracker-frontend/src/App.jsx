@@ -79,6 +79,7 @@ import AdminLogin from "./admin/pages/AdminLogin";
 import CronManager from "./admin/pages/CronManager";
 import PlatformAuditLog from "./admin/pages/PlatformAuditLog";
 import PlatformReports from "./admin/pages/PlatformReports";
+import PlatformSettings from "./admin/pages/PlatformSettings";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -406,6 +407,14 @@ function App() {
               element={
                 <PlatformAdminRoute>
                   <PlatformReports />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <PlatformAdminRoute>
+                  <PlatformSettings />
                 </PlatformAdminRoute>
               }
             />

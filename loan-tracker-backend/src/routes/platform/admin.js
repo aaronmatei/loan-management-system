@@ -520,4 +520,50 @@ router.put("/tenants/:id/plan", async (req, res) => {
   }
 });
 
+// ── Platform settings (migration 116) ────────────────────────────────
+// Deliberately small — only keys actually wired into behaviour. Today these
+// are the billing defaults a new lender tenant is created with (tenants.js).
+const SETTING_KEYS = ["default_fee_percent", "default_base_fee"];
+router.get("/settings", async (req, res) => {
+  try {
+    const r = await query("SELECT key, value FROM platform_settings");
+    const out = {};
+    for (const row of r.rows) out[row.key] = row.value;
+    res.json({ success: true, data: out });
+  } catch (error) {
+    logger.error("Get platform settings error:", error);
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+});
+
+router.put("/settings", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const num = (v) => (v === undefined || v === null || v === "" ? null : Number(v));
+    if (body.default_fee_percent !== undefined) {
+      const p = num(body.default_fee_percent);
+      if (p === null || Number.isNaN(p) || p < 0 || p > 100)
+        return res.status(400).json({ error: "Default fee % must be 0–100" });
+    }
+    if (body.default_base_fee !== undefined) {
+      const b = num(body.default_base_fee);
+      if (b === null || Number.isNaN(b) || b < 0)
+        return res.status(400).json({ error: "Default base fee must be ≥ 0" });
+    }
+    for (const key of SETTING_KEYS) {
+      if (body[key] === undefined) continue;
+      await query(
+        `INSERT INTO platform_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, body[key] == null ? null : String(body[key])],
+      );
+    }
+    logger.info(`Platform admin ${req.user.email} updated platform settings`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error("Update platform settings error:", error);
+    res.status(500).json({ error: "Failed to update settings" });
+  }
+});
+
 export default router;

@@ -107,14 +107,26 @@ router.post("/signup", async (req, res) => {
 
     await client.query("BEGIN");
 
+    // Platform-wide new-lender billing defaults (Platform Settings). Fall back
+    // to the historic 5% / 0 base when unset.
+    const settRes = await client.query(
+      "SELECT key, value FROM platform_settings WHERE key IN ('default_fee_percent','default_base_fee')",
+    );
+    const sett = Object.fromEntries(settRes.rows.map((r) => [r.key, r.value]));
+    const defFee = Number.parseFloat(sett.default_fee_percent);
+    const feePct = Number.isFinite(defFee) ? defFee : 5.0;
+    const defBase = Number.parseFloat(sett.default_base_fee);
+    const baseFee = Number.isFinite(defBase) ? defBase : 0;
+
     const tRes = await client.query(
       `INSERT INTO tenants (
         tenant_code, business_name, business_type, subdomain,
         contact_name, contact_email, contact_phone,
         physical_address, city, county,
         plan, status, trial_ends_at,
-        platform_fee_percentage, max_clients, max_loans, max_users
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'trial','active',$11,5.00,50,50,3)
+        platform_fee_percentage, billing_fee_percentage, billing_base_fee,
+        max_clients, max_loans, max_users
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'trial','active',$11,$12,$12,$13,50,50,3)
       RETURNING *`,
       [
         tenantCode,
@@ -128,6 +140,8 @@ router.post("/signup", async (req, res) => {
         city || null,
         county || null,
         trialEndsAt,
+        feePct,
+        baseFee,
       ],
     );
     const tenant = tRes.rows[0];

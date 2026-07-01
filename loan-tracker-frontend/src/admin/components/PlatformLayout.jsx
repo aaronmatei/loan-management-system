@@ -11,6 +11,7 @@ import {
   LogOut,
   Search,
   MessageSquare,
+  Settings,
 } from "lucide-react";
 import NavIcon from "../../components/NavIcon";
 
@@ -22,6 +23,7 @@ const MENU = [
   { path: "/admin/communication-costs", label: "Comms Costs", icon: MessageSquare, variant: "indigo" },
   { path: "/admin/cron", label: "System", icon: Server, variant: "amber" },
   { path: "/admin/audit", label: "Audit Log", icon: ScrollText, variant: "rose" },
+  { path: "/admin/settings", label: "Settings", icon: Settings, variant: "ocean" },
 ];
 
 // Header title/subtitle per admin section.

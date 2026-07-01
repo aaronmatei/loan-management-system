@@ -1159,6 +1159,16 @@ ALTER SEQUENCE public.system_settings_id_seq OWNED BY public.system_settings.id;
 
 
 --
+-- Name: platform_settings; Type: TABLE; Schema: public; Owner: -  (migration 116)
+--
+
+CREATE TABLE public.platform_settings (
+    key character varying(60) PRIMARY KEY,
+    value text,
+    updated_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+--
 -- Name: plans; Type: TABLE; Schema: public; Owner: -  (migration 115)
 --
 
