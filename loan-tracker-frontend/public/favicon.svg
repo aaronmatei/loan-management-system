@@ -1,6 +1,6 @@
 <svg viewBox="-4 -11 70 70" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LenderFest">
-  <rect x="-4" y="-11" width="70" height="70" rx="17" fill="#122A2E"/>
-  <circle cx="22" cy="24" r="13" stroke="#22B488" stroke-width="6"/>
+  <rect x="-4" y="-11" width="70" height="70" rx="17" fill="#FBF7EF"/>
+  <circle cx="22" cy="24" r="13" stroke="#1E8A5F" stroke-width="6"/>
   <circle cx="40" cy="24" r="13" stroke="#F0A32B" stroke-width="6"/>
-  <path d="M33.26 30.5 A13 13 0 0 1 27.7 35.68" stroke="#22B488" stroke-width="6"/>
+  <path d="M33.26 30.5 A13 13 0 0 1 27.7 35.68" stroke="#1E8A5F" stroke-width="6"/>
 </svg>
