@@ -163,13 +163,11 @@ function MyLoans() {
               Every loan across all your lenders, in one place
             </p>
           </div>
-          {/* Funnel customer back to the lenders directory to pick
-              which lender they want to borrow from — products are
-              per-lender, so a generic "Apply" button here can't
-              skip the lender choice. */}
+          {/* Start at the Apply hub (your linked lenders) — products are
+              per-lender, so you pick the lender + package there. */}
           <button
-            onClick={() => navigate("/lenders")}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-white bg-gradient-to-r from-ocean-600 to-purple-700 shadow-sm hover:shadow-md transition shrink-0"
+            onClick={() => navigate("/portal/apply")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-white bg-ocean-gradient shadow-tile hover:shadow-md transition shrink-0"
           >
             <Plus size={16} /> Apply for a loan
           </button>

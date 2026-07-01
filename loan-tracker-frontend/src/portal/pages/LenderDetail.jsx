@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Coins,
@@ -30,6 +30,10 @@ const PM = (annual) => +(parseFloat(annual || 0) / 12).toFixed(2);
 function LenderDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
+  // When we arrived from the Apply hub (?from=apply), "back" returns there
+  // rather than to the full Lenders marketplace.
+  const [searchParams] = useSearchParams();
+  const fromApply = searchParams.get("from") === "apply";
   const [lender, setLender] = useState(null);
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -219,10 +223,10 @@ function LenderDetail() {
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto">
         <button
-          onClick={() => navigate("/lenders")}
+          onClick={() => navigate(fromApply ? "/portal/apply" : "/lenders")}
           className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-navy-900 mb-4"
         >
-          <ArrowLeft size={16} /> Lenders
+          <ArrowLeft size={16} /> {fromApply ? "Apply for a loan" : "Lenders"}
         </button>
 
         {/* Header */}

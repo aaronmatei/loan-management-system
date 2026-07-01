@@ -31,7 +31,7 @@ function ApplyHub() {
   // Open the lender's loan products (packages + their standard flat loan); the
   // borrower then borrows against a specific one from there. Going straight to
   // the wizard would silently pick the flat loan and hide the packages.
-  const startApplication = (tenantId) => navigate(`/lenders/${tenantId}`);
+  const startApplication = (tenantId) => navigate(`/lenders/${tenantId}?from=apply`);
 
   return (
     <PortalLayout>

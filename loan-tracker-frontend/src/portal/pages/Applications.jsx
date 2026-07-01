@@ -186,7 +186,7 @@ function CustomerApplications() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/lenders")}
+            onClick={() => navigate("/portal/apply")}
             className="px-4 py-2 bg-ocean-gradient text-white rounded-lg font-semibold shadow-tile"
           >
             + New
@@ -205,7 +205,7 @@ function CustomerApplications() {
               Start your loan application journey.
             </p>
             <button
-              onClick={() => navigate("/lenders")}
+              onClick={() => navigate("/portal/apply")}
               className="px-6 py-3 bg-ocean-gradient text-white font-bold rounded-lg shadow-tile"
             >
               Apply for a Loan →
