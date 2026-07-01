@@ -1,5 +1,6 @@
 import express from "express";
 import bcryptjs from "bcryptjs";
+import jwt from "jsonwebtoken";
 import pool, { query } from "../config/database.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
 import logger from "../config/logger.js";
@@ -125,7 +126,7 @@ router.post("/signup", async (req, res) => {
         plan, status, trial_ends_at,
         platform_fee_percentage, billing_fee_percentage, billing_base_fee,
         max_clients, max_loans, max_users
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'trial','pending',$11,$12,$12,$13,50,50,3)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'trial','onboarding',$11,$12,$12,$13,50,50,3)
       RETURNING *`,
       [
         tenantCode,
@@ -250,20 +251,35 @@ router.post("/signup", async (req, res) => {
       await referralService.recordReferral(referral_code, tenant);
     }
 
-    logger.info(`🎉 New tenant signed up (pending review): ${business_name} (${sub})`);
+    // Auto-login into onboarding: the tenant is created 'onboarding' and can
+    // complete the setup wizard. Finishing onboarding flips them to 'pending'
+    // (awaiting a platform admin's review) — see routes/onboarding.js.
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: "admin",
+        tenant_id: tenant.id,
+        is_platform_admin: false,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || "7d" },
+    );
 
-    // No auto-login: the tenant is created 'pending' and must be approved by a
-    // platform admin before it can be used. The user signs in once approved.
+    logger.info(`🎉 New tenant signed up (onboarding): ${business_name} (${sub})`);
+
     res.status(201).json({
       success: true,
-      pending: true,
-      message:
-        "Your account has been created and is pending review. We'll email you as soon as it's approved.",
+      message: "Welcome! Complete a few setup steps and we'll review your account.",
+      token,
       tenant: {
         id: tenant.id,
         business_name: tenant.business_name,
         subdomain: tenant.subdomain,
+        plan: tenant.plan,
+        referral_code: tenant.referral_code,
       },
+      user,
     });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});

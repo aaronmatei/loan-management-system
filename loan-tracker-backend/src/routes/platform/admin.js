@@ -2,7 +2,34 @@ import express from "express";
 import { query } from "../../config/database.js";
 import { verifyToken } from "../../middleware/auth.js";
 import { logTenantAction } from "../../services/auditService.js";
+import { sendEmail } from "../../services/emailService.js";
 import logger from "../../config/logger.js";
+
+// Notify a lender of an onboarding decision. Fire-and-forget-ish: awaited but
+// never fails the request (sendEmail already no-ops when email is disabled).
+async function emailDecision(tenant, decision, reason) {
+  if (!tenant?.contact_email) return;
+  const approved = decision === "approved";
+  try {
+    await sendEmail({
+      to: tenant.contact_email,
+      fromName: "LenderFest",
+      subject: approved
+        ? "Your LenderFest account is approved 🎉"
+        : "Update on your LenderFest application",
+      html: approved
+        ? `<p>Hi ${tenant.business_name},</p>
+           <p>Good news — your LenderFest account has been <strong>approved</strong>. You can now sign in and start managing your loans.</p>
+           <p>Welcome aboard!</p>`
+        : `<p>Hi ${tenant.business_name},</p>
+           <p>Thank you for your interest in LenderFest. After reviewing your details, we're unable to approve your account at this time.</p>
+           ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+           <p>If you believe this is a mistake, please reply to this email or contact support.</p>`,
+    });
+  } catch (e) {
+    logger.error(`Decision email (${decision}) failed:`, e);
+  }
+}
 
 const router = express.Router();
 
@@ -345,6 +372,7 @@ router.post("/tenants/:id/approve", async (req, res) => {
     }
     logger.info(`Platform admin ${req.user.email} approved tenant ${id}`);
     await logTenantAction(req.user, "approved", result.rows[0], req, {});
+    await emailDecision(result.rows[0], "approved");
     res.json({ success: true, message: "Tenant approved", data: result.rows[0] });
   } catch (error) {
     logger.error("Approve tenant error:", error);
@@ -368,6 +396,7 @@ router.post("/tenants/:id/decline", async (req, res) => {
     await logTenantAction(req.user, "declined", result.rows[0], req, {
       metadata: { reason: reason || null },
     });
+    await emailDecision(result.rows[0], "declined", reason);
     res.json({ success: true, message: "Tenant declined", data: result.rows[0] });
   } catch (error) {
     logger.error("Decline tenant error:", error);

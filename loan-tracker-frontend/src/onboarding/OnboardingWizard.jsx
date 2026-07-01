@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
 import api from "../services/api";
 
 import WelcomeStep from "./steps/WelcomeStep";
@@ -29,6 +30,16 @@ function OnboardingWizard() {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [createdClient, setCreatedClient] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Finishing onboarding submits the account for review (backend flips it to
+  // 'pending'). Log out locally and show the review screen — the app is gated
+  // until a platform admin approves.
+  const finishPending = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setSubmitted(true);
+  };
 
   useEffect(() => {
     api
@@ -66,7 +77,8 @@ function OnboardingWizard() {
     if (!window.confirm("Skip the setup? You can always come back to this."))
       return;
     try {
-      await api.post("/onboarding/skip");
+      const r = await api.post("/onboarding/skip");
+      if (r.data?.pending) return finishPending();
       navigate("/");
     } catch {
       alert("Failed to skip. Please try again.");
@@ -75,12 +87,33 @@ function OnboardingWizard() {
 
   const handleComplete = async () => {
     try {
-      await api.post("/onboarding/complete");
+      const r = await api.post("/onboarding/complete");
+      if (r.data?.pending) return finishPending();
       navigate("/?welcome=true");
     } catch {
       alert("Failed to complete. Please try again.");
     }
   };
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-ocean-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-ocean-50 dark:bg-slate-700 flex items-center justify-center mx-auto">
+            <CheckCircle2 size={28} className="text-ocean-600" />
+          </div>
+          <h1 className="text-xl font-extrabold text-navy-900 dark:text-slate-100 mt-4">Submitted for review</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
+            Thanks — your setup is complete and your account is now <strong>pending review</strong>.
+            Our team will check your details and email you once it's approved. You can sign in then.
+          </p>
+          <a href="/login" className="inline-block mt-6 px-5 py-2.5 bg-ocean-gradient text-white font-bold rounded-lg text-sm">
+            Back to sign in
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

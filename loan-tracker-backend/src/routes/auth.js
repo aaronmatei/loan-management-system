@@ -113,41 +113,41 @@ router.post(
       t = {}; // pre-migration: stay single-tenant
     }
 
-    // Block non-active tenants (platform admins exempt). Message is
-    // status-specific — pending accounts are awaiting approval, not suspended.
+    // Block tenants in a non-usable state (platform admins exempt). 'active'
+    // and 'onboarding' can sign in (onboarding needs access to finish setup);
+    // everything below is gated with a status-specific message.
+    const BLOCKED = {
+      pending: {
+        error: "Account pending approval",
+        message:
+          "Your account is awaiting review. We'll email you as soon as it's approved.",
+        code: "TENANT_PENDING",
+      },
+      rejected: {
+        error: "Application not approved",
+        message:
+          "Your account application was not approved. Please contact support.",
+        code: "TENANT_REJECTED",
+      },
+      suspended: {
+        error: "Account suspended",
+        message:
+          "Your business account is currently suspended. Please contact support.",
+        code: "TENANT_SUSPENDED",
+      },
+      cancelled: {
+        error: "Account cancelled",
+        message: "This account has been cancelled.",
+        code: "TENANT_CANCELLED",
+      },
+    };
     if (
       t.tenant_id &&
       !t.is_platform_admin &&
       t.tenant_status &&
-      t.tenant_status !== "active"
+      BLOCKED[t.tenant_status]
     ) {
-      const gates = {
-        pending: {
-          error: "Account pending approval",
-          message:
-            "Your account is awaiting review. We'll email you as soon as it's approved.",
-          code: "TENANT_PENDING",
-        },
-        rejected: {
-          error: "Application not approved",
-          message:
-            "Your account application was not approved. Please contact support.",
-          code: "TENANT_REJECTED",
-        },
-        cancelled: {
-          error: "Account cancelled",
-          message: "This account has been cancelled.",
-          code: "TENANT_CANCELLED",
-        },
-      };
-      return res.status(403).json(
-        gates[t.tenant_status] || {
-          error: "Account suspended",
-          message:
-            "Your business account is currently suspended. Please contact support.",
-          code: "TENANT_SUSPENDED",
-        },
-      );
+      return res.status(403).json(BLOCKED[t.tenant_status]);
     }
 
     // Generate JWT token (include tenant claims only when present)

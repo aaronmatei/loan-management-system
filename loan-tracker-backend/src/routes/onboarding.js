@@ -71,16 +71,27 @@ router.post("/complete", async (req, res) => {
   try {
     const t = tid(req);
     if (!t) return res.status(400).json({ error: "No tenant context" });
-    await query(
+    // Finishing onboarding submits the tenant for review: an 'onboarding'
+    // tenant flips to 'pending' (a platform admin must approve before they can
+    // sign in again). Already-active tenants re-running this are left as-is.
+    const upd = await query(
       `UPDATE tenants
        SET onboarding_completed = TRUE,
            onboarding_completed_at = NOW(),
            onboarding_step = 6,
+           status = CASE WHEN status = 'onboarding' THEN 'pending' ELSE status END,
            updated_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1 RETURNING status`,
       [t],
     );
-    res.json({ success: true, message: "Onboarding complete!" });
+    const pending = upd.rows[0]?.status === "pending";
+    res.json({
+      success: true,
+      pending,
+      message: pending
+        ? "Setup complete — your account has been submitted for review."
+        : "Onboarding complete!",
+    });
   } catch (error) {
     logger.error("Complete onboarding error:", error);
     res.status(500).json({ error: "Failed to complete" });
@@ -91,16 +102,22 @@ router.post("/skip", async (req, res) => {
   try {
     const t = tid(req);
     if (!t) return res.status(400).json({ error: "No tenant context" });
-    await query(
+    const upd = await query(
       `UPDATE tenants
        SET onboarding_completed = TRUE,
            onboarding_skipped   = TRUE,
            onboarding_completed_at = NOW(),
+           status = CASE WHEN status = 'onboarding' THEN 'pending' ELSE status END,
            updated_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1 RETURNING status`,
       [t],
     );
-    res.json({ success: true, message: "Onboarding skipped" });
+    const pending = upd.rows[0]?.status === "pending";
+    res.json({
+      success: true,
+      pending,
+      message: pending ? "Submitted for review." : "Onboarding skipped",
+    });
   } catch (error) {
     logger.error("Skip onboarding error:", error);
     res.status(500).json({ error: "Failed to skip" });

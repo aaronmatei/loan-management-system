@@ -16,7 +16,6 @@ function Signup() {
   // Populated by /api/referrals/validate/:code — null until we know
   // the code is real. Render-gates the "Referred by X" banner.
   const [referralInfo, setReferralInfo] = useState(null);
-  const [pendingDone, setPendingDone] = useState(null);
 
   const [formData, setFormData] = useState({
     business_name: "",
@@ -90,13 +89,8 @@ function Signup() {
         contact_name: `${formData.first_name} ${formData.last_name}`.trim(),
       };
       const res = await api.post("/tenants/signup", payload);
-      // New signups are created pending review — no auto-login. Show a
-      // confirmation; the user signs in once a platform admin approves.
-      if (res.data.pending) {
-        setPendingDone(res.data.tenant || { business_name: formData.business_name });
-        return;
-      }
-      // Legacy fallback: if a token ever comes back, honour the old flow.
+      // Auto-login into onboarding. Finishing the wizard submits the account
+      // for platform review (it flips to 'pending'); see OnboardingWizard.
       localStorage.setItem("token", res.data.token);
       localStorage.setItem(
         "user",
@@ -117,29 +111,6 @@ function Signup() {
       ...formData,
       [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value,
     });
-
-  if (pendingDone) {
-    return (
-      <div
-        className="min-h-screen bg-ocean-gradient bg-cover bg-center bg-no-repeat flex items-center justify-center py-8 px-4"
-        style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
-      >
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="w-14 h-14 rounded-full bg-ocean-50 flex items-center justify-center mx-auto">
-            <Rocket size={26} className="text-ocean-600" />
-          </div>
-          <h1 className="text-xl font-extrabold text-navy-900 mt-4">Thanks — you're almost there</h1>
-          <p className="text-sm text-slate-600 mt-2">
-            <strong>{pendingDone.business_name}</strong> has been created and is now <strong>pending review</strong>.
-            Our team cross-checks every new account; we'll email you as soon as it's approved, then you can sign in.
-          </p>
-          <Link to="/login" className="inline-block mt-6 px-5 py-2.5 bg-ocean-gradient text-white font-bold rounded-lg text-sm">
-            Back to sign in
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div
