@@ -28,14 +28,16 @@ function ApplyHub() {
       .finally(() => setLoading(false));
   }, []);
 
-  // The wizard is the same page with an explicit ?lender= target.
-  const startApplication = (tenantId) => navigate(`/portal/apply?lender=${tenantId}`);
+  // Open the lender's loan products (packages + their standard flat loan); the
+  // borrower then borrows against a specific one from there. Going straight to
+  // the wizard would silently pick the flat loan and hide the packages.
+  const startApplication = (tenantId) => navigate(`/lenders/${tenantId}`);
 
   return (
     <PortalLayout>
       <div className="p-4 lg:p-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <p className={`${MUTED} text-sm`}>Pick a lender you're linked with to start an application.</p>
+          <p className={`${MUTED} text-sm`}>Pick a lender you're linked with to see their loan products and apply.</p>
           <button
             onClick={() => navigate("/lenders")}
             className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#0d8f63] shrink-0"
@@ -112,7 +114,7 @@ function ApplyHub() {
                     className="mt-4 w-full rounded-[11px] py-2.5 text-center text-white text-[13px] font-bold transition group-hover:brightness-110"
                     style={{ background: bc }}
                   >
-                    Apply here
+                    View loan products
                   </div>
                 </button>
               );
