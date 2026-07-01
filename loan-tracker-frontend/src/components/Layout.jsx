@@ -758,7 +758,7 @@ function Layout({ children }) {
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile top bar with hamburger */}
-          <header className="lg:hidden bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
+          <header className="lg:hidden bg-surface border-b border-gray-200 dark:border-slate-700 shadow-sm">
             <div className="flex items-center justify-between px-4 py-3">
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -790,7 +790,7 @@ function Layout({ children }) {
           </header>
 
           {/* Desktop top bar — page title · search · primary action · bell */}
-          <header className="hidden lg:flex items-center gap-4 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm px-6 py-3">
+          <header className="hidden lg:flex items-center gap-4 bg-surface border-b border-gray-200 dark:border-slate-700 shadow-sm px-6 py-3">
             <h1 className="text-[17px] font-extrabold tracking-tight text-navy-900 dark:text-slate-100 truncate min-w-0">
               {getCurrentPageTitle()}
             </h1>

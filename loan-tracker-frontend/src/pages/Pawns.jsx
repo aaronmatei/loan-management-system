@@ -88,7 +88,7 @@ export default function Pawns() {
       )}
 
       {pool && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 mb-4 inline-flex items-center gap-3">
+        <div className="bg-surface rounded-xl shadow-md p-4 mb-4 inline-flex items-center gap-3">
           <div className="inline-flex p-2 rounded-lg bg-amber-50 text-amber-700"><Coins size={18} /></div>
           <div>
             <p className="text-xs text-slate-500 dark:text-slate-400">Available capital</p>
@@ -122,7 +122,7 @@ export default function Pawns() {
       </div>
 
       {loading ? (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="bg-surface rounded-xl shadow-md overflow-hidden">
           <div className="p-4 space-y-3">
             {Array.from({ length: 5 }).map((_, r) => (
               <div key={r} className="flex items-center gap-4">
@@ -153,7 +153,7 @@ export default function Pawns() {
           )}
         />
       ) : (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="bg-surface rounded-xl shadow-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs uppercase">
               <tr>

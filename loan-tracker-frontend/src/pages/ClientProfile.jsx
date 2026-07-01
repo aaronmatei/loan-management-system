@@ -210,7 +210,7 @@ function ClientProfile() {
         </div>
         {/* Identity + credit score */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-          <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 lg:p-8">
+          <div className="lg:col-span-2 bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 lg:p-8">
             <div className="flex items-center gap-5">
               <Skeleton className="h-24 w-24" rounded="rounded-full" />
               <div className="flex-1">
@@ -261,7 +261,7 @@ function ClientProfile() {
 
   // Subtle top-bar action button.
   const topBtn =
-    "inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition";
+    "inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition";
   const fmtSlash = (d) =>
     new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -446,7 +446,7 @@ function ClientProfile() {
           </div>
         );
         return (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
+          <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
             {/* identity */}
             <div className="flex flex-wrap items-start gap-4 p-6 pb-5">
               {client.profile_photo_url ? (
@@ -552,7 +552,7 @@ function ClientProfile() {
       })()}
 
       {/* Identity documents — from the client's linked customer-portal account */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
+      <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
         <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
           <IdCard size={20} className="text-gray-600 dark:text-slate-400" /> Identity Documents
         </h2>
@@ -701,7 +701,7 @@ function ClientProfile() {
           }
           maxHeight="calc(100vh - 260px)"
           empty={
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-6">
+            <div className="bg-surface rounded-xl shadow-card p-6">
               <EmptyState
                 icon={ClipboardList}
                 tone="muted"
@@ -749,7 +749,7 @@ function ClientProfile() {
           }
           maxHeight="calc(100vh - 260px)"
           empty={
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-6">
+            <div className="bg-surface rounded-xl shadow-card p-6">
               <EmptyState
                 icon={Banknote}
                 tone="muted"
@@ -764,7 +764,7 @@ function ClientProfile() {
       {/* Edit Client Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-3xl w-full my-8">
+          <div className="bg-surface rounded-xl shadow-2xl p-8 max-w-3xl w-full my-8">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Edit Client</h3>
               <button

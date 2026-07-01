@@ -112,7 +112,7 @@ function Lenders() {
   );
 
   const rail = (
-    <div className="bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[18px] p-5 lg:sticky lg:top-4">
+    <div className="bg-surface border border-[#ece6da] dark:border-slate-700 rounded-[18px] p-5 lg:sticky lg:top-4">
       <div className="flex items-center justify-between mb-4">
         <span className="text-[13px] font-extrabold text-[#16241d] dark:text-slate-100">Filters</span>
         {dirty && (
@@ -255,7 +255,7 @@ function Lenders() {
           {/* Results */}
           <div>
             <div className="flex items-center gap-3 mb-3.5">
-              <div className="flex-1 flex items-center gap-2.5 bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[12px] px-3.5 py-2.5">
+              <div className="flex-1 flex items-center gap-2.5 bg-surface border border-[#ece6da] dark:border-slate-700 rounded-[12px] px-3.5 py-2.5">
                 <Search size={17} className="text-[#a39b8b] shrink-0" />
                 <input
                   value={search}
@@ -273,7 +273,7 @@ function Lenders() {
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
                   aria-label="Sort lenders"
-                  className="appearance-none bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[12px] pl-9 pr-9 py-2.5 text-[13px] font-bold text-[#33403a] dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0d8f63]/30"
+                  className="appearance-none bg-surface border border-[#ece6da] dark:border-slate-700 rounded-[12px] pl-9 pr-9 py-2.5 text-[13px] font-bold text-[#33403a] dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0d8f63]/30"
                 >
                   {Object.entries(SORTS).map(([k, s]) => (
                     <option key={k} value={k}>
@@ -301,7 +301,7 @@ function Lenders() {
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[18px] p-[52px] text-center text-[#9a9486] text-sm font-semibold">
+              <div className="bg-surface border border-[#ece6da] dark:border-slate-700 rounded-[18px] p-[52px] text-center text-[#9a9486] text-sm font-semibold">
                 No lenders match these filters.{" "}
                 <button onClick={resetAll} className="text-[#0d8f63] font-bold">
                   Reset filters →
@@ -319,7 +319,7 @@ function Lenders() {
                     <button
                       key={l.tenant_id}
                       onClick={() => navigate(`/lenders/${l.tenant_id}`)}
-                      className="text-left w-full bg-white dark:bg-slate-800 rounded-[16px] px-4 sm:px-5 py-4 flex items-center gap-4 transition hover:bg-[#fdfbf6] dark:hover:bg-slate-700/40 hover:shadow-[0_10px_30px_-20px_rgba(15,30,60,0.22)]"
+                      className="text-left w-full bg-surface rounded-[16px] px-4 sm:px-5 py-4 flex items-center gap-4 transition hover:bg-[#fdfbf6] dark:hover:bg-slate-700/40 hover:shadow-[0_10px_30px_-20px_rgba(15,30,60,0.22)]"
                       style={{ border: `1px solid ${linked ? "#bfe3d1" : "#ece6da"}` }}
                     >
                       {/* avatar */}

@@ -204,7 +204,7 @@ export function PawnPledges() {
           </PermissionGate>
         }
       />
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -278,7 +278,7 @@ export function PawnAuctions() {
       {loading ? (
         <div className="space-y-6">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div key={i} className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><Skeleton className="h-5 w-40" /></div>
               <TableSkeleton cols={5} />
             </div>
@@ -287,7 +287,7 @@ export function PawnAuctions() {
       ) : (
         <div className="space-y-6">
           {/* Eligible queue → schedule */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-amber-100 overflow-hidden">
+          <div className="bg-surface rounded-xl shadow-md border border-amber-100 overflow-hidden">
             <div className="bg-amber-50 px-5 py-3 border-b border-amber-100">
               <h2 className="font-bold text-slate-900 flex items-center gap-2"><Gavel size={18} className="text-amber-600" /> Auction queue <span className="text-sm font-normal text-slate-500">· past the notice period</span></h2>
             </div>
@@ -316,7 +316,7 @@ export function PawnAuctions() {
           </div>
 
           {/* Scheduled → complete / cancel */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Scheduled</h2></div>
             {scheduled.length === 0 ? <EmptyState icon={Gavel} tone="muted" title="No auctions scheduled" description="Schedule an eligible pledge from the queue above." /> : (
               <div className="overflow-x-auto">
@@ -344,7 +344,7 @@ export function PawnAuctions() {
           </div>
 
           {/* History */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">History</h2></div>
             {history.length === 0 ? <EmptyState icon={Gavel} tone="muted" title="No auction history yet" description="Completed and cancelled auctions will appear here." /> : (
               <div className="overflow-x-auto">
@@ -440,7 +440,7 @@ function CompleteAuctionModal({ auction, onClose, onDone }) {
 function AuctionShell({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
@@ -488,7 +488,7 @@ export function PawnRequests() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
       <PageHeader title="Requests" />
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
         {loading ? <TableSkeleton cols={6} /> : rows.length === 0 ? (
           <EmptyState icon={Gem} title="No customer requests yet" description="Customers can request a loan against an item from their portal." />
         ) : (
@@ -552,7 +552,7 @@ function ReviewModal({ application, onClose, onDone }) {
   const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Review request</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
@@ -623,7 +623,7 @@ export function PawnSettings() {
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto pb-24">
       <PageHeader title="Settings" />
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6">
+      <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Valuation &amp; rules</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Defaults applied to new pledges, plus how long after maturity an item becomes auction-eligible.</p>
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={15} /> {error}</div>}
@@ -681,11 +681,11 @@ export function PawnAccounting() {
   const a = data?.accounts;
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24">
-      <PageHeader title="Accounting" actions={data && <button onClick={exportCsv} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><FileSpreadsheet size={14} /> Journal CSV</button>} />
+      <PageHeader title="Accounting" actions={data && <button onClick={exportCsv} className="px-3 py-1.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><FileSpreadsheet size={14} /> Journal CSV</button>} />
       {loading ? (
         <div className="space-y-6">
           <StatGridSkeleton />
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><Skeleton className="h-5 w-32" /></div>
             <TableSkeleton cols={6} />
           </div>
@@ -705,7 +705,7 @@ export function PawnAccounting() {
             <Stat icon={Banknote} label="Disbursed / collected" value={money(a.principal_disbursed)} sub={`${money(a.principal_collected)} collected`} tone="slate" />
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Journal</h2></div>
             {data.journal.length === 0 ? <EmptyState icon={Banknote} tone="muted" title="No cash movements yet" description="Disbursements, repayments and auction proceeds will appear here." /> : (
               <div className="overflow-x-auto">

@@ -207,7 +207,7 @@ function MyLoans() {
               className={`px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition ${
                 status === t.value
                   ? "bg-ocean-gradient text-white"
-                  : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-[#faf6ec] dark:hover:bg-slate-700"
+                  : "bg-surface text-gray-700 dark:text-slate-200 hover:bg-[#faf6ec] dark:hover:bg-slate-700"
               }`}
             >
               {t.label}
@@ -222,14 +222,14 @@ function MyLoans() {
                 <Skeleton key={i} className="h-16 w-full rounded-xl" />
               ))}
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-4 space-y-3">
+            <div className="bg-surface rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-4 space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full rounded-lg" />
               ))}
             </div>
           </div>
         ) : sorted.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-12 text-center text-gray-500 dark:text-slate-400">
+          <div className="bg-surface rounded-xl p-12 text-center text-gray-500 dark:text-slate-400">
             <div className="flex justify-center mb-3">
               <FileText size={48} className="text-slate-300 dark:text-slate-600" />
             </div>
@@ -240,7 +240,7 @@ function MyLoans() {
             {/* Totals across the filtered set — the borrower's at-a-glance
                 position: what they've borrowed, repaid, and still owe. */}
             <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-[#ece6da] dark:border-slate-700 shadow-sm p-3">
+              <div className="bg-surface rounded-xl border border-[#ece6da] dark:border-slate-700 shadow-sm p-3">
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Total borrowed
                 </p>
@@ -248,7 +248,7 @@ function MyLoans() {
                   {KES(loanTotals.principal)}
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-[#ece6da] dark:border-slate-700 shadow-sm p-3">
+              <div className="bg-surface rounded-xl border border-[#ece6da] dark:border-slate-700 shadow-sm p-3">
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Total repaid
                 </p>
@@ -256,7 +256,7 @@ function MyLoans() {
                   {KES(loanTotals.paid)}
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-[#ece6da] dark:border-slate-700 shadow-sm p-3">
+              <div className="bg-surface rounded-xl border border-[#ece6da] dark:border-slate-700 shadow-sm p-3">
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Outstanding
                 </p>
@@ -269,7 +269,7 @@ function MyLoans() {
               {sorted.length} loan{sorted.length !== 1 ? "s" : ""} · showing{" "}
               {start + 1}–{start + paged.length}
             </p>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-x-auto">
+            <div className="bg-surface rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-[#ece6da] dark:border-slate-700">

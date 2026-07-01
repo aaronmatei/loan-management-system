@@ -191,7 +191,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl my-6"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-2xl my-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-amber-50 rounded-t-2xl">
@@ -260,7 +260,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
                   />
                 </div>
                 {showDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-surface border-2 border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
                     {filteredClients.length === 0 ? (
                       <div className="p-3 text-center text-gray-500 dark:text-slate-400 text-sm">
                         {clients.length === 0
@@ -367,7 +367,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
               {photos.map((src, i) => (
                 <div key={i} className="relative">
                   <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200 dark:border-slate-700" />
-                  <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-gray-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
+                  <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-surface rounded-full border border-gray-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
                 </div>
               ))}
               <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">

@@ -749,7 +749,7 @@ function Overdue() {
         <button
           onClick={handleRefresh}
           disabled={refreshing || loading}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50 shrink-0"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50 shrink-0"
         >
           <RotateCcw size={16} className={refreshing ? "animate-spin" : ""} />
           {refreshing ? "Refreshing…" : "Refresh"}
@@ -769,7 +769,7 @@ function Overdue() {
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 space-y-3"
+                className="bg-surface rounded-xl shadow-md p-6 space-y-3"
               >
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-8 w-16" />
@@ -778,7 +778,7 @@ function Overdue() {
             ))}
           </div>
           {/* Table skeleton */}
-          <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+          <div className="hidden md:block bg-surface rounded-xl shadow-md overflow-hidden">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
@@ -870,7 +870,7 @@ function Overdue() {
               },
             ];
             return (
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-5 overflow-hidden">
+              <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-5 overflow-hidden">
                 <div className="p-6 pb-5">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -932,7 +932,7 @@ function Overdue() {
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
+          <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-[220px]">
                 <div className="relative">
@@ -1104,7 +1104,7 @@ function Overdue() {
                 return (
                   <div
                     key={g.loan_id}
-                    className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 ${
+                    className={`bg-surface rounded-xl shadow-md p-4 ${
                       bulk.isSelected(g.id) ? "ring-2 ring-red-400" : ""
                     }`}
                   >
@@ -1348,7 +1348,7 @@ function Overdue() {
 
               {/* Pagination (same component as Clients/Loans) */}
               {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-surface rounded-xl shadow-card">
                   <div className="text-sm text-gray-600 dark:text-slate-400">
                     Showing{" "}
                     <span className="font-semibold">{startIndex + 1}</span> to{" "}
@@ -1364,7 +1364,7 @@ function Overdue() {
                     <button
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      className="px-3 py-2 bg-surface border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
                       ← Previous
                     </button>
@@ -1391,7 +1391,7 @@ function Overdue() {
                                 className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                                   currentPage === page
                                     ? "bg-red-600 text-white"
-                                    : "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                    : "bg-surface border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                                 }`}
                               >
                                 {page}
@@ -1406,7 +1406,7 @@ function Overdue() {
                         setCurrentPage((p) => Math.min(totalPages, p + 1))
                       }
                       disabled={currentPage === totalPages}
-                      className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      className="px-3 py-2 bg-surface border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
                       Next →
                     </button>
@@ -1452,7 +1452,7 @@ function Overdue() {
           validation are identical. */}
       {promiseTarget && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-2xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">

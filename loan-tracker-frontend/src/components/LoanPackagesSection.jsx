@@ -237,7 +237,7 @@ function LoanPackagesSection() {
       : rows.filter((p) => (p.loan_type || "personal") === typeFilter);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+    <div className="bg-surface rounded-xl shadow-md p-6">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
           <PackageIcon size={22} /> Loan Packages
@@ -497,7 +497,7 @@ function LoanPackagesSection() {
                         className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
                           on
                             ? "bg-ocean-600 text-white border-ocean-600"
-                            : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
+                            : "bg-surface text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
                         }`}
                       >
                         {c.label}
@@ -532,7 +532,7 @@ function LoanPackagesSection() {
                           className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
                             on
                               ? "bg-ocean-600 text-white border-ocean-600"
-                              : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
+                              : "bg-surface text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
                           }`}
                         >
                           {b.name}
@@ -566,7 +566,7 @@ function LoanPackagesSection() {
                       className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
                         on
                           ? "bg-ocean-600 text-white border-ocean-600"
-                          : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
+                          : "bg-surface text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700"
                       }`}
                     >
                       {p}

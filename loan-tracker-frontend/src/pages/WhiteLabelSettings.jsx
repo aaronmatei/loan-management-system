@@ -64,7 +64,7 @@ function WhiteLabelSettings() {
             <Skeleton key={i} className="h-9 w-32" />
           ))}
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6 space-y-4">
+        <div className="bg-surface rounded-xl shadow p-6 space-y-4">
           <Skeleton className="h-6 w-40" />
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-10 w-full" />
@@ -153,7 +153,7 @@ function WhiteLabelSettings() {
                   ? "bg-ocean-600 text-white"
                   : isLocked
                     ? "bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-slate-400 cursor-not-allowed"
-                    : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    : "bg-surface text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
             >
               {t.icon} {t.label} {isLocked && <Lock size={12} />}
@@ -162,7 +162,7 @@ function WhiteLabelSettings() {
         })}
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-6">
+      <div className="bg-surface rounded-xl shadow p-6">
         {tab === "branding" && (
           <div className="space-y-4">
             <h2 className="font-bold text-xl mb-2 flex items-center gap-2"><Palette size={20} /> Basic Branding</h2>

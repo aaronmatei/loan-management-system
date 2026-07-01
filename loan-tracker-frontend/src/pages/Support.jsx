@@ -74,7 +74,7 @@ export default function StaffSupport() {
         <button onClick={() => setView("list")} className="inline-flex items-center gap-1.5 text-[13px] font-bold text-ocean-600">
           <ArrowLeft size={15} /> Support
         </button>
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="text-[15px] font-extrabold text-navy-900 dark:text-slate-100">New support ticket</div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1">Subject</label>
@@ -128,7 +128,7 @@ export default function StaffSupport() {
           <Skeleton className="h-64 w-full rounded-2xl" />
         ) : (
           <>
-            <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+            <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
               <div className="flex items-start gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <div className="text-[17px] font-extrabold text-navy-900 dark:text-slate-100">{detail.subject}</div>
@@ -141,7 +141,7 @@ export default function StaffSupport() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-3">
+            <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-3">
               {detail.messages.map((m) => {
                 const mine = m.author_type === "tenant";
                 return (
@@ -159,7 +159,7 @@ export default function StaffSupport() {
             </div>
 
             {detail.status !== "closed" && (
-              <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
+              <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
                 <textarea
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
@@ -196,13 +196,13 @@ export default function StaffSupport() {
       </div>
 
       {loading ? (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
+        <div className="bg-surface rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
         </div>
       ) : tickets.length === 0 ? (
         <EmptyState icon={LifeBuoy} title="No tickets yet" description="Open a ticket and the LenderFest team will get back to you here." />
       ) : (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
           {tickets.map((t) => (
             <button
               key={t.id}

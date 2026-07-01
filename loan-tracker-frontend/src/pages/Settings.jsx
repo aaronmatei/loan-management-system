@@ -66,7 +66,7 @@ function Settings() {
         />
         <div className="space-y-6">
           {[0, 1].map((i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+            <div key={i} className="bg-surface rounded-xl shadow-md p-6">
               <Skeleton className="h-6 w-48 mb-4" />
               <SkeletonText lines={4} />
             </div>
@@ -92,7 +92,7 @@ function Settings() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Company Info */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Building2 size={22} /> Company Information
           </h2>
@@ -187,7 +187,7 @@ function Settings() {
         </div>
 
         {/* Bank Details */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Landmark size={22} /> Payment Details
           </h2>

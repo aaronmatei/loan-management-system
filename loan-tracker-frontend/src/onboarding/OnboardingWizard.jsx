@@ -98,7 +98,7 @@ function OnboardingWizard() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-ocean-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
+        <div className="max-w-md w-full bg-surface rounded-2xl shadow-xl p-8 text-center">
           <div className="w-14 h-14 rounded-full bg-ocean-50 dark:bg-slate-700 flex items-center justify-center mx-auto">
             <CheckCircle2 size={28} className="text-ocean-600" />
           </div>
@@ -119,7 +119,7 @@ function OnboardingWizard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-ocean-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 py-8">
         <div className="max-w-2xl mx-auto px-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 lg:p-10">
+          <div className="bg-surface rounded-3xl shadow-xl p-6 lg:p-10">
             <div className="flex flex-col items-center mb-6">
               <Skeleton className="h-12 w-12 mb-3" rounded="rounded-full" />
               <Skeleton className="h-8 w-2/3 mb-2" />
@@ -145,7 +145,7 @@ function OnboardingWizard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-ocean-50 via-white to-ocean-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
       {currentStep > 0 && currentStep < STEPS.length - 1 && (
-        <div className="bg-white dark:bg-slate-800 shadow-sm border-b dark:border-slate-700 sticky top-0 z-10">
+        <div className="bg-surface shadow-sm border-b dark:border-slate-700 sticky top-0 z-10">
           <div className="max-w-4xl mx-auto px-4 py-3">
             <div className="flex justify-between items-center mb-3">
               <h2 className="font-bold text-gray-800 dark:text-slate-100">

@@ -480,7 +480,7 @@ function Clients() {
 
       {/* Add Client Form */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 mb-6">
+        <div className="bg-surface rounded-xl shadow-md p-8 mb-6">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6">
             Add New Client
           </h2>
@@ -840,7 +840,7 @@ function Clients() {
             <div
               key={client.id}
               onClick={() => navigate(`/clients/${client.id}/profile`)}
-              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+              className={`bg-surface rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
                 bulk.isSelected(client.id) ? "ring-2 ring-ocean-400" : ""
               }`}
             >
@@ -917,7 +917,7 @@ function Clients() {
 
       {/* Clients List */}
       {loading ? (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="bg-surface rounded-xl shadow-md overflow-hidden">
           <div className="p-4 space-y-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4">
@@ -1021,7 +1021,7 @@ function Clients() {
           />
 
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-surface rounded-xl shadow-card">
               <div className="text-sm text-gray-600 dark:text-slate-400">
                 Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
                 to{" "}
@@ -1037,7 +1037,7 @@ function Clients() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-surface border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   ← Previous
                 </button>
@@ -1064,7 +1064,7 @@ function Clients() {
                             className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                               currentPage === page
                                 ? "bg-ocean-600 text-white"
-                                : "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                : "bg-surface border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                             }`}
                           >
                             {page}
@@ -1079,7 +1079,7 @@ function Clients() {
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-surface border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Next →
                 </button>

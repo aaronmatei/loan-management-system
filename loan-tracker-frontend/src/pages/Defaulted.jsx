@@ -311,7 +311,7 @@ function Defaulted() {
           <button
             onClick={() => load({ silent: true })}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
           >
             <RefreshCcw
               size={16}
@@ -324,7 +324,7 @@ function Defaulted() {
 
       {/* Summary tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Defaulted
           </p>
@@ -333,7 +333,7 @@ function Defaulted() {
             loan{totalCount !== 1 ? "s" : ""} on the book
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Balance at Risk
           </p>
@@ -344,7 +344,7 @@ function Defaulted() {
             still owed (post-waiver, post-cash)
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <Flame size={12} className="text-orange-600" /> Penalty Accrued
           </p>
@@ -355,7 +355,7 @@ function Defaulted() {
             outstanding fines on these loans
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Principal Lent
           </p>
@@ -419,7 +419,7 @@ function Defaulted() {
       {/* Reactivate confirmation */}
       {reactivating && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <div className="flex justify-between items-start mb-3">
               <h3 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                 <CheckCircle size={20} className="text-emerald-700" />

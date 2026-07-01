@@ -102,7 +102,7 @@ function Notifications() {
           className={`px-4 py-2 rounded-lg text-sm font-semibold ${
             filter === "all"
               ? "bg-ocean-600 text-white"
-              : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200"
+              : "bg-surface text-gray-700 dark:text-slate-200"
           }`}
         >
           All
@@ -112,7 +112,7 @@ function Notifications() {
           className={`px-4 py-2 rounded-lg text-sm font-semibold ${
             filter === "unread"
               ? "bg-ocean-600 text-white"
-              : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200"
+              : "bg-surface text-gray-700 dark:text-slate-200"
           }`}
         >
           Unread
@@ -122,7 +122,7 @@ function Notifications() {
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+            <div key={i} className="bg-surface rounded-xl shadow-md p-4">
               <div className="flex items-start gap-3">
                 <Skeleton className="h-7 w-7" rounded="rounded-lg" />
                 <div className="flex-1 min-w-0 space-y-2">
@@ -151,7 +151,7 @@ function Notifications() {
             <div
               key={notif.id}
               onClick={() => handleClick(notif)}
-              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+              className={`bg-surface rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
                 !notif.is_read ? "border-l-4 border-ocean-600" : ""
               }`}
             >

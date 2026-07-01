@@ -117,7 +117,7 @@ function Billing() {
               <Skeleton key={i} className="h-32 w-full" rounded="rounded-xl" />
             ))}
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 space-y-3">
+          <div className="bg-surface rounded-xl shadow-md p-6 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" rounded="rounded-lg" />
             ))}
@@ -138,7 +138,7 @@ function Billing() {
                 {summary?.due_count || 0} due · {summary?.overdue_count || 0} overdue
               </p>
             </div>
-            <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-md p-6">
+            <div className="bg-surface border border-gray-100 dark:border-slate-700 rounded-xl shadow-md p-6">
               <p className="text-gray-500 dark:text-slate-400 text-xs uppercase font-semibold">
                 Paid Invoices
               </p>
@@ -146,7 +146,7 @@ function Billing() {
                 {summary?.paid_count || 0}
               </p>
             </div>
-            <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-md p-6">
+            <div className="bg-surface border border-gray-100 dark:border-slate-700 rounded-xl shadow-md p-6">
               <p className="text-gray-500 dark:text-slate-400 text-xs uppercase font-semibold">
                 Total Invoices
               </p>
@@ -164,7 +164,7 @@ function Billing() {
               description="Invoices appear here at the start of each billing cycle."
             />
           ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+            <div className="bg-surface rounded-xl shadow-md overflow-hidden">
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700">

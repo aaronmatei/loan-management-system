@@ -488,7 +488,7 @@ function Expenses() {
             <Skeleton key={i} className="h-32 w-full rounded-2xl" />
           ))}
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-6">
+        <div className="bg-surface rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-6">
           <SkeletonText lines={6} />
         </div>
       </div>
@@ -507,7 +507,7 @@ function Expenses() {
             <button
               onClick={() => fetchAll({ silent: true })}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-stone-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface border border-stone-200 dark:border-slate-700 text-stone-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-stone-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
             >
               <RefreshCcw
                 size={16}
@@ -603,7 +603,7 @@ function Expenses() {
       </div>
 
       {/* ── Quick actions ──────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-6 mb-8">
+      <div className="bg-surface rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-6 mb-8">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
             <Sparkles size={18} className="text-amber-600" />
@@ -692,7 +692,7 @@ function Expenses() {
       </div>
 
       {/* ── Filters ────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-5 mb-4">
+      <div className="bg-surface rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-5 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold text-stone-600 dark:text-slate-400 uppercase mb-1">
@@ -829,7 +829,7 @@ function Expenses() {
               }
             />
           ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-10">
+            <div className="bg-surface rounded-2xl shadow-sm border border-stone-100 dark:border-slate-700 p-10">
               <p className="text-center text-stone-500 dark:text-slate-400">
                 No expenses match your filters.
               </p>
@@ -841,7 +841,7 @@ function Expenses() {
       {/* ── Add/Edit Form Modal ────────────────────────────────── */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-2xl w-full my-8">
+          <div className="bg-surface rounded-2xl shadow-2xl p-6 lg:p-8 max-w-2xl w-full my-8">
             <div className="flex justify-between items-start mb-5">
               <h3 className="text-2xl font-bold text-stone-900 dark:text-slate-100 flex items-center gap-2">
                 {editing ? <Pencil size={22} /> : <Plus size={22} />}
@@ -1060,7 +1060,7 @@ function Expenses() {
       {/* ── Delete Confirmation ────────────────────────────────── */}
       {showDeleteId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <h3 className="text-xl font-bold text-stone-900 dark:text-slate-100 mb-2 flex items-center gap-2">
               <Trash2 size={20} className="text-rose-700" />
               Delete expense?
@@ -1133,7 +1133,7 @@ function CategoriesModal({ categories, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-xl w-full my-8">
+      <div className="bg-surface rounded-2xl shadow-2xl p-6 lg:p-8 max-w-xl w-full my-8">
         <div className="flex justify-between items-start mb-5">
           <h3 className="text-2xl font-bold text-stone-900 dark:text-slate-100 flex items-center gap-2">
             <SettingsIcon size={22} /> Expense categories

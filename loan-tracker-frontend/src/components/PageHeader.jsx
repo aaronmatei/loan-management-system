@@ -31,7 +31,7 @@ function KpiChip({ label, value, money = false, hint, tone }) {
           ? "text-money-warn"
           : "text-navy-900 dark:text-slate-100";
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 px-4 py-3">
+    <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 px-4 py-3">
       <p className="text-[11px] uppercase font-semibold tracking-wide text-slate-500 dark:text-slate-400">
         {label}
       </p>

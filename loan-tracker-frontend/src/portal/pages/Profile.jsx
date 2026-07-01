@@ -140,7 +140,7 @@ function Profile() {
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-9 w-20" />
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-5 grid grid-cols-2 gap-4">
+          <div className="bg-surface rounded-xl shadow p-5 grid grid-cols-2 gap-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="space-y-1.5">
                 <Skeleton className="h-3 w-16" />

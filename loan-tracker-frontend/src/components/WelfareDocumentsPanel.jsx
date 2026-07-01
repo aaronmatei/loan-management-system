@@ -70,7 +70,7 @@ export default function WelfareDocumentsPanel({ client, path, admin = false }) {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <form onSubmit={submit} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
+      <form onSubmit={submit} className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1 flex items-center gap-2"><Upload size={18} className="text-emerald-600" /> Share a document</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Meeting minutes, account statements, the constitution — PDF, Office, image or text, up to 15 MB.</p>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -91,7 +91,7 @@ export default function WelfareDocumentsPanel({ client, path, admin = false }) {
         </button>
       </form>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+      <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
         <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Documents</h2></div>
         {loading ? (
             <ul className="divide-y divide-slate-100 dark:divide-slate-700">

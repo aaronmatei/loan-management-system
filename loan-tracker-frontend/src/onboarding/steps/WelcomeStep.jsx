@@ -4,7 +4,7 @@ import { PartyPopper, Lightbulb } from "lucide-react";
 function WelcomeStep({ onNext, onSkip }) {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 lg:p-12 text-center">
+      <div className="bg-surface rounded-3xl shadow-2xl p-8 lg:p-12 text-center">
         <div className="flex justify-center mb-4"><PartyPopper size={72} className="text-ocean-500" /></div>
         <h1 className="text-3xl lg:text-5xl font-bold text-gray-900 dark:text-slate-100 mb-4">
           Welcome to LenderFest!

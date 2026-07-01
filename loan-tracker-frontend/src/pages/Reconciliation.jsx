@@ -425,7 +425,7 @@ function Reconciliation() {
                 : loadOverpayments({ silent: true })
             }
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
           >
             <RefreshCcw
               size={16}
@@ -481,7 +481,7 @@ function Reconciliation() {
               jumping further. "Today" chip stays as a one-click
               return-to-today since stepping back through a long
               window manually would be painful. */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 mb-4 flex flex-wrap items-center gap-3">
+          <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 mb-4 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setDate(shiftDays(date, -1))}
@@ -539,7 +539,7 @@ function Reconciliation() {
                 ))}
               </div>
               <Skeleton className="h-20 w-full mb-4" rounded="rounded-xl" />
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-3">
+              <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <Skeleton key={i} className="h-10 w-full" rounded="rounded-lg" />
                 ))}
@@ -681,7 +681,7 @@ function Reconciliation() {
                   <Skeleton key={i} className="h-28 w-full" rounded="rounded-2xl" />
                 ))}
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-3">
+              <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-10 w-full" rounded="rounded-lg" />
                 ))}
@@ -696,7 +696,7 @@ function Reconciliation() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+                <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
                   <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
                     Pending Refunds
                   </p>
@@ -707,7 +707,7 @@ function Reconciliation() {
                     loan{overpayments.count !== 1 ? "s" : ""} on the book
                   </p>
                 </div>
-                <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+                <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
                   <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
                     Total Pending
                   </p>
@@ -765,7 +765,7 @@ function Reconciliation() {
           and a future commit can add a /unmatched sub-route plus
           this tab's table without restructuring the page. */}
       {tab === "unmatched" && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-10 lg:p-14">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-10 lg:p-14">
           <div className="max-w-2xl mx-auto text-center">
             <div className="w-16 h-16 rounded-2xl bg-ocean-50 flex items-center justify-center mx-auto mb-5">
               <Inbox size={28} className="text-ocean-600" />

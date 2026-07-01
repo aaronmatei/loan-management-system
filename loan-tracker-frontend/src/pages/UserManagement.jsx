@@ -301,14 +301,14 @@ function UserManagement() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+            <div key={i} className="bg-surface rounded-xl shadow-md p-6">
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-8 w-12 mt-3" />
               <Skeleton className="h-3 w-16 mt-2" />
             </div>
           ))}
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 space-y-4">
+        <div className="bg-surface rounded-xl shadow-md p-6 space-y-4">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="flex items-center justify-between gap-4">
               <Skeleton className="h-4 w-1/3" />
@@ -418,7 +418,7 @@ function UserManagement() {
       {/* Add User Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-8 max-w-2xl w-full">
             <h3 className="text-2xl font-bold mb-6">Add New User</h3>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -600,7 +600,7 @@ function UserManagement() {
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-8 max-w-2xl w-full">
             <h3 className="text-2xl font-bold mb-6">
               Edit User: {selectedUser.email}
             </h3>
@@ -686,7 +686,7 @@ function UserManagement() {
       {/* Reset Password Modal */}
       {showPasswordModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-md w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-8 max-w-md w-full">
             <h3 className="text-2xl font-bold mb-2">Reset Password</h3>
             <p className="text-gray-600 dark:text-slate-400 mb-4">For: {selectedUser.email}</p>
             <form onSubmit={handleResetPassword}>

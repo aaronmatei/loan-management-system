@@ -111,7 +111,7 @@ export default function WelfareRegister() {
           </p>
         </div>
 
-        <form onSubmit={submit} className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 space-y-4">
+        <form onSubmit={submit} className="bg-surface rounded-2xl shadow-xl p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
               <AlertTriangle size={15} className="flex-shrink-0" /> {error}

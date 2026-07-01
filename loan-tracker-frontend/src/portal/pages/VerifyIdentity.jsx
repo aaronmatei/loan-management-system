@@ -13,7 +13,7 @@ function VerifyIdentity() {
 
   return (
     <div className="min-h-screen bg-navy-gradient flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-xl p-6 lg:p-8">
+      <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-xl p-6 lg:p-8">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-ocean-gradient mb-3">
             <ShieldCheck size={28} className="text-white" />

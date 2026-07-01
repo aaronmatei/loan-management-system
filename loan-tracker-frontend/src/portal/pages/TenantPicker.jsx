@@ -66,7 +66,7 @@ function TenantPicker() {
               key={tenant.tenant_id}
               onClick={() => selectTenant(tenant)}
               disabled={selecting === tenant.tenant_id}
-              className="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition transform hover:-translate-y-1 disabled:opacity-50 text-left"
+              className="w-full bg-surface rounded-2xl shadow-xl p-6 hover:shadow-2xl transition transform hover:-translate-y-1 disabled:opacity-50 text-left"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">

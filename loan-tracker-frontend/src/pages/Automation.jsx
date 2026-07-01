@@ -104,7 +104,7 @@ function Automation() {
       )}
 
       {/* Cadence settings */}
-      <form onSubmit={saveSettings} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+      <form onSubmit={saveSettings} className="bg-surface rounded-xl shadow-md p-6 mb-6">
         <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2">
           <BellRing size={20} /> Reminder Cadence
         </h2>
@@ -160,7 +160,7 @@ function Automation() {
       </form>
 
       {/* Schedule (read-only) */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+      <div className="bg-surface rounded-xl shadow-md p-6 mb-6">
         <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2">
           <Clock size={20} /> Schedule
         </h2>
@@ -182,7 +182,7 @@ function Automation() {
       </div>
 
       {/* Manual run */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+      <div className="bg-surface rounded-xl shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2">
           <RotateCcw size={20} /> Run Now
         </h2>

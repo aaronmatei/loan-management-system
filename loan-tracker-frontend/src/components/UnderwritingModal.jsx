@@ -102,7 +102,7 @@ export default function UnderwritingModal({ loan, onClose }) {
       onClick={() => onClose(false)}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl my-6"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-3xl my-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -319,7 +319,7 @@ function Card({ icon: Icon, label, tint, children }) {
     slate: "bg-slate-100 text-slate-600",
   };
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-3 shadow-sm">
+    <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-xl p-3 shadow-sm">
       <div className="flex items-center gap-1.5 mb-1">
         <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg ${tints[tint] || tints.slate}`}>
           <Icon size={13} />

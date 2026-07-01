@@ -1134,7 +1134,7 @@ function Loans() {
 
       {/* Create Loan Form */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 mb-6">
+        <div className="bg-surface rounded-xl shadow-md p-8 mb-6">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6 flex items-center gap-2">
             <ClipboardList size={24}/> New Loan Application
           </h2>
@@ -1201,7 +1201,7 @@ function Loans() {
                   />
 
                   {showDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-surface border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
                       {filteredClients.length === 0 ? (
                         <div className="p-4 text-center text-gray-500 dark:text-slate-400">
                           No clients found matching "{clientSearch}"
@@ -1711,18 +1711,18 @@ function Loans() {
                       value={collateralForm.description}
                       onChange={setCol("description")}
                       placeholder="Item description * (e.g. Gold ring, 18k)"
-                      className="md:col-span-2 px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
+                      className="md:col-span-2 px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-surface"
                     />
                     <input
                       value={collateralForm.category}
                       onChange={setCol("category")}
                       placeholder="Category (jewelry, electronics…)"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-surface"
                     />
                     <select
                       value={collateralForm.condition}
                       onChange={setCol("condition")}
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-surface"
                     >
                       <option value="">Condition…</option>
                       <option value="excellent">Excellent</option>
@@ -1734,27 +1734,27 @@ function Loans() {
                       value={collateralForm.serial_number}
                       onChange={setCol("serial_number")}
                       placeholder="Serial / model no."
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-surface"
                     />
                     <input
                       value={collateralForm.storage_location}
                       onChange={setCol("storage_location")}
                       placeholder="Storage location"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-surface"
                     />
                     <input
                       type="number"
                       value={collateralForm.appraised_value}
                       onChange={setCol("appraised_value")}
                       placeholder="Appraised value * (KES)"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-surface"
                     />
                     <input
                       type="number"
                       value={collateralForm.ltv_percent}
                       onChange={setCol("ltv_percent")}
                       placeholder="LTV %"
-                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-white dark:bg-slate-800"
+                      className="px-3 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none bg-surface"
                     />
                     <div className="md:col-span-2">
                       <label className="block text-xs font-semibold text-amber-800 mb-1">
@@ -1788,7 +1788,7 @@ function Loans() {
                                     photos: c.photos.filter((_, j) => j !== i),
                                   }))
                                 }
-                                className="absolute -top-2 -right-2 bg-white dark:bg-slate-800 rounded-full border border-amber-300 p-0.5 text-amber-700 hover:text-red-600"
+                                className="absolute -top-2 -right-2 bg-surface rounded-full border border-amber-300 p-0.5 text-amber-700 hover:text-red-600"
                               >
                                 <X size={12} />
                               </button>
@@ -2004,7 +2004,7 @@ function Loans() {
                       }
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-surface transition ${
                           formData.late_fee_enabled
                             ? "translate-x-5"
                             : "translate-x-1"
@@ -2067,7 +2067,7 @@ function Loans() {
                       }
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-surface transition ${
                           formData.penalty_rate_enabled
                             ? "translate-x-5"
                             : "translate-x-1"
@@ -2215,7 +2215,7 @@ function Loans() {
 
       {/* Filter Bar */}
       {!loading && loans.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-surface rounded-xl shadow-md p-6 mb-6">
           {/* Search stands alone — full width — so the input stays generous
               even when the row of filters below grows. */}
           <div className="mb-4">
@@ -2433,7 +2433,7 @@ function Loans() {
               <div
                 key={loan.id}
                 onClick={() => navigate(`/loans/${loan.id}`)}
-                className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
+                className={`bg-surface rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition ${
                   bulk.isSelected(loan.id) ? "ring-2 ring-ocean-400" : ""
                 }`}
               >
@@ -2614,7 +2614,7 @@ function Loans() {
             />
 
             {!loading && filteredLoans.length > 0 && totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-surface rounded-xl shadow-card">
                 <div className="text-sm text-gray-600 dark:text-slate-400">
                   Showing{" "}
                   <span className="font-semibold">{startIndex + 1}</span> to{" "}
@@ -2684,7 +2684,7 @@ function Loans() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-4 space-y-3"
+                  className="bg-surface rounded-xl shadow-card p-4 space-y-3"
                 >
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-3 w-24" />
@@ -2722,7 +2722,7 @@ function Loans() {
       >
         <button
           onClick={handleBulkExport}
-          className="px-4 py-2 bg-white dark:bg-slate-800/20 hover:bg-white/30 rounded-lg text-sm font-semibold inline-flex items-center gap-2"
+          className="px-4 py-2 bg-surface/20 hover:bg-white/30 rounded-lg text-sm font-semibold inline-flex items-center gap-2"
         >
           <Download size={16}/> Export
         </button>
@@ -2768,7 +2768,7 @@ function Loans() {
           selected pending refund. Backend re-checks per-loan eligibility. */}
       {showBulkRefundModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md">
             <div className="p-5 border-b flex items-center justify-between">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <RotateCcw size={18} className="text-ocean-600" /> Mass
@@ -2880,7 +2880,7 @@ function Loans() {
       {/* Dues/defaults are a warning, not a wall — let the lender decide. */}
       {duesPrompt && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDuesPrompt(null)}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center"><AlertTriangle size={20} className="text-amber-600" /></div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Heads up — this client has dues</h3>

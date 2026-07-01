@@ -89,7 +89,7 @@ export default function Groups() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">
+            <div key={i} className="bg-surface rounded-xl shadow-md p-5">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="flex-1">
                   <Skeleton className="h-4 w-2/3" />
@@ -132,7 +132,7 @@ export default function Groups() {
             <button
               key={g.id}
               onClick={() => navigate(`/groups/${g.id}`)}
-              className="text-left bg-white dark:bg-slate-800 rounded-xl shadow-md hover:shadow-lg transition p-5 border border-transparent hover:border-ocean-200"
+              className="text-left bg-surface rounded-xl shadow-md hover:shadow-lg transition p-5 border border-transparent hover:border-ocean-200"
             >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div>
@@ -208,7 +208,7 @@ function NewGroupModal({ noun = "Group", onClose, onCreated }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">

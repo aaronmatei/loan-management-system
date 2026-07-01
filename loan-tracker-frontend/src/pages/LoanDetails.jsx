@@ -1239,7 +1239,7 @@ function LoanDetails() {
             year: "numeric",
           });
         return (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
+          <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
             {/* identity */}
             <div className="flex flex-wrap items-start gap-4 p-6 pb-5">
               <div className="w-16 h-16 rounded-full bg-navy-gradient text-white flex items-center justify-center text-lg font-bold shrink-0">
@@ -1454,7 +1454,7 @@ function LoanDetails() {
           application). Shown only when either is present. */}
       {(loan.collateral_description ||
         (Array.isArray(loan.collateral_photos) && loan.collateral_photos.length > 0)) && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
+        <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
           <h3 className="text-sm font-extrabold uppercase tracking-wider text-navy-900 dark:text-slate-100 mb-3">
             Collateral
           </h3>
@@ -2575,7 +2575,7 @@ function LoanDetails() {
                       }`}
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-surface transition ${
                           editForm.late_fee_enabled
                             ? "translate-x-5"
                             : "translate-x-1"
@@ -2641,7 +2641,7 @@ function LoanDetails() {
                       }
                     >
                       <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white dark:bg-slate-800 transition ${
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-surface transition ${
                           editForm.penalty_rate_enabled
                             ? "translate-x-5"
                             : "translate-x-1"

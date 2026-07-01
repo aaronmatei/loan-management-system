@@ -12,7 +12,7 @@ const KES = (v) => formatKES(v, 2);
 
 function Card({ title, note, children }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
       <div className="bg-slate-50 dark:bg-slate-900 px-5 py-3 border-b border-slate-100 dark:border-slate-700">
         <h2 className="font-bold text-slate-900 dark:text-slate-100">{title}</h2>
         {note && <p className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">{note}</p>}
@@ -64,7 +64,7 @@ export default function WelfareBooksPanel({ welfareId, client = api, path }) {
       {picker}
       <div className="grid lg:grid-cols-2 gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+          <div key={i} className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div className="bg-slate-50 dark:bg-slate-900 px-5 py-3 border-b border-slate-100 dark:border-slate-700">
               <Skeleton className="h-4 w-40" />
             </div>

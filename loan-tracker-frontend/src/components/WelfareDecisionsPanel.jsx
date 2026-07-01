@@ -84,7 +84,7 @@ export default function WelfareDecisionsPanel({ client, path, membersPath, admin
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <form onSubmit={propose} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
+      <form onSubmit={propose} className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1 flex items-center gap-2"><Plus size={18} className="text-emerald-600" /> Propose a decision</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Put a decision to the group — a rule change, a purchase, or electing an officer. It passes when approvals reach the quorum.</p>
         {canElect && (
@@ -131,7 +131,7 @@ export default function WelfareDecisionsPanel({ client, path, membersPath, admin
       {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 space-y-3">
+              <div key={i} className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <Skeleton className="h-4 w-48" />
                   <Skeleton className="h-5 w-16 rounded-full" />
@@ -155,7 +155,7 @@ export default function WelfareDecisionsPanel({ client, path, membersPath, admin
           const req = d.required_approvals || 1;
           const pct = Math.min(100, Math.round((d.tally.approve / req) * 100));
           return (
-            <div key={d.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
+            <div key={d.id} className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -181,7 +181,7 @@ export default function WelfareDecisionsPanel({ client, path, membersPath, admin
                     const { Icon, active } = VOTE_BTN[v];
                     return (
                       <button key={v} onClick={() => act(d.id, "vote", { vote: v })}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 border-2 capitalize ${d.my_vote === v ? active : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 border-2 capitalize ${d.my_vote === v ? active : "bg-surface text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
                         <Icon size={14} /> {v}
                       </button>
                     );

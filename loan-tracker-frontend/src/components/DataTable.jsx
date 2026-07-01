@@ -83,7 +83,7 @@ export default function DataTable({
 
   return (
     <div
-      className={`bg-white dark:bg-slate-800 rounded-xl shadow-card overflow-hidden ${className}`}
+      className={`bg-surface rounded-xl shadow-card overflow-hidden ${className}`}
     >
       {presets && preset && (
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-slate-700 flex-wrap">
@@ -103,7 +103,7 @@ export default function DataTable({
                 onClick={() => onPresetChange(key)}
                 className={`px-3 py-1.5 rounded-md text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-400 ${
                   preset === key
-                    ? "bg-white dark:bg-slate-800 text-ocean-700 dark:text-ocean-300 shadow-sm"
+                    ? "bg-surface text-ocean-700 dark:text-ocean-300 shadow-sm"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 }`}
               >
@@ -190,7 +190,7 @@ export default function DataTable({
                   hiddenColumns.length > 0 && !!onToggleRow;
                 const stickyBg = isSel
                   ? "bg-ocean-50 dark:bg-ocean-900/30"
-                  : "bg-white dark:bg-slate-800 group-hover:bg-ocean-50 dark:group-hover:bg-slate-700/60";
+                  : "bg-surface group-hover:bg-ocean-50 dark:group-hover:bg-slate-700/60";
 
                 return (
                   <React.Fragment key={id}>
@@ -344,7 +344,7 @@ export default function DataTable({
 function TableSkeleton({ rows, cols }) {
   return (
     <div
-      className="bg-white dark:bg-slate-800 rounded-xl shadow-card overflow-hidden"
+      className="bg-surface rounded-xl shadow-card overflow-hidden"
       aria-busy="true"
     >
       <div className="px-4 py-4 border-b border-gray-100 dark:border-slate-700 flex gap-4">

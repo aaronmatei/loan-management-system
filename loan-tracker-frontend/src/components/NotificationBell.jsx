@@ -131,7 +131,7 @@ function NotificationBell() {
       </button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 z-50 overflow-hidden">
           <div className="bg-ocean-gradient text-white p-4">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-lg flex items-center gap-2"><Bell size={18} /> Notifications</h3>

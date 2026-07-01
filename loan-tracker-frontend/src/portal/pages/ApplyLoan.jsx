@@ -297,7 +297,7 @@ function ApplyLoan() {
           <Skeleton className="h-4 w-32 mb-3" />
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-56 mt-2 mb-5" />
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
+          <div className="bg-surface rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
             <Skeleton className="h-1.5 w-full" rounded="rounded-none" />
             <div className="p-4 flex items-center gap-3">
               <Skeleton className="h-11 w-11" rounded="rounded-xl" />
@@ -312,7 +312,7 @@ function ApplyLoan() {
               <Skeleton key={i} className="h-10 w-10" rounded="rounded-full" />
             ))}
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-6">
+          <div className="bg-surface rounded-2xl shadow p-6 lg:p-8 space-y-6">
             <Skeleton className="h-6 w-56" />
             <Skeleton className="h-12 w-full" />
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -363,7 +363,7 @@ function ApplyLoan() {
         </p>
 
         {/* Preselected lender — read-only context (no picker) */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden mb-5">
           <div className="h-1.5" style={{ backgroundColor: brand }} />
           <div className="p-4 flex items-center gap-3">
             <div
@@ -439,7 +439,7 @@ function ApplyLoan() {
         {step === 1 && (
           <form
             onSubmit={step1}
-            className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-6"
+            className="bg-surface rounded-2xl shadow p-6 lg:p-8 space-y-6"
           >
             <h2 className="text-xl font-bold flex items-center gap-2"><Coins size={22} className="text-navy-900" /> How much do you need?</h2>
             <div>
@@ -523,7 +523,7 @@ function ApplyLoan() {
                   </div>
                 )}
                 {calc.processingFee > 0 && (
-                  <div className="flex justify-between bg-white dark:bg-slate-800 rounded-lg p-3 mt-2">
+                  <div className="flex justify-between bg-surface rounded-lg p-3 mt-2">
                     <span className="font-bold">You'll receive</span>
                     <span className="font-bold text-navy-900 dark:text-slate-100">
                       {KES(calc.netDisbursed)}
@@ -536,7 +536,7 @@ function ApplyLoan() {
                     {KES(calc.totalDue)}
                   </span>
                 </div>
-                <div className="flex justify-between bg-white dark:bg-slate-800 rounded-lg p-3 mt-2">
+                <div className="flex justify-between bg-surface rounded-lg p-3 mt-2">
                   <span className="font-bold">Monthly Payment</span>
                   <span className="font-bold text-green-600">
                     {KES(Math.round(calc.monthlyPayment))}
@@ -557,7 +557,7 @@ function ApplyLoan() {
         {step === 2 && (
           <form
             onSubmit={step2}
-            className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-4"
+            className="bg-surface rounded-2xl shadow p-6 lg:p-8 space-y-4"
           >
             <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList size={22} className="text-navy-900" /> Loan Details</h2>
             <div>
@@ -667,7 +667,7 @@ function ApplyLoan() {
                           onClick={() =>
                             setCollateralPhotos((p) => p.filter((_, j) => j !== i))
                           }
-                          className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-[#ece6da] dark:border-slate-700 text-slate-500 hover:text-red-600"
+                          className="absolute -top-1.5 -right-1.5 bg-surface rounded-full border border-[#ece6da] dark:border-slate-700 text-slate-500 hover:text-red-600"
                           aria-label="Remove photo"
                         >
                           <X size={13} />
@@ -720,7 +720,7 @@ function ApplyLoan() {
         )}
 
         {step === 3 && calc && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow p-6 lg:p-8 space-y-4">
+          <div className="bg-surface rounded-2xl shadow p-6 lg:p-8 space-y-4">
             <h2 className="text-xl font-bold flex items-center gap-2"><CheckCircle size={22} className="text-navy-900 dark:text-slate-100" /> Review &amp; Submit</h2>
             <div className="bg-[var(--brand)]/10 rounded-xl p-4 text-sm space-y-2">
               <div className="flex justify-between">

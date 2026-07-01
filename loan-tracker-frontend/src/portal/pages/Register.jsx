@@ -196,7 +196,7 @@ function CustomerRegister() {
       style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
     >
       <div
-        className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full p-6 lg:p-8 ${
+        className={`bg-surface rounded-2xl shadow-2xl w-full p-6 lg:p-8 ${
           step === 3 ? "max-w-xl" : "max-w-md"
         }`}
       >
@@ -253,7 +253,7 @@ function CustomerRegister() {
                       className={`text-center p-2 rounded-lg border-2 transition ${
                         selected
                           ? "border-ocean-600 bg-ocean-50"
-                          : "border-gray-200 dark:border-slate-700 hover:border-gray-300 bg-white dark:bg-slate-800"
+                          : "border-gray-200 dark:border-slate-700 hover:border-gray-300 bg-surface"
                       }`}
                     >
                       <Icon size={18} className="mx-auto text-gray-700 dark:text-slate-200" />

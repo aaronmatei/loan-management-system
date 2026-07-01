@@ -81,7 +81,7 @@ function PromoCodesSection() {
     "px-3 py-2 border-2 border-gray-200 dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none";
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+    <div className="bg-surface rounded-xl shadow-md p-6 mb-6">
       <h3 className="font-bold text-lg flex items-center gap-2">
         <Ticket size={20} className="text-ocean-600" /> Promo Codes
       </h3>
@@ -196,7 +196,7 @@ function PromoCodesSection() {
       {/* Clients-per-code modal */}
       {viewing && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+          <div className="bg-surface rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b dark:border-slate-700">
               <div>
                 <h3 className="font-bold text-navy-900 dark:text-slate-100">

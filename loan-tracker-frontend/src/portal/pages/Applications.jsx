@@ -142,7 +142,7 @@ function CustomerApplications() {
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden"
+                className="bg-surface rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden"
               >
                 <div className="px-4 py-2 flex items-center gap-2">
                   <Skeleton className="h-6 w-6" rounded="rounded-full" />
@@ -194,7 +194,7 @@ function CustomerApplications() {
         </div>
 
         {apps.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-12 text-center">
+          <div className="bg-surface rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-12 text-center">
             <div className="flex justify-center mb-3">
               <FileText size={48} className="text-slate-300 dark:text-slate-400" />
             </div>
@@ -220,7 +220,7 @@ function CustomerApplications() {
               return (
                 <div
                   key={a.id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden"
+                  className="bg-surface rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 overflow-hidden"
                 >
                   {/* Lender banner */}
                   <div

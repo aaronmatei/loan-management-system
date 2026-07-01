@@ -918,7 +918,7 @@ function Applications() {
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 space-y-3">
+        <div className="bg-surface rounded-xl shadow-md p-5 space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4">
               <div className="flex-1 space-y-2">
@@ -960,7 +960,7 @@ function Applications() {
             <button
               key={t.value}
               onClick={() => setStatusFilter(t.value)}
-              className="text-left bg-white dark:bg-slate-800 border rounded-2xl p-4 shadow-sm transition"
+              className="text-left bg-surface border rounded-2xl p-4 shadow-sm transition"
               style={{
                 borderColor: on ? t.color : "#eef0f3",
                 boxShadow: on ? `0 0 0 3px ${t.color}22` : undefined,
@@ -1081,7 +1081,7 @@ function Applications() {
               return (
                 <div
                   key={app.id}
-                  className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 ${
+                  className={`bg-surface rounded-xl shadow-md p-4 ${
                     bulk.isSelected(app.id) ? "ring-2 ring-ocean-400" : ""
                   }`}
                 >
@@ -1197,7 +1197,7 @@ function Applications() {
       {/* Reject modal */}
       {showRejectModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-slate-100"><X size={20} className="text-red-600"/> Reject Application</h3>
             <p className="text-gray-600 dark:text-slate-400 mb-4">
               Loan: <strong>{selectedLoan.loan_code}</strong>
@@ -1256,7 +1256,7 @@ function Applications() {
       {/* Counter-offer modal */}
       {showCounterModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-slate-100"><Banknote size={20} className="text-amber-500"/> Counter-offer</h3>
             <p className="text-gray-600 dark:text-slate-400 mb-4">
               Loan: <strong>{selectedLoan.loan_code}</strong>
@@ -1381,7 +1381,7 @@ function Applications() {
       {/* Disburse modal */}
       {showDisburseModal && selectedLoan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-slate-100"><Coins size={20} className="text-ocean-600"/> Disburse Loan</h3>
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 text-sm text-green-900 space-y-1">
               <div className="flex justify-between">
@@ -1570,7 +1570,7 @@ function Applications() {
       {/* Mass Disburse modal — one editable row per selected approved loan */}
       {showBulkDisburseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+          <div className="bg-surface rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
             <div className="p-5 lg:p-6 border-b flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold flex items-center gap-2 dark:text-slate-100">

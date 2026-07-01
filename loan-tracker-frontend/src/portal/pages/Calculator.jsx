@@ -111,7 +111,7 @@ function CustomerCalculator() {
         <div className="p-4 lg:p-8 max-w-4xl mx-auto">
           <Skeleton className="h-8 w-60" />
           <Skeleton className="h-4 w-80 mt-2 mb-6" />
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow overflow-hidden mb-6">
+          <div className="bg-surface rounded-2xl shadow overflow-hidden mb-6">
             <Skeleton className="h-24 w-full" rounded="rounded-none" />
             <div className="p-5 space-y-4">
               <Skeleton className="h-4 w-32" />
@@ -155,7 +155,7 @@ function CustomerCalculator() {
         </p>
 
         {tenants.length > 1 && (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
+          <div className="bg-surface rounded-xl shadow p-4 mb-4">
             <label
               htmlFor="lender-select"
               className="block text-sm font-semibold mb-2 dark:text-slate-200"
@@ -186,7 +186,7 @@ function CustomerCalculator() {
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow overflow-hidden mb-6">
+        <div className="bg-surface rounded-2xl shadow overflow-hidden mb-6">
           <div
             className="p-5 text-white"
             style={{
@@ -295,21 +295,21 @@ function CustomerCalculator() {
                     Your Loan Summary
                   </h3>
                   <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                    <div className="bg-surface rounded-lg p-3">
                       <p className="text-xs text-gray-500 dark:text-slate-400">Principal</p>
                       <p className="font-bold text-lg dark:text-slate-100">{KES(calc.principal)}</p>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                    <div className="bg-surface rounded-lg p-3">
                       <p className="text-xs text-gray-500 dark:text-slate-400">Duration</p>
                       <p className="font-bold text-lg dark:text-slate-100">{calc.months} months</p>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                    <div className="bg-surface rounded-lg p-3">
                       <p className="text-xs text-gray-500 dark:text-slate-400">Interest Rate</p>
                       <p className="font-bold text-lg dark:text-slate-100">
                         {+(calc.annualRate / 12).toFixed(2)}% p.m.
                       </p>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3">
+                    <div className="bg-surface rounded-lg p-3">
                       <p className="text-xs text-gray-500 dark:text-slate-400">Total Interest</p>
                       <p className="font-bold text-lg text-orange-600">
                         {KES(calc.totalInterest)}
@@ -341,7 +341,7 @@ function CustomerCalculator() {
                   </p>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+                <div className="bg-surface rounded-xl shadow p-4">
                   <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
                     <Calendar size={18} /> Payment Schedule
                   </h3>
@@ -384,7 +384,7 @@ function CustomerCalculator() {
                 </div>
 
                 {tenants.length > 1 && (
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+                  <div className="bg-surface rounded-xl shadow p-4">
                     <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
                       <BarChart3 size={18} /> Compare Lenders
                     </h3>

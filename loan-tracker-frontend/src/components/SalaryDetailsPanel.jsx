@@ -89,7 +89,7 @@ export default function SalaryDetailsPanel({ loanId, loanCode, onChange }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-violet-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-violet-100 mb-6 overflow-hidden">
       <div className="bg-violet-50 px-5 py-3 border-b border-violet-100 flex items-center justify-between">
         <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Banknote size={18} className="text-violet-600" /> Salary Check-off
@@ -270,7 +270,7 @@ function SalaryFormModal({ loanId, existing, onClose, onSaved }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg my-8"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-lg my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">

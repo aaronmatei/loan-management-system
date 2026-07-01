@@ -48,7 +48,7 @@ export default function WelfareDashboardPanel({
     }
   };
 
-  if (loading) return <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 mb-6 text-sm text-slate-500 dark:text-slate-400">Loading dashboard…</div>;
+  if (loading) return <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5 mb-6 text-sm text-slate-500 dark:text-slate-400">Loading dashboard…</div>;
   if (!d) return null;
 
   // Static class strings — Tailwind can't see interpolated class names.
@@ -78,15 +78,15 @@ export default function WelfareDashboardPanel({
   const pct = (v, counts) => (v == null ? null : `${v}%${counts ? ` (${counts.paid ?? counts.attended}/${counts.total ?? counts.recorded})` : ""}`);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
       <div className="bg-slate-50 dark:bg-slate-900 px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><LayoutDashboard size={18} className="text-slate-600 dark:text-slate-400" /> Dashboard</h2>
         {showExports && (
           <div className="flex gap-2">
-            <button onClick={() => doExport("pdf")} disabled={!!exporting} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+            <button onClick={() => doExport("pdf")} disabled={!!exporting} className="px-3 py-1.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
               <FileDown size={14} /> {exporting === "pdf" ? "…" : "Statement PDF"}
             </button>
-            <button onClick={() => doExport("csv")} disabled={!!exporting} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
+            <button onClick={() => doExport("csv")} disabled={!!exporting} className="px-3 py-1.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50">
               <FileSpreadsheet size={14} /> {exporting === "csv" ? "…" : "Members CSV"}
             </button>
           </div>
@@ -171,7 +171,7 @@ function InvestmentsModal({ welfareId, client, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl my-10" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-xl my-10" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Investments</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>
@@ -193,7 +193,7 @@ function InvestmentsModal({ welfareId, client, onClose }) {
                     <input type="number" min="0" value={amounts[inv.id] || ""} onChange={(e) => setAmounts((a) => ({ ...a, [inv.id]: e.target.value }))} placeholder="Amount (KES)" className="w-32 px-2 py-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-sm" />
                     <button onClick={() => act(inv, "interest")} className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Record interest</button>
                     <button onClick={() => act(inv, "withdraw")} className="px-2.5 py-1 rounded-md bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 text-xs font-semibold">Withdraw</button>
-                    <button onClick={() => act(inv, "deposit")} className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold">Deposit</button>
+                    <button onClick={() => act(inv, "deposit")} className="px-2.5 py-1 rounded-md bg-surface border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold">Deposit</button>
                   </div>
                 </div>
               ))}

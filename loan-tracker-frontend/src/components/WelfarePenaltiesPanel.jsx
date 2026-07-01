@@ -76,7 +76,7 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
   const shown = penalties.filter((p) => (filter === "all" ? true : p.status === filter));
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-rose-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-rose-100 mb-6 overflow-hidden">
       <div className="bg-rose-50 px-5 py-3 border-b border-rose-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Gavel size={18} className="text-rose-600" /> Penalties
@@ -93,7 +93,7 @@ export default function WelfarePenaltiesPanel({ welfareId }) {
             {tileTypes.map((g) => {
               const v = groups[g] || { count: 0, due: 0, paid: 0 };
               return (
-                <div key={g} className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
+                <div key={g} className="rounded-xl bg-surface border border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
                   <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 mb-1.5">{g}</p>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500 dark:text-slate-400">Due</span>

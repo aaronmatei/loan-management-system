@@ -89,7 +89,7 @@ function LoanSettings() {
           title="Loan Settings"
           subtitle="Defaults applied to every new loan, plus the catalog of pre-configured loan products you offer."
         />
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <Skeleton className="h-6 w-40 mb-4" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[0, 1, 2].map((i) => (
@@ -116,7 +116,7 @@ function LoanSettings() {
       )}
 
       <form onSubmit={handleSavePolicy} className="space-y-6">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2">
             <Percent size={22} /> Loan Policy
           </h2>

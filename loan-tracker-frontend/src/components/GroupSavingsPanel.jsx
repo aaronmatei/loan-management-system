@@ -58,7 +58,7 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-emerald-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-emerald-100 mb-6 overflow-hidden">
       <div className="bg-emerald-50 px-5 py-3 border-b border-emerald-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 flex items-center gap-2">
           <PiggyBank size={18} className="text-emerald-600" /> Group Savings
@@ -81,7 +81,7 @@ export default function GroupSavingsPanel({ groupId, members = [], loans = [], o
             <PermissionGate role={["admin", "manager"]}>
               <button
                 onClick={() => setModal("withdrawal")}
-                className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2"
+                className="px-4 py-2 bg-surface border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2"
               >
                 <Minus size={16} /> Withdrawal
               </button>
@@ -407,7 +407,7 @@ function ModalShell({ title, onClose, children }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">

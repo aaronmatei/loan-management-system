@@ -65,7 +65,7 @@ function FirstClientStep({ onNext, onBack, setCreatedClient }) {
 
   return (
     <div className="max-w-3xl mx-auto px-4">
-      <div className="bg-white dark:bg-slate-800 dark:text-slate-100 rounded-3xl shadow-xl p-6 lg:p-10">
+      <div className="bg-surface dark:text-slate-100 rounded-3xl shadow-xl p-6 lg:p-10">
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3">
             <User size={48} className="text-ocean-500" />

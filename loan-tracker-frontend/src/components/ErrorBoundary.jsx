@@ -59,7 +59,7 @@ class ErrorBoundary extends React.Component {
         role="alert"
         className="min-h-screen w-full flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900"
       >
-        <div className="max-w-md w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 text-center">
+        <div className="max-w-md w-full bg-surface border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 text-center">
           <div className="w-14 h-14 mx-auto rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-2xl font-bold mb-4">
             !
           </div>

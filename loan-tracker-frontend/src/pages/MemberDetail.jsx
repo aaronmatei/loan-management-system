@@ -137,7 +137,7 @@ export default function MemberDetail() {
     return (
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
         <Skeleton className="h-5 w-32 mb-4" />
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="bg-surface rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex-1">
             <Skeleton className="h-7 w-56" />
             <Skeleton className="h-4 w-64 mt-3" />
@@ -149,13 +149,13 @@ export default function MemberDetail() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {[0, 1].map((i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+            <div key={i} className="bg-surface rounded-xl shadow-md p-4">
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-6 w-16 mt-2" />
             </div>
           ))}
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 space-y-3">
+        <div className="bg-surface rounded-xl shadow-md p-5 space-y-3">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-4 w-full" />
           ))}
@@ -176,7 +176,7 @@ export default function MemberDetail() {
     <div className="p-4 lg:p-8 max-w-5xl mx-auto pb-24">
       <button onClick={() => navigate("/welfare/members")} className="mb-4 text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-2">← Back to Welfare</button>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-surface rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2"><PiggyBank className="text-emerald-600" /> {member.first_name} {member.last_name} <OfficerBadge role={member.role} /></h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
@@ -211,16 +211,16 @@ export default function MemberDetail() {
                 "More" menu to keep the header uncluttered. */}
             <button onClick={() => setModal("contribution")} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold inline-flex items-center gap-2"><Plus size={16} /> Contribution</button>
             <PermissionGate role={["admin", "manager"]}>
-              <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
+              <button onClick={() => setModal("withdrawal")} className="px-4 py-2 bg-surface border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2"><Minus size={16} /> Withdrawal</button>
 
               <div className="relative ml-auto">
-                <button onClick={() => setActionsOpen((o) => !o)} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2">
+                <button onClick={() => setActionsOpen((o) => !o)} className="px-4 py-2 bg-surface border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-semibold inline-flex items-center gap-2">
                   <MoreHorizontal size={16} /> More <ChevronDown size={14} className={`transition ${actionsOpen ? "rotate-180" : ""}`} />
                 </button>
                 {actionsOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setActionsOpen(false)} />
-                    <div className="absolute right-0 mt-2 z-20 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden p-2">
+                    <div className="absolute right-0 mt-2 z-20 w-72 bg-surface border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden p-2">
                       {/* Portal access */}
                       <button onClick={() => { inviteToPortal(); setActionsOpen(false); }} disabled={inviting} title={member.phone_number ? "" : "Add a phone number and ID first"} className="w-full text-left px-2.5 py-2.5 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 inline-flex items-center gap-3 disabled:opacity-50 transition group">
                         <span className="shrink-0 w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 inline-flex items-center justify-center"><Smartphone size={17} /></span>
@@ -275,7 +275,7 @@ export default function MemberDetail() {
         </MemberActivity>
       )}
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-md overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Activity</h2></div>
         {txns.length === 0 ? (
           <EmptyState
@@ -333,7 +333,7 @@ export default function MemberDetail() {
 
 const FINE_REASON = { contribution_late: "Late contribution", attendance_late: "Late to meeting", attendance_absent: "Absent", meeting_missed: "Absent", loan_late: "Late loan", manual: "Manual" };
 const Section = ({ title, children }) => (
-  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden mb-6">
+  <div className="bg-surface rounded-xl shadow-md overflow-hidden mb-6">
     <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">{title}</h2></div>
     {children}
   </div>
@@ -353,7 +353,7 @@ const pill = (cls, t) => <span className={`px-2 py-0.5 rounded-full text-xs font
 // Loans (year-independent) render via children, just before Contributions.
 function MemberActivity({ activity, year, setYear, money, fmt, children }) {
   const { contributions, fines, fines_outstanding, attendance } = activity;
-  const STAT = "bg-white dark:bg-slate-800 rounded-xl shadow-md p-4";
+  const STAT = "bg-surface rounded-xl shadow-md p-4";
   const ASTATUS = { present: "bg-emerald-100 text-emerald-800", late: "bg-amber-100 text-amber-800", excused: "bg-sky-100 text-sky-800", absent: "bg-red-100 text-red-700" };
 
   // Group the member's cycles into ONE card per contribution (Monthly, Quarterly,
@@ -387,14 +387,14 @@ function MemberActivity({ activity, year, setYear, money, fmt, children }) {
       <div className="mb-6">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-3">Contributions</h2>
         {cards.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">No contributions in {year}.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 bg-surface rounded-xl shadow-md p-5">No contributions in {year}.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((g) => {
               const due = Math.max(0, g.expected - g.paid);
               const pct = g.expected > 0 ? Math.min(100, Math.round((g.paid / g.expected) * 100)) : 0;
               return (
-                <div key={g.name} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+                <div key={g.name} className="bg-surface rounded-xl shadow-md p-4">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-slate-800 dark:text-slate-100 truncate">{g.name}</span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold shrink-0">{g.oneoff ? "Emergency / one-off" : (FREQ_LABEL[g.frequency] || g.frequency)}</span>
@@ -472,7 +472,7 @@ function TxnModal({ base, memberId, kind, max, onClose, onDone }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{isContribution ? "Record Contribution" : "Record Withdrawal"}</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>

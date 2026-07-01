@@ -206,7 +206,7 @@ export default function PeriodNavigator({
 
   return (
     <div
-      className={`inline-flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-2 py-1.5 shadow-sm ${className}`}
+      className={`inline-flex items-center gap-2 bg-surface rounded-xl border border-slate-200 dark:border-slate-700 px-2 py-1.5 shadow-sm ${className}`}
     >
       {/* Mode toggle — hidden when only one mode is allowed. */}
       {showModeToggle && (
@@ -224,7 +224,7 @@ export default function PeriodNavigator({
                   onClick={() => switchMode(t.v)}
                   className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
                     value.mode === t.v
-                      ? "bg-white dark:bg-slate-800 text-ocean-700 shadow-sm"
+                      ? "bg-surface text-ocean-700 shadow-sm"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                   }`}
                 >

@@ -127,7 +127,7 @@ function Loading({ error }) {
           <Skeleton key={i} className="h-24 w-full rounded-xl" />
         ))}
       </div>
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-4 space-y-3">
+      <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-4 space-y-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-10 w-full rounded-lg" />
         ))}
@@ -137,11 +137,11 @@ function Loading({ error }) {
 }
 
 function Empty({ children }) {
-  return <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-10 text-center text-slate-500 dark:text-slate-400">{children}</div>;
+  return <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-10 text-center text-slate-500 dark:text-slate-400">{children}</div>;
 }
 
 const Stat = ({ label, value, tone = "text-slate-900 dark:text-slate-100" }) => (
-  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
+  <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
     <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
     <p className={`text-2xl font-bold mt-1 ${tone}`}>{value}</p>
   </div>
@@ -169,7 +169,7 @@ function RequestModal({ title, fields, url, onClose, onDone }) {
   };
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
@@ -245,7 +245,7 @@ function RequestDetailModal({ request: r, columns, kind, onClose }) {
   ));
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{kind === "loan" ? "Loan request" : kind === "event" ? "Event request" : "Request"}</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
@@ -282,7 +282,7 @@ export function MemberDashboard() {
       {loading || error || !data ? <Loading error={error} /> : (
         <>
           <div className="flex justify-end mb-4">
-            <button onClick={downloadStatement} className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
+            <button onClick={downloadStatement} className="px-4 py-2 bg-surface border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-lg text-sm">Download statement (PDF)</button>
           </div>
 
           {/* The same group dashboard the admin sees — members are equal owners — with
@@ -323,7 +323,7 @@ export function MemberDashboard() {
             );
           })()}
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+          <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h2 className="font-bold text-slate-900 dark:text-slate-100">Recent activity</h2>
               <Link to="/welfare/member/ledger" className="text-sm text-emerald-600 font-semibold">Full ledger →</Link>
@@ -370,7 +370,7 @@ function GroupSection({ title, path, head, render, empty, pick }) {
 function Table({ head, rows, render, empty }) {
   if (rows.length === 0) return <Empty>{empty}</Empty>;
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-x-auto">
+    <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-left">
           <tr>{head.map((h) => <th key={h} className="px-4 py-3 font-semibold">{h}</th>)}</tr>
@@ -644,7 +644,7 @@ function LoanApplyModal({ onClose, onDone }) {
   );
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 my-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Request Loan</h3><button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button></div>
         {err && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm mb-3">{err}</div>}
         <form onSubmit={submit} className="space-y-3">
@@ -697,7 +697,7 @@ function LoanDetailModal({ loanId, onClose }) {
   const loan = data?.loan;
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg my-10 p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-lg my-10 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{loan ? loan.loan_code : "Loan"}</h3>
           <div className="flex items-center gap-2">
@@ -978,7 +978,7 @@ export function MemberPenalties() {
           {tileTypes.map((g) => {
             const v = groups[g] || { count: 0, due: 0, paid: 0 };
             return (
-              <div key={g} className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
+              <div key={g} className="rounded-xl bg-surface border border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 mb-1.5">{g}</p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-500 dark:text-slate-400">Due</span>

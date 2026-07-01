@@ -179,12 +179,12 @@ export function WelfareReportsPage() {
 
   return (
     <Page title="Reports & Statements">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <h2 className="font-bold text-slate-900 dark:text-slate-100">Member statements</h2>
           <div className="flex gap-2">
-            <button onClick={() => doExport("pdf")} disabled={!!busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={14} /> {busy === "pdf" ? "…" : "Statement PDF"}</button>
-            <button onClick={() => doExport("csv")} disabled={!!busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileSpreadsheet size={14} /> {busy === "csv" ? "…" : "Members CSV"}</button>
+            <button onClick={() => doExport("pdf")} disabled={!!busy} className="px-3 py-1.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={14} /> {busy === "pdf" ? "…" : "Statement PDF"}</button>
+            <button onClick={() => doExport("csv")} disabled={!!busy} className="px-3 py-1.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileSpreadsheet size={14} /> {busy === "csv" ? "…" : "Members CSV"}</button>
           </div>
         </div>
         <div className="p-5">
@@ -276,7 +276,7 @@ export function WelfareSettingsPage() {
 
   return (
     <Page title="Settings">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl">
+      <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Contribution & grace defaults</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">These pre-fill new contribution cycles and set the grace before late penalties accrue.</p>
         {!form ? (
@@ -343,7 +343,7 @@ function LoansSwitchCard({ welfareId, on, onChange }) {
     } catch (err) { alert(err.response?.data?.error || "Failed to save"); setBusy(false); }
   };
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
+    <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
       <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Loans</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
         Turn the chama's loan feature on or off. When OFF, everything about loans is hidden from
@@ -406,7 +406,7 @@ function LoanPolicyCard({ welfareId }) {
   const fld = "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
   const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
+    <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
       <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Loan policy</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Default terms applied to every new loan and loan product. You can still override them per loan. The processing fee is deducted from what the borrower receives — they repay the full principal plus interest.</p>
       <PermissionGate role={["admin", "manager"]} fallback={<p className="text-sm text-slate-500 dark:text-slate-400">You don't have permission to edit this.</p>}>
@@ -457,7 +457,7 @@ function NonMemberLendingCard() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
+    <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
       <h2 className="font-bold text-slate-900 dark:text-slate-100 mb-1">Lending to non-members</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
         Most chamas lend only to their own members. Turn this on if you also lend
@@ -561,7 +561,7 @@ export function WelfareRequestsPage() {
       <PermissionGate role={["admin", "manager"]}>
         <div className="flex gap-2">
           <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "approve")} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">Approve</button>
-          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "reject")} className="px-3 py-1.5 bg-white dark:bg-slate-800 border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold disabled:opacity-50">Reject</button>
+          <button disabled={busy === `${kind}-${r.id}`} onClick={() => act(kind, r, "reject")} className="px-3 py-1.5 bg-surface border-2 border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold disabled:opacity-50">Reject</button>
         </div>
       </PermissionGate>
     </div>
@@ -572,7 +572,7 @@ export function WelfareRequestsPage() {
       {loading ? (
         <div className="space-y-6 max-w-3xl">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+            <div key={i} className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
               <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><Skeleton className="h-4 w-44" /></div>
               {Array.from({ length: 2 }).map((__, j) => (
                 <div key={j} className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-700 last:border-0">
@@ -586,7 +586,7 @@ export function WelfareRequestsPage() {
       ) : (
         <div className="space-y-6 max-w-3xl">
           {welfare?.loans_enabled && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+            <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
               <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Loan requests ({loans.length})</h2></div>
               {loans.length === 0 ? <div className="p-5"><EmptyState icon={Inbox} title="No pending loan requests" description="When a member asks for a loan from the pool, it lands here for an officer to approve or reject." tone="muted" /></div> :
                 loans.map((r) => <Row key={r.id} kind="loans" r={r} amount={r.principal} extra={[
@@ -597,12 +597,12 @@ export function WelfareRequestsPage() {
                 ].filter(Boolean).join(" · ")} />)}
             </div>
           )}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+          <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Withdrawal requests ({withdrawals.length})</h2></div>
             {withdrawals.length === 0 ? <div className="p-5"><EmptyState icon={Inbox} title="No pending withdrawal requests" description="Members' savings-withdrawal requests appear here for an officer to approve or reject." tone="muted" /></div> :
               withdrawals.map((r) => <Row key={r.id} kind="withdrawals" r={r} amount={r.amount} extra={r.reason} />)}
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
+          <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Event requests ({events.length})</h2></div>
             {events.length === 0 ? <div className="p-5"><EmptyState icon={Inbox} title="No pending event requests" description="Members' event and emergency payout requests appear here for an officer to approve or reject." tone="muted" /></div> :
               events.map((r) => <Row key={r.id} kind="events" r={r} amount={r.amount} extra={[r.event_date ? `needed ${new Date(r.event_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}` : null, r.reason].filter(Boolean).join(" · ")} />)}

@@ -72,7 +72,7 @@ export default function SocialAuth({ onAuthed }) {
           <span className="w-full border-t border-gray-200 dark:border-slate-700" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-white dark:bg-slate-800 px-3 text-gray-400 dark:text-slate-400">or continue with</span>
+          <span className="bg-surface px-3 text-gray-400 dark:text-slate-400">or continue with</span>
         </div>
       </div>
 
@@ -129,7 +129,7 @@ function CompleteProfile({ pending, onCancel, onDone }) {
       onClick={onCancel}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 my-8"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6 my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-1">Finish your account</h3>

@@ -83,7 +83,7 @@ function EmbedSettings() {
   };
 
   const CopyCard = ({ title, desc, code, type }) => (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+    <div className="bg-surface rounded-xl shadow p-4">
       <h3 className="font-bold text-gray-800 dark:text-slate-100 mb-1">{title}</h3>
       <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">{desc}</p>
       <pre className="bg-gray-900 text-green-400 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
@@ -139,7 +139,7 @@ function EmbedSettings() {
             code={linkCode}
             type="link"
           />
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+          <div className="bg-surface rounded-xl shadow p-4">
             <h3 className="font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2"><Globe size={16} /> Direct URL</h3>
             <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">Share the widget directly.</p>
             <div className="bg-gray-100 dark:bg-slate-700 p-3 rounded-lg text-sm font-mono break-all">
@@ -165,7 +165,7 @@ function EmbedSettings() {
         </div>
 
         <div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 sticky top-4">
+          <div className="bg-surface rounded-xl shadow p-4 sticky top-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Eye size={16} /> Live preview</h3>
               <div className="flex gap-1">
@@ -211,7 +211,7 @@ function EmbedSettings() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mt-6">
+      <div className="bg-surface rounded-xl shadow p-4 lg:p-6 mt-6">
         <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Info size={20} /> How to embed</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {[

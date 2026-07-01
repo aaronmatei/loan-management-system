@@ -123,7 +123,7 @@ function Analytics() {
   const CurrencyTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
+        <div className="bg-surface p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
           <p className="font-bold text-gray-800 dark:text-slate-100">{label}</p>
           {payload.map((entry, i) => (
             <p key={i} style={{ color: entry.color }} className="text-sm">
@@ -208,7 +208,7 @@ function Analytics() {
       </div>
 
       {/* Revenue Trends */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+      <div className="bg-surface rounded-xl shadow-md p-4 lg:p-6 mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <TrendingUp size={22} /> Revenue Trends ({periodLabel(period)})
         </h2>
@@ -251,7 +251,7 @@ function Analytics() {
 
       {/* Portfolio + Payment Methods */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6">
+        <div className="bg-surface rounded-xl shadow-md p-4 lg:p-6">
           <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <BarChart3 size={22} /> Loan Portfolio
           </h2>
@@ -291,7 +291,7 @@ function Analytics() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6">
+        <div className="bg-surface rounded-xl shadow-md p-4 lg:p-6">
           <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <CreditCard size={22} /> Payment Methods
           </h2>
@@ -343,7 +343,7 @@ function Analytics() {
       </div>
 
       {/* Default Rate Trend */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+      <div className="bg-surface rounded-xl shadow-md p-4 lg:p-6 mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <AlertTriangle size={22} className="text-red-500" /> Default Rate Trend
         </h2>
@@ -356,7 +356,7 @@ function Analytics() {
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
+                    <div className="bg-surface p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
                       <p className="font-bold text-gray-800 dark:text-slate-100">{label}</p>
                       <p className="text-sm text-red-600">
                         Default Rate: {payload[0].value}%
@@ -384,7 +384,7 @@ function Analytics() {
       </div>
 
       {/* Loan Size Distribution */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+      <div className="bg-surface rounded-xl shadow-md p-4 lg:p-6 mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <BarChart3 size={22} /> Loan Size Distribution
         </h2>
@@ -397,7 +397,7 @@ function Analytics() {
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
+                    <div className="bg-surface p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
                       <p className="font-bold">{label}</p>
                       <p className="text-sm">
                         Loans: {payload[0].payload.count}
@@ -417,7 +417,7 @@ function Analytics() {
       </div>
 
       {/* Top Clients */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+      <div className="bg-surface rounded-xl shadow-md p-4 lg:p-6 mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Trophy size={22} className="text-yellow-500" /> Top 10 Clients by Total Borrowed
         </h2>
@@ -497,7 +497,7 @@ function Analytics() {
       </div>
 
       {/* Geographic Distribution */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 lg:p-6 mb-6">
+      <div className="bg-surface rounded-xl shadow-md p-4 lg:p-6 mb-6">
         <h2 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <MapPin size={22} /> Geographic Distribution (Top 15 Counties)
         </h2>
@@ -514,7 +514,7 @@ function Analytics() {
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="bg-white dark:bg-slate-800 p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
+                    <div className="bg-surface p-3 border-2 border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
                       <p className="font-bold">{label}</p>
                       <p className="text-sm">
                         Clients: {payload[0].payload.client_count}

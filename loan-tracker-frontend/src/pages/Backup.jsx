@@ -258,7 +258,7 @@ function Backup() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-md overflow-hidden">
         <div className="overflow-auto max-h-[600px]">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 border-b-2 dark:border-slate-700">
@@ -397,7 +397,7 @@ function Backup() {
 
       {showRestoreModal && selectedBackup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-md w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-8 max-w-md w-full">
             <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><AlertTriangle size={22} className="text-red-600" /> Restore Database</h3>
             <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-4">
               <p className="font-bold text-red-800 mb-2 flex items-center gap-1"><AlertTriangle size={14} /> WARNING</p>
@@ -453,7 +453,7 @@ function Backup() {
 
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-8 max-w-md w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-8 max-w-md w-full">
             <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Upload size={22} /> Upload &amp; Restore</h3>
             <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
               <p className="text-sm text-yellow-800 flex items-start gap-1">

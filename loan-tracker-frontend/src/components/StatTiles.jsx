@@ -18,7 +18,7 @@ export default function StatTiles({ tiles = [] }) {
   return (
     <div className={`grid grid-cols-2 ${cols} gap-3 mb-5`}>
       {items.map((t, i) => (
-        <div key={i} className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
+        <div key={i} className="rounded-xl bg-surface border border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
           <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400">{t.label}</p>
           <p className={`text-lg font-bold ${TONES[t.tone] || TONES.slate}`}>{t.value}</p>
           {t.sub && <p className="text-xs text-slate-500 dark:text-slate-400">{t.sub}</p>}

@@ -187,7 +187,7 @@ function Waivers() {
           <button
             onClick={() => load({ silent: true })}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
           >
             <RefreshCcw
               size={16}
@@ -221,7 +221,7 @@ function Waivers() {
 
       {/* Single summary tile for the active tab */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             {TABS.find((t) => t.key === tab)?.label}
           </p>
@@ -233,7 +233,7 @@ function Waivers() {
             {tab === "pending" ? "awaiting review" : `(${tab})`}
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Total Amount
           </p>
@@ -244,7 +244,7 @@ function Waivers() {
             sum of {tab} waivers
           </p>
         </div>
-        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+        <div className="rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 bg-surface p-5">
           <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
             Unique Loans
           </p>
@@ -263,7 +263,7 @@ function Waivers() {
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"
+              className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"
             >
               <div className="flex items-center gap-2 mb-3">
                 <Skeleton className="h-4 w-24" />
@@ -291,7 +291,7 @@ function Waivers() {
           {rows.map((w) => (
             <div
               key={w.id}
-              className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"
+              className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5"
             >
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -412,7 +412,7 @@ function Waivers() {
       {/* Approve / Reject / Reverse confirmation */}
       {actingOn && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-2xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <div className="flex justify-between items-start mb-3">
               <h3 className="text-xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                 {actingOn.mode === "approve" && (

@@ -116,7 +116,7 @@ export default function GroupDetail() {
     return (
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
         <Skeleton className="h-5 w-32 mb-4" />
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6">
+        <div className="bg-surface rounded-xl shadow-md p-5 mb-6">
           <Skeleton className="h-7 w-56" />
           <Skeleton className="h-4 w-72 mt-3" />
         </div>
@@ -129,7 +129,7 @@ export default function GroupDetail() {
             </div>
           ))}
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 space-y-3">
+        <div className="bg-surface rounded-xl shadow-md p-5 space-y-3">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-4 w-full" />
           ))}
@@ -173,7 +173,7 @@ export default function GroupDetail() {
       </button>
 
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="bg-surface rounded-xl shadow-md p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <UsersRound className="text-ocean-600" /> {group.name}
@@ -242,7 +242,7 @@ export default function GroupDetail() {
 
       {/* Loan-group members (capital-funded group loans) — lenders only */}
       {!isWelfare && (
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md mb-6 overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-md mb-6 overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <h2 className="font-bold text-slate-900 dark:text-slate-100">Loan Group Members ({members.length})</h2>
           <PermissionGate role={["admin", "manager", "loan_officer"]}>
@@ -332,7 +332,7 @@ export default function GroupDetail() {
 
       {/* Member loans (capital-funded group loans) — lenders only */}
       {!isWelfare && (
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-md overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700">
           <h2 className="font-bold text-slate-900 dark:text-slate-100">Member Loans ({loans.length})</h2>
         </div>
@@ -411,7 +411,7 @@ function RollupCard({ icon: Icon, color, label, value }) {
     slate: "bg-slate-50 text-slate-600",
   };
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+    <div className="bg-surface rounded-xl shadow-md p-4">
       <div className={`inline-flex p-2 rounded-lg mb-2 ${C[color] || C.slate}`}>
         <Icon size={18} />
       </div>
@@ -473,7 +473,7 @@ function AddMemberModal({ groupId, existingClientIds, onClose, onAdded }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">

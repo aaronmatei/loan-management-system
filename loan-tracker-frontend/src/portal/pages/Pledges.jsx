@@ -38,7 +38,7 @@ export function PortalPledges() {
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4 flex items-center gap-4">
+              <div key={i} className="bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4 flex items-center gap-4">
                 <Skeleton rounded="rounded-xl" className="w-11 h-11 shrink-0" />
                 <div className="flex-1 min-w-0 space-y-2">
                   <Skeleton className="h-4 w-1/2" />
@@ -51,11 +51,11 @@ export function PortalPledges() {
         ) : error ? (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">{error}</div>
         ) : rows.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 text-center text-slate-500 dark:text-slate-400">No pledges yet.</div>
+          <div className="bg-surface rounded-xl shadow-md p-8 text-center text-slate-500 dark:text-slate-400">No pledges yet.</div>
         ) : (
           <div className="space-y-3">
             {rows.map((p) => (
-              <button key={p.id} onClick={() => navigate(`/portal/pledges/${p.id}`)} className="w-full text-left bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4 hover:border-ocean-300 transition flex items-center gap-4">
+              <button key={p.id} onClick={() => navigate(`/portal/pledges/${p.id}`)} className="w-full text-left bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4 hover:border-ocean-300 transition flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-ocean-50 text-ocean-600 flex items-center justify-center shrink-0"><Package size={20} /></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{p.item || "Pledged item"}</p>
@@ -106,7 +106,7 @@ export function PortalPledgeDetail() {
 
   if (loading) return <PortalLayout><div className="p-4 lg:p-8 max-w-3xl mx-auto">
     <div className="flex justify-between items-center mb-4"><Skeleton className="h-5 w-32" /><Skeleton className="h-9 w-28" /></div>
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-5 mb-5 flex items-start gap-4">
+    <div className="bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-5 mb-5 flex items-start gap-4">
       <Skeleton rounded="rounded-xl" className="w-14 h-14 shrink-0" />
       <div className="flex-1 space-y-2"><Skeleton className="h-5 w-1/2" /><Skeleton className="h-4 w-32" /></div>
     </div>
@@ -124,11 +124,11 @@ export function PortalPledgeDetail() {
       <div className="p-4 lg:p-8 max-w-3xl mx-auto" style={{ "--brand": brand }}>
         <div className="flex justify-between items-center mb-4">
           <button onClick={() => navigate("/portal/pledges")} className="text-[var(--brand)] font-semibold">← Back to Pledges</button>
-          <button onClick={downloadTicket} disabled={downloading} className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={15} /> {downloading ? "…" : "Pawn ticket"}</button>
+          <button onClick={downloadTicket} disabled={downloading} className="px-4 py-2 bg-surface border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 disabled:opacity-50"><FileDown size={15} /> {downloading ? "…" : "Pawn ticket"}</button>
         </div>
 
         {/* Item card */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-5 mb-5">
+        <div className="bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-5 mb-5">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-xl bg-ocean-50 text-ocean-600 flex items-center justify-center shrink-0"><Package size={26} /></div>
             <div className="flex-1">
@@ -146,7 +146,7 @@ export function PortalPledgeDetail() {
         </div>
 
         {/* Redemption summary */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-5 mb-5">
+        <div className="bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-5 mb-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div><p className="text-xs text-slate-500 dark:text-slate-400">Borrowed</p><p className="font-bold text-slate-900 dark:text-slate-100">{KES(loan.principal_amount)}</p></div>
             <div><p className="text-xs text-slate-500 dark:text-slate-400">Redemption total</p><p className="font-bold text-slate-900 dark:text-slate-100">{KES(loan.total_amount_due)}</p></div>
@@ -171,7 +171,7 @@ export function PortalPledgeDetail() {
         </div>
 
         {/* Payments */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 overflow-hidden">
+        <div className="bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 overflow-hidden">
           <div className="px-5 py-3 border-b border-[#ece6da] dark:border-slate-700"><h2 className="font-bold text-slate-900 dark:text-slate-100">Payments</h2></div>
           {transactions.length === 0 ? (
             <p className="p-5 text-sm text-slate-500 dark:text-slate-400">No payments yet.</p>
@@ -237,7 +237,7 @@ export function PortalPawnRequests() {
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4 space-y-2">
+              <div key={i} className="bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4 space-y-2">
                 <Skeleton className="h-4 w-1/2" />
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-4 w-1/3" />
@@ -245,11 +245,11 @@ export function PortalPawnRequests() {
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 text-center text-slate-500 dark:text-slate-400">No requests yet.</div>
+          <div className="bg-surface rounded-xl shadow-md p-8 text-center text-slate-500 dark:text-slate-400">No requests yet.</div>
         ) : (
           <div className="space-y-3">
             {rows.map((a) => (
-              <div key={a.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4">
+              <div key={a.id} className="bg-surface rounded-xl shadow-md border border-[#ece6da] dark:border-slate-700 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-800 dark:text-slate-100">{a.item_description}</p>
@@ -314,7 +314,7 @@ function NewRequestModal({ onClose, onDone }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-10" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#ece6da] dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Request a loan</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X size={20} /></button>
@@ -338,7 +338,7 @@ function NewRequestModal({ onClose, onDone }) {
                   {photos.map((src, i) => (
                     <div key={i} className="relative">
                       <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-[#e5ddcd] dark:border-slate-700" />
-                      <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-[#e5ddcd] dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
+                      <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-surface rounded-full border border-[#e5ddcd] dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
                     </div>
                   ))}
                   <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 flex items-center justify-center text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">

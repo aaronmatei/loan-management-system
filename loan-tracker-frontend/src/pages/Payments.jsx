@@ -623,7 +623,7 @@ function Payments() {
           Both inputs are independent; leaving one empty leaves that
           side unbounded. Clear button only renders when something
           is set. */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-3 mb-4 flex flex-wrap items-center gap-3">
+      <div className="bg-surface rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-3 mb-4 flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200">
           <Calendar size={16} /> Date range
         </span>
@@ -699,7 +699,7 @@ function Payments() {
 
       {/* Record Payment Form */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-8 mb-6">
+        <div className="bg-surface rounded-xl shadow-md p-8 mb-6">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6">
             Record New Payment
           </h2>
@@ -750,7 +750,7 @@ function Payments() {
                   />
 
                   {showDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-surface border-2 border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-80 overflow-y-auto">
                       {filteredLoans.length === 0 ? (
                         <div className="p-4 text-center text-gray-500 dark:text-slate-400">
                           No active loans found
@@ -838,7 +838,7 @@ function Payments() {
                   </h3>
 
                   {/* Principal + interest ledger */}
-                  <div className="bg-white dark:bg-slate-800 rounded-md p-3 text-sm space-y-1.5">
+                  <div className="bg-surface rounded-md p-3 text-sm space-y-1.5">
                     <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">
                       Principal + interest
                     </p>
@@ -915,7 +915,7 @@ function Payments() {
                       Total to pay row below it answers "what does
                       the borrower owe me right now in cash?". */}
                   {hasPenaltyActivity && (
-                    <div className="mt-3 bg-white dark:bg-slate-800 rounded-md p-3 text-sm space-y-1.5">
+                    <div className="mt-3 bg-surface rounded-md p-3 text-sm space-y-1.5">
                       <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">
                         Penalties
                       </p>
@@ -1138,7 +1138,7 @@ function Payments() {
           {paginatedGroups.map((g) => {
             const open = expanded.has(g.loan_id);
             return (
-              <div key={g.loan_id} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+              <div key={g.loan_id} className="bg-surface rounded-xl shadow-md p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-800 dark:text-slate-100 truncate">
@@ -1316,7 +1316,7 @@ function Payments() {
           />
 
           {!loading && sortedGroups.length > 0 && totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-card">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 mt-3 bg-surface rounded-xl shadow-card">
               <div className="text-sm text-gray-600 dark:text-slate-400">
                 Showing <span className="font-semibold">{startIndex + 1}</span>{" "}
                 to{" "}
@@ -1331,7 +1331,7 @@ function Payments() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-surface border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   ← Previous
                 </button>
@@ -1357,7 +1357,7 @@ function Payments() {
                             className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
                               currentPage === page
                                 ? "bg-green-600 text-white"
-                                : "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                : "bg-surface border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                             }`}
                           >
                             {page}
@@ -1372,7 +1372,7 @@ function Payments() {
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-3 py-2 bg-surface border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Next →
                 </button>
@@ -1388,7 +1388,7 @@ function Payments() {
           onClick={() => setTxnModal(null)}
         >
           <div
-            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-md w-full"
+            className="bg-surface rounded-xl shadow-2xl p-6 max-w-md w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-bold mb-1 text-gray-800 dark:text-slate-100 flex items-center gap-2"><Search size={20} /> Transaction</h3>
@@ -1485,7 +1485,7 @@ function Payments() {
           onClick={() => setEditForm(null)}
         >
           <div
-            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6"
+            className="bg-surface rounded-xl shadow-2xl w-full max-w-lg p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-1">

@@ -58,7 +58,7 @@ export default function WelfareContributionsPanel({ welfareId, kind = "savings",
   const emergPool = list?.oneoff_pool_balance ?? 0; // all emergencies share one pool
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <CalendarClock size={18} className="text-sky-600" /> {benefit ? benefitTitle : "Contributions"}
@@ -209,15 +209,15 @@ function ContributionDetail({ welfareId, plan: initialPlan, members = [], kind =
   const isBenefit = plan.pool_kind === "benefit";
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
         <button onClick={onBack} className="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 inline-flex items-center gap-1"><ChevronLeft size={16} /> {kind === "benefit" ? "All events & emergencies" : "All contributions"}</button>
         {!readOnly && (
           <PermissionGate role={["admin", "manager"]}>
             <div className="flex gap-2">
               {isBenefit && <button onClick={() => setPaying(true)} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg inline-flex items-center gap-1.5"><ArrowDownToLine size={14} /> Pay a beneficiary</button>}
-              <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">Assess late</button>
-              <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg">Edit</button>
+              <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-surface border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+              <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-surface border border-sky-200 text-sky-700 hover:bg-sky-50 text-sm font-semibold rounded-lg">Edit</button>
             </div>
           </PermissionGate>
         )}
@@ -410,7 +410,7 @@ function MembersGrid({ data }) {
             <tr><td colSpan={periods.length + 3} className="px-3 py-8 text-center text-slate-500 dark:text-slate-400">No active members.</td></tr>
           ) : data.members.map((mem) => (
             <tr key={mem.id} className="border-t border-slate-100 dark:border-slate-700">
-              <td className="px-3 py-2 text-slate-800 dark:text-slate-100 whitespace-nowrap sticky left-0 bg-white dark:bg-slate-800">{mem.first_name} {mem.last_name}</td>
+              <td className="px-3 py-2 text-slate-800 dark:text-slate-100 whitespace-nowrap sticky left-0 bg-surface">{mem.first_name} {mem.last_name}</td>
               {periods.map((p, i) => <td key={p.key} className="px-2 py-2 text-center">{cellMark(mem.cells[i])}</td>)}
               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(mem.total_paid)}</td>
               <td className="px-3 py-2 text-right font-semibold">{mem.fines > 0 ? <span className={mem.fines_outstanding > 0 ? "text-rose-600" : "text-slate-500"}>{money(mem.fines)}</span> : <span className="text-slate-300">—</span>}</td>
@@ -666,7 +666,7 @@ function SchedulesModal({ welfareId, cycle, members = [], onClose, onChange, cli
         <span className="text-slate-500 dark:text-slate-400">Late fine: {detail?.fine_calc_type ? <span className="font-semibold text-slate-700 dark:text-slate-200">{fineSummary(detail)}</span> : "none"}</span>
         {!readOnly && (
           <PermissionGate role={["admin", "manager"]}>
-            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-lg disabled:opacity-50">Assess late</button>
+            <button onClick={assessLate} disabled={busy} className="px-3 py-1.5 bg-surface border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-lg disabled:opacity-50">Assess late</button>
           </PermissionGate>
         )}
       </div>
@@ -772,7 +772,7 @@ function PayModal({ welfareId, cycle, schedule, onClose, onDone }) {
 function Shell({ title, onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
+      <div className={`bg-surface rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>

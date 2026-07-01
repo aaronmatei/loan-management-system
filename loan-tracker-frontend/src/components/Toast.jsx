@@ -65,7 +65,7 @@ export function ToastProvider({ children }) {
           return (
             <div
               key={t.id}
-              className="flex items-start gap-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-card px-4 py-3 animate-[lf-toast-in_0.2s_ease-out]"
+              className="flex items-start gap-3 bg-surface border border-slate-200 dark:border-slate-700 rounded-xl shadow-card px-4 py-3 animate-[lf-toast-in_0.2s_ease-out]"
             >
               <Icon size={18} className={`mt-0.5 ${TONES[t.type]}`} />
               <p className="flex-1 text-sm text-slate-700 dark:text-slate-200">

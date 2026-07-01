@@ -52,12 +52,12 @@ export default function WelfareMpesaPanel({ welfareId }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-green-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-green-100 mb-6 overflow-hidden">
       <div className="bg-green-50 px-5 py-3 border-b border-green-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Smartphone size={18} className="text-green-600" /> M-Pesa payments
         </h2>
-        <button onClick={load} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
+        <button onClick={load} className="px-3 py-1.5 bg-surface border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5">
           <RefreshCw size={14} /> Refresh
         </button>
       </div>

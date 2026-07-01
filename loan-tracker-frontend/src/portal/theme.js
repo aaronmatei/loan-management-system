@@ -4,9 +4,9 @@
 // `--brand` CSS var each page sets on its wrapper. Compose these with
 // Tailwind arbitrary utilities in the pages so the look stays consistent.
 export const CARD =
-  "bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[18px]";
+  "bg-surface border border-[#ece6da] dark:border-slate-700 rounded-[18px]";
 export const CARD_LG =
-  "bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[22px]";
+  "bg-surface border border-[#ece6da] dark:border-slate-700 rounded-[22px]";
 // Ink + muted text on the warm canvas.
 export const INK = "text-[#16241d] dark:text-slate-100";
 export const MUTED = "text-[#8a8170] dark:text-slate-400";

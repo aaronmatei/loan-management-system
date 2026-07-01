@@ -149,7 +149,7 @@ function Signup() {
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8">
+        <div className="bg-surface rounded-2xl shadow-2xl p-6 lg:p-8">
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100 mb-2">
             Start Your 14-Day Free Trial
           </h2>

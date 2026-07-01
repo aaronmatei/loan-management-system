@@ -91,7 +91,7 @@ export default function VehicleSecurityPanel({ loanId, loanCode, loanStatus, onC
     : "";
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-sky-100 mb-6 overflow-hidden">
       <div className="bg-sky-50 px-5 py-3 border-b border-sky-100 flex items-center justify-between">
         <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Car size={18} className="text-sky-600" /> Vehicle Security (Logbook)
@@ -290,7 +290,7 @@ function VehicleFormModal({ loanId, existing, onClose, onSaved }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl my-8"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-xl my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
@@ -424,7 +424,7 @@ function ConfirmModal({ kind, loanCode, busy, onCancel, onConfirm }) {
       onClick={onCancel}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-12"
+        className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-12"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100 dark:border-slate-700">

@@ -75,7 +75,7 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-indigo-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-indigo-100 mb-6 overflow-hidden">
       <div className="bg-indigo-50 px-5 py-3 border-b border-indigo-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <CalendarDays size={18} className="text-indigo-600" /> Meetings &amp; Attendance
@@ -134,14 +134,14 @@ export default function WelfareMeetingsPanel({ welfareId, client = api, readOnly
                               <button
                                 onClick={() => rsvp(m.id, true)}
                                 disabled={acting === m.id || m.my_confirmation === true}
-                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:cursor-not-allowed ${m.my_confirmation === true ? "bg-emerald-600 text-white border-emerald-600" : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"}`}
+                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:cursor-not-allowed ${m.my_confirmation === true ? "bg-emerald-600 text-white border-emerald-600" : "bg-surface text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"}`}
                               >
                                 Attending
                               </button>
                               <button
                                 onClick={() => rsvp(m.id, false)}
                                 disabled={acting === m.id || m.my_confirmation === false}
-                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:cursor-not-allowed ${m.my_confirmation === false ? "bg-rose-600 text-white border-rose-600" : "bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 disabled:opacity-50"}`}
+                                className={`px-2 py-0.5 rounded-md text-xs font-semibold border transition disabled:cursor-not-allowed ${m.my_confirmation === false ? "bg-rose-600 text-white border-rose-600" : "bg-surface text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 disabled:opacity-50"}`}
                               >
                                 Can't make it
                               </button>
@@ -244,7 +244,7 @@ function AttendanceOverview({ summary }) {
       {open && (
         <div className="mt-2">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search members…" className="w-full sm:w-64 mb-2 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-indigo-400 focus:outline-none" />
-          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface">
             {filtered.map((m) => (
               <div key={m.member_id} className="flex items-center gap-3 px-3 py-1.5 text-sm">
                 <span className="flex-1 truncate text-slate-700 dark:text-slate-200">{m.first_name} {m.last_name}</span>
@@ -262,7 +262,7 @@ function AttendanceOverview({ summary }) {
 }
 function Stat({ label, value, tone = "text-slate-800 dark:text-slate-100" }) {
   return (
-    <div className="rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2">
+    <div className="rounded-lg bg-surface border border-slate-200 dark:border-slate-700 px-3 py-2">
       <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400">{label}</p>
       <p className={`text-lg font-bold ${tone}`}>{value}</p>
     </div>
@@ -558,11 +558,11 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
                 <p className="text-xs text-slate-500 dark:text-slate-400">Share this with members via SMS or WhatsApp. They open it, enter their name + phone, and confirm whether they'll attend — no login needed.</p>
                 <div className="flex gap-2">
                   <input readOnly value={invite.link} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded text-xs" />
-                  <button onClick={() => copy(invite.link, "link")} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold"><Copy size={13} /> {copied === "link" ? "Copied!" : "Copy link"}</button>
+                  <button onClick={() => copy(invite.link, "link")} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-surface border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold"><Copy size={13} /> {copied === "link" ? "Copied!" : "Copy link"}</button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <a href={`https://wa.me/?text=${encodeURIComponent(invite.message)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Share on WhatsApp</a>
-                  <button onClick={() => copy(invite.message, "msg")} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold"><Copy size={13} /> {copied === "msg" ? "Copied!" : "Copy message"}</button>
+                  <button onClick={() => copy(invite.message, "msg")} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-surface border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold"><Copy size={13} /> {copied === "msg" ? "Copied!" : "Copy message"}</button>
                 </div>
               </div>
             )}
@@ -674,7 +674,7 @@ function AttendanceModal({ welfareId, meeting: row, onClose, onSaved, client = a
 function Shell({ title, onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
+      <div className={`bg-surface rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-10`} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>

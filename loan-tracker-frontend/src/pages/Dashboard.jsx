@@ -445,7 +445,7 @@ function Dashboard() {
               pill on the right. */}
           <div className="relative flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="relative w-11 h-11 rounded-2xl bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-700 shadow-sm flex items-center justify-center">
+              <div className="relative w-11 h-11 rounded-2xl bg-surface ring-1 ring-slate-200/70 dark:ring-slate-700 shadow-sm flex items-center justify-center">
                 <Coins size={20} className="text-ocean-500" />
               </div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
@@ -586,7 +586,7 @@ function Dashboard() {
             {/* All time Disbursed — neutral slate */}
             <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-white/70 to-slate-100/40 dark:from-slate-800 dark:to-slate-800 ring-1 ring-slate-200/60 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 ring-1 ring-slate-200/60 dark:ring-slate-700 flex items-center justify-center shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-surface ring-1 ring-slate-200/60 dark:ring-slate-700 flex items-center justify-center shadow-sm">
                   <ArrowUpRight size={15} className="text-slate-500" />
                 </div>
                 <ArrowUpRight size={12} className="text-slate-300" />
@@ -605,7 +605,7 @@ function Dashboard() {
             {/* All time Collected — soft emerald */}
             <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-50/80 to-emerald-100/40 dark:from-slate-800 dark:to-slate-800 ring-1 ring-emerald-200/50 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 ring-1 ring-emerald-200/60 flex items-center justify-center shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-surface ring-1 ring-emerald-200/60 flex items-center justify-center shadow-sm">
                   <ArrowDownLeft size={15} className="text-emerald-600" />
                 </div>
                 <ArrowDownLeft size={12} className="text-emerald-300" />
@@ -695,7 +695,7 @@ function Dashboard() {
             {/* All time Collection Rate — soft sky */}
             <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-ocean-50/90 to-ocean-50/60 dark:from-slate-800 dark:to-slate-800 ring-1 ring-ocean-200/60 dark:ring-slate-700 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 ring-1 ring-ocean-200/70 flex items-center justify-center shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-surface ring-1 ring-ocean-200/70 flex items-center justify-center shadow-sm">
                   <Target size={15} className="text-ocean-500" />
                 </div>
                 <Target size={12} className="text-ocean-300" />
@@ -721,7 +721,7 @@ function Dashboard() {
       {/* Top-up capital modal */}
       {showTopUp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
+          <div className="bg-surface rounded-xl shadow-2xl p-6 lg:p-8 max-w-md w-full">
             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <Coins size={22} /> Top up capital pool
             </h3>
@@ -784,7 +784,7 @@ function Dashboard() {
         {/* Total Portfolio — active receivable book (principal + interest
             for currently-active loans). Matches Analytics' "Active
             Portfolio" so the two pages don't disagree. */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Total Portfolio
@@ -803,7 +803,7 @@ function Dashboard() {
         </div>
 
         {/* Receivable — book balance still owed (principal + interest). */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Receivable
@@ -822,7 +822,7 @@ function Dashboard() {
         {/* Overdue → keeps the navigation to the dedicated overdue page */}
         <button
           onClick={() => navigate("/overdue")}
-          className="text-left bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 hover:border-rose-200 hover:shadow transition"
+          className="text-left bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5 hover:border-rose-200 hover:shadow transition"
         >
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
@@ -840,7 +840,7 @@ function Dashboard() {
         </button>
 
         {/* Collection Rate — period total_collected / total_amount_due */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between">
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
               Collection Rate
@@ -865,7 +865,7 @@ function Dashboard() {
       <SectionHeading hint="Trends & status">Insights</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Chart 1 — Collections vs Disbursements (last 6 months) */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <NavIcon icon={TrendingUp} variant="ocean" size={36} />
             <div>
@@ -947,7 +947,7 @@ function Dashboard() {
         </div>
 
         {/* Chart 2 — Portfolio Health donut */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <NavIcon icon={PieChartIcon} variant="indigo" size={36} />
             <div>
@@ -1001,7 +1001,7 @@ function Dashboard() {
       <SectionHeading hint="Portfolio mix">Distribution</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* Chart A — Loans by Age: borrower age × loan status */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <NavIcon icon={Users} variant="ocean" size={36} />
             <div>
@@ -1072,7 +1072,7 @@ function Dashboard() {
         </div>
 
         {/* Chart B — Loan-size histogram */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <NavIcon icon={BarChart3} variant="indigo" size={36} />
             <div>
@@ -1132,7 +1132,7 @@ function Dashboard() {
         </div>
 
         {/* Chart C — Payment-method split */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div className="bg-surface rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
           <div className="flex items-center gap-3 mb-3">
             <NavIcon icon={CreditCard} variant="teal" size={36} />
             <div>
@@ -1192,7 +1192,7 @@ function Dashboard() {
           stats, not hero figures. */}
       <SectionHeading hint="Supporting stats">Performance</SectionHeading>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
+        <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
             Total Clients
           </p>
@@ -1203,7 +1203,7 @@ function Dashboard() {
             {metrics.active_clients} active
           </p>
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
+        <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
             Completed Loans
           </p>
@@ -1212,7 +1212,7 @@ function Dashboard() {
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Fully repaid</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
+        <div className="bg-surface rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold tracking-wide">
             Upcoming (7 days)
           </p>
@@ -1233,7 +1233,7 @@ function Dashboard() {
       <SectionHeading hint="Last 6 months">Monthly activity</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Payments Trend */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Banknote size={20} /> Payments (Last 6 Months)
           </h3>
@@ -1273,7 +1273,7 @@ function Dashboard() {
         </div>
 
         {/* Loans Trend */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Coins size={20} /> Loans Issued (Last 6 Months)
           </h3>
@@ -1315,7 +1315,7 @@ function Dashboard() {
       <SectionHeading hint="Latest events">Recent activity</SectionHeading>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Payments */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="bg-surface rounded-xl shadow-md overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
             <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <Banknote size={20} /> Recent Payments
@@ -1364,7 +1364,7 @@ function Dashboard() {
         </div>
 
         {/* Recent Loans */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+        <div className="bg-surface rounded-xl shadow-md overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
             <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <ClipboardList size={20} /> Recent Loans

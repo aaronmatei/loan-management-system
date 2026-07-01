@@ -75,7 +75,7 @@ function Login() {
       className="min-h-screen flex items-center justify-center bg-ocean-gradient bg-cover bg-center bg-no-repeat p-4"
       style={{ backgroundImage: "url('/lenderfest_hero_login_background.svg')" }}
     >
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
+      <div className="bg-surface rounded-xl shadow-2xl p-6 sm:p-10 w-full max-w-md">
         <div className="text-center mb-8">
           <Logo
             variant="default"

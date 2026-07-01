@@ -15,7 +15,7 @@ const ksh = (v) => "KES " + Number(v || 0).toLocaleString("en-KE", { maximumFrac
 const COLORS = { collected: "#10b981", expected: "#94a3b8", pool: "#0ea5e9", quarterly: "#8b5cf6", fines: "#f59e0b", accrued: "#ef4444", finePaid: "#10b981", savings: "#6366f1", attend: "#0ea5e9" };
 
 const Card = ({ icon: Icon, title, sub, children, empty }) => (
-  <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
+  <div className="bg-surface rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
     <div className="mb-2">
       <p className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5"><Icon size={15} className="text-slate-500 dark:text-slate-400" /> {title}</p>
       {sub && <p className="text-xs text-slate-400 dark:text-slate-400">{sub}</p>}

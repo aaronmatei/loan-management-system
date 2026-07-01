@@ -30,7 +30,7 @@ export default function EmptyState({
       : "text-ocean-600";
   return (
     <div
-      className={`bg-white dark:bg-slate-800 rounded-2xl shadow-card p-10 lg:p-14 text-center max-w-xl mx-auto ${className}`}
+      className={`bg-surface rounded-2xl shadow-card p-10 lg:p-14 text-center max-w-xl mx-auto ${className}`}
     >
       <div
         className={`mx-auto mb-5 w-16 h-16 rounded-2xl flex items-center justify-center ${tile}`}

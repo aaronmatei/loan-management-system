@@ -48,7 +48,7 @@ function Referrals() {
             <Skeleton key={i} className="h-24 w-full" rounded="rounded-xl" />
           ))}
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <SkeletonText lines={4} />
         </div>
       </div>
@@ -105,7 +105,7 @@ function Referrals() {
               <p className="text-xs text-ocean-200 uppercase mb-2">
                 Your Referral Link
               </p>
-              <div className="bg-white dark:bg-slate-800 rounded-lg p-3 flex items-center gap-2">
+              <div className="bg-surface rounded-lg p-3 flex items-center gap-2">
                 <span className="flex-1 text-gray-800 dark:text-slate-100 text-sm font-mono truncate text-left">
                   {referralLink}
                 </span>
@@ -137,19 +137,19 @@ function Referrals() {
 
         {/* Stat tiles */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 text-center">
+          <div className="bg-surface rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-bold text-ocean-600">
               {data.stats?.total_referrals ?? 0}
             </p>
             <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">Total Referrals</p>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 text-center">
+          <div className="bg-surface rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-bold text-green-600">
               {data.stats?.qualified ?? 0}
             </p>
             <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">Qualified</p>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 text-center">
+          <div className="bg-surface rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-bold text-orange-600">{credits}</p>
             <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">Free Months</p>
           </div>
@@ -170,7 +170,7 @@ function Referrals() {
         )}
 
         {/* How it works */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-surface rounded-xl shadow-md p-6 mb-6">
           <h3 className="font-bold text-lg mb-4 dark:text-slate-100">How It Works</h3>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="text-center">
@@ -207,7 +207,7 @@ function Referrals() {
         <PromoCodesSection />
 
         {/* Referral history */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+        <div className="bg-surface rounded-xl shadow-md p-6">
           <h3 className="font-bold text-lg mb-4 dark:text-slate-100">Your Referrals</h3>
           {data.referrals.length === 0 ? (
             <EmptyState

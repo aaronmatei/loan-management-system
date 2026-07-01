@@ -47,7 +47,7 @@ export default function WelfareAuditPanel({ welfareId, client = api, basePath = 
   const applySearch = () => { setQ(search.trim()); setPage(1); };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-indigo-100 dark:border-slate-700 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-indigo-100 dark:border-slate-700 mb-6 overflow-hidden">
       <div className="bg-indigo-50 dark:bg-slate-900 px-5 py-3 border-b border-indigo-100 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <ScrollText size={18} className="text-indigo-600" /> Audit log

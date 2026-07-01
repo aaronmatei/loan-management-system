@@ -149,7 +149,7 @@ function Payments() {
                   <select
                     value={lender}
                     onChange={(e) => setLender(e.target.value)}
-                    className="appearance-none bg-white dark:bg-slate-800 border border-[#e5ddcd] dark:border-slate-600 rounded-[11px] pl-3 pr-9 py-2 text-sm font-semibold text-[#16241d] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d8f63]/30 cursor-pointer"
+                    className="appearance-none bg-surface border border-[#e5ddcd] dark:border-slate-600 rounded-[11px] pl-3 pr-9 py-2 text-sm font-semibold text-[#16241d] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0d8f63]/30 cursor-pointer"
                   >
                     <option value="all">All lenders ({payments.length})</option>
                     {lenders.map((l) => (

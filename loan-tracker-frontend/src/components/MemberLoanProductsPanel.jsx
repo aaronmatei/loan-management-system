@@ -27,7 +27,7 @@ export default function MemberLoanProductsPanel({ welfareId }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
+    <div className="bg-surface rounded-xl shadow-md border border-slate-100 dark:border-slate-700 p-6 max-w-2xl mt-6">
       <div className="flex items-start justify-between gap-3 mb-1">
         <div>
           <h2 className="font-bold text-slate-900 dark:text-slate-100">Loan products</h2>
@@ -101,7 +101,7 @@ function ProductModal({ welfareId, product, onClose, onSaved }) {
   const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg my-10" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-lg my-10" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{product ? "Edit loan product" : "New loan product"}</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100"><X size={20} /></button>

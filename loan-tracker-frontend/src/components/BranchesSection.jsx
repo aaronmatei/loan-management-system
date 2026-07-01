@@ -109,7 +109,7 @@ function BranchesSection() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+    <div className="bg-surface rounded-xl shadow-md p-6">
       <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100 mb-1 flex items-center gap-2">
         <MapPin size={22} /> Branches
       </h2>

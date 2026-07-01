@@ -314,7 +314,7 @@ function LoanDetails() {
         {/* Overpayment & refund — shown only when the client overpaid or a
             refund is on record. */}
         {(parseFloat(loan.overpayment_amount || 0) > 0 || loan.refund_status) && (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-6 border-l-4 border-amber-400">
+          <div className="bg-surface rounded-xl shadow p-4 mb-6 border-l-4 border-amber-400">
             <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
               <RotateCcw size={18} className="text-amber-500" /> Overpayment &amp;
               Refund
@@ -379,7 +379,7 @@ function LoanDetails() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+          <div className="bg-surface rounded-xl shadow p-4">
             <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
               <ClipboardList size={18} /> Loan Information
             </h3>
@@ -429,7 +429,7 @@ function LoanDetails() {
               </div>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+          <div className="bg-surface rounded-xl shadow p-4">
             <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-1.5">
               <Coins size={18} /> Financial Summary
             </h3>
@@ -460,7 +460,7 @@ function LoanDetails() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+        <div className="bg-surface rounded-xl shadow overflow-hidden">
           <div className="flex border-b dark:border-slate-700">
             <button
               onClick={() => setTab("schedule")}

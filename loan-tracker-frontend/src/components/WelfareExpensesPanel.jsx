@@ -25,7 +25,7 @@ export default function WelfareExpensesPanel({ welfareId }) {
   useEffect(() => { load(); }, [welfareId]);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-amber-100 mb-6 overflow-hidden">
       <div className="bg-amber-50 px-5 py-3 border-b border-amber-100 flex items-center justify-between">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Receipt size={18} className="text-amber-600" /> Expenses</h2>
         <div className="flex items-center gap-4">
@@ -96,7 +96,7 @@ function ExpenseModal({ welfareId, poolBalance, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(ev) => ev.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md my-12" onClick={(ev) => ev.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Record expense</h3>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-400 hover:text-slate-700"><X size={20} /></button>

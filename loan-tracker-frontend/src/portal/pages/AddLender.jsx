@@ -207,7 +207,7 @@ function AddLender() {
         </h2>
 
         {loading ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
+          <div className="bg-surface rounded-xl shadow overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 p-3 sm:p-4">
                 <Skeleton className="h-10 w-10" rounded="rounded-full" />
@@ -220,7 +220,7 @@ function AddLender() {
             ))}
           </div>
         ) : available.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-12 text-center">
+          <div className="bg-surface rounded-xl shadow p-12 text-center">
             <div className="flex justify-center mb-3">
               <PartyPopper size={48} className="text-green-400" />
             </div>
@@ -229,7 +229,7 @@ function AddLender() {
             </p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
+          <div className="bg-surface rounded-xl shadow overflow-hidden divide-y divide-gray-100 dark:divide-slate-700">
             {available.map((t) => {
               const open = expanded.has(t.id);
               const accent = t.brand_color || "#0e8a6e";
@@ -323,7 +323,7 @@ function AddLender() {
 
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-surface rounded-xl shadow-2xl max-w-md w-full p-6">
             <div className="text-center mb-4">
               <div
                 className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-white font-bold text-3xl"

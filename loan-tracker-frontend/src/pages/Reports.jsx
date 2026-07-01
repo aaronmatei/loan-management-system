@@ -538,7 +538,7 @@ function Reports() {
             (the three income components share an emerald-bordered
             group with their summed Income reading at the top). */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
+          <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
             <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center mb-3">
               <DollarSign size={20} className="text-ocean-600" />
             </div>
@@ -552,7 +552,7 @@ function Reports() {
               {kpis.total_loans} loans
             </p>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
+          <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
               <CheckCircle size={20} className="text-emerald-600" />
             </div>
@@ -694,7 +694,7 @@ function Reports() {
               period — they describe outstanding balances right now,
               not the picked window, so hiding them when you pick a
               past year just made the layout look broken. */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
+          <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
                   <Clock size={20} className="text-amber-600" />
                 </div>
@@ -706,7 +706,7 @@ function Reports() {
                 </p>
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">to be collected</p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
+              <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
                     parPct > 15
@@ -737,7 +737,7 @@ function Reports() {
                   {par.at_risk_count} of {par.total_active} loans
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
+              <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mb-3">
                   <AlertTriangle size={20} className="text-orange-600" />
                 </div>
@@ -753,7 +753,7 @@ function Reports() {
                   {snap.overdue_loans > 0 && ` · ${snap.overdue_loans} loans`}
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
+              <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5">
                 <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center mb-3">
                   <XCircle size={20} className="text-rose-600" />
                 </div>
@@ -776,7 +776,7 @@ function Reports() {
 
         {/* ── Income vs Expenses monthly trend ──────────────────── */}
         {Array.isArray(cashFlow) && cashFlow.length > 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 mb-8">
+          <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
                 <ArrowUpDown size={18} className="text-emerald-600" />
@@ -854,7 +854,7 @@ function Reports() {
             for the difference makes the gap pop, similar to the Net
             line on Income vs Expenses above. */}
         {disbursedVsCollected.length > 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 mb-8">
+          <div className="bg-surface rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-5 mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-ocean-50 flex items-center justify-center">
                 <ArrowUpDown size={18} className="text-ocean-600" />
@@ -938,7 +938,7 @@ function Reports() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* Clients export — optional join-date window */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">
+          <div className="bg-surface rounded-xl shadow-md p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
@@ -988,7 +988,7 @@ function Reports() {
           </div>
 
           {/* Loans export — status filter + optional disbursement window */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">
+          <div className="bg-surface rounded-xl shadow-md p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
@@ -1056,7 +1056,7 @@ function Reports() {
           </div>
 
           {/* Payments export — date range */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5">
+          <div className="bg-surface rounded-xl shadow-md p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
@@ -1106,7 +1106,7 @@ function Reports() {
           </div>
 
           {/* Overdue export — no filters needed */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-5 flex flex-col">
+          <div className="bg-surface rounded-xl shadow-md p-5 flex flex-col">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">

@@ -23,7 +23,7 @@ function enterMemberDesk(navigate, currentTenant) {
 const SHELL =
   "min-h-screen bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center p-4";
 const CARD =
-  "bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8";
+  "bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6 lg:p-8";
 const FIELD =
   "w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
 const BTN =
@@ -314,7 +314,7 @@ export function WelfareMemberSelect() {
               key={t.tenant_id}
               onClick={() => select(t)}
               disabled={selecting === t.tenant_id}
-              className="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition disabled:opacity-50 text-left"
+              className="w-full bg-surface rounded-2xl shadow-xl p-6 hover:shadow-2xl transition disabled:opacity-50 text-left"
             >
               <div className="flex items-center gap-4">
                 <div
