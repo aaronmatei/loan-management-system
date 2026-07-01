@@ -160,7 +160,7 @@ const navGroups = [
       // Audit Log is a compliance/security surface, not an analytical
       // one — sits closer to Users / Settings than to Reports / Analytics.
       { path: "/audit", label: "Audit Log", permission: "audit:view" },
-      { path: "/backup", label: "Backup", roles: ["admin"] },
+      { path: "/backup", label: "Backup", roles: ["admin"], platformAdmin: true },
       { path: "/settings", label: "Settings", roles: ["admin"] },
     ],
   },
@@ -249,7 +249,10 @@ const WELFARE_GROUPS = [
 const STORAGE_KEY = "sidebar_expanded_groups";
 const STORAGE_KEY_SUB = "sidebar_expanded_subs";
 
-const itemVisible = (item, role) => {
+const itemVisible = (item, role, isPlatformAdmin) => {
+  // Platform-only items (e.g. Backup — a shared-DB operation the backend
+  // restricts to platform admins) never show for ordinary tenant admins.
+  if (item.platformAdmin && !isPlatformAdmin) return false;
   if (item.permission) return hasPermission(role, item.permission);
   if (item.roles) return item.roles.includes(role);
   return true;
@@ -356,7 +359,8 @@ function Layout({ children }) {
   // Role-filtered: drop items the user can't see, and drop empty
   // groups (and empty sub-groups) so their headers don't render at all.
   const leafVisible = (it) =>
-    itemVisible(it, user?.role) && (!it.requiresLoans || welfareLoansOn); // hide Loans when the switch is off
+    itemVisible(it, user?.role, user?.is_platform_admin) &&
+    (!it.requiresLoans || welfareLoansOn); // hide Loans when the switch is off
   const visibleStandalone = baseStandalone.filter(leafVisible);
   const visibleGroups = baseGroups
     .map((g) => ({
