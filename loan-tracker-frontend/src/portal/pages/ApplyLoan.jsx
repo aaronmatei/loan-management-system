@@ -752,8 +752,22 @@ function ApplyLoan() {
                     </li>
                   )}
                   <li>
-                    Payments are due on schedule. Late or missed payments may attract penalties and
-                    late fees in line with {lender.business_name}'s lending policy.
+                    Payments are due on schedule. A{" "}
+                    <strong>grace period of three (3) days</strong> applies after each installment's
+                    due date — payments received within this window are not charged a late-payment
+                    penalty.
+                  </li>
+                  <li>
+                    After the grace period, late or missed payments attract penalties and late fees
+                    in line with {lender.business_name}'s lending policy, and continued default may
+                    be reported to a Credit Reference Bureau (CRB).
+                  </li>
+                  <li>
+                    <strong>Default &amp; recovery.</strong> If the loan is secured by collateral and
+                    you default, the lender may — after giving you written notice (typically 14 days)
+                    — repossess and sell the pledged asset by public auction or private treaty to
+                    recover the outstanding balance plus reasonable recovery and auction costs. Any
+                    surplus from the sale is returned to you; you remain liable for any shortfall.
                   </li>
                   <li>
                     This application is subject to review and approval at {lender.business_name}'s
