@@ -344,7 +344,7 @@ function CustomerDashboard() {
     ];
     const actions = [
       { label: "View full schedule", icon: ListChecks, bg: "#eaf6ef", fg: "#0d8f63", onClick: () => openLoan(single) },
-      { label: "Apply for a new loan", icon: PlusCircle, bg: "#f3ecfb", fg: "#8b5cf0", onClick: () => navigate("/lenders") },
+      { label: "Apply for a new loan", icon: PlusCircle, bg: "#f3ecfb", fg: "#8b5cf0", onClick: () => navigate("/portal/apply") },
       { label: "Get help", icon: LifeBuoy, bg: "#fbf3e7", fg: "#d9892a", onClick: () => navigate("/portal/support") },
     ];
     return (
@@ -402,7 +402,7 @@ function CustomerDashboard() {
   const actions = [
     { label: "All my loans", icon: Wallet, bg: "#eaf6ef", fg: "#0d8f63", onClick: () => navigate("/portal/loans") },
     { label: "Payment history", icon: CreditCard, bg: "#eef3f7", fg: "#5b6ef0", onClick: () => navigate("/portal/payments") },
-    { label: "Apply for a new loan", icon: PlusCircle, bg: "#f3ecfb", fg: "#8b5cf0", onClick: () => navigate("/lenders") },
+    { label: "Apply for a new loan", icon: PlusCircle, bg: "#f3ecfb", fg: "#8b5cf0", onClick: () => navigate("/portal/apply") },
     { label: "Get help", icon: LifeBuoy, bg: "#fbf3e7", fg: "#d9892a", onClick: () => navigate("/portal/support") },
   ];
 
@@ -417,7 +417,7 @@ function CustomerDashboard() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/lenders")}
+            onClick={() => navigate("/portal/apply")}
             className="inline-flex items-center gap-2 px-5 py-2.5 text-white font-bold rounded-[12px] transition hover:brightness-110"
             style={{ background: "#0d8f63" }}
           >
@@ -476,7 +476,7 @@ function CustomerDashboard() {
         {loan_progress.length === 0 ? (
           <div className={`${CARD} p-8 text-center ${MUTED}`}>
             No active loans right now.{" "}
-            <button onClick={() => navigate("/lenders")} className="font-bold text-[#0d8f63]">Apply for one →</button>
+            <button onClick={() => navigate("/portal/apply")} className="font-bold text-[#0d8f63]">Apply for one →</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
