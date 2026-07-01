@@ -59,6 +59,8 @@ import smsRoutes from "./routes/sms.js";
 import emailRoutes from "./routes/email.js";
 import settingsRoutes from "./routes/settings.js";
 import billingRoutes from "./routes/billing.js";
+import supportRoutes from "./routes/support.js";
+import platformSupportRoutes from "./routes/platform/support.js";
 import expensesRoutes from "./routes/expenses.js";
 import waiverRoutes from "./routes/waivers.js";
 import promiseRoutes from "./routes/promises.js";
@@ -181,6 +183,8 @@ app.use("/api/platform/audit", platformAuditRoutes); // verifyToken + is_platfor
 app.use("/api/demo", demoRoutes); // PUBLIC — no auth
 app.use("/api/public/meetings", publicMeetingRoutes); // PUBLIC — no auth (member RSVP)
 app.use("/api/platform/billing", platformBillingRoutes); // verifyToken + is_platform_admin
+app.use("/api/platform/support", platformSupportRoutes); // verifyToken + is_platform_admin
+app.use("/api/support", supportRoutes); // verifyToken — tenant-scoped
 app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/white-label", whiteLabelRoutes);
 app.use("/api/widget", widgetRoutes); // PUBLIC — embeddable on third-party sites

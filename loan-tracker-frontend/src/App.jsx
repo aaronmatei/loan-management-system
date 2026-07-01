@@ -80,6 +80,8 @@ import CronManager from "./admin/pages/CronManager";
 import PlatformAuditLog from "./admin/pages/PlatformAuditLog";
 import PlatformReports from "./admin/pages/PlatformReports";
 import PlatformSettings from "./admin/pages/PlatformSettings";
+import PlatformSupport from "./admin/pages/Support";
+import PlatformSupportTicket from "./admin/pages/SupportTicketDetail";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -120,6 +122,7 @@ import SMS from "./pages/SMS";
 import Email from "./pages/Email";
 import Settings from "./pages/Settings";
 import LoanSettings from "./pages/LoanSettings";
+import StaffSupport from "./pages/Support";
 import Billing from "./pages/Billing";
 import Expenses from "./pages/Expenses";
 import Waivers from "./pages/Waivers";
@@ -419,6 +422,22 @@ function App() {
               }
             />
             <Route
+              path="/admin/support"
+              element={
+                <PlatformAdminRoute>
+                  <PlatformSupport />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
+              path="/admin/support/:id"
+              element={
+                <PlatformAdminRoute>
+                  <PlatformSupportTicket />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
               path="/onboarding"
               element={<OnboardingWizard />}
             />
@@ -501,6 +520,7 @@ function App() {
               <Route path="/sms" element={<SMS />} />
               <Route path="/email" element={<Email />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/support" element={<StaffSupport />} />
               <Route path="/loan-settings" element={<LoanSettings />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/expenses" element={<Expenses />} />

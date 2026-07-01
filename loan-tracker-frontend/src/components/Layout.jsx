@@ -160,6 +160,7 @@ const navGroups = [
       // Audit Log is a compliance/security surface, not an analytical
       // one — sits closer to Users / Settings than to Reports / Analytics.
       { path: "/audit", label: "Audit Log", permission: "audit:view" },
+      { path: "/support", label: "Support", roles: ["admin", "manager"] },
       { path: "/backup", label: "Backup", roles: ["admin"], platformAdmin: true },
       { path: "/settings", label: "Settings", roles: ["admin"] },
     ],

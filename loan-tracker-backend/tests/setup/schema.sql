@@ -1159,6 +1159,35 @@ ALTER SEQUENCE public.system_settings_id_seq OWNED BY public.system_settings.id;
 
 
 --
+-- Name: support_tickets; Type: TABLE; Schema: public; Owner: -  (migration 117)
+--
+
+CREATE TABLE public.support_tickets (
+    id serial PRIMARY KEY,
+    tenant_id integer NOT NULL,
+    subject character varying(200) NOT NULL,
+    priority character varying(10) NOT NULL DEFAULT 'normal',
+    status character varying(12) NOT NULL DEFAULT 'open',
+    created_by integer,
+    created_by_name character varying(120),
+    assigned_to integer,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone NOT NULL DEFAULT now(),
+    last_reply_at timestamp without time zone NOT NULL DEFAULT now(),
+    resolved_at timestamp without time zone
+);
+
+CREATE TABLE public.support_ticket_messages (
+    id serial PRIMARY KEY,
+    ticket_id integer NOT NULL,
+    author_type character varying(10) NOT NULL,
+    author_id integer,
+    author_name character varying(120),
+    body text NOT NULL,
+    created_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+--
 -- Name: platform_settings; Type: TABLE; Schema: public; Owner: -  (migration 116)
 --
 

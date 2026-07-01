@@ -12,8 +12,10 @@ import {
   Search,
   MessageSquare,
   Settings,
+  LifeBuoy,
 } from "lucide-react";
 import NavIcon from "../../components/NavIcon";
+import platformApi from "../services/platformApi";
 
 const MENU = [
   { path: "/admin/dashboard", label: "Overview", icon: LayoutDashboard, variant: "ocean" },
@@ -21,6 +23,7 @@ const MENU = [
   { path: "/admin/billing", label: "Billing & Plans", icon: Wallet, variant: "emerald" },
   { path: "/admin/reports", label: "Analytics", icon: TrendingUp, variant: "teal" },
   { path: "/admin/communication-costs", label: "Comms Costs", icon: MessageSquare, variant: "indigo" },
+  { path: "/admin/support", label: "Support", icon: LifeBuoy, variant: "teal", badge: "support" },
   { path: "/admin/cron", label: "System", icon: Server, variant: "amber" },
   { path: "/admin/audit", label: "Audit Log", icon: ScrollText, variant: "rose" },
   { path: "/admin/settings", label: "Settings", icon: Settings, variant: "ocean" },
@@ -33,6 +36,7 @@ const TITLES = {
   "/admin/billing": ["Billing & Plans", "Subscription & usage revenue"],
   "/admin/reports": ["Analytics", "Platform-wide analytics"],
   "/admin/communication-costs": ["Comms Costs", "SMS & email usage"],
+  "/admin/support": ["Support", "Tenant tickets"],
   "/admin/cron": ["System", "Jobs, services & health"],
   "/admin/audit": ["Audit Log", "Platform activity trail"],
   "/admin/settings": ["Platform Settings", "Global configuration"],
@@ -44,6 +48,14 @@ function PlatformLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState({});
   const [q, setQ] = useState("");
+  const [openTickets, setOpenTickets] = useState(0);
+
+  useEffect(() => {
+    platformApi
+      .get("/platform/support/summary")
+      .then((r) => setOpenTickets(r.data.data?.open || 0))
+      .catch(() => {});
+  }, [location.pathname]);
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -142,6 +154,11 @@ function PlatformLayout({ children }) {
                         active={active}
                       />
                       <span className="flex-1">{item.label}</span>
+                      {item.badge === "support" && openTickets > 0 && (
+                        <span className="text-[10px] font-extrabold text-white bg-ocean-600 rounded-full px-2 py-0.5">
+                          {openTickets}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
