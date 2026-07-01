@@ -37,6 +37,10 @@ export default defineConfig({
       env: {
         NODE_ENV: "test",
         PORT: String(BACKEND_PORT),
+        // database.js prefers DATABASE_URL over DB_* — .env carries a prod URL,
+        // so without clearing it the e2e backend connects to PROD. Empty string
+        // is falsy => database.js falls back to the DB_* vars below (e2e DB).
+        DATABASE_URL: "",
         DB_HOST: db.host,
         DB_PORT: String(db.port),
         DB_NAME: E2E_DB,
