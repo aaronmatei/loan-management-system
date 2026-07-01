@@ -14,6 +14,16 @@ services:
     branch: main
     buildCommand: npm ci
     startCommand: npm start # node src/server.js; listens on $PORT (Render-injected)
+    # Apply pending numbered DB migrations after the build succeeds but BEFORE
+    # the new version goes live, with DATABASE_URL already injected. Idempotent:
+    # `node migrations/init.js` records each file in schema_migrations, so re-runs
+    # are no-ops. If a migration fails the deploy is aborted (old version stays
+    # up) — the intended safety behaviour.
+    # NOTE: preDeployCommand requires a paid instance type (not the free plan);
+    # on free, run migrations manually (Render Shell or against Neon directly).
+    # Heads-up: preview envs share the production DATABASE_URL, so this also runs
+    # from previews — safe here because migrations are idempotent.
+    preDeployCommand: npm run migrate
     healthCheckPath: /health
     autoDeploy: true
     # Preview environments — one fresh, ephemeral instance per PR so
