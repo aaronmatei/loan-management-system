@@ -100,17 +100,16 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  // Secured pledge (item + LTV cap) vs unsecured cash loan (amount direct).
-  const [mode, setMode] = useState(application?.secured === false ? "cash" : "pledge");
-  const isCash = mode === "cash";
-
+  // The collateral desk creates SECURED pledges only (item + LTV cap).
+  // Unsecured cash loans belong in the standard Loans workflow, not here.
   const calc = useMemo(() => {
     const value = parseFloat(form.appraised_value) || 0;
     const ltv = parseFloat(form.ltv_percent) || 0;
     const maxLoan = Math.round(value * (ltv / 100) * 100) / 100;
-    const principal = isCash
-      ? parseFloat(form.principal_amount) || 0
-      : form.principal_amount !== "" ? parseFloat(form.principal_amount) || 0 : maxLoan;
+    const principal =
+      form.principal_amount !== ""
+        ? parseFloat(form.principal_amount) || 0
+        : maxLoan;
     const months = parseInt(form.duration_months, 10) || 0;
     const monthlyFeePct = pkg
       ? parseFloat(pkg.annual_interest_rate) / 12
@@ -118,7 +117,7 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
     const fee = Math.round(principal * (monthlyFeePct / 100) * months * 100) / 100;
     const total = Math.round((principal + fee) * 100) / 100;
     return { value, ltv, maxLoan, principal, months, monthlyFeePct, fee, total };
-  }, [form, pkg, isCash]);
+  }, [form, pkg]);
 
   const money = (v) =>
     "KES " +
@@ -142,14 +141,14 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
     e.preventDefault();
     setError("");
     if (!form.client_id) return setError("Select a client.");
-    if (!isCash && !form.item_description.trim())
+    if (!form.item_description.trim())
       return setError("Describe the pledged item.");
-    if (!isCash && !(calc.value > 0)) return setError("Enter the appraised value.");
+    if (!(calc.value > 0)) return setError("Enter the appraised value.");
     if (!form.package_id && !(parseFloat(form.monthly_fee_percent) >= 0))
       return setError("Enter a monthly fee % (or pick a package).");
     if (!(calc.months > 0)) return setError("Enter the term in months.");
-    if (!(calc.principal > 0)) return setError(isCash ? "Enter the loan amount." : "Loan amount must be positive.");
-    if (!isCash && calc.principal > calc.maxLoan)
+    if (!(calc.principal > 0)) return setError("Loan amount must be positive.");
+    if (calc.principal > calc.maxLoan)
       return setError(
         `Loan can't exceed ${calc.ltv}% of value (max ${money(calc.maxLoan)}).`,
       );
@@ -157,24 +156,20 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
     try {
       const r = await api.post("/pawn", {
         client_id: form.client_id,
-        secured: !isCash,
+        secured: true,
         ...(form.package_id
           ? { package_id: form.package_id }
           : { monthly_fee_percent: parseFloat(form.monthly_fee_percent) }),
         duration_months: calc.months,
         principal_amount: calc.principal,
-        ...(isCash
-          ? {}
-          : {
-              appraised_value: calc.value,
-              ltv_percent: calc.ltv,
-              item_category: form.item_category || null,
-              item_description: form.item_description,
-              serial_number: form.serial_number || null,
-              item_condition: form.item_condition || null,
-              storage_location: form.storage_location || null,
-              ...(photos.length ? { photos } : {}),
-            }),
+        appraised_value: calc.value,
+        ltv_percent: calc.ltv,
+        item_category: form.item_category || null,
+        item_description: form.item_description,
+        serial_number: form.serial_number || null,
+        item_condition: form.item_condition || null,
+        storage_location: form.storage_location || null,
+        ...(photos.length ? { photos } : {}),
         ...(branchId ? { branch_id: branchId } : {}),
         ...(application ? { application_id: application.id } : {}),
       });
@@ -215,18 +210,6 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
               <AlertTriangle size={16} className="flex-shrink-0" /> {error}
             </div>
           )}
-
-          {/* Secured pledge vs unsecured cash loan. */}
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setMode("pledge")} className={`rounded-xl border-2 px-4 py-3 text-left transition ${!isCash ? "border-ocean-500 bg-ocean-50" : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-slate-300"}`}>
-              <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-1.5"><Gem size={15} /> Pledge (with item)</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cash against a collateral item, capped at LTV%.</p>
-            </button>
-            <button type="button" onClick={() => setMode("cash")} className={`rounded-xl border-2 px-4 py-3 text-left transition ${isCash ? "border-ocean-500 bg-ocean-50" : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-slate-300"}`}>
-              <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">💵 Cash loan</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Unsecured — no collateral held.</p>
-            </button>
-          </div>
 
           {!loadingPkgs && packages.length === 0 && (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
@@ -353,65 +336,59 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
             )}
           </div>
 
-          {/* Item — secured pledge only */}
-          {!isCash && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className={lbl}>Item Description *</label>
-                <input type="text" value={form.item_description} onChange={set("item_description")} placeholder="e.g. Apple iPhone 13 Pro 256GB" className={fld} />
-              </div>
-              <div>
-                <label className={lbl}>Category</label>
-                <input type="text" value={form.item_category} onChange={set("item_category")} placeholder="Electronics, Jewellery…" className={fld} />
-              </div>
-              <div>
-                <label className={lbl}>Serial / Identifier</label>
-                <input type="text" value={form.serial_number} onChange={set("serial_number")} placeholder="IMEI / serial no." className={fld} />
-              </div>
-              <div>
-                <label className={lbl}>Condition</label>
-                <input type="text" value={form.item_condition} onChange={set("item_condition")} placeholder="Good, minor scratches…" className={fld} />
-              </div>
-              <div>
-                <label className={lbl}>Storage Location</label>
-                <input type="text" value={form.storage_location} onChange={set("storage_location")} placeholder="Safe A, Shelf 3" className={fld} />
-              </div>
+          {/* Pledged item */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className={lbl}>Item Description *</label>
+              <input type="text" value={form.item_description} onChange={set("item_description")} placeholder="e.g. Apple iPhone 13 Pro 256GB" className={fld} />
             </div>
-          )}
-
-          {/* Item photos — secured only */}
-          {!isCash && (
             <div>
-              <label className={lbl}>Photos</label>
-              <div className="flex flex-wrap items-center gap-2">
-                {photos.map((src, i) => (
-                  <div key={i} className="relative">
-                    <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200 dark:border-slate-700" />
-                    <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-gray-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
-                  </div>
-                ))}
-                <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
-                  {uploading ? <span className="text-xs">…</span> : <ImagePlus size={20} />}
-                  <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { uploadPhotos(e.target.files); e.target.value = ""; }} />
-                </label>
-              </div>
-              <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Up to 6 images, 5 MB each. The customer sees these in their portal.</p>
+              <label className={lbl}>Category</label>
+              <input type="text" value={form.item_category} onChange={set("item_category")} placeholder="Electronics, Jewellery…" className={fld} />
             </div>
-          )}
+            <div>
+              <label className={lbl}>Serial / Identifier</label>
+              <input type="text" value={form.serial_number} onChange={set("serial_number")} placeholder="IMEI / serial no." className={fld} />
+            </div>
+            <div>
+              <label className={lbl}>Condition</label>
+              <input type="text" value={form.item_condition} onChange={set("item_condition")} placeholder="Good, minor scratches…" className={fld} />
+            </div>
+            <div>
+              <label className={lbl}>Storage Location</label>
+              <input type="text" value={form.storage_location} onChange={set("storage_location")} placeholder="Safe A, Shelf 3" className={fld} />
+            </div>
+          </div>
 
-          {/* Valuation — secured only */}
-          {!isCash && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={lbl}>Appraised Value *</label>
-                <input type="number" min="0" value={form.appraised_value} onChange={set("appraised_value")} placeholder="20000" className={fld} />
-              </div>
-              <div>
-                <label className={lbl}>LTV %</label>
-                <input type="number" min="1" max="100" value={form.ltv_percent} onChange={set("ltv_percent")} className={fld} />
-              </div>
+          {/* Item photos */}
+          <div>
+            <label className={lbl}>Photos</label>
+            <div className="flex flex-wrap items-center gap-2">
+              {photos.map((src, i) => (
+                <div key={i} className="relative">
+                  <img src={src} alt="" className="h-16 w-16 object-cover rounded-lg border border-gray-200 dark:border-slate-700" />
+                  <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-gray-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-600"><X size={13} /></button>
+                </div>
+              ))}
+              <label className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-400 hover:border-ocean-400 hover:text-ocean-500 cursor-pointer">
+                {uploading ? <span className="text-xs">…</span> : <ImagePlus size={20} />}
+                <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { uploadPhotos(e.target.files); e.target.value = ""; }} />
+              </label>
             </div>
-          )}
+            <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Up to 6 images, 5 MB each. The customer sees these in their portal.</p>
+          </div>
+
+          {/* Valuation */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Appraised Value *</label>
+              <input type="number" min="0" value={form.appraised_value} onChange={set("appraised_value")} placeholder="20000" className={fld} />
+            </div>
+            <div>
+              <label className={lbl}>LTV %</label>
+              <input type="number" min="1" max="100" value={form.ltv_percent} onChange={set("ltv_percent")} className={fld} />
+            </div>
+          </div>
 
           {/* Terms — always */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -421,9 +398,9 @@ export default function PawnLoanModal({ clients = [], onClose, onCreated, applic
             </div>
             <div className="sm:col-span-2">
               <label className={lbl}>
-                Loan Amount{!isCash && <span className="text-gray-500 dark:text-slate-400 font-normal"> (max {money(calc.maxLoan)} at {calc.ltv}% LTV)</span>}
+                Loan Amount<span className="text-gray-500 dark:text-slate-400 font-normal"> (max {money(calc.maxLoan)} at {calc.ltv}% LTV)</span>
               </label>
-              <input type="number" min="0" value={form.principal_amount} onChange={set("principal_amount")} placeholder={isCash ? "e.g. 10000" : String(calc.maxLoan || "")} className={fld} />
+              <input type="number" min="0" value={form.principal_amount} onChange={set("principal_amount")} placeholder={String(calc.maxLoan || "")} className={fld} />
             </div>
             {branches.length > 1 && (
               <div className="sm:col-span-3">
