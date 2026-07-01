@@ -24,25 +24,40 @@ function payload(over = {}) {
 }
 
 describe("welfare self-signup", () => {
-  it("creates a welfare account + admin + one welfare group, and returns a token", async () => {
+  it("creates a welfare account + admin + one welfare group, pending approval", async () => {
     const res = await request(app).post("/api/tenants/welfare-signup").send(payload());
     expect(res.status).toBe(201);
-    expect(res.body.token).toBeTruthy();
+    // New signups are created pending review — no auto-login token.
+    expect(res.body.pending).toBe(true);
+    expect(res.body.token).toBeFalsy();
     expect(res.body.welfare_group_id).toBeTruthy();
-    expect(res.body.user.tenant.kind).toBe("welfare");
+    const tenantId = res.body.tenant.id;
 
-    const tenant = (await query("SELECT kind, business_type FROM tenants WHERE id = $1", [res.body.user.tenant_id])).rows[0];
+    const tenant = (await query("SELECT kind, status FROM tenants WHERE id = $1", [tenantId])).rows[0];
     expect(tenant.kind).toBe("welfare");
+    expect(tenant.status).toBe("pending");
 
     const group = (await query("SELECT * FROM groups WHERE id = $1", [res.body.welfare_group_id])).rows[0];
-    expect(group.tenant_id).toBe(res.body.user.tenant_id);
+    expect(group.tenant_id).toBe(tenantId);
     expect(group.group_code).toBe("GRP-00001");
   });
 
-  it("lets the welfare admin log in, and login reports kind='welfare'", async () => {
+  it("blocks login until approved (pending)", async () => {
     await request(app).post("/api/tenants/welfare-signup").send(
+      payload({ subdomain: "pend-welfare", contact_email: "pend@x.example" }),
+    );
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "pend@x.example", password: PASS });
+    expect(login.status).toBe(403);
+    expect(login.body.code).toBe("TENANT_PENDING");
+  });
+
+  it("once approved, the welfare admin can log in, and login reports kind='welfare'", async () => {
+    const signup = await request(app).post("/api/tenants/welfare-signup").send(
       payload({ subdomain: "imani-welfare", contact_email: "lead@imani.example" }),
     );
+    await query("UPDATE tenants SET status = 'active' WHERE id = $1", [signup.body.tenant.id]);
     const login = await request(app)
       .post("/api/auth/login")
       .send({ email: "lead@imani.example", password: PASS });

@@ -5,6 +5,32 @@
 import { query } from "../../src/config/database.js";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
+import request from "supertest";
+import app from "../../src/app.js";
+
+// Welfare signups now create a PENDING tenant with no auto-login (platform-admin
+// approval gate). For tests that need a working authenticated welfare, sign up,
+// approve, then log in — returning a body shaped like the pre-approval signup
+// response (token + user.tenant_id + welfare_group_id) so existing tests only
+// change the one bootstrap line.
+export async function welfareSignup(payload) {
+  const signup = await request(app).post("/api/tenants/welfare-signup").send(payload);
+  const tenantId = signup.body?.tenant?.id;
+  if (tenantId) {
+    await query("UPDATE tenants SET status = 'active' WHERE id = $1", [tenantId]);
+  }
+  const login = await request(app)
+    .post("/api/auth/login")
+    .send({ email: payload.contact_email, password: payload.admin_password });
+  return {
+    ...signup,
+    body: {
+      ...signup.body,
+      token: login.body?.token,
+      user: { ...(login.body?.user || {}), tenant_id: tenantId },
+    },
+  };
+}
 
 // Short unique token that fits codes into varchar(20). Per-file random
 // salt + monotonic seq → unique within a file and across files.

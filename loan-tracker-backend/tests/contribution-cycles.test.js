@@ -4,6 +4,7 @@
 import { describe, it, expect, afterAll } from "vitest";
 import request from "supertest";
 import app from "../src/app.js";
+import { welfareSignup } from "./helpers/factory.js";
 import { query, closePool } from "./helpers/db.js";
 import { createUser, tokenFor } from "./helpers/factory.js";
 
@@ -14,7 +15,7 @@ afterAll(closePool);
 let seq = 0;
 async function bootstrap(memberNames = ["A", "B"]) {
   seq += 1;
-  const signup = await request(app).post("/api/tenants/welfare-signup").send({
+  const signup = await welfareSignup({
     welfare_name: "Umoja", subdomain: `umoja-cyc-${seq}`,
     contact_name: "Jane", contact_email: `cyc${seq}@x.example`, admin_password: PASS,
   });

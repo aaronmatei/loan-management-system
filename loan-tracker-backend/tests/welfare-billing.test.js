@@ -3,6 +3,7 @@
 import { describe, it, expect, afterAll } from "vitest";
 import request from "supertest";
 import app from "../src/app.js";
+import { welfareSignup } from "./helpers/factory.js";
 import { query, closePool } from "./helpers/db.js";
 import { calculateTenantInterest, generateInvoice } from "../src/services/billingService.js";
 
@@ -12,7 +13,7 @@ const PASS = "Welfare@2026xy";
 
 // Register a welfare and run one fully-repaid member loan through its pool.
 async function welfareWithRepaidLoan(sub, email) {
-  const signup = await request(app).post("/api/tenants/welfare-signup").send({
+  const signup = await welfareSignup({
     welfare_name: "Umoja Welfare",
     subdomain: sub,
     contact_name: "Jane Chair",
