@@ -217,7 +217,6 @@ function PaymentReceipt({
     .toUpperCase()
     .slice(0, 3);
   const monogramFont = initials.length >= 3 ? 18 : initials.length === 2 ? 22 : 26;
-  const sealMonoFont = initials.length >= 3 ? 24 : initials.length === 2 ? 30 : 40;
 
   // Header identity — the lender's own name leads; address = location + contact.
   const headerSub = [
@@ -433,16 +432,11 @@ function PaymentReceipt({
                 {sealLocation}
               </textPath>
             </text>
-            <text
-              x="100"
-              y="98"
-              textAnchor="middle"
-              className="seal-lf"
-              fill="var(--seal)"
-              style={{ fontSize: sealMonoFont }}
-            >
-              {initials}
-            </text>
+            {/* LenderFest interlocking rings, in the seal ink (mono) */}
+            <g fill="none" stroke="var(--seal)" strokeWidth="7.2">
+              <circle cx="89.2" cy="86" r="15.6" />
+              <circle cx="110.8" cy="86" r="15.6" />
+            </g>
             <rect x="72" y="112" width="56" height="15" rx="3" fill="none" stroke="var(--seal)" strokeWidth="1" />
             <text x="100" y="122.5" textAnchor="middle" className="seal-date" fill="var(--seal)">{sealDate}</text>
             <path d="M16 100 l5 -5 5 5 -5 5 z" fill="var(--seal)" />

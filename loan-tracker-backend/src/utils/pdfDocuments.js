@@ -932,7 +932,6 @@ export const buildReceiptPdf = async (transactionId, tid) => {
       country: txn.tenant_country,
     },
     date: txn.payment_date || new Date(),
-    initials,
   });
   if (!txn.hide_platform_branding) {
     const pwY = footY + 32;

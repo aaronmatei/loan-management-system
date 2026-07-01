@@ -2,9 +2,9 @@ import React from "react";
 
 // Frontend twin of the backend src/utils/stamp.js renderer. Same
 // SVG artwork (three concentric rings, name on top arc, location
-// on bottom arc, LF mark in centre, date in a box at the foot)
-// so the on-screen Payment Receipt stamp matches the PDF receipt
-// stamp byte-for-byte.
+// on bottom arc, the LenderFest interlocking-ring mark in centre,
+// date in a box at the foot) so the on-screen stamp matches the
+// PDF stamp byte-for-byte.
 //
 // The two surfaces must stay in sync if the artwork changes —
 // edit both this file AND src/utils/stamp.js together.
@@ -111,12 +111,11 @@ function Stamp({
       </g>
       <polygon points="30,144 36,150 30,156 24,150" fill="#122a2e" />
       <polygon points="270,144 276,150 270,156 264,150" fill="#122a2e" />
-      <g fill="#122a2e">
-        <rect x="121" y="92" width="15" height="86" rx="3.5" />
-        <rect x="121" y="162" width="44" height="16" rx="3.5" />
-        <rect x="149" y="92" width="14" height="70" rx="3.5" />
-        <rect x="149" y="92" width="30" height="16" rx="3.5" />
-        <rect x="149" y="111" width="24" height="14" rx="3.5" />
+      {/* LenderFest interlocking rings, in the seal ink (mono). Absolute
+          coords so it stays byte-identical to the backend svg-to-pdfkit seal. */}
+      <g fill="none" stroke="#122a2e" strokeWidth="10.8">
+        <circle cx="133.8" cy="135" r="23.4" />
+        <circle cx="166.2" cy="135" r="23.4" />
       </g>
       <rect
         x="96"
