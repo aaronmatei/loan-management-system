@@ -41,32 +41,6 @@ import { useColumnPreset } from "../hooks/useTablePrefs";
 import { useSortableTable } from "../hooks/useSortableTable";
 import { formatKES, exactKES } from "../utils/money";
 
-// Payment-history column presets (shared DataTable, matching the loans table).
-// "actions" stays in every preset; other columns demote into the expandable
-// detail row.
-const TXN_PRESETS = {
-  essentials: {
-    label: "Essentials",
-    keys: ["payment_date", "amount_paid", "balance_after", "actions"],
-  },
-  financials: {
-    label: "Financials",
-    keys: ["payment_date", "amount_paid", "payment_method", "balance_after", "actions"],
-  },
-  full: {
-    label: "Everything",
-    keys: [
-      "payment_date",
-      "amount_paid",
-      "payment_method",
-      "payment_reference",
-      "notes",
-      "balance_after",
-      "actions",
-    ],
-  },
-};
-
 // Payment-schedule column presets (shared DataTable). "#" is the pinned column;
 // demoted columns fold into the expandable detail row.
 const SCHED_PRESETS = {
@@ -279,27 +253,6 @@ function LoanDetails() {
   };
 
   const [reversingTxn, setReversingTxn] = useState(null); // the transaction being reversed
-
-  // Payment-history table UX (shared DataTable): column preset, expandable
-  // rows for demoted columns, and client-side sorting. Hooks run on
-  // loanData?.transactions so they sit above the loading/error guards.
-  const [txnPreset, setTxnPreset] = useColumnPreset(
-    "loanDetail.txnColumns",
-    TXN_PRESETS,
-    "essentials",
-  );
-  const [expandedTxns, setExpandedTxns] = useState(() => new Set());
-  const toggleTxn = (id) =>
-    setExpandedTxns((prev) => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  const {
-    sortedData: sortedTxns,
-    requestSort: txnRequestSort,
-    getSortIndicator: txnSortIndicator,
-  } = useSortableTable(loanData?.transactions || [], "payment_date", "desc");
 
   // Payment-schedule table UX (shared DataTable).
   const [schedPreset, setSchedPreset] = useColumnPreset(
@@ -701,139 +654,6 @@ function LoanDetails() {
       return { text: `Due in ${diffDays} days`, color: "text-gray-500" };
     }
   };
-
-  // Payment-history columns for the shared DataTable. Defined in-render so the
-  // action cells can close over setReceiptTxn / downloadPdf / reversePayment.
-  const TXN_COLUMNS = [
-    {
-      key: "payment_date",
-      label: "Date",
-      align: "left",
-      cell: (t) => (
-        <span className="text-sm text-slate-700 dark:text-slate-200">
-          {new Date(t.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-        </span>
-      ),
-    },
-    {
-      key: "amount_paid",
-      label: "Amount",
-      align: "right",
-      money: true,
-      total: (rows) =>
-        rows.filter((r) => !r.voided).reduce((s, r) => s + parseFloat(r.amount_paid || 0), 0),
-      totalClass: "text-money-pos",
-      cell: (t) => {
-        const penalty = parseFloat(t.penalty_portion || 0);
-        const overpay = parseFloat(t.receipt?.overpayment_for_this || 0);
-        const towardBalance = parseFloat(t.amount_paid || 0) - penalty - overpay;
-        return (
-          <div>
-            <div className={`font-bold ${t.voided ? "text-slate-400 line-through" : "text-money-pos"}`}>
-              {formatKES(t.amount_paid)}
-            </div>
-            {!t.voided && (penalty > 0 || overpay > 0) && (
-              <div className="text-xs font-normal text-slate-500 dark:text-slate-400 mt-1 space-y-0.5 whitespace-normal">
-                {penalty > 0 && <div className="text-amber-700">Penalty: {formatKES(penalty)}</div>}
-                {towardBalance > 0 && <div>Toward balance: {exactKES(towardBalance)}</div>}
-                {overpay > 0 && <div className="text-ocean-700">Overpaid: {formatKES(overpay)}</div>}
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      key: "payment_method",
-      label: "Method",
-      align: "left",
-      cell: (t) => (
-        <span className="inline-block px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
-          {t.payment_method}
-        </span>
-      ),
-    },
-    {
-      key: "payment_reference",
-      label: "Reference",
-      align: "left",
-      sortable: false,
-      cell: (t) => (
-        <span className="text-sm text-slate-600 dark:text-slate-400 whitespace-normal">
-          {t.payment_reference || "—"}
-        </span>
-      ),
-    },
-    {
-      key: "notes",
-      label: "Notes",
-      align: "left",
-      sortable: false,
-      fullSpan: true,
-      cell: (t) => (
-        <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-normal">
-          {t.notes || "—"}
-        </span>
-      ),
-    },
-    {
-      key: "balance_after",
-      label: "Balance After",
-      align: "right",
-      sortable: false,
-      cell: (t) =>
-        t.receipt ? (
-          <div>
-            <p className="font-bold text-money-warn">
-              {formatKES(t.receipt.remaining_balance_after_this)}
-            </p>
-            <p className="text-xs text-slate-400">
-              {t.receipt.completion_percentage_after_this}% paid
-            </p>
-          </div>
-        ) : (
-          <span className="text-money-muted">—</span>
-        ),
-    },
-    {
-      key: "actions",
-      label: "Receipt",
-      align: "center",
-      sortable: false,
-      cell: (t) => (
-        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-          <button
-            onClick={() => setReceiptTxn(t)}
-            className="text-ocean-600 hover:text-ocean-800"
-            title="View receipt"
-          >
-            <Receipt size={18} />
-          </button>
-          <button
-            onClick={() =>
-              downloadPdf(`/reports/pdf/receipt/${t.id}`, `receipt_${t.transaction_code}.pdf`)
-            }
-            className="text-ocean-600 hover:text-ocean-800"
-            title="Download receipt"
-          >
-            <Download size={18} />
-          </button>
-          {!t.voided && (
-            <PermissionGate role={["admin", "manager"]}>
-              <button
-                onClick={() => reversePayment(t)}
-                disabled={reversingTxn === t.id}
-                className="text-rose-600 hover:text-rose-800 disabled:opacity-50"
-                title="Reverse this payment"
-              >
-                <RotateCcw size={18} />
-              </button>
-            </PermissionGate>
-          )}
-        </div>
-      ),
-    },
-  ];
 
   // Payment-schedule columns for the shared DataTable. Defined in-render so
   // cells can use getDaysStatus and the last-row balance fallback.
@@ -1726,69 +1546,176 @@ function LoanDetails() {
       </div>
 
       {/* Transaction History */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <ClipboardList size={20} className="text-navy-900 dark:text-slate-100" />
-          <h3 className="text-lg font-semibold text-navy-900 dark:text-slate-100">
-            Payment History
+      <div className="bg-white rounded-xl shadow-md overflow-hidden dark:bg-slate-800">
+        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 dark:text-slate-100">
+            <ClipboardList size={20}/> Payment History
           </h3>
-          {transactions.length > 0 && (
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              ·{" "}
-              {(() => {
-                const live = transactions.filter((t) => !t.voided).length;
-                const reversed = transactions.length - live;
-                return `${live} payment${live !== 1 ? "s" : ""} recorded${reversed ? ` · ${reversed} reversed` : ""}`;
-              })()}
-            </span>
-          )}
+          <p className="text-sm text-gray-500 mt-1 dark:text-slate-400">
+            {(() => {
+              const live = transactions.filter((t) => !t.voided).length;
+              const reversed = transactions.length - live;
+              return `${live} payment${live !== 1 ? "s" : ""} recorded${reversed ? ` · ${reversed} reversed` : ""}`;
+            })()}
+          </p>
         </div>
-        <DataTable
-          columns={TXN_COLUMNS}
-          rows={sortedTxns}
-          rowKey={(t) => t.id}
-          pinned={{
-            label: "Transaction",
-            sortKey: "transaction_code",
-            cell: (t) => (
-              <div className="font-mono text-sm font-semibold text-money-pos">
-                {t.transaction_code}
-                {t.voided && (
-                  <span className="ml-2 inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full text-[10px] font-bold uppercase tracking-wide">
-                    Reversed
-                  </span>
-                )}
-              </div>
-            ),
-          }}
-          presets={TXN_PRESETS}
-          preset={txnPreset}
-          onPresetChange={setTxnPreset}
-          expandedRows={expandedTxns}
-          onToggleRow={toggleTxn}
-          sort={{ requestSort: txnRequestSort, getSortIndicator: txnSortIndicator }}
-          totals={transactions}
-          totalsLabel={
-            <span className="inline-flex items-center gap-2">
-              <BarChart3 size={16} /> TOTALS
-            </span>
-          }
-          maxHeight="calc(100vh - 260px)"
-          empty={
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-6">
-              <EmptyState
-                tone="muted"
-                icon={Coins}
-                title="No payments recorded yet"
-                description="Payments recorded against this loan will appear here."
-              />
-            </div>
-          }
-        />
+        {transactions.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              tone="muted"
+              icon={Coins}
+              title="No payments recorded yet"
+              description="Payments recorded against this loan will appear here."
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200 dark:bg-slate-900 dark:border-slate-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Transaction
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Method
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Reference
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Notes
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Balance After
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase dark:text-slate-400">
+                    Receipt
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((txn) => (
+                  <tr
+                    key={txn.id}
+                    className={`border-b border-gray-100 dark:border-slate-700 transition ${txn.voided ? "bg-gray-50/60 opacity-70" : "hover:bg-gray-50 dark:hover:bg-slate-700"}`}
+                  >
+                    <td className="px-6 py-3 font-mono text-sm font-semibold text-green-600">
+                      {txn.transaction_code}
+                      {txn.voided && (
+                        <span className="ml-2 inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                          Reversed
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-gray-700 dark:text-slate-200">
+                      {new Date(txn.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    </td>
+                    <td className={`px-6 py-3 font-bold ${txn.voided ? "text-gray-400 line-through dark:text-slate-400" : "text-green-600"}`}>
+                      <div>{formatKES(txn.amount_paid)}</div>
+                      {!txn.voided && (() => {
+                        const penalty = parseFloat(txn.penalty_portion || 0);
+                        const overpay = parseFloat(
+                          txn.receipt?.overpayment_for_this || 0,
+                        );
+                        const towardBalance =
+                          parseFloat(txn.amount_paid || 0) - penalty - overpay;
+                        if (penalty <= 0 && overpay <= 0) return null;
+                        return (
+                          <div className="text-xs font-normal text-gray-500 mt-1 space-y-0.5 dark:text-slate-400">
+                            {penalty > 0 && (
+                              <div className="text-amber-700">
+                                Penalty: {formatKES(penalty)}
+                              </div>
+                            )}
+                            {towardBalance > 0 && (
+                              <div className="text-gray-600 dark:text-slate-400">
+                                Toward balance: {exactKES(towardBalance)}
+                              </div>
+                            )}
+                            {overpay > 0 && (
+                              <div className="text-ocean-700">
+                                Overpaid: {formatKES(overpay)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className="inline-block px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
+                        {txn.payment_method}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-gray-600 text-sm dark:text-slate-400">
+                      {txn.payment_reference || "-"}
+                    </td>
+                    <td className="px-6 py-3 text-gray-500 text-sm dark:text-slate-400">
+                      {txn.notes || "-"}
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      {txn.receipt ? (
+                        <div>
+                          <p className="font-bold text-orange-600">
+                            {formatKES(txn.receipt.remaining_balance_after_this)}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
+                            {txn.receipt.completion_percentage_after_this}%
+                            paid
+                          </p>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => setReceiptTxn(txn)}
+                        className="text-ocean-600 hover:text-ocean-800 mr-2"
+                        title="View Receipt"
+                      >
+                        <Receipt size={18}/>
+                      </button>
+                      <button
+                        onClick={() =>
+                          downloadPdf(
+                            `/reports/pdf/receipt/${txn.id}`,
+                            `receipt_${txn.transaction_code}.pdf`,
+                          )
+                        }
+                        className="text-ocean-600 hover:text-ocean-800"
+                        title="Download Receipt"
+                      >
+                        <Download size={18}/>
+                      </button>
+                      {!txn.voided && (
+                        <PermissionGate role={["admin", "manager"]}>
+                          <button
+                            onClick={() => reversePayment(txn)}
+                            disabled={reversingTxn === txn.id}
+                            className="text-rose-600 hover:text-rose-800 ml-2 disabled:opacity-50"
+                            title="Reverse this payment"
+                          >
+                            <RotateCcw size={18} />
+                          </button>
+                        </PermissionGate>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Loan-level receipt summary (current status + next payment). */}
         {receiptSummary && transactions.length > 0 && (
-          <div className="rounded-xl shadow-card mt-4 p-4 lg:p-6 bg-ocean-gradient-soft dark:bg-slate-800">
+          <div className="p-4 lg:p-6 border-t bg-ocean-gradient-soft">
             <h3 className="font-bold mb-3 text-gray-800 flex items-center gap-2 dark:text-slate-100"><BarChart3 size={18}/> Current Status</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center">
               <div>
