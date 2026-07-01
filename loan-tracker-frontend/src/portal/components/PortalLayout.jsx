@@ -7,7 +7,8 @@ import {
   Layers,
   Wallet,
   Calculator,
-  CreditCard,
+  Receipt,
+  PlusCircle,
   ClipboardList,
   User,
   LogOut,
@@ -39,10 +40,12 @@ import PortalNotificationBell from "./PortalNotificationBell";
 // ADDED when the customer is linked to any pawnbroker.
 const BASE_MENU = [
   { path: "/portal/dashboard", label: "Dashboard", icon: LayoutDashboard, variant: "ocean", exact: true },
+  { path: "/portal/apply", label: "Apply for a loan", icon: PlusCircle, variant: "emerald" },
   { path: "/lenders", label: "Lenders", icon: Layers, variant: "indigo" },
   { path: "/portal/applications", label: "My Applications", icon: ClipboardList, variant: "amber" },
   { path: "/portal/loans", label: "My Loans", icon: Wallet, variant: "teal" },
-  { path: "/portal/payments", label: "Payments", icon: CreditCard, variant: "ocean" },
+  { path: "/portal/payments", label: "Payment history", icon: Receipt, variant: "ocean" },
+  { path: "/portal/statements", label: "Loan statement", icon: FileText, variant: "teal" },
   { path: "/portal/calculator", label: "Calculator", icon: Calculator, variant: "emerald" },
   { path: "/portal/support", label: "Help & support", icon: LifeBuoy, variant: "teal" },
   { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },
@@ -170,12 +173,11 @@ function PortalLayout({ children }) {
         />
       )}
 
-      {/* Warm forest-green shell (neutral portal chrome). */}
+      {/* App teal/navy shell (LenderFest chrome), Claude nav/help elements. */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 text-white bg-navy-gradient transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } flex flex-col`}
-        style={{ background: "linear-gradient(180deg,#123f30 0%,#0d3324 100%)" }}
       >
         <div className="px-5 pt-6 pb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -310,7 +312,7 @@ function PortalLayout({ children }) {
             ) : (
               <div
                 className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-[11px] font-extrabold text-[#cdeede]"
-                style={{ background: "#0f3d2e" }}
+                style={{ background: "#122a2e" }}
               >
                 {initials}
               </div>

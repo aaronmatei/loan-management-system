@@ -51,6 +51,7 @@ import {
 } from "./portal/pages/member/MemberPages";
 import CustomerProfile from "./portal/pages/Profile";
 import CustomerSupport from "./portal/pages/Support";
+import CustomerStatements from "./portal/pages/Statements";
 import CustomerForgotPassword from "./portal/pages/ForgotPassword";
 import CustomerAddLender from "./portal/pages/AddLender";
 import CustomerLenders from "./portal/pages/Lenders";
@@ -687,6 +688,14 @@ function App() {
               element={
                 <PortalProtectedRoute>
                   <CustomerSupport />
+                </PortalProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/statements"
+              element={
+                <PortalProtectedRoute>
+                  <CustomerStatements />
                 </PortalProtectedRoute>
               }
             />
