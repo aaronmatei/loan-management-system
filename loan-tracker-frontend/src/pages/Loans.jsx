@@ -522,6 +522,7 @@ function Loans() {
         default_interest_rate: parseFloat(d.default_interest_rate ?? 50),
         processing_fee_rate: parseFloat(d.processing_fee_rate ?? 0),
         late_payment_fee: parseFloat(d.late_payment_fee ?? 0),
+        penalty_rate: parseFloat(d.penalty_rate ?? 5),
       };
       setLoanPolicy(policy);
       setFormData((p) => ({
@@ -533,6 +534,7 @@ function Loans() {
         // policy value just pre-fills what the input shows the
         // moment they turn the toggle on.
         late_payment_fee: policy.late_payment_fee,
+        penalty_rate: policy.penalty_rate,
       }));
     } catch {
       /* fall back to the defaults above */

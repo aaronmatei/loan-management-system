@@ -1242,6 +1242,7 @@ CREATE TABLE public.tenants (
     min_loan_amount numeric(15,2) DEFAULT 1000,
     max_loan_amount numeric(15,2) DEFAULT 1000000,
     late_payment_fee numeric(15,2) DEFAULT 500,
+    penalty_rate numeric(5,2) DEFAULT 5.00,
     notify_application_submitted_sms boolean DEFAULT true,
     notify_application_submitted_email boolean DEFAULT true,
     notify_under_review_sms boolean DEFAULT true,

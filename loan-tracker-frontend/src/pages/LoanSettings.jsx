@@ -15,6 +15,7 @@ function LoanSettings() {
     default_interest_rate: "", // annual %
     monthly_interest_rate: "", // annual / 12 — display companion, two-way synced
     processing_fee_rate: "",
+    penalty_rate: "", // % per month charged on the overdue balance
   });
   const [loading, setLoading] = useState(true);
   const [savingPolicy, setSavingPolicy] = useState(false);
@@ -30,6 +31,7 @@ function LoanSettings() {
           default_interest_rate: annual,
           monthly_interest_rate: annual === "" ? "" : roundRate(annual / 12),
           processing_fee_rate: d.processing_fee_rate ?? "",
+          penalty_rate: d.penalty_rate ?? "",
         });
       } catch (err) {
         console.error("Failed to fetch loan policy:", err);
@@ -65,6 +67,7 @@ function LoanSettings() {
           parseFloat(loanPolicy.default_interest_rate) || 0,
         processing_fee_rate:
           parseFloat(loanPolicy.processing_fee_rate) || 0,
+        penalty_rate: parseFloat(loanPolicy.penalty_rate) || 0,
       });
       setPolicySuccess("Loan policy saved successfully!");
       setTimeout(() => setPolicySuccess(""), 3000);
@@ -120,7 +123,7 @@ function LoanSettings() {
             borrower receives — they still repay the full principal
             plus interest.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Annual Interest Rate (%)
@@ -188,6 +191,33 @@ function LoanSettings() {
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Deducted upfront from the disbursed amount (0 = none).
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+                Penalty Rate (% p.m.)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={loanPolicy.penalty_rate}
+                  onChange={(e) =>
+                    setLoanPolicy({
+                      ...loanPolicy,
+                      penalty_rate: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 pr-9 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
+                  %
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                Charged monthly on the overdue balance (0 = none).
               </p>
             </div>
           </div>

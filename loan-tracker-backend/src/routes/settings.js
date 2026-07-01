@@ -167,7 +167,8 @@ router.get("/loan-policy", authorize("admin", "manager", "loan_officer"), async 
          COALESCE(default_loan_duration, 6)     AS default_loan_duration,
          COALESCE(min_loan_amount,       1000)  AS min_loan_amount,
          COALESCE(max_loan_amount,    1000000)  AS max_loan_amount,
-         COALESCE(late_payment_fee,      500)   AS late_payment_fee
+         COALESCE(late_payment_fee,      500)   AS late_payment_fee,
+         COALESCE(penalty_rate,          5.00)  AS penalty_rate
        FROM tenants WHERE id = $1`,
       [tid],
     );
@@ -194,12 +195,14 @@ router.put("/loan-policy", authorize("admin"), async (req, res) => {
       min_loan_amount,
       max_loan_amount,
       late_payment_fee,
+      penalty_rate,
     } = req.body || {};
 
     // Percentages must be sane (0–100). Other fields just non-negative.
     const pct = (v) => v === undefined || v === null || v === "" ? null : Number(v);
     const ir = pct(default_interest_rate);
     const pf = pct(processing_fee_rate);
+    const pr = pct(penalty_rate);
     if (ir !== null && (Number.isNaN(ir) || ir < 0 || ir > 1000)) {
       return res.status(400).json({ error: "Interest rate must be 0–1000%" });
     }
@@ -207,6 +210,11 @@ router.put("/loan-policy", authorize("admin"), async (req, res) => {
       return res
         .status(400)
         .json({ error: "Processing fee rate must be 0–100%" });
+    }
+    if (pr !== null && (Number.isNaN(pr) || pr < 0 || pr > 100)) {
+      return res
+        .status(400)
+        .json({ error: "Penalty rate must be 0–100% per month" });
     }
 
     await query(
@@ -217,6 +225,7 @@ router.put("/loan-policy", authorize("admin"), async (req, res) => {
          min_loan_amount       = COALESCE($4, min_loan_amount),
          max_loan_amount       = COALESCE($5, max_loan_amount),
          late_payment_fee      = COALESCE($6, late_payment_fee),
+         penalty_rate          = COALESCE($8, penalty_rate),
          updated_at = NOW()
        WHERE id = $7`,
       [
@@ -227,6 +236,7 @@ router.put("/loan-policy", authorize("admin"), async (req, res) => {
         max_loan_amount ?? null,
         late_payment_fee ?? null,
         tid,
+        pr,
       ],
     );
 
