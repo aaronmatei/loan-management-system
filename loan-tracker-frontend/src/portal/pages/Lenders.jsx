@@ -261,9 +261,9 @@ function Lenders() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-52 w-full rounded-[18px]" />
+                  <Skeleton key={i} className="h-[76px] w-full rounded-[16px]" />
                 ))}
               </div>
             ) : filtered.length === 0 ? (
@@ -274,7 +274,7 @@ function Lenders() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-3">
                 {filtered.map((l) => {
                   const ty = lenderType(l.business_type);
                   const bc = ty.color;
@@ -285,59 +285,61 @@ function Lenders() {
                     <button
                       key={l.tenant_id}
                       onClick={() => navigate(`/lenders/${l.tenant_id}`)}
-                      className="text-left bg-white dark:bg-slate-800 rounded-[18px] p-5 flex flex-col transition hover:bg-[#fdfbf6] dark:hover:bg-slate-700/40 hover:shadow-[0_10px_30px_-18px_rgba(15,30,60,0.22)]"
+                      className="text-left w-full bg-white dark:bg-slate-800 rounded-[16px] px-4 sm:px-5 py-4 flex items-center gap-4 transition hover:bg-[#fdfbf6] dark:hover:bg-slate-700/40 hover:shadow-[0_10px_30px_-20px_rgba(15,30,60,0.22)]"
                       style={{ border: `1px solid ${linked ? "#bfe3d1" : "#ece6da"}` }}
                     >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="w-[42px] h-[42px] rounded-[12px] flex items-center justify-center text-[16px] font-extrabold shrink-0"
-                          style={{ background: `${bc}1f`, color: bc }}
-                        >
-                          {(l.business_name || "?").charAt(0)}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[15px] font-extrabold text-[#16241d] dark:text-slate-100 truncate">
-                              {l.business_name}
+                      {/* avatar */}
+                      <span
+                        className="w-11 h-11 rounded-[12px] flex items-center justify-center text-[16px] font-extrabold shrink-0"
+                        style={{ background: `${bc}1f`, color: bc }}
+                      >
+                        {(l.business_name || "?").charAt(0)}
+                      </span>
+
+                      {/* name · type · link status (name gets full room) */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[15px] font-extrabold text-[#16241d] dark:text-slate-100 truncate">
+                            {l.business_name}
+                          </span>
+                          {best && (
+                            <span
+                              className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-[5px] tracking-wide shrink-0"
+                              style={{ color: "#0d8f63", background: "#eaf6ef" }}
+                            >
+                              BEST
                             </span>
-                            {best && (
-                              <span
-                                className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-[5px] tracking-wide shrink-0"
-                                style={{ color: "#0d8f63", background: "#eaf6ef" }}
-                              >
-                                BEST
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="w-2 h-2 rounded-full" style={{ background: bc }} />
-                            <span className="text-[11.5px] text-[#9a9486] dark:text-slate-400 font-semibold truncate">
-                              {ty.label}
-                            </span>
-                          </div>
+                          )}
                         </div>
-                        <span
-                          className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg whitespace-nowrap shrink-0"
-                          style={
-                            linked
-                              ? { background: "#eaf6ef", color: "#0d8f63" }
-                              : { background: "#f0ebe0", color: "#8a8170" }
-                          }
-                        >
-                          {linked ? <Link2 size={12} /> : <Unlink size={12} />}
-                          {linked ? "Linked" : "Not linked"}
-                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: bc }} />
+                          <span className="text-[11.5px] text-[#9a9486] dark:text-slate-400 font-semibold truncate">
+                            {ty.label}
+                          </span>
+                          <span
+                            className="inline-flex items-center gap-1 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap shrink-0"
+                            style={
+                              linked
+                                ? { background: "#eaf6ef", color: "#0d8f63" }
+                                : { background: "#f0ebe0", color: "#8a8170" }
+                            }
+                          >
+                            {linked ? <Link2 size={11} /> : <Unlink size={11} />}
+                            {linked ? "Linked" : "Not linked"}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 mt-[18px] pt-4 border-t border-[#f4efe4] dark:border-slate-700">
-                        <Stat label="Borrow up to" value={KES(l.max_amount)} />
-                        <Stat label="Interest" value={`${pm}% p.m.`} valueColor="#0d8f63" />
-                        <Stat label="From" value={KES(l.min_amount)} muted />
-                        <Stat label="Max term" value={`${l.default_duration} mo`} muted />
+                      {/* terms — hidden on small screens where room is tight */}
+                      <div className="hidden md:flex items-center gap-7 shrink-0">
+                        <RowStat label="Interest" value={`${pm}% p.m.`} color="#0d8f63" />
+                        <RowStat label="Borrow up to" value={KES(l.max_amount)} />
+                        <RowStat label="Term" value={`${l.default_duration} mo`} muted />
                       </div>
 
+                      {/* CTA */}
                       <div
-                        className="mt-[18px] w-full rounded-[12px] py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold"
+                        className="shrink-0 rounded-[11px] px-4 py-2.5 flex items-center justify-center gap-2 text-[13px] font-bold whitespace-nowrap"
                         style={
                           linked
                             ? { background: "#faf6ec", border: "1px solid #e5ddcd", color: "#33403a" }
@@ -346,11 +348,11 @@ function Lenders() {
                       >
                         {linked ? (
                           <>
-                            View terms <ArrowRight size={15} />
+                            View <ArrowRight size={15} />
                           </>
                         ) : (
                           <>
-                            <Link2 size={15} /> Link to borrow
+                            <Link2 size={15} /> Link
                           </>
                         )}
                       </div>
@@ -366,16 +368,16 @@ function Lenders() {
   );
 }
 
-// One cell in a card's 2×2 terms grid.
-function Stat({ label, value, valueColor, muted }) {
+// One right-aligned term column in a lender list row.
+function RowStat({ label, value, color, muted }) {
   return (
-    <div>
-      <div className="text-[10.5px] font-bold uppercase tracking-[0.03em] text-[#a39b8b]">
+    <div className="text-right">
+      <div className="text-[10px] font-bold uppercase tracking-[0.03em] text-[#a39b8b]">
         {label}
       </div>
       <div
-        className={`${muted ? "text-[13px]" : "text-[14.5px]"} font-extrabold mt-0.5 tabular-nums`}
-        style={{ color: valueColor || (muted ? "#33403a" : "#16241d") }}
+        className="text-[13.5px] font-extrabold mt-0.5 tabular-nums whitespace-nowrap"
+        style={{ color: color || (muted ? "#33403a" : "#16241d") }}
       >
         {value}
       </div>
