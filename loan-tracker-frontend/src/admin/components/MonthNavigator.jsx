@@ -35,7 +35,7 @@ export default function MonthNavigator({
 
   return (
     <div
-      className={`inline-flex items-center gap-1 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 px-1.5 py-1 ${className}`}
+      className={`inline-flex items-center gap-1 bg-surface rounded-lg border border-gray-200 dark:border-slate-700 px-1.5 py-1 ${className}`}
     >
       <button
         type="button"

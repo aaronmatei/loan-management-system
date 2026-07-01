@@ -32,7 +32,7 @@ export default function StatCard({
   const subSize = compact ? "text-[10px]" : "text-xs";
   return (
     <div
-      className={`relative overflow-hidden bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm ${pad} ${className}`}
+      className={`relative overflow-hidden bg-surface rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm ${pad} ${className}`}
     >
       <div
         className={`pointer-events-none absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl ${a.glow}`}
