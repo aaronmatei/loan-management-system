@@ -179,23 +179,24 @@ function PortalLayout({ children }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } flex flex-col`}
       >
-        <div className="px-5 pt-6 pb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0">
-              <LogoMark variant="color" className="h-6 w-6" />
-            </div>
+        {/* Cream LenderFest lockup header — same style as the staff/admin
+            sidebars (ring mark + "Lender"/"Fest" on cream, dark body below). */}
+        <div className="p-6 pb-4 bg-cream-50 border-b border-cream-100 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <LogoMark variant="color" className="h-9 w-9 shrink-0" />
             <div className="leading-tight">
-              <div className="font-display text-lg font-extrabold text-white leading-none">
-                Lender<span className="text-[#5fe3ab]">Fest</span>
+              <div className="font-display text-lg font-extrabold tracking-tight leading-none">
+                <span className="text-navy-900">Lender</span>
+                <span className="text-ocean-600">Fest</span>
               </div>
-              <div className="text-[10px] font-bold tracking-[0.06em] text-[#6fae93] mt-1 uppercase truncate max-w-[160px]">
+              <div className="text-[10px] font-bold tracking-[0.06em] text-slate-500 mt-1 uppercase truncate max-w-[160px]">
                 {isWelfareMember ? portalLabel : "Borrower Portal"}
               </div>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-[#6fae93] hover:text-white"
+            className="lg:hidden text-slate-400 hover:text-slate-700"
             aria-label="Close menu"
           >
             <X size={22} />
