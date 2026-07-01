@@ -26,6 +26,7 @@ export default function WelfareRegister() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [touchedSub, setTouchedSub] = useState(false);
+  const [pendingDone, setPendingDone] = useState(null);
 
   const slug = (s) =>
     s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -51,6 +52,11 @@ export default function WelfareRegister() {
     setBusy(true);
     try {
       const r = await api.post("/tenants/welfare-signup", form);
+      // Pending review — no auto-login. Show a confirmation.
+      if (r.data.pending) {
+        setPendingDone(r.data.tenant || { business_name: form.welfare_name });
+        return;
+      }
       localStorage.setItem("token", r.data.token);
       localStorage.setItem("user", JSON.stringify(r.data.user));
       setUser(r.data.user);
@@ -63,6 +69,26 @@ export default function WelfareRegister() {
 
   const fld = "w-full px-3 py-2.5 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-emerald-500 focus:outline-none";
   const lbl = "block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1";
+
+  if (pendingDone) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
+            <UsersRound size={26} className="text-emerald-600" />
+          </div>
+          <h1 className="text-xl font-extrabold text-navy-900 mt-4">Thanks — you're almost there</h1>
+          <p className="text-sm text-slate-600 mt-2">
+            <strong>{pendingDone.business_name}</strong> has been created and is now <strong>pending review</strong>.
+            We'll notify you once it's approved, then you can sign in.
+          </p>
+          <Link to="/login" className="inline-block mt-6 px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-lg text-sm">
+            Back to sign in
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

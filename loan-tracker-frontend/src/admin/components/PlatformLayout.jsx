@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Settings,
   LifeBuoy,
+  BadgeCheck,
 } from "lucide-react";
 import NavIcon from "../../components/NavIcon";
 import platformApi from "../services/platformApi";
@@ -20,6 +21,7 @@ import platformApi from "../services/platformApi";
 const MENU = [
   { path: "/admin/dashboard", label: "Overview", icon: LayoutDashboard, variant: "ocean" },
   { path: "/admin/tenants", label: "Tenants", icon: Building2, variant: "indigo" },
+  { path: "/admin/approvals", label: "Approvals", icon: BadgeCheck, variant: "amber", badge: "approvals" },
   { path: "/admin/billing", label: "Billing & Plans", icon: Wallet, variant: "emerald" },
   { path: "/admin/reports", label: "Analytics", icon: TrendingUp, variant: "teal" },
   { path: "/admin/communication-costs", label: "Comms Costs", icon: MessageSquare, variant: "indigo" },
@@ -33,6 +35,7 @@ const MENU = [
 const TITLES = {
   "/admin/dashboard": ["Platform Overview", "All tenants at a glance"],
   "/admin/tenants": ["Tenants", "Lender organisations on LenderFest"],
+  "/admin/approvals": ["Approvals", "Sign-ups awaiting review"],
   "/admin/billing": ["Billing & Plans", "Subscription & usage revenue"],
   "/admin/reports": ["Analytics", "Platform-wide analytics"],
   "/admin/communication-costs": ["Comms Costs", "SMS & email usage"],
@@ -49,11 +52,16 @@ function PlatformLayout({ children }) {
   const [user, setUser] = useState({});
   const [q, setQ] = useState("");
   const [openTickets, setOpenTickets] = useState(0);
+  const [pendingTenants, setPendingTenants] = useState(0);
 
   useEffect(() => {
     platformApi
       .get("/platform/support/summary")
       .then((r) => setOpenTickets(r.data.data?.open || 0))
+      .catch(() => {});
+    platformApi
+      .get("/platform/admin/tenants?status=pending")
+      .then((r) => setPendingTenants((r.data.data || []).length))
       .catch(() => {});
   }, [location.pathname]);
 
@@ -157,6 +165,11 @@ function PlatformLayout({ children }) {
                       {item.badge === "support" && openTickets > 0 && (
                         <span className="text-[10px] font-extrabold text-white bg-ocean-600 rounded-full px-2 py-0.5">
                           {openTickets}
+                        </span>
+                      )}
+                      {item.badge === "approvals" && pendingTenants > 0 && (
+                        <span className="text-[10px] font-extrabold text-white bg-amber-500 rounded-full px-2 py-0.5">
+                          {pendingTenants}
                         </span>
                       )}
                     </Link>

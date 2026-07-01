@@ -56,6 +56,20 @@ export const tenantContext = async (req, res, next) => {
           code: "TENANT_CANCELLED",
         });
       }
+      if (tenant.status === "pending") {
+        return res.status(403).json({
+          error: "Account pending approval",
+          message: "Your account is awaiting review by our team.",
+          code: "TENANT_PENDING",
+        });
+      }
+      if (tenant.status === "rejected") {
+        return res.status(403).json({
+          error: "Application not approved",
+          message: "Your account application was not approved.",
+          code: "TENANT_REJECTED",
+        });
+      }
       if (
         tenant.plan === "trial" &&
         tenant.trial_ends_at &&

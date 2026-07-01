@@ -278,7 +278,7 @@ router.put("/tenants/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
     const { status, reason } = req.body || {};
-    const valid = ["active", "trial", "suspended", "cancelled"];
+    const valid = ["active", "trial", "suspended", "cancelled", "pending", "rejected"];
     if (!valid.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
@@ -307,6 +307,8 @@ router.put("/tenants/:id/status", async (req, res) => {
       trial: "trial_set",
       suspended: "suspended",
       cancelled: "cancelled",
+      pending: "pending_set",
+      rejected: "rejected",
     };
     await logTenantAction(
       req.user,
@@ -324,6 +326,52 @@ router.put("/tenants/:id/status", async (req, res) => {
   } catch (error) {
     logger.error("Update tenant status error:", error);
     res.status(500).json({ error: "Failed to update tenant status" });
+  }
+});
+
+// ── Onboarding approvals ─────────────────────────────────────────────
+// New signups are created 'pending' and can't be used until a platform admin
+// cross-checks the details and approves. Both act only on pending tenants.
+router.post("/tenants/:id/approve", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      `UPDATE tenants SET status = 'active', suspension_reason = NULL, updated_at = NOW()
+       WHERE id = $1 AND status = 'pending' RETURNING *`,
+      [id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No pending tenant with that id" });
+    }
+    logger.info(`Platform admin ${req.user.email} approved tenant ${id}`);
+    await logTenantAction(req.user, "approved", result.rows[0], req, {});
+    res.json({ success: true, message: "Tenant approved", data: result.rows[0] });
+  } catch (error) {
+    logger.error("Approve tenant error:", error);
+    res.status(500).json({ error: "Failed to approve tenant" });
+  }
+});
+
+router.post("/tenants/:id/decline", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const result = await query(
+      `UPDATE tenants SET status = 'rejected', suspension_reason = $1, updated_at = NOW()
+       WHERE id = $2 AND status = 'pending' RETURNING *`,
+      [reason || null, id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No pending tenant with that id" });
+    }
+    logger.info(`Platform admin ${req.user.email} declined tenant ${id}`);
+    await logTenantAction(req.user, "declined", result.rows[0], req, {
+      metadata: { reason: reason || null },
+    });
+    res.json({ success: true, message: "Tenant declined", data: result.rows[0] });
+  } catch (error) {
+    logger.error("Decline tenant error:", error);
+    res.status(500).json({ error: "Failed to decline tenant" });
   }
 });
 

@@ -82,6 +82,7 @@ import PlatformReports from "./admin/pages/PlatformReports";
 import PlatformSettings from "./admin/pages/PlatformSettings";
 import PlatformSupport from "./admin/pages/Support";
 import PlatformSupportTicket from "./admin/pages/SupportTicketDetail";
+import PlatformApprovals from "./admin/pages/Approvals";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Loans from "./pages/Loans";
@@ -418,6 +419,14 @@ function App() {
               element={
                 <PlatformAdminRoute>
                   <PlatformSettings />
+                </PlatformAdminRoute>
+              }
+            />
+            <Route
+              path="/admin/approvals"
+              element={
+                <PlatformAdminRoute>
+                  <PlatformApprovals />
                 </PlatformAdminRoute>
               }
             />

@@ -1,6 +1,5 @@
 import express from "express";
 import bcryptjs from "bcryptjs";
-import jwt from "jsonwebtoken";
 import pool, { query } from "../config/database.js";
 import { validateEmail, validatePassword } from "../utils/validators.js";
 import logger from "../config/logger.js";
@@ -126,7 +125,7 @@ router.post("/signup", async (req, res) => {
         plan, status, trial_ends_at,
         platform_fee_percentage, billing_fee_percentage, billing_base_fee,
         max_clients, max_loans, max_users
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'trial','active',$11,$12,$12,$13,50,50,3)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'trial','pending',$11,$12,$12,$13,50,50,3)
       RETURNING *`,
       [
         tenantCode,
@@ -251,33 +250,20 @@ router.post("/signup", async (req, res) => {
       await referralService.recordReferral(referral_code, tenant);
     }
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: "admin",
-        tenant_id: tenant.id,
-        is_platform_admin: false,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE || "7d" },
-    );
+    logger.info(`🎉 New tenant signed up (pending review): ${business_name} (${sub})`);
 
-    logger.info(`🎉 New tenant signed up: ${business_name} (${sub})`);
-
+    // No auto-login: the tenant is created 'pending' and must be approved by a
+    // platform admin before it can be used. The user signs in once approved.
     res.status(201).json({
       success: true,
-      message: "Welcome! Your 14-day trial has started.",
-      token,
+      pending: true,
+      message:
+        "Your account has been created and is pending review. We'll email you as soon as it's approved.",
       tenant: {
         id: tenant.id,
         business_name: tenant.business_name,
         subdomain: tenant.subdomain,
-        plan: tenant.plan,
-        trial_ends_at: tenant.trial_ends_at,
-        referral_code: tenant.referral_code,
       },
-      user,
     });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
@@ -360,7 +346,7 @@ router.post("/welfare-signup", async (req, res) => {
         registration_number, contact_name, contact_email, contact_phone,
         city, county, plan, status,
         billing_enabled, billing_base_fee, billing_fee_percentage
-      ) VALUES ($1,$2,'welfare','welfare',$3,$4,$5,$6,$7,$8,$9,'trial','active',
+      ) VALUES ($1,$2,'welfare','welfare',$3,$4,$5,$6,$7,$8,$9,'trial','pending',
                 true,$10,$11)
       RETURNING *`,
       [
@@ -413,35 +399,20 @@ router.post("/welfare-signup", async (req, res) => {
 
     await client.query("COMMIT");
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: "admin", tenant_id: tenant.id, is_platform_admin: false },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE || "7d" },
-    );
+    logger.info(`🤝 New welfare signed up (pending review): ${welfare_name} (${sub})`);
 
-    logger.info(`🤝 New welfare signed up: ${welfare_name} (${sub})`);
-
+    // No auto-login: welfare accounts are also created 'pending' and go live
+    // once a platform admin approves them.
     res.status(201).json({
       success: true,
-      message: "Welcome! Your welfare account is ready.",
-      token,
+      pending: true,
+      message:
+        "Your welfare account has been created and is pending review. We'll notify you once it's approved.",
       welfare_group_id: welfareGroupId,
-      user: {
-        ...user,
-        full_name: `${user.first_name} ${user.last_name}`,
-        tenant_id: tenant.id,
-        is_platform_admin: false,
-        tenant: {
-          id: tenant.id,
-          subdomain: tenant.subdomain,
-          business_name: tenant.business_name,
-          business_type: tenant.business_type,
-          kind: "welfare",
-          plan: tenant.plan,
-          brand_color: tenant.brand_color,
-          city: tenant.city,
-          country: tenant.country,
-        },
+      tenant: {
+        id: tenant.id,
+        subdomain: tenant.subdomain,
+        business_name: tenant.business_name,
       },
     });
   } catch (error) {
