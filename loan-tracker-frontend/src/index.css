@@ -88,6 +88,15 @@
 .dark .bg-app-bg {
   background-image: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
 }
+/* Warm card surface (platform admin) — a soft ivory that reads as a card
+   against the cream app canvas without the glare of pure #fff. Still lighter
+   than the .bg-app-bg cream so cards keep their lift. */
+.bg-surface {
+  background-color: #fdfbf6;
+}
+.dark .bg-surface {
+  background-color: #1e293b; /* slate-800 — unchanged in dark mode */
+}
 /* Borrower portal — warm cream canvas (design "Borrower Portal"). Neutral
    chrome only; per-lender accents stay driven by the --brand CSS var. */
 .bg-portal {

@@ -59,7 +59,7 @@ function InvoiceDetail() {
       <PlatformLayout>
         <div className="p-4 lg:p-8 max-w-4xl mx-auto">
           <Skeleton className="h-4 w-28 mb-4" />
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl shadow-sm p-6 lg:p-8 mb-6">
+          <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl shadow-sm p-6 lg:p-8 mb-6">
             <Skeleton className="h-4 w-20 mb-2" />
             <Skeleton className="h-8 w-48 mb-3" />
             <Skeleton className="h-4 w-64" />
@@ -72,11 +72,11 @@ function InvoiceDetail() {
               ))}
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mb-6">
+          <div className="bg-surface rounded-xl shadow p-4 lg:p-6 mb-6">
             <Skeleton className="h-5 w-48 mb-3" />
             <SkeletonText lines={5} />
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6">
+          <div className="bg-surface rounded-xl shadow p-4 lg:p-6">
             <Skeleton className="h-5 w-40 mb-3" />
             <SkeletonText lines={3} />
           </div>
@@ -100,7 +100,7 @@ function InvoiceDetail() {
           ← Back to Billing
         </button>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl shadow-sm p-6 lg:p-8 mb-6">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl shadow-sm p-6 lg:p-8 mb-6">
           <div className="flex justify-between items-start flex-wrap gap-3">
             <div>
               <p className="text-slate-500 dark:text-slate-400 text-sm">Invoice</p>
@@ -152,7 +152,7 @@ function InvoiceDetail() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6 mb-6">
+        <div className="bg-surface rounded-xl shadow p-4 lg:p-6 mb-6">
           <h2 className="font-bold mb-3 flex items-center gap-2"><BarChart3 size={18} /> Calculation Breakdown</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between py-2 border-b">
@@ -202,7 +202,7 @@ function InvoiceDetail() {
           )}
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 lg:p-6">
+        <div className="bg-surface rounded-xl shadow p-4 lg:p-6">
           <h2 className="font-bold mb-3 flex items-center gap-2">
             <CreditCard size={18} /> Payment History ({payments.length})
           </h2>
@@ -243,7 +243,7 @@ function InvoiceDetail() {
 
         {showPay && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="bg-surface rounded-xl shadow-2xl max-w-md w-full p-6">
               <h3 className="font-bold text-xl mb-4">Record Payment</h3>
               <form onSubmit={submitPayment} className="space-y-3">
                 <div>

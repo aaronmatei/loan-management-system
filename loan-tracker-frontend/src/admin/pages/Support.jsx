@@ -50,7 +50,7 @@ function Support() {
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-[10px] text-[13px] font-bold border transition"
                 style={{
                   borderColor: on ? "#0e8a6e" : "#e3e7e0",
-                  background: on ? "#e0f4ee" : "#fff",
+                  background: on ? "#e0f4ee" : "#fdfbf6",
                   color: on ? "#0a5c4c" : "#5b5b70",
                 }}
               >
@@ -64,13 +64,13 @@ function Support() {
         </div>
 
         {loading ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
+          <div className="bg-surface rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
           </div>
         ) : tickets.length === 0 ? (
           <EmptyState icon={LifeBuoy} title="Nothing here" description={`No ${tab} tickets.`} />
         ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="bg-surface rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
             {tickets.map((t) => (
               <button
                 key={t.id}

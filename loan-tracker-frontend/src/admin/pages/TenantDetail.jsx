@@ -141,7 +141,7 @@ function TenantDetail() {
         </button>
 
         {/* Header */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
           <div className="flex flex-wrap items-center gap-4">
             <span className="w-[54px] h-[54px] rounded-[14px] flex items-center justify-center text-white text-[20px] font-extrabold shrink-0" style={{ background: brand }}>
               {tenant.business_name?.charAt(0)}
@@ -183,7 +183,7 @@ function TenantDetail() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
           {/* Billing & subscription */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+          <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
             <div className="text-[14px] font-extrabold text-navy-900 dark:text-slate-100 mb-4 flex items-center gap-2"><Percent size={17} /> Billing</div>
             <div className="flex justify-between items-center py-2.5 border-b border-slate-50 dark:border-slate-700">
               <span className="text-[13px] text-slate-500 dark:text-slate-400 font-semibold">Plan</span>
@@ -226,7 +226,7 @@ function TenantDetail() {
           </div>
 
           {/* Usage / stats + white-label */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+          <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
             <div className="text-[14px] font-extrabold text-navy-900 dark:text-slate-100 mb-3">Usage &amp; contact</div>
             {[
               ["Clients", tenant.client_count],
@@ -258,7 +258,7 @@ function TenantDetail() {
         </div>
 
         {/* Staff users */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 text-[14px] font-extrabold text-navy-900 dark:text-slate-100">
             Staff users ({users.length})
           </div>

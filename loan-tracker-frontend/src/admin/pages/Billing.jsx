@@ -270,7 +270,7 @@ function BillingDashboard() {
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
               {plans.map((p) => (
-                <div key={p.id} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                <div key={p.id} className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-[14px] font-extrabold" style={{ color: PLAN_COLOR[p.name] || "#0e8a6e" }}>{p.name}</span>
                     <button onClick={() => editPrice(p)} className="text-[11px] font-bold text-ocean-600">Edit</button>
@@ -300,7 +300,7 @@ function BillingDashboard() {
             each month (platform fee on interest collected) vs what's been
             paid. Surfaces every month with activity, including months that
             were never invoiced. */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-6">
+        <div className="bg-surface rounded-xl shadow p-4 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <h2 className="font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
               <ClipboardList size={18} /> Tenant Monthly Statement
@@ -459,7 +459,7 @@ function BillingDashboard() {
               className={`px-3 py-2 text-sm font-semibold rounded-lg transition ${
                 filter === t.v
                   ? "bg-ocean-600 text-white"
-                  : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                  : "bg-surface text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
             >
               {t.l}
@@ -489,7 +489,7 @@ function BillingDashboard() {
             description="Invoices appear here once you generate them for billable tenants."
           />
         ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+          <div className="bg-surface rounded-xl shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-slate-900 border-b">

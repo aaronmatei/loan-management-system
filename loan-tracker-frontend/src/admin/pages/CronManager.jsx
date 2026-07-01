@@ -73,7 +73,7 @@ function CronManager() {
   const apiOk = !statusErr && status != null;
 
   const Kpi = ({ icon: Icon, label, value, dot, accent = "#0e8a6e" }) => (
-    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-[18px] shadow-sm">
+    <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-[18px] shadow-sm">
       <div className="flex items-center gap-2">
         {dot ? (
           <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
@@ -102,7 +102,7 @@ function CronManager() {
         </div>
 
         {/* Services (real: enabled flag + schedule) */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
           <div className="text-[14.5px] font-extrabold text-navy-900 dark:text-slate-100 mb-1 flex items-center gap-2">
             <Activity size={17} /> Scheduled services
           </div>
@@ -135,7 +135,7 @@ function CronManager() {
         </div>
 
         {/* Manual triggers */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
           <div className="text-[14.5px] font-extrabold text-navy-900 dark:text-slate-100 mb-1 flex items-center gap-2">
             <Target size={17} /> Manual triggers
           </div>
@@ -166,7 +166,7 @@ function CronManager() {
 
         {/* Last result */}
         {last && (
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+          <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
             <div className="text-[14.5px] font-extrabold text-navy-900 dark:text-slate-100 mb-2 flex items-center gap-2">
               <BarChart3 size={17} /> Last run
             </div>

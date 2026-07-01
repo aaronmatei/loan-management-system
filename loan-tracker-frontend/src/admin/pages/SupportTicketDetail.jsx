@@ -87,7 +87,7 @@ function SupportTicketDetail() {
         </button>
 
         {/* Header + triage */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
           <div className="flex items-start gap-3 flex-wrap">
             <span className="w-10 h-10 rounded-[11px] flex items-center justify-center text-white font-bold shrink-0" style={{ background: ticket.brand_color || "#0e8a6e" }}>
               {ticket.business_name?.charAt(0)}
@@ -129,7 +129,7 @@ function SupportTicketDetail() {
         </div>
 
         {/* Thread */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-3">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-3">
           {ticket.messages.map((m) => {
             const platform = m.author_type === "platform";
             return (
@@ -147,7 +147,7 @@ function SupportTicketDetail() {
         </div>
 
         {/* Reply */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}

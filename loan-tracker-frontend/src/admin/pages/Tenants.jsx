@@ -112,7 +112,7 @@ function PlatformTenants() {
                   className="inline-flex items-center gap-2 px-3.5 py-2 rounded-[10px] text-[13px] font-bold border transition"
                   style={{
                     borderColor: on ? "#0e8a6e" : "#e3e7e0",
-                    background: on ? "#e0f4ee" : "#fff",
+                    background: on ? "#e0f4ee" : "#fdfbf6",
                     color: on ? "#0a5c4c" : "#5b5b70",
                   }}
                 >
@@ -134,13 +134,13 @@ function PlatformTenants() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, subdomain, code…"
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-ocean-500/30"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-surface dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-ocean-500/30"
             />
           </div>
         </div>
 
         {loading ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
+          <div className="bg-surface rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">
                 <Skeleton className="w-10 h-10" rounded="rounded-xl" />
@@ -155,7 +155,7 @@ function PlatformTenants() {
         ) : shown.length === 0 ? (
           <EmptyState icon={Building2} title="No tenants found" description="No lenders match your current filter." />
         ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="bg-surface rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50/60 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-700">

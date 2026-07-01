@@ -132,7 +132,7 @@ function PlatformAuditLog() {
         )}
 
         {/* Filters */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
+        <div className="bg-surface rounded-xl shadow p-4 mb-4">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none" />
@@ -191,7 +191,7 @@ function PlatformAuditLog() {
 
         {/* Log list */}
         {loading ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden divide-y">
+          <div className="bg-surface rounded-xl shadow overflow-hidden divide-y">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="p-4 flex items-start gap-3">
                 <Skeleton className="h-5 w-5 rounded shrink-0 mt-0.5" />
@@ -213,7 +213,7 @@ function PlatformAuditLog() {
             description="Try clearing a filter or widening your search to see activity."
           />
         ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+          <div className="bg-surface rounded-xl shadow overflow-hidden">
             <div className="divide-y">
               {logs.map((log) => (
                 <div
@@ -319,7 +319,7 @@ function Card({ label, value, color = "gray" }) {
     gray: "text-gray-800 dark:text-slate-100",
   }[color];
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+    <div className="bg-surface rounded-xl shadow p-4">
       <p className="text-xs text-gray-500 dark:text-slate-400 uppercase">{label}</p>
       <p className={`text-2xl font-bold ${text}`}>{value ?? 0}</p>
     </div>

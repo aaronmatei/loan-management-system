@@ -52,7 +52,7 @@ function CommunicationCosts() {
         </div>
 
         {/* Date range */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 mb-6 flex flex-wrap items-end gap-3">
+        <div className="bg-surface rounded-xl shadow-md p-4 mb-6 flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">
               From
@@ -101,7 +101,7 @@ function CommunicationCosts() {
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-gray-100 dark:border-slate-700"
+                  className="bg-surface rounded-xl shadow-md p-6 border-l-4 border-gray-100 dark:border-slate-700"
                 >
                   <Skeleton className="h-3 w-24 mb-3" />
                   <Skeleton className="h-8 w-20 mb-2" />
@@ -109,7 +109,7 @@ function CommunicationCosts() {
                 </div>
               ))}
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 space-y-3">
+            <div className="bg-surface rounded-xl shadow-md p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-6 w-full" />
               ))}
@@ -119,7 +119,7 @@ function CommunicationCosts() {
           <>
             {/* Summary cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
+              <div className="bg-surface rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
                 <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-semibold flex items-center gap-1.5">
                   <MessageSquare size={14} /> SMS Sent
                 </p>
@@ -130,7 +130,7 @@ function CommunicationCosts() {
                   @ {KES(data.rates.sms_kes)} each
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
+              <div className="bg-surface rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
                 <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-semibold flex items-center gap-1.5">
                   <Mail size={14} /> Emails Sent
                 </p>
@@ -141,7 +141,7 @@ function CommunicationCosts() {
                   @ {KES(data.rates.email_kes)} each
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-emerald-500">
+              <div className="bg-surface rounded-xl shadow-md p-6 border-l-4 border-emerald-500">
                 <p className="text-gray-500 dark:text-slate-400 text-xs uppercase font-semibold flex items-center gap-1.5">
                   <Coins size={14} /> Total Charges
                 </p>
@@ -164,7 +164,7 @@ function CommunicationCosts() {
                 description="No SMS or email was sent by any tenant in this period."
               />
             ) : (
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+              <div className="bg-surface rounded-xl shadow-md overflow-hidden">
                 <div className="overflow-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 dark:bg-slate-900 border-b-2 border-gray-200 dark:border-slate-700">

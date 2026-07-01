@@ -32,7 +32,7 @@ const ACCENT = {
 function Kpi({ icon: Icon, accent = "ocean", value, label, delta }) {
   const c = ACCENT[accent] || ACCENT.ocean;
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-[18px] shadow-sm">
+    <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-[18px] shadow-sm">
       <div className="flex items-center justify-between">
         <span
           className="w-[38px] h-[38px] rounded-[11px] flex items-center justify-center"
@@ -57,7 +57,7 @@ function Kpi({ icon: Icon, accent = "ocean", value, label, delta }) {
 function MiniStat({ icon: Icon, accent = "ocean", label, value }) {
   const c = ACCENT[accent] || ACCENT.ocean;
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
+    <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
       <div className="flex items-center gap-2">
         <Icon size={15} style={{ color: c }} />
         <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</span>
@@ -159,7 +159,7 @@ function PlatformDashboard() {
 
         {/* Revenue by month + tenants by status */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-3.5">
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+          <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
             <div className="text-[14.5px] font-extrabold text-navy-900 dark:text-slate-100">Platform revenue</div>
             <div className="text-[12px] text-slate-500 dark:text-slate-400 font-medium">Fees collected across all tenants · by month</div>
             {monthly_revenue.length === 0 ? (
@@ -183,7 +183,7 @@ function PlatformDashboard() {
             )}
           </div>
 
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+          <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
             <div className="text-[14.5px] font-extrabold text-navy-900 dark:text-slate-100">Tenants by status</div>
             <div className="text-[12px] text-slate-500 dark:text-slate-400 font-medium">{to.total_tenants} total</div>
             <div className="flex flex-col gap-4 mt-5">
@@ -215,7 +215,7 @@ function PlatformDashboard() {
         </div>
 
         {/* Top tenants */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
             <div className="text-[14.5px] font-extrabold text-navy-900 dark:text-slate-100">Top tenants</div>
             <button onClick={() => navigate("/admin/tenants")} className="text-[12.5px] font-bold text-ocean-600">
@@ -249,7 +249,7 @@ function PlatformDashboard() {
         </div>
 
         {/* Recent signups */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
           <div className="text-[14.5px] font-extrabold text-navy-900 dark:text-slate-100 mb-3 flex items-center gap-2">
             <UserPlus size={18} className="text-ocean-600" /> Recent signups
           </div>

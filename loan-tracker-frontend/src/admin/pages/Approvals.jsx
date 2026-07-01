@@ -70,14 +70,14 @@ function Approvals() {
             {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-2xl" />)}
           </div>
         ) : pending.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-12 text-center shadow-sm">
+          <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-12 text-center shadow-sm">
             <CheckCircle2 size={36} className="text-green-600 mx-auto" />
             <div className="text-[15px] font-extrabold text-navy-900 dark:text-slate-100 mt-3">All caught up</div>
             <div className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">No sign-ups awaiting review.</div>
           </div>
         ) : (
           <>
-            <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 mb-4 flex items-center gap-3 shadow-sm">
+            <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl px-5 py-4 mb-4 flex items-center gap-3 shadow-sm">
               <span className="w-9 h-9 rounded-[10px] bg-ocean-50 flex items-center justify-center shrink-0">
                 <BadgeCheck size={18} className="text-ocean-600" />
               </span>
@@ -91,7 +91,7 @@ function Approvals() {
 
             <div className="flex flex-col gap-3">
               {pending.map((t) => (
-                <div key={t.id} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                <div key={t.id} className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
                   <div className="flex items-start gap-4 flex-wrap">
                     <span className="w-12 h-12 rounded-[13px] flex items-center justify-center text-white text-lg font-extrabold shrink-0" style={{ background: t.brand_color || "#0e8a6e" }}>
                       {t.business_name?.charAt(0)}

@@ -189,7 +189,7 @@ function PlatformLayout({ children }) {
         </aside>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="flex-shrink-0 flex items-center gap-4 h-[66px] bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 lg:px-6">
+          <header className="flex-shrink-0 flex items-center gap-4 h-[66px] bg-surface border-b border-gray-200 dark:border-slate-700 px-4 lg:px-6">
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden p-2 -ml-2 text-gray-500"

@@ -99,18 +99,18 @@ function PlatformReports() {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+              <div key={i} className="bg-surface rounded-xl shadow-md p-4">
                 <Skeleton className="h-3 w-20 mb-3" />
                 <Skeleton className="h-7 w-28 mb-2" />
                 <Skeleton className="h-3 w-24" />
               </div>
             ))}
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 mb-4">
+          <div className="bg-surface rounded-xl shadow-md p-4 mb-4">
             <Skeleton className="h-5 w-56 mb-3" />
             <Skeleton className="h-[300px] w-full rounded-lg" />
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+          <div className="bg-surface rounded-xl shadow-md p-4">
             <Skeleton className="h-5 w-40 mb-3" />
             <SkeletonText lines={5} />
           </div>
@@ -139,7 +139,7 @@ function PlatformReports() {
             <button
               onClick={() => download("pdf")}
               disabled={!!downloading}
-              className="px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-700 bg-surface text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
             >
               {downloading === "pdf" ? "…" : <span className="inline-flex items-center gap-1"><Download size={14} /> PDF</span>}
             </button>
@@ -186,7 +186,7 @@ function PlatformReports() {
         </div>
 
         {/* Revenue trend */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 mb-4">
+        <div className="bg-surface rounded-xl shadow-md p-4 mb-4">
           <h3 className="font-bold mb-3 flex items-center gap-2"><Banknote size={18} /> Revenue Trend (Platform Fees)</h3>
           {revenueTrend.length === 0 ? (
             <div className="h-[300px] flex items-center justify-center text-sm text-gray-400 dark:text-slate-400">
@@ -211,7 +211,7 @@ function PlatformReports() {
         </div>
 
         {/* Leaderboard */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4">
+        <div className="bg-surface rounded-xl shadow-md p-4">
           <h3 className="font-bold mb-3 flex items-center gap-2"><Trophy size={18} /> Tenant Leaderboard</h3>
           {leaderboard.length === 0 ? (
             <EmptyState

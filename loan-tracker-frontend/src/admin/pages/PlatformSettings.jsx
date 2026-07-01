@@ -70,7 +70,7 @@ function PlatformSettings() {
       <div className="p-4 lg:p-8 max-w-[840px] mx-auto flex flex-col gap-4">
         {/* New-lender billing defaults — genuinely wired: a new lender tenant is
             created with these values. */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
             <div className="text-[14px] font-extrabold text-navy-900 dark:text-slate-100 flex items-center gap-2">
               <Percent size={16} /> New-lender billing defaults
@@ -115,7 +115,7 @@ function PlatformSettings() {
         </div>
 
         {/* Platform facts — read-only context (no fake toggles). */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-surface border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 text-[14px] font-extrabold text-navy-900 dark:text-slate-100">
             Platform
           </div>
