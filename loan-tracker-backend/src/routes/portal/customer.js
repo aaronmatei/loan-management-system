@@ -319,6 +319,7 @@ router.get("/lenders/:id", async (req, res) => {
          COALESCE(t.max_loan_amount,    1000000)  AS max_amount,
          CASE WHEN t.kind = 'pawnbroker' THEN COALESCE(ps.default_duration_months, 1)
               ELSE COALESCE(t.default_loan_duration, 6) END AS default_duration,
+         COALESCE(t.late_payment_fee, 0)          AS late_payment_fee,
          COALESCE(t.allow_self_signup, false)     AS can_self_signup
        FROM tenants t
        LEFT JOIN pawn_settings ps ON ps.tenant_id = t.id

@@ -14,6 +14,7 @@ import {
   Sparkles,
   CheckCircle,
   XCircle,
+  AlertTriangle,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -130,7 +131,7 @@ function LenderDetail() {
           </div>
           {/* Terms grid */}
           <Skeleton className="h-4 w-32 mb-2" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} rounded="rounded-2xl" className="h-24 w-full" />
             ))}
@@ -190,6 +191,13 @@ function LenderDetail() {
       label: "Typical term",
       value: `${lender.default_duration} months`,
       icon: CalendarClock,
+    },
+    // Late-payment penalty the lender has configured (flat fee per missed
+    // instalment). Shows KES 0 when the lender hasn't set one.
+    {
+      label: "Late fee",
+      value: KES(lender.late_payment_fee || 0),
+      icon: AlertTriangle,
     },
   ];
   const contact = [
