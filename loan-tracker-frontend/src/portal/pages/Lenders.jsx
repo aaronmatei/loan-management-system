@@ -5,6 +5,7 @@ import {
   Search,
   ArrowUpDown,
   ArrowRight,
+  ChevronDown,
   Link2,
   Unlink,
 } from "lucide-react";
@@ -17,6 +18,26 @@ import { lenderType } from "../lenderType";
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 // Tenants store the interest rate annually; borrowers think in months.
 const PM = (annual) => +(parseFloat(annual || 0) / 12).toFixed(2);
+
+// Sort options — each a { label, cmp } keyed by the value the dropdown sets.
+const SORTS = {
+  interest: {
+    label: "Lowest interest",
+    cmp: (a, b) => PM(a.default_interest_rate) - PM(b.default_interest_rate),
+  },
+  amount: {
+    label: "Highest amount",
+    cmp: (a, b) => parseFloat(b.max_amount) - parseFloat(a.max_amount),
+  },
+  name: {
+    label: "Name (A–Z)",
+    cmp: (a, b) => (a.business_name || "").localeCompare(b.business_name || ""),
+  },
+  term: {
+    label: "Longest term",
+    cmp: (a, b) => parseFloat(b.default_duration) - parseFloat(a.default_duration),
+  },
+};
 
 // Marketplace directory of every active lender. A sticky filter rail (type /
 // amount / interest / link status) narrows a grid of lender cards; each card
@@ -33,7 +54,7 @@ function Lenders() {
   const [interest, setInterest] = useState(15); // 15 = 15%+ (any)
   const [linkFilter, setLinkFilter] = useState("all"); // all | linked | unlinked
   const [typeFilter, setTypeFilter] = useState("all");
-  const [sort, setSort] = useState("best"); // best (lowest interest) | amount
+  const [sort, setSort] = useState("interest"); // key into SORTS
 
   useEffect(() => {
     portalApi
@@ -56,9 +77,7 @@ function Lenders() {
       if (interest < 15 && PM(l.default_interest_rate) > interest) return false;
       return true;
     });
-    if (sort === "best")
-      return [...list].sort((a, b) => PM(a.default_interest_rate) - PM(b.default_interest_rate));
-    return [...list].sort((a, b) => parseFloat(b.max_amount) - parseFloat(a.max_amount));
+    return [...list].sort((SORTS[sort] || SORTS.interest).cmp);
   }, [lenders, search, amount, interest, linkFilter, typeFilter, sort]);
 
   const bestPM = filtered.length
@@ -245,13 +264,28 @@ function Lenders() {
                   className="bg-transparent outline-none text-[13.5px] w-full text-[#16241d] dark:text-slate-100 placeholder:text-[#a99f8b]"
                 />
               </div>
-              <button
-                onClick={() => setSort((s) => (s === "best" ? "amount" : "best"))}
-                className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[12px] px-4 py-2.5 text-[13px] font-bold text-[#33403a] dark:text-slate-200 whitespace-nowrap"
-              >
-                <ArrowUpDown size={15} className="text-[#a39b8b]" />
-                {sort === "best" ? "Lowest interest" : "Highest amount"}
-              </button>
+              <div className="relative shrink-0">
+                <ArrowUpDown
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#a39b8b] pointer-events-none"
+                />
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  aria-label="Sort lenders"
+                  className="appearance-none bg-white dark:bg-slate-800 border border-[#ece6da] dark:border-slate-700 rounded-[12px] pl-9 pr-9 py-2.5 text-[13px] font-bold text-[#33403a] dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0d8f63]/30"
+                >
+                  {Object.entries(SORTS).map(([k, s]) => (
+                    <option key={k} value={k}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={15}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a39b8b] pointer-events-none"
+                />
+              </div>
             </div>
 
             <div className="text-[12.5px] text-[#8a8170] dark:text-slate-400 font-semibold mb-3.5">
