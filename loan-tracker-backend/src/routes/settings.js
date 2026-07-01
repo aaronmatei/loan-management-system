@@ -167,7 +167,7 @@ router.get("/loan-policy", authorize("admin", "manager", "loan_officer"), async 
          COALESCE(default_loan_duration, 6)     AS default_loan_duration,
          COALESCE(min_loan_amount,       1000)  AS min_loan_amount,
          COALESCE(max_loan_amount,    1000000)  AS max_loan_amount,
-         COALESCE(late_payment_fee,      500)   AS late_payment_fee,
+         COALESCE(late_payment_fee,        0)   AS late_payment_fee,
          COALESCE(penalty_rate,          5.00)  AS penalty_rate
        FROM tenants WHERE id = $1`,
       [tid],

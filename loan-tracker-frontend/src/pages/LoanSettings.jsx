@@ -16,6 +16,7 @@ function LoanSettings() {
     monthly_interest_rate: "", // annual / 12 — display companion, two-way synced
     processing_fee_rate: "",
     penalty_rate: "", // % per month charged on the overdue balance
+    late_payment_fee: "", // flat KES fee per missed instalment
   });
   const [loading, setLoading] = useState(true);
   const [savingPolicy, setSavingPolicy] = useState(false);
@@ -32,6 +33,7 @@ function LoanSettings() {
           monthly_interest_rate: annual === "" ? "" : roundRate(annual / 12),
           processing_fee_rate: d.processing_fee_rate ?? "",
           penalty_rate: d.penalty_rate ?? "",
+          late_payment_fee: d.late_payment_fee ?? "",
         });
       } catch (err) {
         console.error("Failed to fetch loan policy:", err);
@@ -68,6 +70,7 @@ function LoanSettings() {
         processing_fee_rate:
           parseFloat(loanPolicy.processing_fee_rate) || 0,
         penalty_rate: parseFloat(loanPolicy.penalty_rate) || 0,
+        late_payment_fee: parseFloat(loanPolicy.late_payment_fee) || 0,
       });
       setPolicySuccess("Loan policy saved successfully!");
       setTimeout(() => setPolicySuccess(""), 3000);
@@ -123,7 +126,7 @@ function LoanSettings() {
             borrower receives — they still repay the full principal
             plus interest.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
                 Annual Interest Rate (%)
@@ -218,6 +221,27 @@ function LoanSettings() {
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Charged monthly on the overdue balance (0 = none).
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+                Late Payment Fee (KES)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={loanPolicy.late_payment_fee}
+                onChange={(e) =>
+                  setLoanPolicy({
+                    ...loanPolicy,
+                    late_payment_fee: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 rounded-lg focus:border-ocean-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                Flat fee per missed instalment (0 = none).
               </p>
             </div>
           </div>

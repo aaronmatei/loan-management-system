@@ -637,10 +637,9 @@ router.post("/", authorize("admin", "manager", "loan_officer"), async (req, res)
         collateral_description || null,
         // `??` not `||` — when the admin toggles "Late Fee" OFF the
         // form sends 0, which is a legitimate value meaning "no fee".
-        // `||` was treating 0 as falsy and silently restoring the 500
-        // default, so every "fee disabled" loan was actually charging
-        // 500. Same shape for penalty_rate.
-        late_payment_fee ?? 500,
+        // `||` would treat 0 as falsy and restore the default. Default is
+        // now 0 (no fee) rather than 500.
+        late_payment_fee ?? 0,
         penalty_rate ?? 5.0,
         processingFeeRate,
         processingFee,

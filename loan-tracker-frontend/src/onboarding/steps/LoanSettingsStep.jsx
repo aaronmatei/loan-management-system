@@ -16,7 +16,7 @@ function LoanSettingsStep({ data, onNext, onBack }) {
     min_loan_amount: data.min_loan_amount ?? 1000,
     max_loan_amount: data.max_loan_amount ?? 500000,
     default_duration_months: data.default_duration_months ?? 6,
-    late_payment_fee: data.late_payment_fee ?? 500,
+    late_payment_fee: data.late_payment_fee ?? 0,
   });
   const [saving, setSaving] = useState(false);
 
