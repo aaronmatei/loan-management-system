@@ -18,6 +18,7 @@ import {
   templates as emailTemplates,
   getCompanySettings,
 } from "./emailService.js";
+import { sendPushForClient } from "./pushService.js";
 import logger from "../config/logger.js";
 
 // ── Event → (sms_pref_col, email_pref_col) ────────────────────────
@@ -166,10 +167,62 @@ export async function notify(eventType, ctx) {
       result.skipped.push(tenant.email_enabled ? "no-email" : "email-pref-off");
     }
 
+    // ── Push branch (LenderFest mobile app) ──────────────────────
+    // Independent of the SMS/email tenant prefs: push is opt-in per DEVICE
+    // (the customer installed the app and granted permission). No-ops when the
+    // customer has no registered device. Never throws.
+    const push = renderPush(eventType, { tenant, customer, data });
+    if (push && customer.client_id) {
+      result.push = await sendPushForClient(tenantId, customer.client_id, {
+        title: push.title,
+        body: push.body,
+        data: { type: eventType, loan_id: data.loan_id || null, loan_code: data.loan_code || null },
+      });
+    } else {
+      result.skipped.push("push-no-client");
+    }
+
     return result;
   } catch (err) {
     logger.error(`notify(${eventType}) error:`, err);
     return { error: err.message };
+  }
+}
+
+// ── Template dispatch (Push) ─────────────────────────────────────
+// Short title/body per event. Kept deliberately terse — a push is a nudge to
+// open the app, where the full detail lives.
+function renderPush(eventType, { tenant, customer, data }) {
+  const name = customer.first_name || customer.name || "there";
+  const biz = tenant.business_name;
+  const amt = (v) => `KES ${Number(v || 0).toLocaleString("en-KE")}`;
+  switch (eventType) {
+    case "application_submitted":
+      return { title: biz, body: `Hi ${name}, we received your application for ${amt(data.amount)} (${data.loan_code}).` };
+    case "application_under_review":
+      return { title: biz, body: `Your application ${data.loan_code} is under review.` };
+    case "application_approved":
+      return { title: `Approved 🎉`, body: `${data.loan_code} for ${amt(data.amount)} was approved.` };
+    case "application_rejected":
+      return { title: biz, body: `Your application ${data.loan_code} was not approved.` };
+    case "counter_offered":
+      return { title: `New offer`, body: `${biz} offered ${amt(data.offered_amount)} on ${data.loan_code}. Tap to respond.` };
+    case "loan_disbursed":
+      return { title: `Loan disbursed 💰`, body: `${amt(data.amount)} for ${data.loan_code} has been disbursed.` };
+    case "payment_received":
+      return { title: `Payment received`, body: `We received ${amt(data.amount)} for ${data.loan_code}. Balance: ${amt(data.balance)}.` };
+    case "payment_reminder":
+      return { title: `Payment due`, body: `${amt(data.amount)} for ${data.loan_code} is due ${data.due_date || "soon"}.` };
+    case "payment_overdue":
+      return { title: `Payment overdue`, body: `${data.loan_code} is ${data.days_late || ""} day(s) overdue. Please pay ${amt(data.amount)}.` };
+    case "loan_completed":
+      return { title: `Loan cleared ✅`, body: `${data.loan_code} is fully paid. Thank you, ${name}!` };
+    case "loan_waived":
+      return { title: biz, body: `A waiver of ${amt(data.amount)} was applied to ${data.loan_code}.` };
+    case "loan_waiver_reversed":
+      return { title: biz, body: `A waiver on ${data.loan_code} was reversed.` };
+    default:
+      return null;
   }
 }
 

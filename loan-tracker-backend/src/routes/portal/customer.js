@@ -1045,6 +1045,52 @@ router.post("/notifications/:id/dismiss", async (req, res) => {
   }
 });
 
+// ── Expo push token registration (LenderFest mobile app) ──────────
+// The app posts its Expo push token after sign-in so the backend can send
+// remote push (see services/pushService.js + notificationDispatcher). Token is
+// UNIQUE: re-registering the same device upserts and re-points it at this
+// customer (handles reinstalls / account switches on shared devices).
+const EXPO_TOKEN_RE = /^Expo(nent)?PushToken\[[^\]]+\]$/;
+
+router.post("/push-token", async (req, res) => {
+  try {
+    const { token, platform, device_name } = req.body || {};
+    if (!token || !EXPO_TOKEN_RE.test(token)) {
+      return res.status(400).json({ error: "A valid Expo push token is required" });
+    }
+    await query(
+      `INSERT INTO customer_push_tokens (platform_customer_id, token, platform, device_name)
+         VALUES ($1, $2, $3, $4)
+       ON CONFLICT (token) DO UPDATE
+         SET platform_customer_id = EXCLUDED.platform_customer_id,
+             platform = EXCLUDED.platform,
+             device_name = EXCLUDED.device_name,
+             updated_at = now()`,
+      [req.platformCustomerId, token, platform || null, device_name || null],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logger.error("Register push token error:", error);
+    res.status(500).json({ error: "Failed to register push token" });
+  }
+});
+
+// Remove a device's token (called on sign-out).
+router.delete("/push-token", async (req, res) => {
+  try {
+    const token = req.body?.token;
+    if (!token) return res.status(400).json({ error: "token is required" });
+    await query(
+      `DELETE FROM customer_push_tokens WHERE token = $1 AND platform_customer_id = $2`,
+      [token, req.platformCustomerId],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logger.error("Delete push token error:", error);
+    res.status(500).json({ error: "Failed to remove push token" });
+  }
+});
+
 // Dashboard for the currently selected tenant
 router.get("/dashboard", async (req, res) => {
   try {
