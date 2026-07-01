@@ -20,6 +20,8 @@ import PortalLayout from "../components/PortalLayout";
 import Skeleton from "../../components/Skeleton";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
+// Lenders store the rate annually; borrowers see the monthly equivalent.
+const PM = (annual) => +(parseFloat(annual || 0) / 12).toFixed(2);
 
 // Full profile + terms for a single lender, with link-state-aware actions:
 // link (if not linked & self-signup), apply (if linked), and unlink (only
@@ -143,6 +145,10 @@ function LenderDetail() {
 
   const bc = lender.brand_color || "#0e8a6e";
   const isPawn = String(lender.business_type || "").toLowerCase() === "pawnbroker";
+  // Every non-pawn lender also offers its standard flat-rate loan (its base
+  // policy, applied for without a package) — shown as a tile alongside any
+  // published packages so the borrower can pick either.
+  const showFlat = lender.is_linked && !isPawn;
 
   // "View my loans/pledges" — pawnbrokers view pledges (needs a tenant-scoped
   // token), everyone else the cross-tenant loans list filtered by this lender.
@@ -268,12 +274,61 @@ function LenderDetail() {
             packages. The card-per-product layout lets the customer
             compare rates, terms, and method at a glance; tapping a
             card jumps to ApplyLoan with that package pre-selected. */}
-        {lender.is_linked && packages.length > 0 && (
+        {lender.is_linked && (showFlat || packages.length > 0) && (
           <>
             <h2 className="text-sm font-bold text-navy-900 dark:text-slate-100 uppercase tracking-wide mb-2">
               Loan products
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              {/* Standard flat-rate loan — the lender's base policy, always
+                  available alongside any packages. */}
+              {showFlat && (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#ece6da] dark:border-slate-700 p-4 flex flex-col">
+                  <div className="flex items-start gap-2 mb-1">
+                    <Coins size={16} style={{ color: bc }} className="mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-bold text-navy-900 dark:text-slate-100 leading-tight">
+                          Standard loan
+                        </p>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-ocean-100 text-ocean-700 px-1.5 py-0.5 rounded">
+                          Flat rate
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Pick your own amount and term at the lender's standard rate.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-200 my-3">
+                    <div>
+                      <p className="text-slate-500 dark:text-slate-400">Rate</p>
+                      <p className="font-semibold">{PM(lender.default_interest_rate)}% p.m.</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 dark:text-slate-400">Method</p>
+                      <p className="font-semibold">Flat</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 dark:text-slate-400">Amount</p>
+                      <p className="font-semibold">
+                        {KES(lender.min_amount)} – {KES(lender.max_amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 dark:text-slate-400">Duration</p>
+                      <p className="font-semibold">1–60 mo</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => apply()}
+                    className="mt-auto py-2 rounded-lg font-semibold text-white text-sm"
+                    style={{ backgroundColor: bc }}
+                  >
+                    Apply for a loan
+                  </button>
+                </div>
+              )}
               {packages.map((p) => {
                 const elig = p.eligibility || { eligible: true, reasons: [] };
                 return (
@@ -423,13 +478,11 @@ function LenderDetail() {
           {lender.is_linked ? (
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
-                {/* Hide the standalone "Apply for a loan" button when
-                    the lender publishes products — the product cards
-                    above already provide the apply entry points, with
-                    package context + eligibility checks the bare apply
-                    button can't offer. Falls back to the generic
-                    button only when there are no products at all. */}
-                {packages.length === 0 && (
+                {/* The product cards above (flat-rate tile + any packages)
+                    already provide the apply entry points. Only fall back to a
+                    standalone button when neither is shown — e.g. pawnbrokers,
+                    whose apply() routes to the pledge request form. */}
+                {packages.length === 0 && !showFlat && (
                   <button
                     onClick={() => apply()}
                     className="flex-1 py-3 rounded-xl font-bold text-white"
