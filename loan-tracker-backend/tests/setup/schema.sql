@@ -1159,6 +1159,20 @@ ALTER SEQUENCE public.system_settings_id_seq OWNED BY public.system_settings.id;
 
 
 --
+-- Name: customer_push_tokens; Type: TABLE; Schema: public; Owner: -  (migration 118)
+--
+
+CREATE TABLE public.customer_push_tokens (
+    id serial PRIMARY KEY,
+    platform_customer_id integer NOT NULL,
+    token text NOT NULL UNIQUE,
+    platform text,
+    device_name text,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now()
+);
+
+--
 -- Name: support_tickets; Type: TABLE; Schema: public; Owner: -  (migration 117)
 --
 
