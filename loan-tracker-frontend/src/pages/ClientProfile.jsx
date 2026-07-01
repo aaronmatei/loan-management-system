@@ -11,10 +11,8 @@ import {
   IdCard,
   ClipboardList,
   CheckCircle,
-  AlertTriangle,
-  Coins,
-  Clock,
   Banknote,
+  BarChart3,
   X,
   Check,
 } from "lucide-react";
@@ -24,6 +22,9 @@ import { KENYA_COUNTIES } from "../utils/counties";
 import { BUSINESS_TYPES } from "../utils/businessTypes";
 import Skeleton, { SkeletonText } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
+import DataTable from "../components/DataTable";
+import { useColumnPreset } from "../hooks/useTablePrefs";
+import { useSortableTable } from "../hooks/useSortableTable";
 import { formatKES } from "../utils/money";
 
 // Small status dot beside the risk label in the credit-score card.
@@ -36,27 +37,46 @@ const riskDot = {
 
 const KES = (n) => formatKES(n);
 
-function Card({ title, value, icon, color }) {
-  const accent =
-    {
-      indigo: "border-ocean-500",
-      green: "border-green-500",
-      blue: "border-ocean-500",
-      red: "border-red-500",
-      purple: "border-ocean-500",
-    }[color] || "border-gray-300";
-
-  return (
-    <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 border-l-4 ${accent}`}>
-      <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-semibold">
-        {icon} {title}
-      </p>
-      <p className="text-xl font-bold text-gray-800 dark:text-slate-100 mt-1 break-words">
-        {value}
-      </p>
-    </div>
-  );
-}
+// Column presets for the two client tables (shared DataTable, like the loans
+// list). Loan Code / Transaction are the pinned columns, so they're not listed.
+const LOAN_PRESETS = {
+  essentials: {
+    label: "Essentials",
+    keys: ["principal_amount", "balance_due", "status"],
+  },
+  financials: {
+    label: "Financials",
+    keys: [
+      "principal_amount",
+      "total_amount_due",
+      "total_paid",
+      "balance_due",
+      "status",
+    ],
+  },
+  full: {
+    label: "Everything",
+    keys: [
+      "principal_amount",
+      "total_amount_due",
+      "total_paid",
+      "balance_due",
+      "start_date",
+      "status",
+    ],
+  },
+};
+const PAY_PRESETS = {
+  essentials: { label: "Essentials", keys: ["amount_paid", "payment_date"] },
+  financials: {
+    label: "Financials",
+    keys: ["loan_code", "amount_paid", "payment_date", "payment_method"],
+  },
+  full: {
+    label: "Everything",
+    keys: ["loan_code", "amount_paid", "payment_date", "payment_method"],
+  },
+};
 
 function statusBadge(status) {
   if (status === "active") return "bg-green-100 text-green-700";
@@ -112,6 +132,71 @@ function ClientProfile() {
       setEditError(apiErrorMessage(err, "Failed to update client"));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ── Client tables (shared DataTable): presets, expandable rows, sort. ──
+  const [loanPreset, setLoanPreset] = useColumnPreset(
+    "client.loanColumns",
+    LOAN_PRESETS,
+    "financials",
+  );
+  const [payPreset, setPayPreset] = useColumnPreset(
+    "client.payColumns",
+    PAY_PRESETS,
+    "financials",
+  );
+  const [expandedLoans, setExpandedLoans] = useState(() => new Set());
+  const [expandedPays, setExpandedPays] = useState(() => new Set());
+  const toggleLoan = (loanId) =>
+    setExpandedLoans((p) => {
+      const n = new Set(p);
+      n.has(loanId) ? n.delete(loanId) : n.add(loanId);
+      return n;
+    });
+  const togglePay = (payId) =>
+    setExpandedPays((p) => {
+      const n = new Set(p);
+      n.has(payId) ? n.delete(payId) : n.add(payId);
+      return n;
+    });
+  const loanSort = useSortableTable(data?.loans || [], "start_date", "desc");
+  const paySort = useSortableTable(data?.recent_payments || [], "payment_date", "desc");
+
+  const downloadStatement = async () => {
+    try {
+      const response = await api.get(`/reports/pdf/client-statement/${id}`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `statement_${data?.client?.client_code || id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(
+        "Failed to download statement: " +
+          (err.response?.data?.error || err.message),
+      );
+    }
+  };
+  const emailStatement = async () => {
+    if (!data?.client?.email) {
+      alert("This client has no email address");
+      return;
+    }
+    if (!window.confirm(`Email the account statement to ${data.client.email}?`))
+      return;
+    try {
+      const res = await api.post(`/email/send-statement/${id}`);
+      alert(res.data?.message || "Statement sent");
+    } catch (err) {
+      alert("Failed: " + (err.response?.data?.error || err.message));
     }
   };
 
@@ -174,188 +259,300 @@ function ClientProfile() {
     recent_payments: recentPayments,
   } = data;
 
-  const actionBtn =
-    "w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-ocean-200 text-slate-700 dark:text-slate-200 font-semibold transition text-left";
+  // Subtle top-bar action button.
+  const topBtn =
+    "inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition";
+  const fmtSlash = (d) =>
+    new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  // ── Loan-history columns (shared DataTable). Loan Code is pinned. ──
+  const LOAN_COLUMNS = [
+    {
+      key: "principal_amount",
+      label: "Principal",
+      align: "right",
+      money: true,
+      total: (rows) => rows.reduce((s, l) => s + parseFloat(l.principal_amount || 0), 0),
+      totalClass: "text-navy-900 dark:text-slate-100",
+      cell: (l) => (
+        <span className="text-sm text-slate-800 dark:text-slate-100">{KES(l.principal_amount)}</span>
+      ),
+    },
+    {
+      key: "total_amount_due",
+      label: "Total Due",
+      align: "right",
+      money: true,
+      total: (rows) => rows.reduce((s, l) => s + parseFloat(l.total_amount_due || 0), 0),
+      totalClass: "text-ocean-700 dark:text-ocean-300",
+      cell: (l) => (
+        <span className="text-sm font-semibold text-ocean-600">{KES(l.total_amount_due)}</span>
+      ),
+    },
+    {
+      key: "total_paid",
+      label: "Paid",
+      align: "right",
+      money: true,
+      total: (rows) => rows.reduce((s, l) => s + parseFloat(l.total_paid || 0), 0),
+      totalClass: "text-money-pos",
+      cell: (l) => (
+        <span className="text-sm font-semibold text-money-pos">{KES(l.total_paid)}</span>
+      ),
+    },
+    {
+      key: "balance_due",
+      label: "Balance",
+      align: "right",
+      money: true,
+      total: (rows) => rows.reduce((s, l) => s + parseFloat(l.balance_due || 0), 0),
+      totalClass: "text-money-warn",
+      cell: (l) => (
+        <span className="text-sm font-semibold text-money-warn">{KES(l.balance_due)}</span>
+      ),
+    },
+    {
+      key: "start_date",
+      label: "Start Date",
+      align: "left",
+      cell: (l) => (
+        <span className="text-sm text-slate-700 dark:text-slate-200">
+          {l.start_date ? fmtSlash(l.start_date) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      align: "left",
+      cell: (l) => (
+        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(l.status)}`}>
+          {l.status}
+        </span>
+      ),
+    },
+  ];
+
+  // ── Recent-payments columns (shared DataTable). Transaction is pinned. ──
+  const PAY_COLUMNS = [
+    {
+      key: "loan_code",
+      label: "Loan Code",
+      align: "left",
+      sortable: false,
+      cell: (p) => <span className="font-mono text-sm text-ocean-600">{p.loan_code}</span>,
+    },
+    {
+      key: "amount_paid",
+      label: "Amount",
+      align: "right",
+      money: true,
+      total: (rows) => rows.reduce((s, p) => s + parseFloat(p.amount_paid || 0), 0),
+      totalClass: "text-money-pos",
+      cell: (p) => <span className="font-bold text-money-pos">{KES(p.amount_paid)}</span>,
+    },
+    {
+      key: "payment_date",
+      label: "Date",
+      align: "left",
+      cell: (p) => (
+        <span className="text-sm text-slate-700 dark:text-slate-200">{fmtSlash(p.payment_date)}</span>
+      ),
+    },
+    {
+      key: "payment_method",
+      label: "Method",
+      align: "left",
+      sortable: false,
+      cell: (p) => (
+        <span className="inline-block px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
+          {p.payment_method}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      {/* Page heading */}
-      <div className="mb-6">
+      {/* Top action bar */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <button
           onClick={() => navigate("/clients")}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-ocean-600 mb-3"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-ocean-600 hover:text-ocean-700"
         >
           <ArrowLeft size={16} /> Back to Clients
         </button>
-        <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100">
-          Client Profile
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400">
-          Manage client information and account details
-        </p>
+        <div className="flex-1" />
+        <button
+          onClick={() => {
+            setEditFormData({ ...client });
+            setEditError("");
+            setEditSuccess("");
+            setShowEditModal(true);
+          }}
+          className={topBtn}
+        >
+          <Pencil size={15} className="text-ocean-600" /> Edit
+        </button>
+        <button onClick={downloadStatement} className={topBtn}>
+          <Download size={15} className="text-ocean-600" /> Statement
+        </button>
+        <button
+          onClick={() => navigate("/sms", { state: { preSelectClient: client.id } })}
+          className={topBtn}
+        >
+          <MessageSquare size={15} className="text-ocean-600" /> SMS
+        </button>
+        <button onClick={emailStatement} className={topBtn}>
+          <Send size={15} className="text-ocean-600" /> Email
+        </button>
       </div>
 
-      {/* Header: identity + credit score / actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-        {/* Identity card */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-            {client.profile_photo_url ? (
-              <img
-                src={client.profile_photo_url}
-                alt={`${client.first_name} ${client.last_name}`}
-                className="w-24 h-24 rounded-full object-cover ring-4 ring-ocean-100 shrink-0"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-ocean-gradient flex items-center justify-center text-white text-2xl font-bold ring-4 ring-ocean-100 shrink-0">
-                {`${(client.first_name || "").charAt(0)}${(
-                  client.last_name || ""
-                ).charAt(0)}`.toUpperCase() || "?"}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-400">
-                Client Code
-              </p>
-              <h2 className="text-2xl lg:text-3xl font-extrabold text-navy-900 dark:text-slate-100 break-all">
-                {client.client_code}
-              </h2>
-              <p className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-0.5">
-                {client.first_name} {client.last_name}
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {client.business_name && `${client.business_name} · `}
-                Member since{" "}
-                {new Date(client.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-              </p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-x-5 gap-y-1.5 mt-3">
-                <a
-                  href={`tel:${client.phone_number}`}
-                  className="inline-flex items-center gap-2 text-ocean-600 hover:text-ocean-700 font-medium"
-                >
-                  <Phone size={16} /> {client.phone_number}
-                </a>
-                {client.email && (
+      {/* Client overview — identity, figures and details in one card */}
+      {(() => {
+        const initials =
+          `${(client.first_name || "").charAt(0)}${(client.last_name || "").charAt(0)}`.toUpperCase() ||
+          "?";
+        const settled = parseFloat(summary.current_outstanding) <= 0;
+        const cap = (s) =>
+          s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ") : "—";
+        const RISK_CHIP = {
+          green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/25 dark:text-emerald-300",
+          yellow: "bg-amber-50 text-amber-700 dark:bg-amber-900/25 dark:text-amber-300",
+          orange: "bg-amber-50 text-amber-700 dark:bg-amber-900/25 dark:text-amber-300",
+          red: "bg-rose-50 text-rose-700 dark:bg-rose-900/25 dark:text-rose-300",
+        };
+        const chipCls =
+          RISK_CHIP[riskColor] ||
+          "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
+        const Col = ({ label, value, valueCls = "text-navy-900 dark:text-slate-100", children }) => (
+          <div className="p-5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+            <p
+              className={`text-2xl font-extrabold tracking-tight mt-1 ${valueCls}`}
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {value}
+            </p>
+            {children}
+          </div>
+        );
+        const Field = ({ label, children }) => (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              {label}
+            </p>
+            <div className="font-semibold text-navy-900 dark:text-slate-100 mt-1">{children}</div>
+          </div>
+        );
+        return (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
+            {/* identity */}
+            <div className="flex flex-wrap items-start gap-4 p-6 pb-5">
+              {client.profile_photo_url ? (
+                <img
+                  src={client.profile_photo_url}
+                  alt={`${client.first_name} ${client.last_name}`}
+                  className="w-16 h-16 rounded-full object-cover shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-navy-gradient text-white flex items-center justify-center text-lg font-bold shrink-0">
+                  {initials}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Client Code</p>
+                <h1 className="text-2xl font-extrabold tracking-tight text-navy-900 dark:text-slate-100 font-mono break-all">
+                  {client.client_code}
+                </h1>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="font-bold text-navy-900 dark:text-slate-100">
+                    {client.first_name} {client.last_name}
+                  </span>
                   <a
-                    href={`mailto:${client.email}`}
-                    className="inline-flex items-center gap-2 text-ocean-600 hover:text-ocean-700 font-medium break-all"
+                    href={`tel:${client.phone_number}`}
+                    className="inline-flex items-center gap-1.5 text-ocean-600 hover:text-ocean-700"
                   >
-                    <Mail size={16} /> {client.email}
+                    <Phone size={14} /> {client.phone_number}
                   </a>
+                  {client.email && (
+                    <a
+                      href={`mailto:${client.email}`}
+                      className="inline-flex items-center gap-1.5 text-ocean-600 hover:text-ocean-700 break-all"
+                    >
+                      <Mail size={14} /> {client.email}
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold ${chipCls}`}>
+                  <span className={`w-2 h-2 rounded-full ${riskDot[riskColor] || "bg-slate-400"}`} />
+                  {rated ? `Score ${creditScore}` : "New client"}
+                </span>
+                <p className="text-xs text-slate-400 mt-2">
+                  {riskLabel}
+                  {client.business_name ? ` · ${client.business_name}` : ""}
+                </p>
+              </div>
+            </div>
+            {/* figures */}
+            <div className="grid grid-cols-2 md:grid-cols-4 border-t border-slate-100 dark:border-slate-700 divide-x divide-slate-100 dark:divide-slate-700">
+              <Col label="Total Loans" value={summary.total_loans_count}>
+                <p className="text-xs text-slate-400 mt-1.5">
+                  {summary.active_loans_count} active · {summary.completed_loans_count} completed
+                </p>
+              </Col>
+              <Col label="Borrowed" value={KES(summary.total_borrowed)}>
+                <p className="text-xs text-slate-400 mt-1.5">Lifetime</p>
+              </Col>
+              <Col label="Repaid" value={KES(summary.total_repaid)} valueCls="text-money-pos">
+                <p className="text-xs text-slate-400 mt-1.5">{summary.total_payments} payments</p>
+              </Col>
+              <Col
+                label="Outstanding"
+                value={KES(summary.current_outstanding)}
+                valueCls={settled ? "text-navy-900 dark:text-slate-100" : "text-money-warn"}
+              >
+                {settled ? (
+                  <span className="inline-flex items-center gap-1.5 mt-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle size={13} /> Nothing owed
+                  </span>
+                ) : summary.current_overdue_count > 0 ? (
+                  <p className="text-xs font-semibold text-rose-600 mt-1.5">
+                    {summary.current_overdue_count} overdue
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-1.5">On track</p>
                 )}
+              </Col>
+            </div>
+            {/* client information */}
+            <div className="border-t border-slate-100 dark:border-slate-700 p-6">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-navy-900 dark:text-slate-100 mb-4">
+                Client Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-y-5 gap-x-4 text-sm">
+                <Field label="Type">{cap(client.client_type)}</Field>
+                <Field label="ID Number">{client.id_number || "—"}</Field>
+                <Field label="Business">{client.business_name || "—"}</Field>
+                <Field label="County">
+                  {[client.county, client.city].filter(Boolean).join(", ") || "—"}
+                </Field>
+                <Field label="On-time Rate">
+                  {summary.on_time_rate == null ? "—" : `${summary.on_time_rate}%`}
+                </Field>
+                <Field label="Defaulted Loans">{summary.defaulted_loans_count}</Field>
+                <Field label="Status">{cap(client.status || "active")}</Field>
+                <Field label="Member Since">{fmtSlash(client.created_at)}</Field>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Credit score + actions */}
-        <div className="space-y-3">
-          <div className="bg-gradient-to-br from-ocean-50 to-ocean-100 rounded-2xl border border-ocean-100 p-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Credit Score
-            </p>
-            <p className="text-4xl font-extrabold text-ocean-600 mt-1 leading-none">
-              {rated ? creditScore : "New"}
-            </p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {rated ? "out of 100" : "unrated"}
-            </p>
-            <div className="inline-flex items-center gap-2 mt-3 bg-white dark:bg-slate-800 rounded-full px-3 py-1 shadow-sm">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  riskDot[riskColor] || "bg-ocean-400"
-                }`}
-              />
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {riskLabel}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                setEditFormData({ ...client });
-                setEditError("");
-                setEditSuccess("");
-                setShowEditModal(true);
-              }}
-              className={actionBtn}
-            >
-              <Pencil size={18} className="text-ocean-600" /> Edit Client
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  const response = await api.get(
-                    `/reports/pdf/client-statement/${client.id}`,
-                    { responseType: "blob" },
-                  );
-                  const blob = new Blob([response.data], {
-                    type: "application/pdf",
-                  });
-                  const url = window.URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = `statement_${client.client_code}.pdf`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  window.URL.revokeObjectURL(url);
-                } catch (err) {
-                  alert(
-                    "Failed to download statement: " +
-                      (err.response?.data?.error || err.message),
-                  );
-                }
-              }}
-              className={actionBtn}
-            >
-              <Download size={18} className="text-ocean-600" /> Download Statement
-            </button>
-            <button
-              onClick={() =>
-                navigate("/sms", {
-                  state: { preSelectClient: client.id },
-                })
-              }
-              className={actionBtn}
-            >
-              <MessageSquare size={18} className="text-ocean-600" /> Send SMS
-            </button>
-            <button
-              onClick={async () => {
-                if (!client.email) {
-                  alert("This client has no email address");
-                  return;
-                }
-                if (
-                  !window.confirm(
-                    `Email the account statement to ${client.email}?`,
-                  )
-                )
-                  return;
-                try {
-                  const res = await api.post(
-                    `/email/send-statement/${client.id}`,
-                  );
-                  alert(res.data?.message || "Statement sent");
-                } catch (err) {
-                  alert(
-                    "Failed: " + (err.response?.data?.error || err.message),
-                  );
-                }
-              }}
-              className={actionBtn}
-            >
-              <Send size={18} className="text-ocean-600" /> Email Statement
-            </button>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Identity documents — from the client's linked customer-portal account */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
         <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
           <IdCard size={20} className="text-gray-600 dark:text-slate-400" /> Identity Documents
         </h2>
@@ -396,86 +593,10 @@ function ClientProfile() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <Card
-          title="Total Loans"
-          value={summary.total_loans_count}
-          icon={<ClipboardList size={14} className="inline mr-1 text-gray-400 dark:text-slate-400" />}
-          color="indigo"
-        />
-        <Card
-          title="Active"
-          value={summary.active_loans_count}
-          icon={<CheckCircle size={14} className="inline mr-1 text-green-500" />}
-          color="green"
-        />
-        <Card
-          title="Completed"
-          value={summary.completed_loans_count}
-          icon={<CheckCircle size={14} className="inline mr-1 text-ocean-500" />}
-          color="blue"
-        />
-        <Card
-          title="Defaulted"
-          value={summary.defaulted_loans_count}
-          icon={<AlertTriangle size={14} className="inline mr-1 text-red-500" />}
-          color="red"
-        />
-        <Card
-          title="On-Time Rate"
-          value={summary.on_time_rate == null ? "—" : `${summary.on_time_rate}%`}
-          icon={<Clock size={14} className="inline mr-1 text-gray-400 dark:text-slate-400" />}
-          color="green"
-        />
-        <Card
-          title="Total Borrowed"
-          value={KES(summary.total_borrowed)}
-          icon={<Coins size={14} className="inline mr-1 text-gray-400 dark:text-slate-400" />}
-          color="purple"
-        />
-      </div>
-
-      {/* Financial Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-ocean-500">
-          <p className="text-sm text-gray-500 dark:text-slate-400 uppercase">Lifetime Borrowed</p>
-          <p className="text-2xl font-bold text-gray-800 dark:text-slate-100 mt-1">
-            {KES(summary.total_borrowed)}
-          </p>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            Across {summary.total_loans_count} loans
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-green-500">
-          <p className="text-sm text-gray-500 dark:text-slate-400 uppercase">Total Repaid</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">
-            {KES(summary.total_repaid)}
-          </p>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            {summary.total_payments} payments made
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-orange-500">
-          <p className="text-sm text-gray-500 dark:text-slate-400 uppercase">
-            Current Outstanding
-          </p>
-          <p className="text-2xl font-bold text-orange-600 mt-1">
-            {KES(summary.current_outstanding)}
-          </p>
-          {summary.current_overdue_count > 0 && (
-            <p className="text-sm text-red-600 mt-1 font-semibold flex items-center gap-1">
-              <AlertTriangle size={14} className="shrink-0" /> {summary.current_overdue_count} overdue
-            </p>
-          )}
-        </div>
-      </div>
 
       {/* Eligibility */}
       <div
-        className={`rounded-xl shadow-md p-6 mb-6 border-2 ${
+        className={`rounded-2xl shadow-card p-6 mb-6 border ${
           eligibility.can_borrow
             ? "bg-green-50 border-green-200"
             : "bg-red-50 border-red-200"
@@ -542,170 +663,102 @@ function ClientProfile() {
         </div>
       </div>
 
-      {/* Loans History */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden mb-6">
-        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-2">
-            <ClipboardList size={20} className="text-gray-500 dark:text-slate-400" /> Loan History
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            {loans.length} loan{loans.length !== 1 ? "s" : ""} total
-          </p>
+      {/* Loan history — shared DataTable (presets, sort, expandable rows) */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <ClipboardList size={20} className="text-navy-900 dark:text-slate-100" />
+          <h3 className="text-lg font-semibold text-navy-900 dark:text-slate-100">Loan History</h3>
+          {loans.length > 0 && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              · {loans.length} loan{loans.length !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
-        {loans.length === 0 ? (
-          <EmptyState
-            icon={ClipboardList}
-            tone="muted"
-            title="No loans yet"
-            description="This client's loans will appear here once they borrow."
-          />
-        ) : (
-          <div className="overflow-auto max-h-[calc(100vh-200px)]">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Loan Code
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Principal
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Total Due
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Paid
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Balance
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Start Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    View
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loans.map((loan) => (
-                  <tr
-                    key={loan.id}
-                    onClick={() => navigate(`/loans/${loan.id}`)}
-                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-ocean-50 dark:hover:bg-slate-700 transition cursor-pointer"
-                  >
-                    <td className="px-4 py-3 font-mono text-sm font-semibold text-ocean-600">
-                      {loan.loan_code}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-800 dark:text-slate-100">
-                      {KES(loan.principal_amount)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-ocean-600">
-                      {KES(loan.total_amount_due)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-green-600">
-                      {KES(loan.total_paid)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-orange-600">
-                      {KES(loan.balance_due)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
-                      {loan.start_date
-                        ? new Date(loan.start_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(
-                          loan.status,
-                        )}`}
-                      >
-                        {loan.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="text-ocean-600 font-bold">→</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={LOAN_COLUMNS}
+          rows={loanSort.sortedData}
+          rowKey={(l) => l.id}
+          pinned={{
+            label: "Loan Code",
+            sortKey: "loan_code",
+            cell: (l) => (
+              <span className="font-mono text-sm font-semibold text-ocean-600">{l.loan_code}</span>
+            ),
+          }}
+          presets={LOAN_PRESETS}
+          preset={loanPreset}
+          onPresetChange={setLoanPreset}
+          expandedRows={expandedLoans}
+          onToggleRow={toggleLoan}
+          sort={{ requestSort: loanSort.requestSort, getSortIndicator: loanSort.getSortIndicator }}
+          onRowClick={(l) => navigate(`/loans/${l.id}`)}
+          openLabel={(l) => `Open loan ${l.loan_code}`}
+          totals={loans}
+          totalsLabel={
+            <span className="inline-flex items-center gap-2">
+              <BarChart3 size={16} /> TOTALS ({loans.length})
+            </span>
+          }
+          maxHeight="calc(100vh - 260px)"
+          empty={
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-6">
+              <EmptyState
+                icon={ClipboardList}
+                tone="muted"
+                title="No loans yet"
+                description="This client's loans will appear here once they borrow."
+              />
+            </div>
+          }
+        />
       </div>
 
-      {/* Recent Payments */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-2">
-            <Banknote size={20} className="text-gray-500 dark:text-slate-400" /> Recent Payments
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            Last {recentPayments.length} payment
-            {recentPayments.length !== 1 ? "s" : ""}
-          </p>
+      {/* Recent payments — shared DataTable */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Banknote size={20} className="text-navy-900 dark:text-slate-100" />
+          <h3 className="text-lg font-semibold text-navy-900 dark:text-slate-100">Recent Payments</h3>
+          {recentPayments.length > 0 && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              · last {recentPayments.length} payment{recentPayments.length !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
-        {recentPayments.length === 0 ? (
-          <EmptyState
-            icon={Banknote}
-            tone="muted"
-            title="No payments recorded yet"
-            description="Repayments made by this client will be listed here."
-          />
-        ) : (
-          <div className="overflow-auto max-h-[calc(100vh-200px)]">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Transaction
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Loan Code
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                    Method
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentPayments.map((p, idx) => (
-                  <tr
-                    key={p.transaction_code || idx}
-                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition"
-                  >
-                    <td className="px-6 py-3 font-mono text-sm font-semibold text-green-600">
-                      {p.transaction_code}
-                    </td>
-                    <td className="px-6 py-3 font-mono text-sm text-ocean-600">
-                      {p.loan_code}
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-green-600">
-                      {KES(p.amount_paid)}
-                    </td>
-                    <td className="px-6 py-3 text-gray-700 dark:text-slate-200 text-sm">
-                      {new Date(p.payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                    </td>
-                    <td className="px-6 py-3">
-                      <span className="inline-block px-3 py-1 bg-ocean-100 text-ocean-700 rounded-full text-xs font-semibold">
-                        {p.payment_method}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={PAY_COLUMNS}
+          rows={paySort.sortedData}
+          rowKey={(p) => p.transaction_code}
+          pinned={{
+            label: "Transaction",
+            sortKey: "transaction_code",
+            cell: (p) => (
+              <span className="font-mono text-sm font-semibold text-money-pos">{p.transaction_code}</span>
+            ),
+          }}
+          presets={PAY_PRESETS}
+          preset={payPreset}
+          onPresetChange={setPayPreset}
+          expandedRows={expandedPays}
+          onToggleRow={togglePay}
+          sort={{ requestSort: paySort.requestSort, getSortIndicator: paySort.getSortIndicator }}
+          totals={recentPayments}
+          totalsLabel={
+            <span className="inline-flex items-center gap-2">
+              <BarChart3 size={16} /> TOTALS ({recentPayments.length})
+            </span>
+          }
+          maxHeight="calc(100vh - 260px)"
+          empty={
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-card p-6">
+              <EmptyState
+                icon={Banknote}
+                tone="muted"
+                title="No payments recorded yet"
+                description="Repayments made by this client will be listed here."
+              />
+            </div>
+          }
+        />
       </div>
 
       {/* Edit Client Modal */}
