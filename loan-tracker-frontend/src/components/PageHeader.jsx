@@ -1,5 +1,4 @@
 import React from "react";
-import IconTile from "./IconTile";
 import { abbreviateKES, exactKES } from "../utils/money";
 
 // Canonical page header — the single header pattern used across the staff
@@ -64,7 +63,16 @@ export default function PageHeader({
     <div className={`mb-6 ${className}`}>
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
-          {Icon && <IconTile icon={Icon} size={44} className="mt-0.5" />}
+          {/* Soft tinted tile — light accent bg + coloured glyph, calmer than
+              the old solid-gradient IconTile that dominated every page header. */}
+          {Icon && (
+            <span
+              className="flex items-center justify-center rounded-xl shrink-0 mt-0.5 bg-ocean-100 dark:bg-ocean-900/30 text-ocean-600 dark:text-ocean-300"
+              style={{ width: 38, height: 38 }}
+            >
+              <Icon size={20} strokeWidth={2.1} />
+            </span>
+          )}
           <div className="min-w-0">
             <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 dark:text-slate-100">
               {title}
