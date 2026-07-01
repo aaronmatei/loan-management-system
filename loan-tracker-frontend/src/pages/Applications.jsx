@@ -122,6 +122,20 @@ const COLUMN_PRESETS = {
 const PRESET_STORAGE_KEY = "applications.columnPreset";
 const SEGMENTS_STORAGE_KEY = "applications.segments";
 
+// Pipeline stages — double as the clickable stat tiles + the filter pills, in
+// the app's clean card language (tinted accent per stage).
+const STAGE_TILES = [
+  { value: "pending", label: "Pending", sub: "awaiting review", color: "#d9892a", icon: <Clock size={16} /> },
+  { value: "under_review", label: "Under Review", sub: "being reviewed", color: "#0e8a6e", icon: <Search size={16} /> },
+  { value: "counter_offered", label: "Counter-offered", sub: "awaiting client", color: "#5b6ef0", icon: <Banknote size={16} /> },
+  { value: "approved", label: "Approved", sub: "ready to disburse", color: "#16a34a", icon: <CheckCircle size={16} /> },
+  { value: "rejected", label: "Rejected", sub: "declined", color: "#e5484d", icon: <X size={16} /> },
+];
+const FILTER_TABS = [
+  ...STAGE_TILES.map((t) => ({ value: t.value, label: t.label, icon: t.icon })),
+  { value: "all", label: "All", icon: <ClipboardList size={14} /> },
+];
+
 // Format a date (Date | YYYY-MM-DD string) as "DD/MM/YYYY". Native
 // <input type="date"> displays in the browser's locale, which may not
 // be dd/mm/yyyy — we use this helper to surface the canonical format
@@ -158,6 +172,10 @@ function Applications() {
   const [counterAmount, setCounterAmount] = useState("");
   const [counterNote, setCounterNote] = useState("");
   const [qualifiedMax, setQualifiedMax] = useState(null);
+  // Guards a single per-row action in flight — prevents a double-click from
+  // firing a second approve against an already-approved loan (which returns
+  // "Cannot approve loan with status: approved" and looks like a failure).
+  const [busyId, setBusyId] = useState(null);
 
   // Which application rows are expanded to reveal their full details.
   const [expanded, setExpanded] = useState(() => new Set());
@@ -228,17 +246,22 @@ function Applications() {
   };
 
   const handleStartReview = async (loan) => {
+    if (busyId) return; // guard against a double-click / re-entry
     if (!window.confirm(`Start reviewing application ${loan.loan_code}?`))
       return;
+    setBusyId(loan.id);
     try {
       await api.post(`/loans/${loan.id}/review`);
-      fetchData();
+      setStatusFilter("under_review"); // auto-advance to the new stage
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleApprove = async (loan) => {
+    if (busyId) return; // guard against a double-click / re-entry
     if (
       !window.confirm(
         `Approve loan ${loan.loan_code} for KES ${parseFloat(
@@ -247,24 +270,29 @@ function Applications() {
       )
     )
       return;
+    setBusyId(loan.id);
     try {
       await api.post(`/loans/${loan.id}/approve`);
-      alert("Loan approved! Ready for disbursement.");
-      fetchData();
+      setStatusFilter("approved"); // auto-advance to the Approved stage
     } catch (err) {
       // Dues/defaults are a warning, not a wall — confirm and proceed.
       if (err.response?.status === 409 && err.response.data?.requires_confirmation) {
-        if (!window.confirm(`${err.response.data.error}\n\nApprove anyway?`)) return;
+        if (!window.confirm(`${err.response.data.error}\n\nApprove anyway?`)) {
+          setBusyId(null);
+          return;
+        }
         try {
           await api.post(`/loans/${loan.id}/approve`, { acknowledge_dues: true });
-          alert("Loan approved! Ready for disbursement.");
-          fetchData();
+          setStatusFilter("approved");
         } catch (e2) {
           alert("Failed: " + (e2.response?.data?.error || e2.message));
         }
+        setBusyId(null);
         return;
       }
       alert("Failed: " + (err.response?.data?.error || err.message));
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -278,10 +306,9 @@ function Applications() {
       await api.post(`/loans/${selectedLoan.id}/reject`, {
         reason: rejectReason,
       });
-      alert("Loan rejected");
       setShowRejectModal(false);
       setRejectReason("");
-      fetchData();
+      setStatusFilter("rejected"); // auto-advance to the Rejected stage
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
     } finally {
@@ -329,9 +356,8 @@ function Applications() {
         offered_amount: amount,
         note: counterNote || undefined,
       });
-      alert("Counter-offer sent to the client");
       setShowCounterModal(false);
-      fetchData();
+      setStatusFilter("counter_offered"); // auto-advance to the Counter-offered stage
     } catch (err) {
       alert("Failed: " + (err.response?.data?.error || err.message));
     } finally {
@@ -548,14 +574,16 @@ function Applications() {
       )
     )
       return;
+    // Declared out here (not inside try) so the 409 acknowledge-dues retry in
+    // the catch block can reuse it — previously a ReferenceError.
+    const payload = {
+      disbursement_method: disburseData.disbursement_method,
+      disbursement_reference: disburseData.disbursement_reference,
+      disbursement_date: disburseData.disbursement_date,
+      start_date: effectiveStart,
+    };
     setSubmitting(true);
     try {
-      const payload = {
-        disbursement_method: disburseData.disbursement_method,
-        disbursement_reference: disburseData.disbursement_reference,
-        disbursement_date: disburseData.disbursement_date,
-        start_date: effectiveStart,
-      };
       await api.post(`/loans/${selectedLoan.id}/disburse`, payload);
       alert("Loan disbursed successfully! Now active for repayment.");
       setShowDisburseModal(false);
@@ -602,9 +630,10 @@ function Applications() {
         <PermissionGate role={["admin", "manager"]}>
           <button
             onClick={() => handleStartReview(app)}
-            className={`${actBtn} bg-ocean-600 hover:bg-ocean-700 text-white`}
+            disabled={busyId === app.id}
+            className={`${actBtn} bg-ocean-600 hover:bg-ocean-700 text-white disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            <Search size={14} /> Review
+            <Search size={14} /> {busyId === app.id ? "Working…" : "Review"}
           </button>
         </PermissionGate>
       )}
@@ -612,9 +641,10 @@ function Applications() {
         <PermissionGate role={["admin", "manager"]}>
           <button
             onClick={() => handleApprove(app)}
-            className={`${actBtn} bg-green-600 hover:bg-green-700 text-white`}
+            disabled={busyId === app.id}
+            className={`${actBtn} bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            <CheckCircle size={14} /> Approve
+            <CheckCircle size={14} /> {busyId === app.id ? "Working…" : "Approve"}
           </button>
         </PermissionGate>
       )}
@@ -744,6 +774,9 @@ function Applications() {
         <div>
           <p className="text-xs text-gray-500 dark:text-slate-400">Interest Rate</p>
           <p className="font-bold">
+            {parseFloat(app.interest_rate).toFixed(2)}% p.m.
+          </p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">
             {(parseFloat(app.interest_rate) * 12).toFixed(2)}% p.a.
           </p>
         </div>
@@ -919,92 +952,58 @@ function Applications() {
         }
       />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
-        <button
-          onClick={() => setStatusFilter("pending")}
-          className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
-            statusFilter === "pending" ? "ring-4 ring-yellow-300" : ""
-          } bg-gradient-to-br from-yellow-500 to-orange-600 text-white`}
-        >
-          <p className="text-yellow-100 text-xs uppercase">Pending</p>
-          <p className="text-2xl lg:text-3xl font-bold mt-2">
-            {stats?.pending || 0}
-          </p>
-          <p className="text-xs text-yellow-100 mt-1">awaiting review</p>
-        </button>
-        <button
-          onClick={() => setStatusFilter("under_review")}
-          className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
-            statusFilter === "under_review" ? "ring-4 ring-ocean-300" : ""
-          } bg-gradient-to-br from-ocean-500 to-ocean-600 text-white`}
-        >
-          <p className="text-ocean-100 text-xs uppercase">Under Review</p>
-          <p className="text-2xl lg:text-3xl font-bold mt-2">
-            {stats?.under_review || 0}
-          </p>
-          <p className="text-xs text-ocean-100 mt-1">being reviewed</p>
-        </button>
-        <button
-          onClick={() => setStatusFilter("counter_offered")}
-          className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
-            statusFilter === "counter_offered" ? "ring-4 ring-amber-300" : ""
-          } bg-gradient-to-br from-amber-500 to-orange-600 text-white`}
-        >
-          <p className="text-amber-100 text-xs uppercase">Counter-offered</p>
-          <p className="text-2xl lg:text-3xl font-bold mt-2">
-            {stats?.counter_offered || 0}
-          </p>
-          <p className="text-xs text-amber-100 mt-1">awaiting client</p>
-        </button>
-        <button
-          onClick={() => setStatusFilter("approved")}
-          className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
-            statusFilter === "approved" ? "ring-4 ring-green-300" : ""
-          } bg-gradient-to-br from-green-500 to-emerald-600 text-white`}
-        >
-          <p className="text-green-100 text-xs uppercase">Approved</p>
-          <p className="text-2xl lg:text-3xl font-bold mt-2">
-            {stats?.approved || 0}
-          </p>
-          <p className="text-xs text-green-100 mt-1">ready to disburse</p>
-        </button>
-        <button
-          onClick={() => setStatusFilter("rejected")}
-          className={`text-left rounded-xl shadow-lg p-4 lg:p-6 transition ${
-            statusFilter === "rejected" ? "ring-4 ring-red-300" : ""
-          } bg-gradient-to-br from-red-500 to-pink-600 text-white`}
-        >
-          <p className="text-red-100 text-xs uppercase">Rejected</p>
-          <p className="text-2xl lg:text-3xl font-bold mt-2">
-            {stats?.rejected || 0}
-          </p>
-          <p className="text-xs text-red-100 mt-1">declined</p>
-        </button>
+      {/* Stage tiles (clickable filters) */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+        {STAGE_TILES.map((t) => {
+          const on = statusFilter === t.value;
+          return (
+            <button
+              key={t.value}
+              onClick={() => setStatusFilter(t.value)}
+              className="text-left bg-white dark:bg-slate-800 border rounded-2xl p-4 shadow-sm transition"
+              style={{
+                borderColor: on ? t.color : "#eef0f3",
+                boxShadow: on ? `0 0 0 3px ${t.color}22` : undefined,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className="w-8 h-8 rounded-[9px] flex items-center justify-center"
+                  style={{ background: `${t.color}1c`, color: t.color }}
+                >
+                  {t.icon}
+                </span>
+                <span className="w-2 h-2 rounded-full" style={{ background: t.color }} />
+              </div>
+              <div className="text-2xl font-extrabold text-navy-900 dark:text-slate-100 mt-2 tabular-nums">
+                {stats?.[t.value] || 0}
+              </div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mt-0.5">{t.label}</div>
+              <div className="text-[11px] text-slate-400">{t.sub}</div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex flex-wrap gap-2 mb-4 border-b">
-        {[
-          { value: "pending", label: <span className="inline-flex items-center gap-1"><Clock size={14}/> Pending</span> },
-          { value: "under_review", label: <span className="inline-flex items-center gap-1"><Search size={14}/> Under Review</span> },
-          { value: "counter_offered", label: <span className="inline-flex items-center gap-1"><Banknote size={14}/> Counter-offered</span> },
-          { value: "approved", label: <span className="inline-flex items-center gap-1"><CheckCircle size={14}/> Approved (Ready)</span> },
-          { value: "rejected", label: <span className="inline-flex items-center gap-1"><X size={14}/> Rejected</span> },
-          { value: "all", label: <span className="inline-flex items-center gap-1"><ClipboardList size={14}/> All</span> },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setStatusFilter(tab.value)}
-            className={`px-3 py-2 text-sm font-semibold rounded-t-lg transition ${
-              statusFilter === tab.value
-                ? "bg-ocean-600 text-white"
-                : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Filter pills */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {FILTER_TABS.map((tab) => {
+          const on = statusFilter === tab.value;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[10px] text-[13px] font-bold border transition"
+              style={{
+                borderColor: on ? "#0e8a6e" : "#e3e7e0",
+                background: on ? "#e0f4ee" : "#fff",
+                color: on ? "#0a5c4c" : "#5b5b70",
+              }}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Applications list */}
