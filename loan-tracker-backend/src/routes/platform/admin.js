@@ -436,4 +436,88 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// ── Plan catalog (migration 115) ─────────────────────────────────────
+// Named subscription tiers a tenant can be assigned to (future subscription
+// model, coexisting with the per-tenant interest-fee billing). MRR = sum of
+// the monthly price across active tenants currently on each plan.
+router.get("/plans", async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT p.id, p.name, p.monthly_price, p.features, p.sort_order, p.active,
+              COUNT(t.id) AS tenant_count,
+              COALESCE(SUM(CASE WHEN t.status IN ('active','trial') THEN p.monthly_price ELSE 0 END), 0) AS mrr
+         FROM plans p
+         LEFT JOIN tenants t ON t.plan_id = p.id
+        GROUP BY p.id
+        ORDER BY p.sort_order, p.id`,
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    logger.error("List plans error:", error);
+    res.status(500).json({ error: "Failed to fetch plans" });
+  }
+});
+
+router.put("/plans/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, monthly_price, features, active } = req.body || {};
+    const price =
+      monthly_price === undefined || monthly_price === null || monthly_price === ""
+        ? null
+        : Number(monthly_price);
+    if (price !== null && (Number.isNaN(price) || price < 0)) {
+      return res.status(400).json({ error: "Price must be a non-negative number" });
+    }
+    const r = await query(
+      `UPDATE plans SET
+         name          = COALESCE($1, name),
+         monthly_price = COALESCE($2, monthly_price),
+         features      = COALESCE($3, features),
+         active        = COALESCE($4, active),
+         updated_at    = NOW()
+       WHERE id = $5 RETURNING *`,
+      [
+        name ?? null,
+        price,
+        Array.isArray(features) ? features : null,
+        typeof active === "boolean" ? active : null,
+        id,
+      ],
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: "Plan not found" });
+    logger.info(`Platform admin ${req.user.email} updated plan ${id}`);
+    res.json({ success: true, data: r.rows[0] });
+  } catch (error) {
+    logger.error("Update plan error:", error);
+    res.status(500).json({ error: "Failed to update plan" });
+  }
+});
+
+// Assign a tenant to a plan (or null to put them back on the fee model).
+router.put("/tenants/:id/plan", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let { plan_id } = req.body || {};
+    plan_id =
+      plan_id === null || plan_id === "" || plan_id === undefined
+        ? null
+        : parseInt(plan_id, 10);
+    if (plan_id !== null) {
+      const p = await query("SELECT id FROM plans WHERE id = $1 AND active = true", [plan_id]);
+      if (p.rows.length === 0) return res.status(400).json({ error: "Unknown or inactive plan" });
+    }
+    const r = await query(
+      "UPDATE tenants SET plan_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+      [plan_id, id],
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: "Tenant not found" });
+    logger.info(`Platform admin ${req.user.email} set tenant ${id} plan -> ${plan_id ?? "none"}`);
+    res.json({ success: true, data: r.rows[0] });
+  } catch (error) {
+    logger.error("Assign tenant plan error:", error);
+    res.status(500).json({ error: "Failed to assign plan" });
+  }
+});
+
 export default router;

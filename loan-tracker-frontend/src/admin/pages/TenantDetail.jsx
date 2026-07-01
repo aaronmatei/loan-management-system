@@ -30,6 +30,11 @@ function TenantDetail() {
   const [loading, setLoading] = useState(true);
   const [feeInput, setFeeInput] = useState("");
   const [savingFee, setSavingFee] = useState(false);
+  const [plans, setPlans] = useState([]);
+
+  useEffect(() => {
+    platformApi.get("/platform/admin/plans").then((r) => setPlans(r.data.data || [])).catch(() => {});
+  }, []);
 
   const refresh = async () => {
     const r = await platformApi.get(`/platform/admin/tenants/${id}`);
@@ -78,6 +83,15 @@ function TenantDetail() {
       await refresh();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to update status");
+    }
+  };
+
+  const assignPlan = async (planId) => {
+    try {
+      await platformApi.put(`/platform/admin/tenants/${id}/plan`, { plan_id: planId || null });
+      await refresh();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to assign plan");
     }
   };
 
@@ -171,8 +185,22 @@ function TenantDetail() {
           {/* Billing & subscription */}
           <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
             <div className="text-[14px] font-extrabold text-navy-900 dark:text-slate-100 mb-4 flex items-center gap-2"><Percent size={17} /> Billing</div>
+            <div className="flex justify-between items-center py-2.5 border-b border-slate-50 dark:border-slate-700">
+              <span className="text-[13px] text-slate-500 dark:text-slate-400 font-semibold">Plan</span>
+              <select
+                value={tenant.plan_id ?? ""}
+                onChange={(e) => assignPlan(e.target.value)}
+                className="text-[13px] font-bold text-navy-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-ocean-500/30 cursor-pointer"
+              >
+                <option value="">Fee model (no plan)</option>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {K(p.monthly_price)}/mo
+                  </option>
+                ))}
+              </select>
+            </div>
             {[
-              ["Plan", tenant.plan || "—"],
               ["Platform fee", `${tenant.billing_fee_percentage ?? 5}% of interest earned`],
               ["Base fee", parseFloat(tenant.billing_base_fee) > 0 ? K(tenant.billing_base_fee) : "None"],
             ].map(([l, v]) => (

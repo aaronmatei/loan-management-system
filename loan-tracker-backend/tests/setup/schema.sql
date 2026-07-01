@@ -1159,6 +1159,21 @@ ALTER SEQUENCE public.system_settings_id_seq OWNED BY public.system_settings.id;
 
 
 --
+-- Name: plans; Type: TABLE; Schema: public; Owner: -  (migration 115)
+--
+
+CREATE TABLE public.plans (
+    id serial PRIMARY KEY,
+    name character varying(60) NOT NULL,
+    monthly_price numeric(12,2) NOT NULL DEFAULT 0,
+    features text[] NOT NULL DEFAULT '{}',
+    sort_order integer NOT NULL DEFAULT 0,
+    active boolean NOT NULL DEFAULT true,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+--
 -- Name: tenants; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1244,6 +1259,7 @@ CREATE TABLE public.tenants (
     max_loan_amount numeric(15,2) DEFAULT 1000000,
     late_payment_fee numeric(15,2) DEFAULT 0,
     penalty_rate numeric(5,2) DEFAULT 5.00,
+    plan_id integer,
     notify_application_submitted_sms boolean DEFAULT true,
     notify_application_submitted_email boolean DEFAULT true,
     notify_under_review_sms boolean DEFAULT true,

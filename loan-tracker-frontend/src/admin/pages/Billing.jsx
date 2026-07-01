@@ -5,7 +5,7 @@ import PlatformLayout from "../components/PlatformLayout";
 import MonthNavigator from "../components/MonthNavigator";
 import { useSortableTable } from "../../hooks/useSortableTable";
 import SortableHeader from "../../components/SortableHeader";
-import { Coins, RotateCcw, ClipboardList, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import { Coins, RotateCcw, ClipboardList, Clock, CheckCircle, AlertTriangle, Check } from "lucide-react";
 import Skeleton from "../../components/Skeleton";
 import EmptyState from "../../components/EmptyState";
 import { formatKES } from "../../utils/money";
@@ -15,6 +15,7 @@ import StatCard from "../components/StatCard";
 const K = (v) => formatKES(v);
 const KES = (v) => formatKES(v);
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const PLAN_COLOR = { Trial: "#8b8aa0", Starter: "#d9892a", Growth: "#16a34a", Enterprise: "#5b6ef0" };
 
 const STATUS_BADGE = {
   paid: "bg-green-100 text-green-700",
@@ -79,6 +80,27 @@ function BillingDashboard() {
       .then((r) => setTenants(r.data.data || []))
       .catch(() => {});
   }, []);
+
+  // Plan catalog (tiers). Editable price; assignment lives on the tenant page.
+  const [plans, setPlans] = useState([]);
+  const loadPlans = () =>
+    platformApi.get("/platform/admin/plans").then((r) => setPlans(r.data.data || [])).catch(() => {});
+  useEffect(() => {
+    loadPlans();
+  }, []);
+  const plansMrr = plans.reduce((s, p) => s + parseFloat(p.mrr || 0), 0);
+  const editPrice = async (p) => {
+    const v = window.prompt(`Monthly price for "${p.name}" (KES)`, p.monthly_price);
+    if (v == null) return;
+    const price = parseFloat(v);
+    if (Number.isNaN(price) || price < 0) return alert("Enter a valid price");
+    try {
+      await platformApi.put(`/platform/admin/plans/${p.id}`, { monthly_price: price });
+      loadPlans();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to update plan");
+    }
+  };
 
   // Load the selected tenant's monthly statement.
   const loadStatement = (tenantId) => {
@@ -233,6 +255,45 @@ function BillingDashboard() {
               sub={`${summary.all_time.total_invoices} total invoices`}
             />
           </div>
+        )}
+
+        {/* Plan tiers — the subscription catalog (assign on a tenant's page).
+            Coexists with the per-tenant interest-fee model; MRR counts only
+            tenants actually on a plan. */}
+        {plans.length > 0 && (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-slate-400">Plan tiers</div>
+              <div className="text-[12px] font-bold text-slate-500 dark:text-slate-400">
+                Subscription MRR: <span className="text-navy-900 dark:text-slate-100">{K(plansMrr)}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
+              {plans.map((p) => (
+                <div key={p.id} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[14px] font-extrabold" style={{ color: PLAN_COLOR[p.name] || "#0e8a6e" }}>{p.name}</span>
+                    <button onClick={() => editPrice(p)} className="text-[11px] font-bold text-ocean-600">Edit</button>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-[24px] font-extrabold text-navy-900 dark:text-slate-100 tracking-tight">{K(p.monthly_price)}</span>
+                    <span className="text-[12px] text-slate-400 font-semibold">/mo</span>
+                  </div>
+                  <div className="text-[12px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    {p.tenant_count} tenant{Number(p.tenant_count) === 1 ? "" : "s"}
+                  </div>
+                  <div className="h-px bg-slate-100 dark:bg-slate-700 my-4" />
+                  <div className="flex flex-col gap-2">
+                    {(p.features || []).map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[12.5px] text-slate-600 dark:text-slate-300 font-medium">
+                        <Check size={13} style={{ color: PLAN_COLOR[p.name] || "#0e8a6e" }} className="shrink-0" /> {f}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Per-tenant monthly statement — what a tenant is supposed to pay
