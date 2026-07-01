@@ -872,6 +872,10 @@ function LoanDetails() {
         const nextSched = schedule.find(
           (s) => s.status !== "paid" && s.status !== "waived",
         );
+        const pendingCount = schedule.filter(
+          (s) => s.status !== "paid" && s.status !== "waived",
+        ).length;
+        const scheduleTotal = schedule.length;
         // "Cleared" date for a settled loan = the latest non-voided payment.
         const clearedDate =
           settled && transactions?.length
@@ -916,6 +920,33 @@ function LoanDetails() {
             {children}
           </div>
         );
+        const Field = ({ label, children }) => (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              {label}
+            </p>
+            <div className="font-semibold text-navy-900 dark:text-slate-100 mt-1">
+              {children}
+            </div>
+          </div>
+        );
+        const methodPill = (
+          <span
+            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+              loan.interest_method === "reducing"
+                ? "bg-ocean-100 text-ocean-700"
+                : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+            }`}
+          >
+            {loan.interest_method === "reducing" ? "Reducing" : "Flat"}
+          </span>
+        );
+        const fmtSlash = (d) =>
+          new Date(d).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
         return (
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 mb-6 overflow-hidden">
             {/* identity */}
@@ -1009,6 +1040,58 @@ function LoanDetails() {
                 <span>{formatKES(summary.total_due)}</span>
               </div>
             </div>
+            {/* loan information + where it stands (merged from the old
+                separate "Loan Information" and "What's Remaining" cards) */}
+            <div className="border-t border-slate-100 dark:border-slate-700 p-6">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-4">
+                Loan Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-y-5 gap-x-4 text-sm">
+                <Field label="Package">
+                  {loan.package_name ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      {loan.package_name}
+                      {loan.package_active === false && (
+                        <span className="text-xs text-slate-400">(archived)</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">Custom loan</span>
+                  )}
+                </Field>
+                <Field label="Interest Method">{methodPill}</Field>
+                <Field label="Interest Rate (Monthly)">
+                  {parseFloat(loan.interest_rate).toFixed(2)}%
+                </Field>
+                <Field label="Duration">{loan.loan_duration_months} months</Field>
+                <Field label="Total Interest">{formatKES(loan.total_interest)}</Field>
+                <Field label="Start Date">
+                  {loan.start_date ? fmtSlash(loan.start_date) : "— (on disbursement)"}
+                </Field>
+                <Field label="End Date">{fmtSlash(loan.end_date)}</Field>
+                <Field label="Application Date">
+                  {fmtSlash(loan.application_date || loan.created_at)}
+                </Field>
+                {scheduleTotal > 0 && (
+                  <Field label="Next Installment">
+                    {nextSched ? formatKES(nextSched.amount_due) : "—"}
+                    {nextSched && (
+                      <span className="block text-xs font-normal text-slate-400 mt-0.5">
+                        Due {fmtSlash(nextSched.due_date)}
+                      </span>
+                    )}
+                  </Field>
+                )}
+                {scheduleTotal > 0 && (
+                  <Field label="Installments Left">
+                    {pendingCount}{" "}
+                    <span className="text-sm font-medium text-slate-400">
+                      of {scheduleTotal}
+                    </span>
+                  </Field>
+                )}
+              </div>
+            </div>
           </div>
         );
       })()}
@@ -1075,171 +1158,6 @@ function LoanDetails() {
           </div>
         </div>
       )}
-
-      {/* Loan Details */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6 dark:bg-slate-800">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 dark:text-slate-100">
-          Loan Information
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          {/* Package — comes from the LEFT JOIN; absent for off-product
-              custom loans (loan.package_name = null). When present,
-              the loan's stored interest_method is the truth source. */}
-          <div>
-            <p className="text-gray-500 dark:text-slate-400">Package</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              {loan.package_name ? (
-                <span className="inline-flex items-center gap-1.5">
-                  {loan.package_name}
-                  {loan.package_active === false && (
-                    <span className="text-xs text-gray-500 dark:text-slate-400">
-                      (archived)
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-gray-400 dark:text-slate-400">Custom loan</span>
-              )}
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500 dark:text-slate-400">Interest Method</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              <span
-                className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  loan.interest_method === "reducing"
-                    ? "bg-ocean-100 text-ocean-700"
-                    : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-                }`}
-              >
-                {loan.interest_method === "reducing" ? "Reducing" : "Flat"}
-              </span>
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500 dark:text-slate-400">Interest Rate (Monthly)</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              {parseFloat(loan.interest_rate).toFixed(2)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500 dark:text-slate-400">Duration</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              {loan.loan_duration_months} months
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500 dark:text-slate-400">Total Interest</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              {formatKES(loan.total_interest)}
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500 dark:text-slate-400">Start Date</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              {loan.start_date
-                ? new Date(loan.start_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
-                : "— (on disbursement)"}
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500 dark:text-slate-400">End Date</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              {new Date(loan.end_date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-            </p>
-          </div>
-          <div>
-            {/* "Application Date" not "Created" — created_at is the row's
-                insert timestamp (when staff entered the loan into the
-                system, often today). What staff actually want to see
-                here is when the borrower applied for the loan, which is
-                application_date. Audit of 295 loans showed 287 of them
-                have the two diverging by days/weeks — the previous label
-                was misleading on nearly every row. Falls back to
-                created_at if application_date is null for older imports
-                that pre-date the column. */}
-            <p className="text-gray-500 dark:text-slate-400">Application Date</p>
-            <p className="font-semibold text-gray-800 dark:text-slate-100">
-              {new Date(loan.application_date || loan.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* What's Remaining — quick "where does this loan stand right
-          now" strip above the schedule. Gives staff the answers to
-          "how much is left", "when is the next payment due", and
-          "how many installments to go" without reading the whole
-          schedule. Pending counts include 'overdue' since those are
-          still unpaid installments. */}
-      {(() => {
-        const pending = schedule.filter(
-          (s) => s.status !== "paid" && s.status !== "waived",
-        );
-        const next = pending[0];
-        const installmentsLeft = pending.length;
-        const installmentsTotal = schedule.length;
-        if (installmentsTotal === 0) return null;
-        return (
-          <div className="bg-white rounded-xl shadow-md p-5 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 dark:bg-slate-800">
-            <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
-                Balance Remaining
-              </p>
-              <p className="text-xl font-bold text-orange-600">
-                {formatKES(summary.balance)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
-                Next Installment
-              </p>
-              <p className="text-xl font-bold text-gray-800 dark:text-slate-100">
-                {next ? formatKES(next.amount_due) : "—"}
-              </p>
-              {next && (
-                <p className="text-xs text-gray-500 mt-0.5 dark:text-slate-400">
-                  Due{" "}
-                  {new Date(next.due_date).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
-                </p>
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
-                Installments Left
-              </p>
-              <p className="text-xl font-bold text-gray-800 dark:text-slate-100">
-                {installmentsLeft}{" "}
-                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">
-                  of {installmentsTotal}
-                </span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1 dark:text-slate-400">
-                Interest Method
-              </p>
-              <p className="text-xl">
-                <span
-                  className={`inline-block px-2.5 py-0.5 rounded-full text-sm font-semibold ${
-                    loan.interest_method === "reducing"
-                      ? "bg-ocean-100 text-ocean-700"
-                      : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-                  }`}
-                >
-                  {loan.interest_method === "reducing"
-                    ? "Reducing"
-                    : "Flat"}
-                </span>
-              </p>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Payment Schedule */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 dark:bg-slate-800">
