@@ -732,6 +732,7 @@ CREATE TABLE public.loans (
     guarantor_phone character varying(20),
     guarantor_id_number character varying(20),
     collateral_description text,
+    collateral_photos jsonb,
     late_payment_fee numeric(10,2) DEFAULT 500,
     penalty_rate numeric(5,2) DEFAULT 5.00,
     processing_fee_rate numeric(5,2) DEFAULT 0,

@@ -1450,6 +1450,42 @@ function LoanDetails() {
         </div>
       )}
 
+      {/* Collateral — description + borrower-uploaded photos (from the loan
+          application). Shown only when either is present. */}
+      {(loan.collateral_description ||
+        (Array.isArray(loan.collateral_photos) && loan.collateral_photos.length > 0)) && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-slate-100 dark:border-slate-700 p-6 mb-6">
+          <h3 className="text-sm font-extrabold uppercase tracking-wider text-navy-900 dark:text-slate-100 mb-3">
+            Collateral
+          </h3>
+          {loan.collateral_description && (
+            <p className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
+              {loan.collateral_description}
+            </p>
+          )}
+          {Array.isArray(loan.collateral_photos) && loan.collateral_photos.length > 0 && (
+            <div className="flex flex-wrap gap-2.5 mt-3">
+              {loan.collateral_photos.map((src, i) => (
+                <a
+                  key={i}
+                  href={src}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block"
+                  title="Open full size"
+                >
+                  <img
+                    src={src}
+                    alt={`Collateral ${i + 1}`}
+                    className="h-24 w-24 object-cover rounded-xl border border-slate-200 dark:border-slate-700 hover:opacity-90 transition"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Payment Schedule */}
       <div className="mb-6">
         <div className="flex flex-wrap items-center gap-2 mb-3">

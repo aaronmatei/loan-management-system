@@ -9,6 +9,8 @@ import {
   Users,
   CheckCircle,
   Send,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import portalApi from "../services/portalApi";
 import PortalLayout from "../components/PortalLayout";
@@ -59,6 +61,9 @@ function ApplyLoan() {
   const [step, setStep] = useState(1);
   // Borrower must tick the terms-of-agreement box before submitting.
   const [agreed, setAgreed] = useState(false);
+  // Optional photos of the described collateral (image URLs).
+  const [collateralPhotos, setCollateralPhotos] = useState([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [form, setForm] = useState({
     principal_amount: preAmount,
     loan_duration_months: preDuration,
@@ -235,6 +240,29 @@ function ApplyLoan() {
     setStep(3);
   };
 
+  // Upload photos of the collateral item — reuses the portal image pipeline
+  // (Cloudinary), which returns permanent URLs we attach to the application.
+  const uploadCollateralPhotos = async (files) => {
+    if (!files?.length) return;
+    setUploadingPhotos(true);
+    try {
+      const fd = new FormData();
+      Array.from(files)
+        .slice(0, 6)
+        .forEach((f) => fd.append("photos", f));
+      const r = await portalApi.post(
+        "/portal/customer/pawn-application-photos",
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+      setCollateralPhotos((p) => [...p, ...(r.data.urls || [])].slice(0, 6));
+    } catch (err) {
+      alert(err.response?.data?.error || "Couldn't upload photos.");
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
   const submit = async () => {
     setSubmitting(true);
     try {
@@ -244,6 +272,7 @@ function ApplyLoan() {
         // product card. Without it, the backend treats this as a
         // free-form (custom) application against the tenant policy.
         package_id: pkg ? pkg.id : undefined,
+        collateral_photos: collateralPhotos,
       };
       const r = await portalApi.post(
         "/portal/customer/applications",
@@ -619,6 +648,58 @@ function ApplyLoan() {
                 placeholder="Vehicle, land, equipment…"
                 className={fld}
               />
+              {/* Photo upload appears once the borrower describes an item */}
+              {form.collateral_description.trim() && (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                    Photos of the item (optional)
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {collateralPhotos.map((src, i) => (
+                      <div key={i} className="relative">
+                        <img
+                          src={src}
+                          alt=""
+                          className="h-16 w-16 object-cover rounded-lg border border-[#ece6da] dark:border-slate-700"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCollateralPhotos((p) => p.filter((_, j) => j !== i))
+                          }
+                          className="absolute -top-1.5 -right-1.5 bg-white dark:bg-slate-800 rounded-full border border-[#ece6da] dark:border-slate-700 text-slate-500 hover:text-red-600"
+                          aria-label="Remove photo"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                    {collateralPhotos.length < 6 && (
+                      <label className="h-16 w-16 rounded-lg border-2 border-dashed border-[#d8cfbe] dark:border-slate-700 flex items-center justify-center text-slate-400 hover:border-[var(--brand)] hover:text-[var(--brand)] cursor-pointer transition">
+                        {uploadingPhotos ? (
+                          <span className="text-xs">…</span>
+                        ) : (
+                          <ImagePlus size={20} />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          disabled={uploadingPhotos}
+                          onChange={(e) => {
+                            uploadCollateralPhotos(e.target.files);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Clear photos help the lender assess the item. Up to 6 images.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 pt-2">
               <button
@@ -713,6 +794,18 @@ function ApplyLoan() {
               <div className="bg-[#faf6ec] dark:bg-slate-900 rounded-xl p-4">
                 <h3 className="font-bold text-navy-900 dark:text-slate-100 mb-1">Collateral</h3>
                 <p className="text-sm">{form.collateral_description}</p>
+                {collateralPhotos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {collateralPhotos.map((src, i) => (
+                      <img
+                        key={i}
+                        src={src}
+                        alt=""
+                        className="h-16 w-16 object-cover rounded-lg border border-[#ece6da] dark:border-slate-700"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {/* Loan terms of agreement — must be accepted before submitting */}

@@ -1968,10 +1968,17 @@ router.post("/applications", async (req, res) => {
       guarantor_phone,
       guarantor_id_number,
       collateral_description,
+      collateral_photos,
       review_notes,
       package_id: bodyPackageId,
       interest_method: bodyInterestMethod,
     } = req.body || {};
+
+    // Collateral photo URLs (from /pawn-application-photos). Keep only strings,
+    // cap at 6, and store null when the borrower didn't upload any.
+    const collateralPhotos = Array.isArray(collateral_photos)
+      ? collateral_photos.filter((u) => typeof u === "string" && u).slice(0, 6)
+      : [];
 
     if (!principal_amount || !loan_duration_months || !purpose) {
       return res
@@ -2153,10 +2160,10 @@ router.post("/applications", async (req, res) => {
          processing_fee_rate, processing_fee, net_disbursed_amount,
          application_date, application_source, review_notes,
          submitted_by_customer, platform_customer_id, created_by,
-         package_id, interest_method
+         package_id, interest_method, collateral_photos
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11,$12,$13,500,5.00,
          $14,$15,$16,NOW()::date,'customer_portal',$17,true,$18,NULL,
-         $19, $20)
+         $19, $20, $21::jsonb)
        RETURNING id, loan_code, status, principal_amount,
                  total_amount_due, loan_duration_months,
                  processing_fee_rate, processing_fee, net_disbursed_amount,
@@ -2182,6 +2189,7 @@ router.post("/applications", async (req, res) => {
         req.platformCustomerId,
         pkg ? pkg.id : null,
         interestMethod,
+        collateralPhotos.length ? JSON.stringify(collateralPhotos) : null,
       ],
     );
     const loan = result.rows[0];
