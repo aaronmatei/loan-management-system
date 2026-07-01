@@ -83,8 +83,9 @@ function CustomerCalculator() {
     // If they're calculating for a different tenant than currently
     // selected, switch session first so /portal/apply lands in the
     // right tenant.
+    const tid = selected?.tenant_id || currentTenant?.id || "";
     const goApply = () =>
-      navigate(`/portal/apply?amount=${amount}&duration=${duration}`);
+      navigate(`/portal/apply?lender=${tid}&amount=${amount}&duration=${duration}`);
     if (selected && selected.tenant_id !== currentTenant?.id) {
       try {
         const r = await portalApi.post("/portal/auth/select-tenant", {

@@ -52,7 +52,7 @@ function AddLender() {
         "portal_current_tenant",
         JSON.stringify({ ...r.data.current_tenant, brand_color: t.brand_color }),
       );
-      navigate("/portal/apply");
+      navigate(`/portal/apply?lender=${t.tenant_id}`);
     } catch {
       alert("Could not start an application. Please try again.");
       setApplyingId(null);

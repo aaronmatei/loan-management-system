@@ -16,6 +16,7 @@ import PortalLayout from "../components/PortalLayout";
 import { computeLoanTotals } from "../../utils/loanMath";
 import { purposesForPackage } from "../../utils/loanPurposes";
 import Skeleton from "../../components/Skeleton";
+import ApplyHub from "./ApplyHub";
 
 const KES = (v) => `KES ${parseFloat(v || 0).toLocaleString()}`;
 // Tenants store the rate annually; customers think monthly.
@@ -47,6 +48,10 @@ function ApplyLoan() {
   // and lock the rate / fee / method for this application.
   const prePackageId = searchParams.get("package") || "";
 
+  // The lender to apply to. Absent (e.g. arriving from the "Apply for a loan"
+  // nav item) → render the linked-lender picker instead of the wizard.
+  const targetTenant = searchParams.get("lender") || "";
+
   const [lender, setLender] = useState(null);
   const [policy, setPolicy] = useState(null);
   const [pkg, setPkg] = useState(null);
@@ -66,28 +71,17 @@ function ApplyLoan() {
   });
 
   useEffect(() => {
-    let current = null;
-    try {
-      current = JSON.parse(
-        localStorage.getItem("portal_current_tenant") || "null",
-      );
-    } catch {
-      current = null;
-    }
-    // No lender chosen → send them to pick one.
-    if (!current?.tenant_id) {
-      navigate("/lenders");
-      return;
-    }
+    // No explicit lender target → the picker (ApplyHub) renders instead.
+    if (!targetTenant) return;
     (async () => {
       try {
         const r = await portalApi.get("/portal/customer/calculator-policies");
         const row = (r.data.data || []).find(
-          (x) => x.tenant_id === current.tenant_id,
+          (x) => String(x.tenant_id) === String(targetTenant),
         );
-        // Not linked to this lender (shouldn't happen via the normal flow).
+        // Not one of the borrower's linked lenders → back to the picker.
         if (!row) {
-          navigate("/lenders");
+          navigate("/portal/apply");
           return;
         }
         // Scope the session to this lender so the submission files there.
@@ -172,7 +166,7 @@ function ApplyLoan() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [targetTenant]);
 
   const brand = lender?.brand_color || "#0e8a6e";
 
@@ -262,6 +256,9 @@ function ApplyLoan() {
       setSubmitting(false);
     }
   };
+
+  // No lender chosen yet → show the linked-lender picker.
+  if (!targetTenant) return <ApplyHub />;
 
   if (loading) {
     return (

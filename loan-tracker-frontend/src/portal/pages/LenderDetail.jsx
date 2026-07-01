@@ -59,7 +59,11 @@ function LenderDetail() {
   // `packageId` (lenders only) pre-selects + locks a package.
   const apply = async (packageId = null) => {
     const fallback = () =>
-      navigate(packageId ? `/portal/apply?package=${packageId}` : "/portal/apply");
+      navigate(
+        packageId
+          ? `/portal/apply?lender=${lender.tenant_id}&package=${packageId}`
+          : `/portal/apply?lender=${lender.tenant_id}`,
+      );
     try {
       const r = await portalApi.post("/portal/auth/select-tenant", { tenant_id: lender.tenant_id });
       localStorage.setItem("portal_token", r.data.token);
