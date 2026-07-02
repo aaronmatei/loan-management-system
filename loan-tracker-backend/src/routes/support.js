@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/database.js";
 import { verifyToken } from "../middleware/auth.js";
+import { sendEmail } from "../services/emailService.js";
 import logger from "../config/logger.js";
 
 // Tenant-side support. Two channels, both scoped to req.user.tenant_id:
@@ -209,6 +210,32 @@ router.post("/inbox/:id/messages", async (req, res) => {
         WHERE id = $1`,
       [req.params.id],
     );
+    // Email the customer that their provider replied. Fire-and-forget.
+    try {
+      const meta = await query(
+        `SELECT c.email, c.first_name, ten.business_name
+           FROM support_tickets st
+           JOIN platform_customers c ON c.id = st.platform_customer_id
+           JOIN tenants ten ON ten.id = st.tenant_id
+          WHERE st.id = $1`,
+        [req.params.id],
+      );
+      const m = meta.rows[0];
+      if (m?.email) {
+        const safe = body.trim().replace(/[<>&]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[ch]));
+        await sendEmail({
+          to: m.email,
+          fromName: m.business_name,
+          subject: `New reply to your support request — ${TK(req.params.id)}`,
+          html: `<p>Hi ${m.first_name || "there"},</p>
+                 <p><strong>${m.business_name}</strong> replied to your support request <strong>${TK(req.params.id)}</strong>:</p>
+                 <blockquote style="border-left:3px solid #0d8f63;padding-left:12px;color:#333;">${safe}</blockquote>
+                 <p>Log in to your account to view the conversation and reply.</p>`,
+        });
+      }
+    } catch (e) {
+      logger.error("Support reply email failed:", e);
+    }
     res.json({ success: true });
   } catch (error) {
     logger.error("Inbox reply error:", error);

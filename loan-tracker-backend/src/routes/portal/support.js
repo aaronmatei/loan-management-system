@@ -1,7 +1,23 @@
 import express from "express";
 import { query } from "../../config/database.js";
 import { verifyCustomer } from "../../middleware/customerAuth.js";
+import { createNotification } from "../../services/notificationService.js";
 import logger from "../../config/logger.js";
+
+// In-app alert to the tenant's staff (admins + managers) that a customer needs
+// attention. Fire-and-forget: never blocks or fails the ticket action.
+function alertStaff(tid, { type, subject, name, ticketId }) {
+  createNotification({
+    roles: ["admin", "manager"],
+    tenantId: tid,
+    type,
+    title: type === "support_customer_ticket" ? "New support request 💬" : "Customer replied 💬",
+    message: `${name || "A customer"}: ${(subject || "").slice(0, 80)}`,
+    icon: "💬",
+    link: "/support?tab=inbox",
+    metadata: { ticket_id: ticketId },
+  }).catch((e) => logger.error("alertStaff error:", e));
+}
 
 // Customer -> tenant support (channel='tenant'). A portal customer raises an
 // issue to a tenant they're LINKED to: a borrower to one of their lenders, or a
@@ -99,6 +115,7 @@ router.post("/tickets", async (req, res) => {
        VALUES ($1, 'customer', $2, $3, $4)`,
       [ticket.id, pcid, name, body.trim()],
     );
+    alertStaff(tid, { type: "support_customer_ticket", subject: ticket.subject, name, ticketId: ticket.id });
     res.status(201).json({ success: true, data: { ...ticket, code: TK(ticket.id) } });
   } catch (error) {
     logger.error("Create customer ticket error:", error);
@@ -133,7 +150,7 @@ router.post("/tickets/:id/messages", async (req, res) => {
     const { body } = req.body || {};
     if (!body || !body.trim()) return res.status(400).json({ error: "Message is required" });
     const t = await query(
-      "SELECT id FROM support_tickets WHERE id = $1 AND channel = 'tenant' AND platform_customer_id = $2",
+      "SELECT id, tenant_id, subject FROM support_tickets WHERE id = $1 AND channel = 'tenant' AND platform_customer_id = $2",
       [req.params.id, pcid],
     );
     if (!t.rows.length) return res.status(404).json({ error: "Ticket not found" });
@@ -147,6 +164,7 @@ router.post("/tickets/:id/messages", async (req, res) => {
       `UPDATE support_tickets SET status = 'open', resolved_at = NULL, last_reply_at = NOW(), updated_at = NOW() WHERE id = $1`,
       [req.params.id],
     );
+    alertStaff(t.rows[0].tenant_id, { type: "support_customer_reply", subject: t.rows[0].subject, name, ticketId: t.rows[0].id });
     res.json({ success: true });
   } catch (error) {
     logger.error("Reply customer ticket error:", error);

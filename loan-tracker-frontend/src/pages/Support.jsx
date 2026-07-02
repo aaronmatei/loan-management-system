@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import Skeleton from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
@@ -12,8 +13,9 @@ const PRIORITIES = ["low", "normal", "high"];
 export default function StaffSupport() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
   const [view, setView] = useState("list"); // list | new | <ticketId>
-  const [mode, setMode] = useState("mine"); // mine (to LenderFest) | inbox (from customers)
+  const [mode, setMode] = useState(() => (searchParams.get("tab") === "inbox" ? "inbox" : "mine")); // mine (to LenderFest) | inbox (from customers)
   const [detail, setDetail] = useState(null);
   const [form, setForm] = useState({ subject: "", priority: "normal", body: "" });
   const [submitting, setSubmitting] = useState(false);
