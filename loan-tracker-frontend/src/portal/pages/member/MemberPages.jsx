@@ -4,10 +4,11 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote, LayoutDashboard, BookOpen, Users, ChevronRight,
+  PiggyBank, Coins, Wallet, CalendarCheck, Gift, AlertTriangle, ArrowRight, Plus, X, HeartHandshake, ClipboardList, FileText, Vote, LayoutDashboard, BookOpen, Users, ChevronRight, LifeBuoy,
 } from "lucide-react";
 import portalApi from "../../services/portalApi";
 import PortalLayout from "../../components/PortalLayout";
+import CustomerSupport from "../../components/CustomerSupport";
 import Skeleton from "../../../components/Skeleton";
 import { computeLoanTotals } from "../../../utils/loanMath";
 import WelfareDashboardPanel from "../../../components/WelfareDashboardPanel";
@@ -1020,6 +1021,16 @@ export function MemberPenalties() {
         />
         </>
       )}
+    </Shell>
+  );
+}
+
+// Welfare member -> welfare admin support (channel='tenant'). Reuses the shared
+// customer support component, filtered to the member's welfare provider.
+export function MemberSupport() {
+  return (
+    <Shell title="Support" icon={LifeBuoy}>
+      <CustomerSupport providerLabel="your welfare admin" kind="welfare" />
     </Shell>
   );
 }

@@ -28,7 +28,7 @@ async function actorName(userId) {
 // Counts by status — powers the tabs + the nav "open" badge.
 router.get("/summary", async (req, res) => {
   try {
-    const r = await query("SELECT status, COUNT(*)::int AS n FROM support_tickets GROUP BY status");
+    const r = await query("SELECT status, COUNT(*)::int AS n FROM support_tickets WHERE channel = 'platform' GROUP BY status");
     const out = { open: 0, pending: 0, resolved: 0, closed: 0 };
     for (const row of r.rows) if (out[row.status] != null) out[row.status] = row.n;
     res.json({ success: true, data: out });
@@ -43,10 +43,10 @@ router.get("/tickets", async (req, res) => {
   try {
     const { status } = req.query;
     const params = [];
-    let where = "";
+    let where = "WHERE t.channel = 'platform'";
     if (status && STATUSES.includes(status)) {
       params.push(status);
-      where = "WHERE t.status = $1";
+      where += ` AND t.status = $${params.length}`;
     }
     const r = await query(
       `SELECT t.*, ten.business_name, ten.brand_color, ten.tenant_code,
@@ -70,7 +70,7 @@ router.get("/tickets/:id", async (req, res) => {
     const t = await query(
       `SELECT t.*, ten.business_name, ten.brand_color, ten.tenant_code
          FROM support_tickets t JOIN tenants ten ON ten.id = t.tenant_id
-        WHERE t.id = $1`,
+        WHERE t.id = $1 AND t.channel = 'platform'`,
       [id],
     );
     if (!t.rows.length) return res.status(404).json({ error: "Ticket not found" });
@@ -92,7 +92,7 @@ router.post("/tickets/:id/messages", async (req, res) => {
     const { id } = req.params;
     const { body } = req.body || {};
     if (!body || !body.trim()) return res.status(400).json({ error: "Message is required" });
-    const t = await query("SELECT id, status FROM support_tickets WHERE id = $1", [id]);
+    const t = await query("SELECT id, status FROM support_tickets WHERE id = $1 AND channel = 'platform'", [id]);
     if (!t.rows.length) return res.status(404).json({ error: "Ticket not found" });
     const name = await actorName(req.user.id);
     await query(
@@ -133,7 +133,7 @@ router.put("/tickets/:id", async (req, res) => {
          priority    = COALESCE($2, priority),
          resolved_at = ${resolvedAt},
          updated_at  = NOW()
-       WHERE id = $3 RETURNING *`,
+       WHERE id = $3 AND channel = 'platform' RETURNING *`,
       [status ?? null, priority ?? null, id],
     );
     if (!r.rows.length) return res.status(404).json({ error: "Ticket not found" });

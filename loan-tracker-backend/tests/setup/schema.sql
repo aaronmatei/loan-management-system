@@ -1182,6 +1182,8 @@ CREATE TABLE public.support_tickets (
     subject character varying(200) NOT NULL,
     priority character varying(10) NOT NULL DEFAULT 'normal',
     status character varying(12) NOT NULL DEFAULT 'open',
+    channel character varying(12) NOT NULL DEFAULT 'platform',
+    platform_customer_id integer,
     created_by integer,
     created_by_name character varying(120),
     assigned_to integer,

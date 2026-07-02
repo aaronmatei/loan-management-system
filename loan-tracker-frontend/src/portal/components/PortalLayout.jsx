@@ -71,6 +71,7 @@ const WELFARE_MENU = [
   { path: "/welfare/member/books", label: "Books of Accounts", icon: BookOpen, variant: "ocean" },
   { path: "/welfare/member/dividends", label: "Dividends", icon: Gift, variant: "emerald" },
   { path: "/welfare/member/penalties", label: "Penalties", icon: AlertTriangle, variant: "rose" },
+  { path: "/welfare/member/support", label: "Support", icon: LifeBuoy, variant: "teal" },
   // Hidden for now — reveal to let chama members also borrow from lenders.
   // { path: "/lenders", label: "Borrow from a lender", icon: Layers, variant: "indigo" },
   { path: "/portal/profile", label: "Profile", icon: User, variant: "indigo" },

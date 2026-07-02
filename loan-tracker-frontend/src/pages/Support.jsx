@@ -5,6 +5,7 @@ import EmptyState from "../components/EmptyState";
 import { LifeBuoy, Plus, ArrowLeft, Send } from "lucide-react";
 import { StatusPill, PriorityPill } from "../admin/components/SupportPills";
 import { timeAgo } from "../utils/timeAgo";
+import StaffSupportInbox from "../components/StaffSupportInbox";
 
 const PRIORITIES = ["low", "normal", "high"];
 
@@ -12,6 +13,7 @@ export default function StaffSupport() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("list"); // list | new | <ticketId>
+  const [mode, setMode] = useState("mine"); // mine (to LenderFest) | inbox (from customers)
   const [detail, setDetail] = useState(null);
   const [form, setForm] = useState({ subject: "", priority: "normal", body: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -188,14 +190,34 @@ export default function StaffSupport() {
           <h1 className="text-2xl font-extrabold text-navy-900 dark:text-slate-100 flex items-center gap-2">
             <LifeBuoy size={24} className="text-ocean-600" /> Support
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Raise and track tickets with the LenderFest team.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {mode === "mine" ? "Raise and track tickets with the LenderFest team." : "Requests from your borrowers & welfare members."}
+          </p>
         </div>
-        <button onClick={() => setView("new")} className="inline-flex items-center gap-1.5 px-4 py-2 bg-ocean-gradient text-white font-bold rounded-lg text-sm">
-          <Plus size={15} /> New ticket
-        </button>
+        {mode === "mine" && (
+          <button onClick={() => setView("new")} className="inline-flex items-center gap-1.5 px-4 py-2 bg-ocean-gradient text-white font-bold rounded-lg text-sm">
+            <Plus size={15} /> New ticket
+          </button>
+        )}
       </div>
 
-      {loading ? (
+      {/* Channel toggle: our tickets to the platform vs incoming customer tickets */}
+      <div className="flex gap-1.5 mb-4">
+        {[["mine", "My requests"], ["inbox", "Customer tickets"]].map(([v, label]) => {
+          const on = mode === v;
+          return (
+            <button key={v} onClick={() => setMode(v)}
+              className="px-3.5 py-2 rounded-[10px] text-[13px] font-bold border transition"
+              style={{ borderColor: on ? "#0e8a6e" : "#e3e7e0", background: on ? "#e0f4ee" : "#fff", color: on ? "#0a5c4c" : "#5b5b70" }}>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {mode === "inbox" ? (
+        <StaffSupportInbox />
+      ) : loading ? (
         <div className="bg-surface rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
         </div>

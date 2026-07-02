@@ -10,6 +10,7 @@ import {
   LifeBuoy,
 } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
+import CustomerSupport from "../components/CustomerSupport";
 import { CARD, INK, MUTED } from "../theme";
 
 // Help & support — design "Borrower Portal" support screen. FAQ accordion +
@@ -50,7 +51,10 @@ function SupportPage() {
 
   return (
     <PortalLayout>
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-6">
+        {/* Contact a lender directly (raise a support request) */}
+        <CustomerSupport providerLabel="your lender" kind="lender" />
+
         <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-4 items-start">
           {/* FAQ accordion */}
           <div className={`${CARD} p-[22px]`}>

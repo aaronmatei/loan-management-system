@@ -78,6 +78,7 @@ import mpesaRoutes from "./routes/mpesa.js";
 import portalAuthRoutes from "./routes/portal/auth.js";
 import portalCustomerRoutes from "./routes/portal/customer.js";
 import portalMemberRoutes from "./routes/portal/member.js";
+import portalSupportRoutes from "./routes/portal/support.js";
 import platformAdminRoutes from "./routes/platform/admin.js";
 import platformCronRoutes from "./routes/platform/cron.js";
 import platformAuditRoutes from "./routes/platform/audit.js";
@@ -173,6 +174,7 @@ app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/tenants", tenantRoutes); // public: signup + subdomain check
 app.use("/api/portal/auth", authLimiter, portalAuthRoutes); // public: customer auth/OTP
 app.use("/api/portal/customer", portalCustomerRoutes); // verifyCustomer-gated
+app.use("/api/portal/support", portalSupportRoutes); // verifyCustomer-gated — customer->tenant tickets
 // Welfare member self-service API. Mounted under /api/welfare/member to match
 // the /welfare/member front door, and BEFORE /api/welfare (below) so these
 // customer-authed routes win over the staff "my welfare" router for that path.
